@@ -562,6 +562,10 @@ export class Game {
   update(rawDt: number) {
     if (this.paused || this.phase === 'gameover' || this.phase === 'armistice') return;
     this.noticeTimer = Math.max(0, this.noticeTimer - rawDt); // real-time, not game speed
+    // pickups expire in real time too — clicking them is a human reflex, and the
+    // window shouldn't shrink at 2x/4x game speed
+    for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
+    this.pickups = this.pickups.filter((p) => p.life > 0);
     // fixed substeps: at 4x speed a frame can cover 0.2s of game time — stepped
     // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s.
     let total = Math.min(rawDt, 0.05) * this.speed;
@@ -583,8 +587,6 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt * 2.2);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.6);
     for (const a of this.abilities) a.cd = Math.max(0, a.cd - dt);
-    for (const p of this.pickups) p.life -= dt;
-    this.pickups = this.pickups.filter((p) => p.life > 0);
 
     this.updateSpawns(dt);
     this.updateEnemies(dt);
