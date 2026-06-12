@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // public leaderboards: anyone can read and append a validated score; nothing can be edited
+    match /boards/{board}/scores/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
+        && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
+        && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
+        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
+        && request.resource.data.freeplay is bool
+        && request.resource.data.ts is int;
+      allow update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

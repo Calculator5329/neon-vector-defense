@@ -18,6 +18,23 @@ interface Progress {
   kills: number;
   /** saved defense layouts per map */
   blueprints: Record<string, BlueprintEntry[]>;
+  /** recent run history, newest first */
+  history: RunRecord[];
+  /** leaderboard display name */
+  playerName: string;
+  /** story cutscenes on/off */
+  cutscenes: boolean;
+}
+
+export interface RunRecord {
+  map: string;
+  diff: string;
+  wave: number;
+  kills: number;
+  cash: number;
+  won: boolean;
+  freeplay: boolean;
+  date: number;
 }
 
 export interface BlueprintEntry {
@@ -31,9 +48,9 @@ export interface BlueprintEntry {
 function load(): Progress {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-    if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, ...JSON.parse(raw) };
+    if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true, ...JSON.parse(raw) };
   } catch { /* corrupted or unavailable â€” start fresh */ }
-  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {} };
+  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true };
 }
 
 let cache = load();
@@ -53,6 +70,20 @@ export const progress = {
     save();
   },
   get record() { return { runs: cache.runs, victories: cache.victories, kills: cache.kills }; },
+  /** @deprecated use addRun */
+  get history(): RunRecord[] { return cache.history; },
+  addRun(rec: RunRecord) {
+    cache.history.unshift(rec);
+    if (cache.history.length > 30) cache.history.length = 30;
+    cache.runs += 1;
+    cache.kills += rec.kills;
+    if (rec.won) cache.victories += 1;
+    save();
+  },
+  get playerName(): string { return cache.playerName; },
+  set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
+  get cutscenes(): boolean { return cache.cutscenes; },
+  set cutscenes(on: boolean) { cache.cutscenes = on; save(); },
   blueprint(mapId: string): BlueprintEntry[] {
     return cache.blueprints[mapId] ?? [];
   },
@@ -87,8 +118,9 @@ export const progress = {
     save();
   },
   reset() {
-    cache = { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {} };
+    cache = { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true };
     save();
   },
 };
+
 

@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AbilityId, AbilityState, Beam, DifficultyDef, Enemy, EnemyDef, GameMap,
   Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, Vec, WaveGroup,
 } from './types';
@@ -81,7 +81,27 @@ export class Game {
     kills: {} as Record<string, number>,
     leaks: 0,
     abilitiesCast: 0,
+    cashEarned: 0,
   };
+
+  /** all credit income flows through here so the run's earnings are scored */
+  private earn(n: number) {
+    this.credits += n;
+    this.runStats.cashEarned += n;
+  }
+
+  private finishRun(won: boolean) {
+    progress.addRun({
+      map: this.map.id,
+      diff: this.diff.id,
+      wave: this.wave,
+      kills: this.totalKills,
+      cash: Math.round(this.runStats.cashEarned),
+      won,
+      freeplay: this.freeplay,
+      date: Date.now(),
+    });
+  }
 
   /** Apex only: the Combine studies your fire and armors against your favorite damage type */
   adaptation: { type: import('./types').DamageType | null; resist: number } = { type: null, resist: 0 };
@@ -208,7 +228,7 @@ export class Game {
       b: t.tierB,
     }));
     progress.saveBlueprint(this.map.id, bp);
-    this.announce(`⬇ Defense layout saved — ${bp.length} instruments`);
+    this.announce(`â¬‡ Defense layout saved â€” ${bp.length} instruments`);
     sfx.archive();
     return bp.length;
   }
@@ -234,8 +254,8 @@ export class Game {
       }
     }
     this.announce(placed > 0
-      ? `⬆ Blueprint deployed — ${placed} of ${bp.length} instruments rebuilt`
-      : '⬆ Blueprint deployment failed — no credits, space, or unlocks');
+      ? `â¬† Blueprint deployed â€” ${placed} of ${bp.length} instruments rebuilt`
+      : 'â¬† Blueprint deployment failed â€” no credits, space, or unlocks');
     return placed;
   }
 
@@ -263,11 +283,11 @@ export class Game {
     }));
     sfx.waveStart();
     // threat advisories
-    if (def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
-    else if (def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
-    else if (allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
+    if (def.some((g) => g.type === 'leviathan')) { this.announce('âš  LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
+    else if (def.some((g) => g.type === 'titan')) { this.announce('âš  TITAN-class carrier inbound'); vox('wave-boss'); }
+    else if (allowCloak && def.some((g) => g.cloaked)) { this.announce('âš  Phase-cloaked signatures â€” sensor coverage advised'); vox('wave-cloaked'); }
     for (const a of this.abilities) {
-      if (a.def.unlockWave === this.wave) this.announce(`✦ Commander ability online: ${a.def.name}`);
+      if (a.def.unlockWave === this.wave) this.announce(`âœ¦ Commander ability online: ${a.def.name}`);
     }
   }
 
@@ -311,7 +331,7 @@ export class Game {
       e.courier = true;
       e.cloaked = false;
       this.courierActive = true;
-      this.announce('✉ The LEVIATHAN is hailing on the antique frequency. HOLD FIRE.');
+      this.announce('âœ‰ The LEVIATHAN is hailing on the antique frequency. HOLD FIRE.');
       vox('courier');
     }
     this.enemies.push(e);
@@ -330,7 +350,7 @@ export class Game {
     }
     this.credits -= RECEIVER_COST;
     this.receiver = true;
-    this.announce('📡 Antique receiver assembled — beacon fuel diverted, towers −25% rate');
+    this.announce('ðŸ“¡ Antique receiver assembled â€” beacon fuel diverted, towers âˆ’25% rate');
     sfx.archive();
     return true;
   }
@@ -386,7 +406,7 @@ export class Game {
     return dmg;
   }
 
-  /** Ability damage — bypasses all immunities (but never harms the Courier). */
+  /** Ability damage â€” bypasses all immunities (but never harms the Courier). */
   trueDamage(e: Enemy, dmg: number) {
     if (e.dead || e.finished || e.courier) return;
     e.hp -= dmg;
@@ -405,7 +425,7 @@ export class Game {
   private killEnemy(e: Enemy) {
     if (e.dead) return;
     e.dead = true;
-    this.credits += e.def.reward;
+    this.earn(e.def.reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
     this.spawnChildren(e);
@@ -458,24 +478,24 @@ export class Game {
     switch (p.kind) {
       case 'credits': {
         const amount = 40 + this.wave * 4;
-        this.credits += amount;
-        this.announce(`⌬ Salvage cache recovered: +${amount}`);
+        this.earn(amount);
+        this.announce(`âŒ¬ Salvage cache recovered: +${amount}`);
         break;
       }
       case 'frenzy':
         this.frenzyTimer = 5;
-        this.announce('⚡ Combat stims: towers +50% fire rate');
+        this.announce('âš¡ Combat stims: towers +50% fire rate');
         break;
       case 'cryoburst':
         for (const e of this.enemies) {
           if (!e.def.boss) { e.slow = 0.15; e.slowTimer = Math.max(e.slowTimer, 2.5); }
         }
         this.ring(p.pos, '#7efff5', 200);
-        this.announce('❄ Cryo burst: hostiles flash-frozen');
+        this.announce('â„ Cryo burst: hostiles flash-frozen');
         break;
       case 'core':
         this.lives += 1;
-        this.announce('⬢ Reactor core recovered: +1 core');
+        this.announce('â¬¢ Reactor core recovered: +1 core');
         break;
     }
     sfx.pickup();
@@ -509,23 +529,23 @@ export class Game {
         this.explosionFx(pos, '#ffffff', radius * 0.6);
         this.shake = 1;
         sfx.strike();
-        this.announce('☄ Orbital lance discharged');
+        this.announce('â˜„ Orbital lance discharged');
         break;
       }
       case 'chrono':
         this.chronoTimer = 6;
-        this.announce('⌛ Chrono field active — a million minds lean on the clock');
+        this.announce('âŒ› Chrono field active â€” a million minds lean on the clock');
         sfx.chrono();
         break;
       case 'overdrive':
         this.overdriveTimer = 8;
-        this.announce('⚡ OVERDRIVE — burning beacon fuel in the gun reactors');
+        this.announce('âš¡ OVERDRIVE â€” burning beacon fuel in the gun reactors');
         sfx.overdrive();
         break;
       case 'salvage': {
         const amount = 150 + this.wave * 12;
-        this.credits += amount;
-        this.announce(`⌬ Salvage Protocol: +${amount} credits`);
+        this.earn(amount);
+        this.announce(`âŒ¬ Salvage Protocol: +${amount} credits`);
         sfx.upgrade();
         break;
       }
@@ -542,13 +562,13 @@ export class Game {
           }
         }
         this.shake = Math.min(1, 0.3 + popped * 0.05);
-        this.announce(popped > 0 ? `♫ Null Cascade — ${popped} marks detonated` : '♫ Null Cascade — no marks to detonate');
+        this.announce(popped > 0 ? `â™« Null Cascade â€” ${popped} marks detonated` : 'â™« Null Cascade â€” no marks to detonate');
         sfx.bossDown();
         break;
       }
       case 'mirror':
         this.mirrorTimer = 10;
-        this.announce('◇ Mirror Protocol — the exit is a door that opens backward');
+        this.announce('â—‡ Mirror Protocol â€” the exit is a door that opens backward');
         sfx.chrono();
         break;
     }
@@ -562,11 +582,11 @@ export class Game {
   update(rawDt: number) {
     if (this.paused || this.phase === 'gameover' || this.phase === 'armistice') return;
     this.noticeTimer = Math.max(0, this.noticeTimer - rawDt); // real-time, not game speed
-    // pickups expire in real time too — clicking them is a human reflex, and the
+    // pickups expire in real time too â€” clicking them is a human reflex, and the
     // window shouldn't shrink at 2x/4x game speed
     for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
     this.pickups = this.pickups.filter((p) => p.life > 0);
-    // fixed substeps: at 4x speed a frame can cover 0.2s of game time — stepped
+    // fixed substeps: at 4x speed a frame can cover 0.2s of game time â€” stepped
     // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s.
     let total = Math.min(rawDt, 0.05) * this.speed;
     while (total > 1e-6 && (this.phase as Phase) !== 'gameover' && (this.phase as Phase) !== 'armistice') {
@@ -599,7 +619,7 @@ export class Game {
 
     // wave completion
     if (this.phase === 'wave' && this.queue.length === 0 && this.enemies.length === 0) {
-      this.credits += waveBonus(this.wave);
+      this.earn(waveBonus(this.wave));
       // archive fragments unlock by wave
       ARCHIVE.forEach((f, i) => {
         if (f.wave <= this.wave && !this.archive.includes(i)) {
@@ -607,8 +627,8 @@ export class Game {
           progress.addArchive(i);
           this.newArchive = true;
           this.announce(i === RECEIVER_FRAGMENT
-            ? '✦ Manifest decoded. There may be another way to end this — open the ARCHIVE'
-            : '✦ Archive fragment recovered — open the ARCHIVE');
+            ? 'âœ¦ Manifest decoded. There may be another way to end this â€” open the ARCHIVE'
+            : 'âœ¦ Archive fragment recovered â€” open the ARCHIVE');
           sfx.archive();
           vox('archive');
         }
@@ -616,7 +636,7 @@ export class Game {
       if (this.wave >= this.diff.waves && !this.freeplay) {
         this.phase = 'victory';
         progress.recordWave(this.map.id, this.diff.id, this.wave);
-        progress.endRun(this.totalKills, true);
+        this.finishRun(true);
         sfx.victory();
         playStinger('victory');
         vox('victory');
@@ -625,7 +645,7 @@ export class Game {
         const before = progress.totalWaves;
         progress.addWaves(1);
         if (TOWERS.some((t) => t.unlockAt > before && t.unlockAt <= progress.totalWaves)) {
-          this.announce('✦ New instrument pattern decrypted — check the Arsenal');
+          this.announce('âœ¦ New instrument pattern decrypted â€” check the Arsenal');
           vox('unlock');
         } else if (this.wave % 5 === 0) {
           vox('wave-clear');
@@ -636,7 +656,7 @@ export class Game {
           if (entries.length > 0 && entries[0][1] > 0) {
             const resist = this.diff.id === 'hard' ? 0.35 : 0.25;
             this.adaptation = { type: entries[0][0] as import('./types').DamageType, resist };
-            this.announce(`⛨ The Combine has adapted: ${entries[0][0]} damage −${Math.round(resist * 100)}% for the next 10 waves`);
+            this.announce(`â›¨ The Combine has adapted: ${entries[0][0]} damage âˆ’${Math.round(resist * 100)}% for the next 10 waves`);
           }
           this.dmgWindow = {};
         }
@@ -682,7 +702,7 @@ export class Game {
         e.resonanceTimer -= dt;
         if (e.resonanceTimer <= 0) e.resonance = 0;
       }
-      // boss disruption pulse: stuns towers near the hull — don't stack your whole
+      // boss disruption pulse: stuns towers near the hull â€” don't stack your whole
       // defense on the one chokepoint a carrier will walk through
       if (e.def.boss && !e.courier) {
         e.pulseCd = (e.pulseCd ?? 2.5) - dt;
@@ -747,7 +767,7 @@ export class Game {
           this.phase = 'armistice';
           progress.markArmistice();
           progress.recordWave(this.map.id, this.diff.id, this.wave);
-          progress.endRun(this.totalKills, true);
+          this.finishRun(true);
           this.enemies = [];
           this.queue = [];
           sfx.victory();
@@ -764,7 +784,7 @@ export class Game {
           this.lives = 0;
           this.phase = 'gameover';
           progress.recordWave(this.map.id, this.diff.id, this.wave);
-          progress.endRun(this.totalKills, false);
+          this.finishRun(false);
           sfx.gameOver();
           playStinger('defeat');
           vox('gameover');
@@ -1155,7 +1175,7 @@ export class Game {
         const total = this.segLengths.reduce((a, b) => a + b, 0);
         const at = this.posAtDist(total);
         this.allies.push({ dist: total, pos: at.pos, heading: Math.PI, cd: 0 });
-        this.announce('✦ Combine escort entering the corridor');
+        this.announce('âœ¦ Combine escort entering the corridor');
       }
     }
     for (const a of this.allies) {
@@ -1302,3 +1322,4 @@ function predict(e: Enemy, path: Vec[], from: Vec, projSpeed: number): Vec {
 export interface EnemyDefLookup {
   [id: string]: EnemyDef;
 }
+

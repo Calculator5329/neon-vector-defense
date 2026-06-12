@@ -10,6 +10,17 @@ import { BRIEFING, LONGWATCH_BRIEFING, ARCHIVE, ABILITY_LORE, RECEIVER_DESC, ARM
 import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
+import { boardId, submitScore, fetchTop, type ScoreEntry } from './game/leaderboard';
+
+// story cutscenes (generated, captions baked into the frames) — shown in campaign modes
+const CUTSCENES = [
+  { wave: 0, img: '/art/scene-1.png', title: 'CHAPTER I — SEVEN STILL BURNS' },
+  { wave: 14, img: '/art/scene-2.png', title: 'CHAPTER II — THE SCHEDULE' },
+  { wave: 26, img: '/art/scene-3.png', title: 'CHAPTER III — 04:47' },
+  { wave: 41, img: '/art/scene-4.png', title: 'CHAPTER IV — A POLITE ARMADA' },
+  { wave: 50, img: '/art/scene-5.png', title: 'CHAPTER V — THE POUCH' },
+  { wave: -1, img: '/art/scene-6.png', title: 'EPILOGUE — THE LIGHT GOES ON' },
+];
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, playNarration } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 
@@ -98,6 +109,33 @@ function MainMenu(props: {
         })}
       </div>
 
+      <div className="menu-section-label">SECTOR LEADERBOARD</div>
+      <MenuLeaderboard map={props.map} diff={props.diff} />
+
+      <div className="menu-settings">
+        <button className="tb-btn" onClick={() => { progress.cutscenes = !progress.cutscenes; sfx.click(); props.setDiff({ ...props.diff }); }}>
+          🎬 CUTSCENES {progress.cutscenes ? 'ON' : 'OFF'}
+        </button>
+        <input className="name-input" maxLength={20} placeholder="CALLSIGN"
+          defaultValue={progress.playerName}
+          onBlur={(e) => { progress.playerName = e.target.value.trim(); }} />
+      </div>
+
+      {progress.history.length > 0 && (
+        <div className="history-panel">
+          <div className="menu-section-label">RECENT CAMPAIGNS</div>
+          {progress.history.slice(0, 6).map((r, i) => (
+            <div key={i} className={`lb-row ${r.won ? 'won' : ''}`}>
+              <span className="lb-name">{ALL_MAPS.find((m) => m.id === r.map)?.name ?? r.map} · {DIFFICULTIES.find((d) => d.id === r.diff)?.name ?? r.diff}</span>
+              <span className="lb-wave">W{r.wave}</span>
+              <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
+              <span className="lb-kills">☠{r.kills}</span>
+              <span className="lb-rank">{r.won ? (r.freeplay ? '∞' : '✓') : '✕'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {progress.record.runs > 0 && (
         <div className="warden-record">
           <span>CAMPAIGNS {progress.record.runs}</span>
@@ -109,6 +147,40 @@ function MainMenu(props: {
       )}
 
       <button className="start-btn" onClick={props.onStart}>▶ DEPLOY</button>
+    </div>
+  );
+}
+
+function MenuLeaderboard({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
+  const [fp, setFp] = useState(false);
+  const [rows, setRows] = useState<ScoreEntry[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    setRows(null);
+    fetchTop(boardId(map.id, diff.id, fp)).then((r) => { if (live) setRows(r); });
+    return () => { live = false; };
+  }, [map.id, diff.id, fp]);
+  return (
+    <div className="menu-lb">
+      <div className="menu-lb-head">
+        <span>{map.name} · {diff.name}</span>
+        <button className={`tb-btn ${fp ? 'on' : ''}`} onClick={() => { setFp(!fp); sfx.click(); }}>FREEPLAY</button>
+      </div>
+      {rows === null && <div className="hint-dim">contacting sector command…</div>}
+      {rows !== null && rows.length === 0 && <div className="hint-dim">No records yet. Be the first Warden on this board.</div>}
+      {rows !== null && rows.length > 0 && (
+        <div className="lb-table">
+          {rows.map((r, i) => (
+            <div key={i} className="lb-row">
+              <span className="lb-rank">{i + 1}</span>
+              <span className="lb-name">{r.name}</span>
+              <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
+              <span className="lb-kills">☠{r.kills}</span>
+              {fp && <span className="lb-wave">W{r.wave}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -157,6 +229,13 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [briefed, setBriefed] = useState(PERF_MAP !== null);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
+  const [cutscene, setCutscene] = useState<number | null>(null);
+  const cutsceneRef = useRef<number | null>(null);
+  const briefedRef = useRef(false);
+  const scenesShownRef = useRef(new Set<number>());
+  cutsceneRef.current = cutscene;
+  briefedRef.current = briefed;
+  useEffect(() => { scenesShownRef.current = new Set(); }, [run]);
   const [sideTab, setSideTab] = useState<'build' | 'intel'>('build');
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
@@ -210,6 +289,24 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       if (uiTimer > 0.12) {
         uiTimer = 0;
         setTick((t) => t + 1);
+        // story cutscene triggers (campaign modes only, skippable via menu toggle)
+        if (progress.cutscenes && diff.id !== 'ngplus' && PERF_MAP === null &&
+            cutsceneRef.current === null && briefedRef.current) {
+          const shown = scenesShownRef.current;
+          for (let i = 0; i < CUTSCENES.length; i++) {
+            if (shown.has(i)) continue;
+            const c = CUTSCENES[i];
+            const due = c.wave === -1
+              ? game.phase === 'victory'
+              : game.phase === 'build' && game.wave >= c.wave;
+            if (due) {
+              shown.add(i);
+              game.paused = true;
+              setCutscene(i);
+              break;
+            }
+          }
+        }
       }
       raf = requestAnimationFrame(loop);
     };
@@ -389,7 +486,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<AfterAction game={game} />}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacing(null); setRun((r) => r + 1); } },
@@ -397,14 +494,27 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               ]}
             />
           )}
+          {cutscene !== null && (
+            <div className="overlay cutscene">
+              <div className="cutscene-box">
+                <div className="cutscene-title">{CUTSCENES[cutscene].title}</div>
+                <img className="cutscene-img" src={CUTSCENES[cutscene].img} alt="" />
+                <button className="start-btn small" onClick={() => {
+                  setCutscene(null);
+                  game.paused = false;
+                  sfx.click();
+                }}>CONTINUE ▶</button>
+              </div>
+            </div>
+          )}
           {game.phase === 'armistice' && (
-            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<AfterAction game={game} />}
+            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={ARMISTICE_LINES}
               buttons={[{ label: 'MAIN MENU', fn: onExit }]}
             />
           )}
           {game.phase === 'victory' && (
-            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<AfterAction game={game} />}
+            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '∞ FREEPLAY', fn: () => { game.freeplay = true; game.phase = 'build'; sfx.click(); } },
@@ -505,6 +615,66 @@ function AfterAction({ game }: { game: Game }) {
   );
 }
 
+function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: DifficultyDef }) {
+  const [name, setName] = useState(progress.playerName);
+  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
+  const [top, setTop] = useState<ScoreEntry[] | null>(null);
+  const eligible = game.phase === 'victory' || game.phase === 'armistice' ||
+    (game.phase === 'gameover' && game.freeplay);
+  if (!eligible) return null;
+  const board = boardId(map.id, diff.id, game.freeplay);
+
+  const submit = async () => {
+    const n = (name.trim() || 'WARDEN').slice(0, 20);
+    progress.playerName = n;
+    setState('busy');
+    const ok = await submitScore(board, {
+      name: n,
+      cash: Math.round(game.runStats.cashEarned),
+      kills: game.totalKills,
+      wave: game.wave,
+      freeplay: game.freeplay,
+      ts: Date.now(),
+    });
+    if (ok) {
+      setTop(await fetchTop(board));
+      setState('done');
+      sfx.upgrade();
+    } else {
+      setState('err');
+    }
+  };
+
+  return (
+    <div className="submit-score">
+      <div className="aar-title">GLOBAL LEADERBOARD — {map.name.toUpperCase()} · {diff.name.toUpperCase()}{game.freeplay ? ' · FREEPLAY' : ''}</div>
+      {state !== 'done' && (
+        <div className="submit-row">
+          <input className="name-input" maxLength={20} placeholder="CALLSIGN"
+            value={name} onChange={(e) => setName(e.target.value)} />
+          <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{game.freeplay ? ` · W${game.wave}` : ''}</span>
+          <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
+            {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
+          </button>
+        </div>
+      )}
+      {state === 'done' && top && (
+        <div className="lb-table">
+          {top.map((r, i) => (
+            <div key={i} className={`lb-row ${r.name === name.trim() ? 'me' : ''}`}>
+              <span className="lb-rank">{i + 1}</span>
+              <span className="lb-name">{r.name}</span>
+              <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
+              <span className="lb-kills">☠{r.kills}</span>
+              {r.freeplay && <span className="lb-wave">W{r.wave}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Overlay(props: { title: string; color: string; lines: string[]; buttons: { label: string; fn: () => void }[]; art?: string; report?: ReactNode }) {
   return (
     <div className="overlay">
@@ -555,7 +725,10 @@ function Shop({ game, placing, setPlacing }: {
             >
               <TowerIcon def={def} />
               <div className="shop-name">{def.name}</div>
-              <div className="shop-cost">⌬{cost}</div>
+              <div className="shop-foot">
+                <span className="shop-cost">⌬{cost}</span>
+                <span className={`shop-type t-${def.base.damageType}`}>{def.base.damageType}</span>
+              </div>
               {i < 10 && <div className="shop-key">{(i + 1) % 10}</div>}
             </button>
           );
