@@ -84,6 +84,8 @@ export const progress = {
   set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
   get cutscenes(): boolean { return cache.cutscenes; },
   set cutscenes(on: boolean) { cache.cutscenes = on; save(); },
+  get cloakTipSeen(): boolean { return (cache as unknown as { cloakTip?: boolean }).cloakTip ?? false; },
+  set cloakTipSeen(v: boolean) { (cache as unknown as { cloakTip?: boolean }).cloakTip = v; save(); },
   blueprint(mapId: string): BlueprintEntry[] {
     return cache.blueprints[mapId] ?? [];
   },

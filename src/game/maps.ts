@@ -115,7 +115,7 @@ export const ALL_MAPS = [...MAPS, ...MAPS2];
 
 export const DIFFICULTIES: DifficultyDef[] = [
   { id: 'easy', name: 'Recruit', lives: 200, cash: 900, costMult: 0.85, hpMult: 0.9, waves: 50, desc: '200 cores · cheap towers · no phase-cloaks · 50 waves' },
-  { id: 'normal', name: 'Veteran', lives: 120, cash: 700, costMult: 1.0, hpMult: 1.3, waves: 60, desc: '120 cores · adaptive armada · 60 waves' },
+  { id: 'normal', name: 'Veteran', lives: 120, cash: 700, costMult: 1.0, hpMult: 1.4, waves: 60, desc: '120 cores · adaptive armada · 60 waves' },
   { id: 'hard', name: 'Apex', lives: 80, cash: 700, costMult: 1.2, hpMult: 1.8, waves: 70, desc: '80 cores · hardened adaptive hulls · 70 waves' },
   { id: 'ngplus', name: 'Long Watch', lives: 100, cash: 800, costMult: 1.0, hpMult: 1.6, waves: 50, desc: 'post-armistice · Hollow-corrupted hulls · Combine escorts fight beside you' },
 ];

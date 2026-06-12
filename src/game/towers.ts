@@ -171,7 +171,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 27,
+    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 12,
     desc: 'Support pylon. Reveals cloaked hostiles and overclocks nearby towers.',
     lore: 'Sees through Vex phase-cloaks by listening for the silence they leave behind.',
     color: '#54a0ff', glow: '#a3ccff', style: 'support',

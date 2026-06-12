@@ -230,6 +230,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   const [cutscene, setCutscene] = useState<number | null>(null);
+  const [cloakTip, setCloakTip] = useState(false);
   const cutsceneRef = useRef<number | null>(null);
   const briefedRef = useRef(false);
   const scenesShownRef = useRef(new Set<number>());
@@ -289,6 +290,12 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       if (uiTimer > 0.12) {
         uiTimer = 0;
         setTick((t) => t + 1);
+        // first-cloaked-hull explainer
+        if (game.cloakTipPending) {
+          game.cloakTipPending = false;
+          game.paused = true;
+          setCloakTip(true);
+        }
         // story cutscene triggers (campaign modes only, skippable via menu toggle)
         if (progress.cutscenes && diff.id !== 'ngplus' && PERF_MAP === null &&
             cutsceneRef.current === null && briefedRef.current) {
@@ -314,7 +321,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     return () => cancelAnimationFrame(raf);
   }, [game]);
 
-  const toCanvas = useCallback((ev: React.MouseEvent): Vec => {
+  const toCanvas = useCallback((ev: { clientX: number; clientY: number }): Vec => {
     const c = canvasRef.current!;
     const r = c.getBoundingClientRect();
     // account for object-fit: contain letterboxing
@@ -323,6 +330,12 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     const oy = r.top + (r.height - H * scale) / 2;
     return { x: (ev.clientX - ox) / scale, y: (ev.clientY - oy) / scale };
   }, []);
+
+  // touch: dragging a finger shows the placement ghost; the tap's click event places
+  const onCanvasTouch = (ev: React.TouchEvent) => {
+    const t = ev.touches[0];
+    if (t) hoverRef.current = toCanvas(t);
+  };
 
   const onCanvasMove = (ev: React.MouseEvent) => { hoverRef.current = toCanvas(ev); };
   const onCanvasLeave = () => { hoverRef.current = null; };
@@ -441,7 +454,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
             ref={canvasRef} width={W} height={H}
             onMouseMove={onCanvasMove} onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick} onContextMenu={onContext}
-            style={{ cursor: placing ? 'crosshair' : 'default' }}
+            onTouchStart={onCanvasTouch} onTouchMove={onCanvasTouch}
+            style={{ cursor: placing ? 'crosshair' : 'default', touchAction: 'none' }}
           />
           {/* commander abilities */}
           <div className="ability-bar">
@@ -493,6 +507,23 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
                 { label: 'MAIN MENU', fn: onExit },
               ]}
             />
+          )}
+          {cloakTip && (
+            <div className="cutscene-overlay" onClick={() => { setCloakTip(false); progress.cloakTipSeen = true; game.paused = false; sfx.click(); }}>
+              <div className="cutscene-box tip-box">
+                <div className="cutscene-title" style={{ color: '#ff6ec7' }}>⚠ PHASE-CLOAKED HOSTILES</div>
+                <p className="tip-text">
+                  The shimmering, translucent hulls entering the corridor are <b>phase-cloaked</b> —
+                  your towers cannot see them without sensor coverage, and they will walk straight through your defense.
+                </p>
+                <p className="tip-text">
+                  Counter them with the <b style={{ color: '#54a0ff' }}>EMP Spire</b> (reveals cloaks for every tower in its aura),
+                  or towers with their own sensors: <b style={{ color: '#ffa8a8' }}>Railgun · Spotter Uplink</b>,{' '}
+                  <b style={{ color: '#8ef5d9' }}>Drone Carrier · Sensor Suite</b>, or the <b style={{ color: '#9ffff5' }}>Oracle Lens</b>.
+                </p>
+                <button className="start-btn small">UNDERSTOOD</button>
+              </div>
+            </div>
           )}
           {cutscene !== null && (
             <CutsceneOverlay
@@ -766,6 +797,15 @@ function Shop({ game, placing, setPlacing }: {
           ⬆ BUILD SAVED{progress.blueprint(game.map.id).length > 0 ? ` (${progress.blueprint(game.map.id).length})` : ''}
         </button>
       </div>
+      <button
+        className={`upgrade-btn bonus-up oc-btn ${game.credits >= game.overchargeCost() ? '' : 'poor'}`}
+        title="Repeatable late-game sink: every level adds +8% damage to all towers for this run"
+        onClick={() => { game.buyOvercharge(); }}
+      >
+        <div className="up-name">⚡ GRID OVERCHARGE {game.overcharge > 0 ? `Lv${game.overcharge}` : ''}</div>
+        <div className="up-desc">All towers +8% damage, repeatable.{game.overcharge > 0 ? ` Active: +${game.overcharge * 8}%` : ''}</div>
+        <div className="up-cost">⌬{game.overchargeCost().toLocaleString()}</div>
+      </button>
     </div>
   );
 }

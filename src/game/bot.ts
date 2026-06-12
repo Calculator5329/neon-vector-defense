@@ -159,5 +159,10 @@ export class Bot {
       if (g.enemies.filter((e) => e.resonance > 0).length >= 8 && g.abilityReady('cascade')) g.castAbility('cascade');
       if (g.lives < 30 && g.abilityReady('mirror')) g.castAbility('mirror');
     }
+
+    // 4. late-game money sink: once the plan is built out, dump surplus into Grid Overcharge
+    if (this.planIdx >= this.profile.plan.length && g.credits > g.overchargeCost() * 1.5) {
+      g.buyOvercharge();
+    }
   }
 }

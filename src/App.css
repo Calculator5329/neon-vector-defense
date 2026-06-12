@@ -809,6 +809,17 @@
 }
 @keyframes scene-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
 
+.oc-btn { margin-top: 8px; }
+.tip-box {
+  background: var(--panel);
+  border: 1.5px solid rgba(255, 110, 199, 0.5);
+  border-radius: 12px;
+  padding: 26px 30px;
+  max-width: 540px;
+  cursor: default;
+}
+.tip-text { font-size: 15px; line-height: 1.55; color: var(--text); text-align: left; margin: 8px 0; }
+
 .submit-score { margin-top: 12px; }
 .submit-row { display: flex; gap: 10px; align-items: center; justify-content: center; }
 .name-input {
@@ -864,15 +875,34 @@
 .menu-settings { display: flex; gap: 12px; align-items: center; margin-top: 20px; }
 .history-panel { width: min(560px, 92%); margin-top: 16px; }
 
+/* mobile: no accidental selection or tap-highlight on game chrome */
+button, canvas, .tb-stat, .side-tabs, .ability-btn {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* responsive: stack the sidebar under the canvas on narrow windows */
 @media (max-width: 980px) {
   html, body, #root { overflow: auto; }
   .game-root { height: auto; min-height: 100%; }
-  .game-body { flex-direction: column; }
+  .game-body { flex-direction: column; padding: 6px; gap: 6px; }
   .canvas-wrap { min-height: 0; }
   .canvas-wrap canvas { height: auto; }
   .sidebar { width: 100%; }
-  .topbar { flex-wrap: wrap; }
+  .topbar { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+  /* finger-sized controls */
+  .tb-btn { min-height: 40px; min-width: 42px; font-size: 13px; }
+  .tb-stat { font-size: 14px; padding: 8px 12px; }
+  .ability-bar { bottom: 10px; left: 8px; gap: 6px; }
+  .ability-btn { width: 58px; height: 58px; }
+  .ability-btn .ability-icon { font-size: 24px; }
+  .wave-btn { font-size: 14px; padding: 12px 22px; bottom: 12px; }
+  .shop-item { min-height: 96px; }
+  .side-tabs button { padding: 13px 4px; font-size: 13px; }
+  .target-row .tb-btn { min-height: 38px; }
+  .upgrade-btn { padding: 11px 12px; }
+  .menu-title { font-size: clamp(26px, 8vw, 44px); }
 }
 
 /* codex */

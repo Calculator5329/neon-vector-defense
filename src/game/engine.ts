@@ -7,7 +7,7 @@ import { ABILITIES } from './abilities';
 import { ARCHIVE } from './lore';
 import { progress } from './storage';
 import { computeStats, sellValue, TOWER_MAP } from './towers';
-import { getWave, waveBonus, waveHpMult } from './waves';
+import { getWave, waveBonus, waveHpMult, incomeMult } from './waves';
 import { sfx, vox, playStinger } from './sound';
 import { TOWERS } from './towers';
 
@@ -70,6 +70,12 @@ export class Game {
   archive: number[] = [...progress.archive];
   /** set when a new fragment unlocks, cleared by the UI */
   newArchive = false;
+  /** Grid Overcharge: repeatable late-game money sink, +8% tower damage per level */
+  overcharge = 0;
+  /** set once when the first cloaked hull spawns and the player has never seen the tip */
+  cloakTipPending = false;
+  private cloakTipShown = false;
+
   /** the Diplomat's Gambit: antique receiver built this run */
   receiver = false;
   private courierActive = false;
@@ -218,6 +224,21 @@ export class Game {
     return true;
   }
 
+  overchargeCost(): number {
+    return Math.round((4000 * Math.pow(1.6, this.overcharge)) / 50) * 50;
+  }
+
+  buyOvercharge(): boolean {
+    const cost = this.overchargeCost();
+    if (this.credits < cost) { sfx.error(); return false; }
+    this.credits -= cost;
+    this.overcharge++;
+    this.announce(`⚡ GRID OVERCHARGE Lv${this.overcharge} — all towers +${this.overcharge * 8}% damage`);
+    sfx.upgrade();
+    for (const t of this.towers) this.ring(t.pos, '#ffd32a', 20);
+    return true;
+  }
+
   /** Save the current defense layout (positions + tiers) as this map's blueprint. */
   saveBlueprint(): number {
     const bp = this.towers.map((t) => ({
@@ -326,6 +347,10 @@ export class Game {
 
   private spawnEnemy(typeId: string, cloaked: boolean) {
     const e = this.makeEnemy(typeId, cloaked);
+    if (cloaked && !this.cloakTipShown && !progress.cloakTipSeen) {
+      this.cloakTipShown = true;
+      this.cloakTipPending = true;
+    }
     // the Diplomat's Gambit: with the receiver listening, the next LEVIATHAN hails instead of fighting
     if (this.receiver && typeId === 'leviathan' && !this.courierActive) {
       e.courier = true;
@@ -393,7 +418,7 @@ export class Game {
     if (e.def.armored && type === 'kinetic' && !shred) return 0;
     if (e.def.immuneExplosive && type === 'explosive') return 0;
     if (dmg <= 0) return 0;
-    if (src) dmg *= 1 + 0.06 * Game.rankOf(src);
+    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * (1 + 0.08 * this.overcharge);
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
     this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + dmg;
@@ -425,7 +450,7 @@ export class Game {
   private killEnemy(e: Enemy) {
     if (e.dead) return;
     e.dead = true;
-    this.earn(e.def.reward);
+    this.earn(Math.max(1, Math.round(e.def.reward * incomeMult(this.wave))));
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
     this.spawnChildren(e);

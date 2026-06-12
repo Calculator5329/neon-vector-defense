@@ -90,9 +90,14 @@ export function getWave(n: number): Wave {
 
 /** Health multiplier for endless scaling past the designed waves. */
 export function waveHpMult(n: number): number {
-  return n <= WAVES.length ? 1 : 1 + (n - WAVES.length) * 0.18;
+  return n <= WAVES.length ? 1 : 1 + (n - WAVES.length) * 0.28;
 }
 
 export function waveBonus(n: number): number {
   return 40 + n * 3;
+}
+
+/** Kill rewards taper after wave 30 so the late game stays a decision, not a pile. */
+export function incomeMult(n: number): number {
+  return n <= 30 ? 1 : Math.max(0.35, 1 - (n - 30) * 0.018);
 }
