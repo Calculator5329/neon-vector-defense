@@ -1,0 +1,59 @@
+import type { AbilityDef } from './types';
+
+// Commander abilities — unlocked as the campaign progresses, each on its own cooldown.
+export const ABILITIES: AbilityDef[] = [
+  {
+    id: 'strike',
+    name: 'Orbital Strike',
+    icon: '☄',
+    desc: 'Call down a lance from the orbital platform. Massive damage in a target zone. Ignores all immunities.',
+    cooldown: 45,
+    targeted: true,
+    unlockWave: 0,
+  },
+  {
+    id: 'chrono',
+    name: 'Chrono Field',
+    icon: '⌛',
+    desc: 'Blanket the sector in dilated time. All hostiles move at 35% speed for 6 seconds (even cryo-immune hulls).',
+    cooldown: 60,
+    targeted: false,
+    unlockWave: 8,
+  },
+  {
+    id: 'overdrive',
+    name: 'Overdrive',
+    icon: '⚡',
+    desc: 'Redline every tower reactor: +100% fire rate for 8 seconds.',
+    cooldown: 75,
+    targeted: false,
+    unlockWave: 15,
+  },
+  {
+    id: 'salvage',
+    name: 'Salvage Protocol',
+    icon: '⌬',
+    desc: 'Emergency requisition from sector command. Instant credits, scaling with the current wave.',
+    cooldown: 90,
+    targeted: false,
+    unlockWave: 22,
+  },
+  {
+    id: 'cascade',
+    name: 'Null Cascade',
+    icon: '♫',
+    desc: 'Detonate every resonance mark on the field at once: 15 true damage per stack. Pairs with Starlight Cantors.',
+    cooldown: 70,
+    targeted: false,
+    unlockWave: 30,
+  },
+  {
+    id: 'mirror',
+    name: 'Mirror Protocol',
+    icon: '◇',
+    desc: 'For 10 seconds, hulls that breach the exit are thrown back to the entrance instead of costing cores.',
+    cooldown: 120,
+    targeted: false,
+    unlockWave: 40,
+  },
+];

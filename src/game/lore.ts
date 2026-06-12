@@ -1,0 +1,116 @@
+// The world: the Lantern Concord and the war that already ended.
+//
+// Humanity strung lighthouse-relays across the dark between systems.
+// They don't just route ships — they carry the Continuity, the backed-up
+// minds of every colonist who ever crossed. Losing a relay is losing souls.
+//
+// The Vex Combine is not an invader. It is a self-replicating logistics
+// armada built three centuries ago by humanity's rival bloc — still
+// faithfully executing a siege order from a war that ended 284 years ago,
+// because the ceasefire signal was carried by the first relay it destroyed.
+
+export const BRIEFING = [
+  'Sector Command to Warden of Lantern Seven. The Combine fleet has entered your approach corridor.',
+  'Seven carries the Continuity of four colony ships — one million, one hundred and six thousand archived souls. They are awake in there. They can hear the hull.',
+  'Their frames nest inside one another: crack one open and what is inside keeps coming. Expect armor, blast-lattices, phase-cloaks, and carrier-class hulls.',
+  'Lanterns One through Four are dark. Hold the lane, Warden. We are still trying to find out why the enemy is still fighting.',
+];
+
+export interface ArchiveFragment {
+  wave: number;
+  title: string;
+  text: string;
+  /** optional illustration shown when the fragment is recovered */
+  art?: string;
+}
+
+// Recovered as the campaign progresses — together they tell the truth.
+export const ARCHIVE: ArchiveFragment[] = [
+  {
+    wave: 2,
+    art: '/art/frag-0.png',
+    title: 'Maintenance log, Lantern 7, year 2347',
+    text: 'Re-greased the focusing rings. Talked to the Continuity for an hour through the low-band — a girl from the Calloway crossing wanted to know if cherry trees still exist. Told her yes. Planting one on the observation deck so it isn\'t a lie.',
+  },
+  {
+    wave: 5,
+    art: '/art/frag-1.png',
+    title: 'Combine frame, partial disassembly report',
+    text: 'No targeting cortex. No threat analysis. The Scout-class carries a cargo manifest. Munitions listed as "deliverables." Sergeant says it\'s a translation artifact. I am not so sure it is.',
+  },
+  {
+    wave: 9,
+    art: '/art/frag-2.png',
+    title: 'Historical addendum: the Severance War',
+    text: 'The Meridian Compact and the Concord fought for eleven years over the gate routes. The Compact automated their entire siege logistics chain in year nine. They were proud of that. It meant no more of their children had to crew the supply runs.',
+  },
+  {
+    wave: 14,
+    art: '/art/frag-3.png',
+    title: 'Intercepted Combine traffic (untranslated for 60 years)',
+    text: 'It is not battle-code. It is a delivery schedule. Route 7, recurring, priority ABSOLUTE: "maintain corridor until receipt is confirmed." Confirmed by whom? The Compact surrendered in 2063. There is no one left to sign for anything.',
+  },
+  {
+    wave: 20,
+    art: '/art/frag-4.png',
+    title: 'Warden\'s journal, Lantern 6 (recovered)',
+    text: 'They don\'t hate us. I watched a Raider shed its armor to shield the Scout inside it. They protect their cargo the way we protect the Continuity. Two lighthouses, shouting across a dark strait, neither speaking the other\'s language anymore.',
+  },
+  {
+    wave: 26,
+    art: '/art/frag-5.png',
+    title: 'Concord Archives: the first hour of peace',
+    text: 'The armistice was signed aboard Lantern 1 at 0400 standard. The ceasefire broadcast — every shutdown key for every autonomous fleet — was queued for relay at 0500. The Combine\'s siege vanguard reached Lantern 1 at 0447.',
+  },
+  {
+    wave: 33,
+    art: '/art/frag-6.png',
+    title: 'Engineering analysis: TITAN-class',
+    text: 'The carrier bays aren\'t weapons racks. They\'re climate-controlled. Whatever a TITAN was built to carry, it was built to carry it gently. We checked twice. The gun blisters were added later, by the machines themselves. They learned to fear us.',
+  },
+  {
+    wave: 41,
+    art: '/art/frag-7.png',
+    title: 'The Cartographer\'s heresy',
+    text: 'Suppressed paper, 2299: "The Combine\'s route maps update in real time. They know exactly where every Lantern is. They have always known. An armada that wanted us dead would not arrive one polite wave at a time. This is not a siege. It is a queue."',
+  },
+  {
+    wave: 50,
+    art: '/art/leviathan.png',
+    title: 'Manifest fragment, LEVIATHAN-class hold',
+    text: 'Item 1 of 1. Diplomatic pouch, Meridian Compact, year 2063. Contents: armistice instrument, shutdown keys, one personal letter beginning "To whoever is still listening." Delivery instruction: hand-carry to Lantern receiver. Receipt required. It has been trying to deliver the end of the war for 284 years.',
+  },
+  {
+    wave: 60,
+    art: '/art/frag-9.png',
+    title: 'Sector Command, draft directive (unsent)',
+    text: 'Proposal: rebuild the antique Compact-era receiver and sign for the pouch. Risk assessment: catastrophic if wrong. We would have to let a LEVIATHAN dock. Every soul in the Continuity votes yes. Command votes no. The guns stay warm. The cherry tree on deck seven blossomed this morning.',
+  },
+];
+
+// Post-armistice campaign: the thing the Locust Shrine's dead world only hinted at.
+export const LONGWATCH_BRIEFING = [
+  'Warden. The war you ended was never the only war.',
+  'Something followed the Combine home through the old routes — the same hunger that hollowed the Locust world. It does not deliver. It does not queue. It eats light.',
+  'The Combine remembers what you did for them. Their patrol frames are inbound to fight beside you. Two fleets, one lane, one lighthouse.',
+  'They are calling it the Hollow. Keep the lantern lit.',
+];
+
+export const RECEIVER_DESC =
+  'Rebuild the antique Compact-era receiver and sign for the pouch. While it listens, beacon fuel is diverted: ' +
+  'all towers fire 25% slower — and the next LEVIATHAN to enter the corridor will hail instead of fight. ' +
+  'Your guns cannot touch it. If it reaches the dock, you will find out what it has been carrying.';
+
+export const ARMISTICE_LINES = [
+  'The LEVIATHAN docks. The receiver accepts a diplomatic pouch, 284 years in transit.',
+  'Armistice instrument. Shutdown keys. One personal letter, beginning "To whoever is still listening."',
+  'Across the corridor, the Combine fleet goes dark — not destroyed. Relieved. The queue is finally empty.',
+  'On deck seven, under the cherry tree, a million archived souls hear the war end. You signed for it, Warden.',
+];
+
+export const ABILITY_LORE: Record<string, string> = {
+  strike: 'The orbital platform Vigil-of-Sparrows fires captured starlight, repurposed from the lighthouse\'s own beacon. Every shot dims Seven\'s light for a heartbeat.',
+  chrono: 'The Continuity dreams slower, together, on purpose — and drags local time with them. A million minds leaning on the clock.',
+  overdrive: 'Warden authorization to burn beacon fuel in the gun reactors. Sector Command calls it sacrilege. Wardens call it Tuesday.',
+  salvage: 'Wreckage from the lane, melted and re-minted. The Combine\'s own deliveries, returned to sender as ammunition.',
+};
