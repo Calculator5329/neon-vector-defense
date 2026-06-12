@@ -495,17 +495,10 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
             />
           )}
           {cutscene !== null && (
-            <div className="overlay cutscene">
-              <div className="cutscene-box">
-                <div className="cutscene-title">{CUTSCENES[cutscene].title}</div>
-                <img className="cutscene-img" src={CUTSCENES[cutscene].img} alt="" />
-                <button className="start-btn small" onClick={() => {
-                  setCutscene(null);
-                  game.paused = false;
-                  sfx.click();
-                }}>CONTINUE ▶</button>
-              </div>
-            </div>
+            <CutsceneOverlay
+              scene={CUTSCENES[cutscene]}
+              onDone={() => { setCutscene(null); game.paused = false; sfx.click(); }}
+            />
           )}
           {game.phase === 'armistice' && (
             <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
@@ -610,6 +603,25 @@ function AfterAction({ game }: { game: Game }) {
           <div className="aar-row dim"><span>Cores lost to leaks</span><b>{s.leaks}</b></div>
           <div className="aar-row dim"><span>Abilities invoked</span><b>{s.abilitiesCast}</b></div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CutsceneOverlay({ scene, onDone }: { scene: { img: string; title: string }; onDone: () => void }) {
+  // any key, any click, or the button — a cutscene must never trap the player
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => { ev.preventDefault(); onDone(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDone]);
+  return (
+    <div className="cutscene-overlay" onClick={onDone}>
+      <div className="cutscene-box">
+        <div className="cutscene-title">{scene.title}</div>
+        <img className="cutscene-img" src={scene.img} alt="" />
+        <button className="start-btn small">CONTINUE ▶</button>
+        <div className="hint-dim">click anywhere or press any key</div>
       </div>
     </div>
   );
