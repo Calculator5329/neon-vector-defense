@@ -962,6 +962,39 @@ export class Game {
       t.flash = Math.max(0, t.flash - dt);
       t.recoil = Math.max(0, t.recoil - dt * 5);
       if (t.def.style === 'support') continue;
+
+      // Watchfire Beacon: a continuously rotating sweep — runs every tick, no cooldown
+      if (t.def.style === 'sweep') {
+        const st = t.stats;
+        const range = st.range * t.rangeBuff * this.rangeFactor(t.pos);
+        t.angle += st.fireRate * globalRate * t.rateBuff * dt;
+        t.flash = 0.12;
+        const beams = Math.max(1, st.count);
+        let any = false;
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+          if (e.dead || e.finished || e.courier) return;
+          const dx = e.pos.x - t.pos.x, dy = e.pos.y - t.pos.y;
+          const d = Math.hypot(dx, dy);
+          if (d > range + e.def.radius || !this.visibleTo(t, e)) return;
+          const bearing = Math.atan2(dy, dx);
+          // wider angular tolerance up close so the beam root isn't a dead zone
+          const tol = 0.16 + Math.min(0.55, (e.def.radius + 14) / Math.max(20, d));
+          for (let k = 0; k < beams; k++) {
+            let delta = bearing - (t.angle + (k * Math.PI * 2) / beams);
+            delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+            if (Math.abs(delta) <= tol) {
+              any = true;
+              this.damageEnemy(e, st.damage * dt, st.damageType, false, t);
+              if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+              if (st.burnDps > 0) { e.burnDps = Math.max(e.burnDps, st.burnDps); e.burnTimer = Math.max(e.burnTimer, st.burnDuration); }
+              break;
+            }
+          }
+        });
+        if (any) sfx.beamHum();
+        continue;
+      }
+
       t.cooldown -= dt * t.rateBuff * globalRate;
       if (t.cooldown > 0) continue;
       const st = t.stats;

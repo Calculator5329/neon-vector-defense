@@ -346,6 +346,32 @@ export const TOWERS: TowerDef[] = [
       ]),
     ],
   },
+  {
+    id: 'watchfire', name: 'Watchfire Beacon', short: 'WFB', cost: 2400, unlockAt: 165,
+    desc: 'Lantern Seven\'s own beacon, turned outward. A rotating lance of captured starlight that scours everything its beam crosses — continuous damage, no aiming, no cooldown.',
+    lore: 'The light that guided a million ships home now sweeps the dark for the things that followed them. The keeper wept when they reversed the lens. Then they reversed it.',
+    color: '#ffe8a3', glow: '#fff6d0', style: 'sweep',
+    // damage = dps, range = beam length, fireRate = rotation speed (rad/s), count = beams
+    base: base({ range: 170, fireRate: 1.1, damage: 16, damageType: 'energy', count: 1, detection: true, pierce: 999 }),
+    tracks: [
+      track('Full Beam', [
+        u('Polished Lens', '+25% beam length.', 600, (s) => { s.range *= 1.25; }),
+        u('Twin Lanterns', 'A second beam, opposite the first.', 1100, (s) => { s.count = 2; }),
+        u('Brighter Burn', '+10 damage per second.', 1400, (s) => { s.damage += 10; }),
+        u('Fast Rotor', '+45% rotation speed.', 1900, (s) => { s.fireRate *= 1.45; }),
+        u('Quad Array', 'BONUS: four beams, full coverage.', 3600, (s) => { s.count = 4; }),
+        u('THE UNBLINKING EYE', 'BONUS: 2.2× damage, +30% length. Nothing crosses the light unseen — or intact.', 8200, (s) => { s.damage *= 2.2; s.range *= 1.3; }),
+      ]),
+      track('Refraction', [
+        u('Chill Filter', 'Swept hulls are slowed 30%.', 700, (s) => { s.slowPower = 0.3; s.slowDuration = 0.6; }),
+        u('Solar Flare', 'Beam sets hulls burning: 10 dps.', 1200, (s) => { s.burnDps = 10; s.burnDuration = 1.5; }),
+        u('Wide Aperture', '+1 beam, +20% length.', 1700, (s) => { s.count += 1; s.range *= 1.2; }),
+        u('Searing Focus', '+12 damage per second.', 2100, (s) => { s.damage += 12; }),
+        u('PRISM CROWN', 'BONUS: deep freeze (60% slow) + burn 20 dps across the sweep.', 3800, (s) => { s.slowPower = 0.6; s.slowDuration = 1; s.burnDps = 20; s.burnDuration = 2; }),
+        u('DAYBREAK ENGINE', 'BONUS: 2× damage, +60% rotation. The night ends on your schedule now.', 8000, (s) => { s.damage *= 2; s.fireRate *= 1.6; }),
+      ]),
+    ],
+  },
 ];
 
 export const TOWER_MAP: Record<string, TowerDef> = Object.fromEntries(TOWERS.map((t) => [t.id, t]));

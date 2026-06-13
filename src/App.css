@@ -98,16 +98,42 @@
 }
 .hero-stats b { color: var(--text); font-family: 'Orbitron', sans-serif; }
 
+.deploy-target {
+  margin-top: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--text);
+}
+.deploy-target span { color: var(--accent); margin: 0 4px; }
+
+.menu-section { text-align: center; margin: 32px 0 14px; }
 .menu-section-label {
   font-family: 'Orbitron', sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 5px;
   color: var(--accent);
-  opacity: 0.85;
-  margin: 30px 0 14px;
-  text-align: center;
-  width: 100%;
 }
+.menu-section-hint {
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-top: 6px;
+  letter-spacing: 0.5px;
+}
+
+.sel-pill, .start-pill {
+  position: absolute;
+  top: 9px; left: 11px;
+  z-index: 2;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.sel-pill { background: var(--accent); color: #021018; box-shadow: 0 0 10px rgba(75, 207, 250, 0.6); }
+.start-pill { background: rgba(46, 213, 115, 0.9); color: #04210f; box-shadow: 0 0 10px rgba(46, 213, 115, 0.55); }
+.diff-card { position: relative; }
 
 .map-grid {
   display: flex;

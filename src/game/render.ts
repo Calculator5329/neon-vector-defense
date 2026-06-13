@@ -500,6 +500,38 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
     drawRange(ctx, ui.hover, ui.placing.base.range, ui.canPlaceHere ? ui.placing.glow : '#ff4757', ui.canPlaceHere);
   }
 
+  // Watchfire sweep beams — rotating lances of light under the hulls
+  for (const t of game.towers) {
+    if (t.def.style !== 'sweep') continue;
+    const range = t.stats.range * t.rangeBuff * game.rangeFactor(t.pos);
+    const beams = Math.max(1, t.stats.count);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < beams; k++) {
+      const dir = t.angle + (k * Math.PI * 2) / beams;
+      ctx.save();
+      ctx.translate(t.pos.x, t.pos.y);
+      ctx.rotate(dir);
+      const g = ctx.createLinearGradient(0, 0, range, 0);
+      g.addColorStop(0, withAlphaCss(t.def.glow, 0.5));
+      g.addColorStop(1, withAlphaCss(t.def.glow, 0));
+      ctx.fillStyle = g;
+      const half = Math.tan(0.16) * range;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(range, -half);
+      ctx.lineTo(range, half);
+      ctx.closePath();
+      ctx.fill();
+      // bright core line
+      ctx.strokeStyle = withAlphaCss('#ffffff', 0.55);
+      ctx.lineWidth = 2;
+      line(ctx, 0, 0, range, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   for (const t of game.towers) drawTower(ctx, t, game.time, t === ui.selected, game);
   for (const e of game.enemies) drawEnemy(ctx, e, game.time, game.map, game);
 
@@ -1199,6 +1231,34 @@ export function drawTowerBody(
       ctx.strokeStyle = withAlpha('#ffffff', 0.5);
       ctx.lineWidth = 1;
       ctx.stroke();
+      break;
+    }
+    case 'sweep': { // watchfire beacon: a rotating lighthouse lens
+      ctx.rotate(-angle);
+      // outer housing ring
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = 2;
+      circle(ctx, 0, 0, 11);
+      ctx.stroke();
+      // the rotating lens drum (follows the beam angle)
+      ctx.rotate(angle);
+      const lg = ctx.createLinearGradient(-7, 0, 7, 0);
+      lg.addColorStop(0, shade(def.color, -0.3));
+      lg.addColorStop(0.5, '#ffffff');
+      lg.addColorStop(1, shade(def.color, -0.3));
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = withAlpha('#ffffff', 0.6);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // emitter glints at the lens poles
+      ctx.fillStyle = def.glow;
+      circle(ctx, 8, 0, 2);
+      ctx.fill();
+      circle(ctx, -8, 0, 2);
+      ctx.fill();
       break;
     }
     case 'support': { // EMP spire

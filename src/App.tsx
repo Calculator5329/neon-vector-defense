@@ -27,7 +27,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(PERF_MAP !== null ? 'game' : 'menu');
   const [map, setMap] = useState<GameMap>(ALL_MAPS.find((m) => m.id === PERF_MAP) ?? MAPS[0]);
   const [diff, setDiff] = useState<DifficultyDef>(
-    DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff')) ?? DIFFICULTIES[1]);
+    DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
+    ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
 
   if (screen === 'menu') {
     return (
@@ -59,6 +60,7 @@ function MainMenu(props: {
 }) {
   const apexLocked = progress.record.runs < 1;
   const ngLocked = !progress.armisticeSeen;
+  const firstTime = progress.record.runs < 1;
   const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
 
   return (
@@ -71,6 +73,7 @@ function MainMenu(props: {
         <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
         <p className="menu-sub">Year 2347. The Combine armada has found the last lighthouse — and the million archived souls sleeping inside it. Build the grid. Hold the lane.</p>
         <button className="start-btn hero-deploy" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
+        <div className="deploy-target">{props.map.name} <span>·</span> {props.diff.name}</div>
         {progress.record.runs > 0 && (
           <div className="hero-stats">
             <span><b>{progress.record.victories}</b> lanterns held</span>
@@ -80,7 +83,10 @@ function MainMenu(props: {
         )}
       </header>
 
-      <div className="menu-section-label">SELECT SECTOR</div>
+      <div className="menu-section">
+        <div className="menu-section-label">① SELECT SECTOR</div>
+        <div className="menu-section-hint">Where you'll make your stand. Clear one to chart the next.</div>
+      </div>
       <div className="map-grid">
         {ALL_MAPS.map((m, i) => {
           const unlocked = mapUnlocked(i);
@@ -94,12 +100,15 @@ function MainMenu(props: {
               </div>
             );
           }
+          const active = props.map.id === m.id;
           return (
             <button
               key={m.id}
-              className={`map-card ${props.map.id === m.id ? 'active' : ''}`}
+              className={`map-card ${active ? 'active' : ''}`}
               onClick={() => { sfx.click(); props.setMap(m); }}
             >
+              {active && <div className="sel-pill">● SELECTED</div>}
+              {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
               {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
               <div className="map-thumb-stack">
                 <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" />
@@ -116,7 +125,10 @@ function MainMenu(props: {
         })}
       </div>
 
-      <div className="menu-section-label">SELECT PROTOCOL</div>
+      <div className="menu-section">
+        <div className="menu-section-label">② SELECT PROTOCOL</div>
+        <div className="menu-section-hint">How hard the armada hits. {firstTime ? 'New here? Start on Recruit.' : 'Tougher protocols, bigger leaderboard scores.'}</div>
+      </div>
       <div className="diff-row">
         {DIFFICULTIES.map((d) => {
           const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked);
@@ -130,12 +142,15 @@ function MainMenu(props: {
               </div>
             );
           }
+          const active = props.diff.id === d.id;
           return (
             <button
               key={d.id}
-              className={`diff-card ${props.diff.id === d.id ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''}`}
+              className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''}`}
               onClick={() => { sfx.click(); props.setDiff(d); }}
             >
+              {active && <div className="sel-pill">● SELECTED</div>}
+              {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
               <div className="diff-name">{d.name}</div>
               <div className="diff-desc">{d.desc}</div>
             </button>
@@ -143,7 +158,6 @@ function MainMenu(props: {
         })}
       </div>
 
-      <button className="start-btn" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
       <div className="menu-footer">Warden, the lane is yours. · A Lantern Concord defense simulation</div>
     </div>
   );
