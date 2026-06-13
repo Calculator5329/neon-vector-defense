@@ -1,4 +1,4 @@
-﻿// Meta-progression persisted across sessions (localStorage).
+// Meta-progression persisted across sessions (localStorage).
 // The Archive is knowledge the Warden keeps; best waves are the service record.
 
 const KEY = 'nvd-progress-v1';
@@ -49,7 +49,7 @@ function load(): Progress {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
     if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true, ...JSON.parse(raw) };
-  } catch { /* corrupted or unavailable â€” start fresh */ }
+  } catch { /* corrupted or unavailable — start fresh */ }
   return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true };
 }
 
@@ -58,7 +58,7 @@ let cache = load();
 function save() {
   try {
     if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(cache));
-  } catch { /* storage full or blocked â€” non-fatal */ }
+  } catch { /* storage full or blocked — non-fatal */ }
 }
 
 export const progress = {

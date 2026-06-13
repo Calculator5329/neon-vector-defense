@@ -1,4 +1,4 @@
-// Procedural audio engine â€” layered synth SFX + generative ambient score.
+// Procedural audio engine — layered synth SFX + generative ambient score.
 // No assets: everything is synthesized in WebAudio at runtime.
 
 let ctx: AudioContext | null = null;
@@ -24,7 +24,7 @@ function ensure(): AudioContext | null {
     comp.connect(meter);
 
     sfxBus = ctx.createGain();
-    sfxBus.gain.value = 1.8; // hot â€” the compressor on master catches peaks
+    sfxBus.gain.value = 1.8; // hot — the compressor on master catches peaks
     sfxBus.connect(master);
 
     musicBus = ctx.createGain();

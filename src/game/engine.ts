@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   AbilityId, AbilityState, Beam, DifficultyDef, Enemy, EnemyDef, GameMap,
   Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, Vec, WaveGroup,
 } from './types';
@@ -306,7 +306,7 @@ export class Game {
       b: t.tierB,
     }));
     progress.saveBlueprint(this.map.id, bp);
-    this.announce(`â¬‡ Defense layout saved â€” ${bp.length} instruments`);
+    this.announce(`⬇ Defense layout saved — ${bp.length} instruments`);
     sfx.archive();
     return bp.length;
   }
@@ -332,8 +332,8 @@ export class Game {
       }
     }
     this.announce(placed > 0
-      ? `â¬† Blueprint deployed â€” ${placed} of ${bp.length} instruments rebuilt`
-      : 'â¬† Blueprint deployment failed â€” no credits, space, or unlocks');
+      ? `⬆ Blueprint deployed — ${placed} of ${bp.length} instruments rebuilt`
+      : '⬆ Blueprint deployment failed — no credits, space, or unlocks');
     return placed;
   }
 
@@ -361,11 +361,11 @@ export class Game {
     }));
     sfx.waveStart();
     // threat advisories
-    if (def.some((g) => g.type === 'leviathan')) { this.announce('âš  LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
-    else if (def.some((g) => g.type === 'titan')) { this.announce('âš  TITAN-class carrier inbound'); vox('wave-boss'); }
-    else if (allowCloak && def.some((g) => g.cloaked)) { this.announce('âš  Phase-cloaked signatures â€” sensor coverage advised'); vox('wave-cloaked'); }
+    if (def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
+    else if (def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
+    else if (allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
     for (const a of this.abilities) {
-      if (a.def.unlockWave === this.wave) this.announce(`âœ¦ Commander ability online: ${a.def.name}`);
+      if (a.def.unlockWave === this.wave) this.announce(`✦ Commander ability online: ${a.def.name}`);
     }
   }
 
@@ -413,7 +413,7 @@ export class Game {
       e.courier = true;
       e.cloaked = false;
       this.courierActive = true;
-      this.announce('âœ‰ The LEVIATHAN is hailing on the antique frequency. HOLD FIRE.');
+      this.announce('✉ The LEVIATHAN is hailing on the antique frequency. HOLD FIRE.');
       vox('courier');
     }
     this.enemies.push(e);
@@ -432,7 +432,7 @@ export class Game {
     }
     this.credits -= RECEIVER_COST;
     this.receiver = true;
-    this.announce('ðŸ“¡ Antique receiver assembled â€” beacon fuel diverted, towers âˆ’25% rate');
+    this.announce('📡 Antique receiver assembled — beacon fuel diverted, towers −25% rate');
     sfx.archive();
     return true;
   }
@@ -488,7 +488,7 @@ export class Game {
     return dmg;
   }
 
-  /** Ability damage â€” bypasses all immunities (but never harms the Courier). */
+  /** Ability damage — bypasses all immunities (but never harms the Courier). */
   trueDamage(e: Enemy, dmg: number) {
     if (e.dead || e.finished || e.courier) return;
     e.hp -= dmg;
@@ -557,23 +557,23 @@ export class Game {
       case 'credits': {
         const amount = 40 + this.wave * 4;
         this.earn(amount);
-        this.announce(`âŒ¬ Salvage cache recovered: +${amount}`);
+        this.announce(`⌬ Salvage cache recovered: +${amount}`);
         break;
       }
       case 'frenzy':
         this.frenzyTimer = 5;
-        this.announce('âš¡ Combat stims: towers +50% fire rate');
+        this.announce('⚡ Combat stims: towers +50% fire rate');
         break;
       case 'cryoburst':
         for (const e of this.enemies) {
           if (!e.def.boss) { e.slow = 0.15; e.slowTimer = Math.max(e.slowTimer, 2.5); }
         }
         this.ring(p.pos, '#7efff5', 200);
-        this.announce('â„ Cryo burst: hostiles flash-frozen');
+        this.announce('❄ Cryo burst: hostiles flash-frozen');
         break;
       case 'core':
         this.lives += 1;
-        this.announce('â¬¢ Reactor core recovered: +1 core');
+        this.announce('⬢ Reactor core recovered: +1 core');
         break;
     }
     sfx.pickup();
@@ -607,23 +607,23 @@ export class Game {
         this.explosionFx(pos, '#ffffff', radius * 0.6);
         this.shake = 1;
         sfx.strike();
-        this.announce('â˜„ Orbital lance discharged');
+        this.announce('☄ Orbital lance discharged');
         break;
       }
       case 'chrono':
         this.chronoTimer = 6;
-        this.announce('âŒ› Chrono field active â€” a million minds lean on the clock');
+        this.announce('⌛ Chrono field active — a million minds lean on the clock');
         sfx.chrono();
         break;
       case 'overdrive':
         this.overdriveTimer = 8;
-        this.announce('âš¡ OVERDRIVE â€” burning beacon fuel in the gun reactors');
+        this.announce('⚡ OVERDRIVE — burning beacon fuel in the gun reactors');
         sfx.overdrive();
         break;
       case 'salvage': {
         const amount = 150 + this.wave * 12;
         this.earn(amount);
-        this.announce(`âŒ¬ Salvage Protocol: +${amount} credits`);
+        this.announce(`⌬ Salvage Protocol: +${amount} credits`);
         sfx.upgrade();
         break;
       }
@@ -640,13 +640,13 @@ export class Game {
           }
         }
         this.shake = Math.min(1, 0.3 + popped * 0.05);
-        this.announce(popped > 0 ? `â™« Null Cascade â€” ${popped} marks detonated` : 'â™« Null Cascade â€” no marks to detonate');
+        this.announce(popped > 0 ? `♫ Null Cascade — ${popped} marks detonated` : '♫ Null Cascade — no marks to detonate');
         sfx.bossDown();
         break;
       }
       case 'mirror':
         this.mirrorTimer = 10;
-        this.announce('â—‡ Mirror Protocol â€” the exit is a door that opens backward');
+        this.announce('◇ Mirror Protocol — the exit is a door that opens backward');
         sfx.chrono();
         break;
     }
@@ -660,11 +660,11 @@ export class Game {
   update(rawDt: number) {
     if (this.paused || this.phase === 'gameover' || this.phase === 'armistice') return;
     this.noticeTimer = Math.max(0, this.noticeTimer - rawDt); // real-time, not game speed
-    // pickups expire in real time too â€” clicking them is a human reflex, and the
+    // pickups expire in real time too — clicking them is a human reflex, and the
     // window shouldn't shrink at 2x/4x game speed
     for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
     this.pickups = this.pickups.filter((p) => p.life > 0);
-    // fixed substeps: at 4x speed a frame can cover 0.2s of game time â€” stepped
+    // fixed substeps: at 4x speed a frame can cover 0.2s of game time — stepped
     // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s, and
     // cap the count so a render stutter can't cascade into a death spiral of ticks.
     let total = Math.min(rawDt, 0.05) * this.speed;
@@ -712,8 +712,8 @@ export class Game {
           progress.addArchive(i);
           this.newArchive = true;
           this.announce(i === RECEIVER_FRAGMENT
-            ? 'âœ¦ Manifest decoded. There may be another way to end this â€” open the ARCHIVE'
-            : 'âœ¦ Archive fragment recovered â€” open the ARCHIVE');
+            ? '✦ Manifest decoded. There may be another way to end this — open the ARCHIVE'
+            : '✦ Archive fragment recovered — open the ARCHIVE');
           sfx.archive();
           vox('archive');
         }
@@ -730,7 +730,7 @@ export class Game {
         const before = progress.totalWaves;
         progress.addWaves(1);
         if (TOWERS.some((t) => t.unlockAt > before && t.unlockAt <= progress.totalWaves)) {
-          this.announce('âœ¦ New instrument pattern decrypted â€” check the Arsenal');
+          this.announce('✦ New instrument pattern decrypted — check the Arsenal');
           vox('unlock');
         } else if (this.wave % 5 === 0) {
           vox('wave-clear');
@@ -741,7 +741,7 @@ export class Game {
           if (entries.length > 0 && entries[0][1] > 0) {
             const resist = this.diff.id === 'hard' ? 0.35 : 0.25;
             this.adaptation = { type: entries[0][0] as import('./types').DamageType, resist };
-            this.announce(`â›¨ The Combine has adapted: ${entries[0][0]} damage âˆ’${Math.round(resist * 100)}% for the next 10 waves`);
+            this.announce(`⛨ The Combine has adapted: ${entries[0][0]} damage −${Math.round(resist * 100)}% for the next 10 waves`);
           }
           this.dmgWindow = {};
         }
@@ -787,7 +787,7 @@ export class Game {
         e.resonanceTimer -= dt;
         if (e.resonanceTimer <= 0) e.resonance = 0;
       }
-      // boss disruption pulse: stuns towers near the hull â€” don't stack your whole
+      // boss disruption pulse: stuns towers near the hull — don't stack your whole
       // defense on the one chokepoint a carrier will walk through
       if (e.def.boss && !e.courier) {
         e.pulseCd = (e.pulseCd ?? 2.5) - dt;
@@ -1278,7 +1278,7 @@ export class Game {
         const total = this.segLengths.reduce((a, b) => a + b, 0);
         const at = this.posAtDist(total);
         this.allies.push({ dist: total, pos: at.pos, heading: Math.PI, cd: 0 });
-        this.announce('âœ¦ Combine escort entering the corridor');
+        this.announce('✦ Combine escort entering the corridor');
       }
     }
     for (const a of this.allies) {

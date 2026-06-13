@@ -1,4 +1,4 @@
-﻿// AI Warden bot — plays via the public Game API at three skill tiers.
+// AI Warden bot — plays via the public Game API at three skill tiers.
 import { Game, W, H } from './engine';
 import { TOWER_MAP } from './towers';
 import type { Tower, Vec } from './types';
