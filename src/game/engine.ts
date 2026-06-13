@@ -213,7 +213,16 @@ export class Game {
   upgradeCost(t: Tower, track: 0 | 1): number {
     const tier = this.tierOf(t, track);
     if (tier >= 6) return 0;
-    return Math.round((t.def.tracks[track].upgrades[tier].cost * this.diff.costMult) / 5) * 5;
+    // the two committed bonus tiers cost dramatically more — a real late-game sink
+    const bonusMult = tier === 4 ? 2.4 : tier === 5 ? 4.5 : 1;
+    return Math.round((t.def.tracks[track].upgrades[tier].cost * this.diff.costMult * bonusMult) / 5) * 5;
+  }
+
+  /** Committed bonus tiers make a tower genuinely overpowered — the payoff for the
+   *  steep price/commitment. Stacks atop each upgrade's own effect. */
+  static bonusPower(t: Tower): number {
+    const top = Math.max(t.tierA, t.tierB);
+    return top >= 6 ? 2.0 : top >= 5 ? 1.45 : 1;
   }
 
   // ---------- placement ----------
@@ -475,7 +484,7 @@ export class Game {
     if (e.def.armored && type === 'kinetic' && !shred) return 0;
     if (e.def.immuneExplosive && type === 'explosive') return 0;
     if (dmg <= 0) return 0;
-    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * (1 + 0.08 * this.overcharge);
+    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * (1 + 0.08 * this.overcharge) * Game.bonusPower(src);
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
     this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + dmg;

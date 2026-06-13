@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import './App.css';
 import { Game, W, H } from './game/engine';
 import { render, drawTowerBody } from './game/render';
-import { TOWERS, sellValue } from './game/towers';
+import { TOWERS, TOWERS_BY_UNLOCK, sellValue } from './game/towers';
 import { ALL_MAPS, MAPS, DIFFICULTIES } from './game/maps';
 import { ENEMIES } from './game/enemies';
 import { ABILITIES } from './game/abilities';
@@ -190,6 +190,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
   const [muted, setMutedState] = useState(isMuted());
   const [aiming, setAiming] = useState(false);
+  const [tutorial, setTutorial] = useState(PERF_MAP === null && !progress.tutorialSeen);
   const [briefed, setBriefed] = useState(PERF_MAP !== null);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
@@ -346,8 +347,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       const k = ev.key.toLowerCase() as keyof typeof ab;
       if (ab[k]) useAbilityRef.current(ab[k]);
       const n = ev.key === '0' ? 10 : parseInt(ev.key);
-      if (n >= 1 && n <= TOWERS.length) {
-        const def = TOWERS[n - 1];
+      if (n >= 1 && n <= TOWERS_BY_UNLOCK.length) {
+        const def = TOWERS_BY_UNLOCK[n - 1];
         setPlacing((p) => (p?.id === def.id ? null : def));
         setSelectedUid(null);
         setAiming(false);
@@ -443,7 +444,10 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
             </button>
           )}
           {game.paused && <div className="overlay-label">PAUSED</div>}
-          {!briefed && (
+          {tutorial && (
+            <HowToPlay onDone={() => { setTutorial(false); progress.tutorialSeen = true; sfx.click(); }} />
+          )}
+          {!tutorial && !briefed && (
             <BriefingOverlay
               lines={diff.id === 'ngplus' ? LONGWATCH_BRIEFING : BRIEFING}
               portrait={diff.id === 'ngplus' ? '/art/hollow.png' : '/art/briefing.png'}
@@ -516,6 +520,37 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               <Codex />
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HowToPlay({ onDone }: { onDone: () => void }) {
+  const steps: [string, string, string][] = [
+    ['🎯', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1–9), then click open ground beside the lane. Towers fire automatically at anything in range.'],
+    ['⌬', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers, upgrades, and Grid Overcharge.'],
+    ['▲', 'Two upgrade tracks', 'Click a built tower to upgrade it down two paths. The final two tiers are expensive — and devastating — but you must COMMIT to one track to buy them.'],
+    ['⚡', 'Commander abilities', 'Q/W/E/R unlock as you advance — orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
+    ['⬢', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1×/2×/4× sets the pace.'],
+  ];
+  return (
+    <div className="overlay">
+      <div className="overlay-box howto">
+        <h2 style={{ color: '#4bcffa' }}>HOW TO HOLD THE LANE</h2>
+        <div className="howto-steps">
+          {steps.map(([icon, title, body]) => (
+            <div key={title} className="howto-step">
+              <span className="howto-icon">{icon}</span>
+              <div>
+                <div className="howto-title">{title}</div>
+                <div className="howto-body">{body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="overlay-btns">
+          <button className="start-btn small" onClick={onDone}>GOT IT ▶</button>
         </div>
       </div>
     </div>
@@ -673,7 +708,7 @@ function Shop({ game, placing, setPlacing }: {
     <div className="panel">
       <div className="panel-title">ARSENAL</div>
       <div className="shop-grid">
-        {TOWERS.map((def, i) => {
+        {TOWERS_BY_UNLOCK.map((def, i) => {
           const lockedBy = def.unlockAt - progress.totalWaves;
           if (lockedBy > 0) {
             return (

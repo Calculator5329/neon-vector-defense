@@ -235,6 +235,15 @@
 }
 .start-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.5); }
 
+/* first-time how-to-play */
+.overlay-box.howto { max-width: 560px; text-align: left; }
+.overlay-box.howto h2 { text-align: center; }
+.howto-steps { display: flex; flex-direction: column; gap: 14px; margin: 18px 0 6px; }
+.howto-step { display: flex; gap: 14px; align-items: flex-start; }
+.howto-icon { font-size: 24px; line-height: 1; flex-shrink: 0; width: 30px; text-align: center; }
+.howto-title { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--accent); margin-bottom: 3px; }
+.howto-body { font-size: 13.5px; line-height: 1.45; color: var(--text); opacity: 0.85; }
+
 .start-btn {
   margin-top: 30px;
   font-family: 'Orbitron', sans-serif;

@@ -46,7 +46,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'tesla', name: 'Tesla Coil', short: 'TSL', cost: 280, unlockAt: 2,
+    id: 'tesla', name: 'Tesla Coil', short: 'TSL', cost: 280, unlockAt: 3,
     desc: 'Discharges electric arcs in all directions. Devastating at chokepoints.',
     lore: 'Reverse-engineered from a downed Vex storm-harvester. It hums when hostiles approach.',
     color: '#feca57', glow: '#fff3a0', style: 'arc',
@@ -71,7 +71,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'cryo', name: 'Cryo Emitter', short: 'CRY', cost: 320, unlockAt: 5,
+    id: 'cryo', name: 'Cryo Emitter', short: 'CRY', cost: 320, unlockAt: 7,
     desc: 'Pulses supercooled plasma, slowing every hostile in range.',
     lore: 'Vents coolant from a captive micro-singularity. Maintenance crews wear three suits.',
     color: '#7efff5', glow: '#c7fffb', style: 'pulse',
@@ -96,7 +96,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'rail', name: 'Railgun Post', short: 'RLG', cost: 420, unlockAt: 9,
+    id: 'rail', name: 'Railgun Post', short: 'RLG', cost: 420, unlockAt: 12,
     desc: 'Hypersonic slug with unlimited range. Slow, surgical, lethal.',
     lore: 'The slug arrives before the sound does. The sound never arrives — this is space.',
     color: '#ff6b6b', glow: '#ffa8a8', style: 'rail',
@@ -121,7 +121,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'missile', name: 'Missile Battery', short: 'MSL', cost: 540, unlockAt: 14,
+    id: 'missile', name: 'Missile Battery', short: 'MSL', cost: 540, unlockAt: 22,
     desc: 'Homing warheads with splash damage. Useless against Shade-class plating.',
     lore: 'Old colonial ordnance, re-fused for drone signatures. Crude. Beloved.',
     color: '#ff9f43', glow: '#ffc48a', style: 'missile',
@@ -146,7 +146,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'drone', name: 'Drone Carrier', short: 'DRN', cost: 600, unlockAt: 20,
+    id: 'drone', name: 'Drone Carrier', short: 'DRN', cost: 600, unlockAt: 30,
     desc: 'Launches autonomous interceptors that strafe hostiles in its airspace.',
     lore: 'Fights the swarm with a swarm. The interceptors have started naming themselves.',
     color: '#1dd1a1', glow: '#8ef5d9', style: 'bolt',
@@ -171,7 +171,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 12,
+    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 16,
     desc: 'Support pylon. Reveals cloaked hostiles and overclocks nearby towers.',
     lore: 'Sees through Vex phase-cloaks by listening for the silence they leave behind.',
     color: '#54a0ff', glow: '#a3ccff', style: 'support',
@@ -196,7 +196,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'cantor', name: 'Starlight Cantor', short: 'CNT', cost: 650, unlockAt: 35,
+    id: 'cantor', name: 'Starlight Cantor', short: 'CNT', cost: 650, unlockAt: 44,
     desc: 'Sings the beacon-tone at hulls, marking them with resonance: +10% damage taken per stack from all sources.',
     lore: 'The Continuity asked for one instrument that fights the way they would: by being heard.',
     color: '#f6e58d', glow: '#fff8c4', style: 'resonance',
@@ -221,7 +221,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'anchor', name: 'Singularity Anchor', short: 'SGA', cost: 750, unlockAt: 44,
+    id: 'anchor', name: 'Singularity Anchor', short: 'SGA', cost: 750, unlockAt: 60,
     desc: 'Pins a captive micro-singularity over the lane: drags every hostile in range backward and crushes hulls. Bosses resist.',
     lore: 'The lane bends. The queue runs backward. The Combine politely re-forms it.',
     color: '#a55eea', glow: '#d6a2ff', style: 'gravity',
@@ -246,7 +246,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'prismarr', name: 'Prism Array', short: 'PRM', cost: 1500, unlockAt: 54,
+    id: 'prismarr', name: 'Prism Array', short: 'PRM', cost: 1500, unlockAt: 78,
     desc: 'Focused photon lance that melts through entire convoys. Premium hardware.',
     lore: 'One was mounted on the Meridian Gate. The Gate held for nine years.',
     color: '#be2edd', glow: '#e0a6f5', style: 'beam',
@@ -272,7 +272,7 @@ export const TOWERS: TowerDef[] = [
   },
   // ---- the strange ones ----
   {
-    id: 'oracle', name: 'Oracle Lens', short: 'ORC', cost: 900, unlockAt: 65,
+    id: 'oracle', name: 'Oracle Lens', short: 'ORC', cost: 900, unlockAt: 98,
     desc: 'A lens that sees one second ahead. Fires where hulls will be — and erases non-boss hulls already fated to die (low hp).',
     lore: 'Grown, not built, from the optic nerve of something that watched the universe begin. It is always slightly disappointed.',
     color: '#00d2d3', glow: '#9ffff5', style: 'rail',
@@ -297,7 +297,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'locust', name: 'Locust Shrine', short: 'LCS', cost: 700, unlockAt: 78,
+    id: 'locust', name: 'Locust Shrine', short: 'LCS', cost: 700, unlockAt: 120,
     desc: 'A reliquary of engineered nano-locusts. Periodically blesses its airspace with a devouring cloud that gnaws every hull.',
     lore: 'Salvaged from a dead world the Combine never touched. Whatever ate that world, we keep a cupful of it here, and it is grateful.',
     color: '#b8e994', glow: '#dff9c4', style: 'pulse',
@@ -322,7 +322,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1800, unlockAt: 92,
+    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1800, unlockAt: 145,
     desc: 'Houses the cooling ember of a star that died protecting its system. Periodically exhales a requiem wave — an expanding ring that wounds everything it crosses.',
     lore: 'Stars do not die quietly. This one agreed to keep grieving on our side of the line.',
     color: '#f8a5c2', glow: '#ffd9e8', style: 'nova',
@@ -349,6 +349,10 @@ export const TOWERS: TowerDef[] = [
 ];
 
 export const TOWER_MAP: Record<string, TowerDef> = Object.fromEntries(TOWERS.map((t) => [t.id, t]));
+
+/** Arsenal display + hotkey order: by unlock threshold, so the menu reads as the
+ *  order you actually earn them (EMP Spire sits in its early slot, etc.). */
+export const TOWERS_BY_UNLOCK: TowerDef[] = [...TOWERS].sort((a, b) => a.unlockAt - b.unlockAt);
 
 export function computeStats(def: TowerDef, tierA: number, tierB: number): TowerStats {
   const s = { ...def.base };

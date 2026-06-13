@@ -86,6 +86,8 @@ export const progress = {
   mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
   get cloakTipSeen(): boolean { return (cache as unknown as { cloakTip?: boolean }).cloakTip ?? false; },
   set cloakTipSeen(v: boolean) { (cache as unknown as { cloakTip?: boolean }).cloakTip = v; save(); },
+  get tutorialSeen(): boolean { return (cache as unknown as { tut?: boolean }).tut ?? false; },
+  set tutorialSeen(v: boolean) { (cache as unknown as { tut?: boolean }).tut = v; save(); },
   blueprint(mapId: string): BlueprintEntry[] {
     return cache.blueprints[mapId] ?? [];
   },
