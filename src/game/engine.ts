@@ -123,8 +123,6 @@ export class Game {
   archive: number[] = [...progress.archive];
   /** set when a new fragment unlocks, cleared by the UI */
   newArchive = false;
-  /** Grid Overcharge: repeatable late-game money sink, +8% tower damage per level */
-  overcharge = 0;
   /** set once when the first cloaked hull spawns and the player has never seen the tip */
   cloakTipPending = false;
   private cloakTipShown = false;
@@ -287,21 +285,6 @@ export class Game {
     t.stats = computeStats(t.def, t.tierA, t.tierB);
     sfx.upgrade();
     this.ring(t.pos, '#ffffff', 26);
-    return true;
-  }
-
-  overchargeCost(): number {
-    return Math.round((4000 * Math.pow(1.6, this.overcharge)) / 50) * 50;
-  }
-
-  buyOvercharge(): boolean {
-    const cost = this.overchargeCost();
-    if (this.credits < cost) { sfx.error(); return false; }
-    this.credits -= cost;
-    this.overcharge++;
-    this.announce(`⚡ GRID OVERCHARGE Lv${this.overcharge} — all towers +${this.overcharge * 8}% damage`);
-    sfx.upgrade();
-    for (const t of this.towers) this.ring(t.pos, '#ffd32a', 20);
     return true;
   }
 
@@ -484,7 +467,7 @@ export class Game {
     if (e.def.armored && type === 'kinetic' && !shred) return 0;
     if (e.def.immuneExplosive && type === 'explosive') return 0;
     if (dmg <= 0) return 0;
-    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * (1 + 0.08 * this.overcharge) * Game.bonusPower(src);
+    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src);
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
     this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + dmg;
@@ -748,7 +731,7 @@ export class Game {
         if (this.diff.id !== 'easy' && this.wave % 10 === 0 && this.wave >= 10) {
           const entries = Object.entries(this.dmgWindow).sort((a, b) => b[1] - a[1]);
           if (entries.length > 0 && entries[0][1] > 0) {
-            const resist = this.diff.id === 'hard' ? 0.35 : 0.25;
+            const resist = this.diff.id === 'extinction' ? 0.4 : this.diff.id === 'hard' ? 0.35 : 0.25;
             this.adaptation = { type: entries[0][0] as import('./types').DamageType, resist };
             this.announce(`⛨ The Combine has adapted: ${entries[0][0]} damage −${Math.round(resist * 100)}% for the next 10 waves`);
           }

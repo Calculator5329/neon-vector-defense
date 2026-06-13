@@ -79,11 +79,13 @@ export const progress = {
     cache.kills += rec.kills;
     if (rec.won) cache.victories += 1;
     if (rec.won && !cache.clearedMaps.includes(rec.map)) cache.clearedMaps.push(rec.map);
+    if (rec.won && rec.diff === 'hard') (cache as unknown as { apexW?: boolean }).apexW = true;
     save();
   },
   get playerName(): string { return cache.playerName; },
   set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
   mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
+  get apexCleared(): boolean { return (cache as unknown as { apexW?: boolean }).apexW ?? false; },
   get cloakTipSeen(): boolean { return (cache as unknown as { cloakTip?: boolean }).cloakTip ?? false; },
   set cloakTipSeen(v: boolean) { (cache as unknown as { cloakTip?: boolean }).cloakTip = v; save(); },
   get tutorialSeen(): boolean { return (cache as unknown as { tut?: boolean }).tut ?? false; },

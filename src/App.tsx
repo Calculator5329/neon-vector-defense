@@ -131,14 +131,18 @@ function MainMenu(props: {
       </div>
       <div className="diff-row">
         {DIFFICULTIES.map((d) => {
-          const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked);
+          const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked)
+            || (d.id === 'extinction' && !progress.apexCleared);
           if (locked) {
-            const ng = d.id === 'ngplus';
+            const reason = d.id === 'ngplus'
+              ? { label: '🔒 ????', desc: 'The Archive knows another ending.', title: 'Sealed. End the war the other way first.' }
+              : d.id === 'extinction'
+                ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
+                : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
             return (
-              <div key={d.id} className="diff-card diff-locked"
-                title={ng ? 'Sealed. End the war the other way first.' : 'Complete one campaign to unlock Apex.'}>
-                <div className="diff-name">🔒 {ng ? '????' : 'APEX'}</div>
-                <div className="diff-desc">{ng ? 'The Archive knows another ending.' : 'Survive one campaign to unlock.'}</div>
+              <div key={d.id} className="diff-card diff-locked" title={reason.title}>
+                <div className="diff-name">{reason.label}</div>
+                <div className="diff-desc">{reason.desc}</div>
               </div>
             );
           }
@@ -146,7 +150,7 @@ function MainMenu(props: {
           return (
             <button
               key={d.id}
-              className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''}`}
+              className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
               onClick={() => { sfx.click(); props.setDiff(d); }}
             >
               {active && <div className="sel-pill">● SELECTED</div>}
@@ -543,7 +547,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
 function HowToPlay({ onDone }: { onDone: () => void }) {
   const steps: [string, string, string][] = [
     ['🎯', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1–9), then click open ground beside the lane. Towers fire automatically at anything in range.'],
-    ['⌬', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers, upgrades, and Grid Overcharge.'],
+    ['⌬', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers and upgrades.'],
     ['▲', 'Two upgrade tracks', 'Click a built tower to upgrade it down two paths. The final two tiers are expensive — and devastating — but you must COMMIT to one track to buy them.'],
     ['⚡', 'Commander abilities', 'Q/W/E/R unlock as you advance — orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
     ['⬢', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1×/2×/4× sets the pace.'],
@@ -718,18 +722,23 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
 function Shop({ game, placing, setPlacing }: {
   game: Game; placing: TowerDef | null; setPlacing: (d: TowerDef | null) => void;
 }) {
+  // lifetime kills (banked at run end) + this run's kills so the bar fills live
+  const kills = progress.record.kills + game.totalKills;
+  // the next tower the player will unlock, for the BTD-style progress bar
+  const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
+  const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
   return (
     <div className="panel">
       <div className="panel-title">ARSENAL</div>
       <div className="shop-grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
-          const lockedBy = def.unlockAt - progress.totalWaves;
+          const lockedBy = def.unlockAt - kills;
           if (lockedBy > 0) {
             return (
-              <div key={def.id} className="shop-item shop-locked" title={`${def.name} — clear ${lockedBy} more wave${lockedBy === 1 ? '' : 's'} (any sector) to unlock`}>
+              <div key={def.id} className="shop-item shop-locked" title={`${def.name} — destroy ${lockedBy} more hostiles to unlock`}>
                 <div className="shop-lock-icon">🔒</div>
                 <div className="shop-name">{def.name}</div>
-                <div className="shop-cost">{lockedBy} waves to go</div>
+                <div className="shop-cost">{lockedBy} kills</div>
               </div>
             );
           }
@@ -754,6 +763,14 @@ function Shop({ game, placing, setPlacing }: {
           );
         })}
       </div>
+      {next && (
+        <div className="unlock-track" title={`${kills.toLocaleString()} / ${next.unlockAt.toLocaleString()} kills`}>
+          <div className="unlock-bar">
+            <div className="unlock-fill" style={{ width: `${Math.min(100, ((kills - prevThreshold) / (next.unlockAt - prevThreshold)) * 100)}%` }} />
+          </div>
+          <div className="unlock-label">NEXT: {next.name} · {(next.unlockAt - kills).toLocaleString()} kills</div>
+        </div>
+      )}
       {placing ? (
         <div className="placing-hint">
           <b style={{ color: placing.glow }}>{placing.name}</b>
@@ -774,15 +791,6 @@ function Shop({ game, placing, setPlacing }: {
           ⬆ BUILD SAVED{progress.blueprint(game.map.id).length > 0 ? ` (${progress.blueprint(game.map.id).length})` : ''}
         </button>
       </div>
-      <button
-        className={`upgrade-btn bonus-up oc-btn ${game.credits >= game.overchargeCost() ? '' : 'poor'}`}
-        title="Repeatable late-game sink: every level adds +8% damage to all towers for this run"
-        onClick={() => { game.buyOvercharge(); }}
-      >
-        <div className="up-name">⚡ GRID OVERCHARGE {game.overcharge > 0 ? `Lv${game.overcharge}` : ''}</div>
-        <div className="up-desc">All towers +8% damage, repeatable.{game.overcharge > 0 ? ` Active: +${game.overcharge * 8}%` : ''}</div>
-        <div className="up-cost">⌬{game.overchargeCost().toLocaleString()}</div>
-      </button>
     </div>
   );
 }

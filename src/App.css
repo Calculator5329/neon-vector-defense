@@ -250,6 +250,9 @@
 .diff-card.diff-ngplus { border-color: rgba(179, 136, 255, 0.55); }
 .diff-card.diff-ngplus.active { border-color: #b388ff; box-shadow: 0 0 0 1px #b388ff, 0 0 16px rgba(179, 136, 255, 0.4); }
 .diff-card.diff-ngplus .diff-name { color: #b388ff; }
+.diff-card.diff-extinction { border-color: rgba(255, 71, 87, 0.5); }
+.diff-card.diff-extinction.active { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), 0 0 16px rgba(255, 71, 87, 0.4); }
+.diff-card.diff-extinction .diff-name { color: var(--danger); }
 
 .menu-footer {
   margin: 26px 0 8px;
@@ -573,6 +576,28 @@
 .bp-row { display: flex; gap: 6px; margin-top: 10px; }
 .bp-row .tb-btn { flex: 1; padding: 7px 4px; font-size: 10px; }
 .bp-row .tb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.unlock-track { margin-top: 10px; }
+.unlock-bar {
+  height: 4px;
+  background: rgba(120, 150, 255, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.unlock-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #7efff5);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(75, 207, 250, 0.5);
+  transition: width 0.4s ease;
+}
+.unlock-label {
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--dim);
+  font-family: 'Orbitron', sans-serif;
+}
 
 .placing-hint { margin-top: 10px; font-size: 13px; }
 .placing-hint p { margin: 4px 0; color: var(--dim); line-height: 1.35; }
@@ -930,7 +955,6 @@
 }
 @keyframes scene-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
 
-.oc-btn { margin-top: 8px; }
 .tip-box {
   background: var(--panel);
   border: 1.5px solid rgba(255, 110, 199, 0.5);
