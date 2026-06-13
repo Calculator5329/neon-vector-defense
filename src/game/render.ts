@@ -33,6 +33,7 @@ function blit(ctx: CanvasRenderingContext2D, sprite: HTMLCanvasElement, x: numbe
 // ---------- enemy hull art ----------
 
 const enemySprites = new Map<string, HTMLCanvasElement>();
+const hollowSprites = new Map<string, HTMLCanvasElement>();
 
 function enemySprite(def: EnemyDef): HTMLCanvasElement {
   let s = enemySprites.get(def.id);
@@ -46,6 +47,22 @@ function enemySprite(def: EnemyDef): HTMLCanvasElement {
     drawHull(c, def, r);
   });
   enemySprites.set(def.id, s);
+  return s;
+}
+
+/** Long Watch corruption tint, baked once per hull instead of a per-draw ctx.filter
+ *  (canvas filters force a full rasterization pass — death at hundreds of hulls). */
+function corruptedSprite(def: EnemyDef): HTMLCanvasElement {
+  let s = hollowSprites.get(def.id);
+  if (s) return s;
+  const base = enemySprite(def);
+  const cv = document.createElement('canvas');
+  cv.width = base.width;
+  cv.height = base.height;
+  const c = cv.getContext('2d')!;
+  c.filter = 'hue-rotate(115deg) saturate(1.35) brightness(1.08)';
+  c.drawImage(base, 0, 0);
+  hollowSprites.set(def.id, s = cv);
   return s;
 }
 
@@ -1261,10 +1278,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   if (e.cloaked) {
     ctx.globalAlpha = 0.34 + 0.08 * Math.sin(time * 7 + e.phase);
   }
-  // the Hollow: corrupted hulls read sickly green-white (Long Watch)
-  if (game.diff.id === 'ngplus' && !e.courier) {
-    ctx.filter = 'hue-rotate(115deg) saturate(1.35) brightness(1.08)';
-  }
+  const corrupted = game.diff.id === 'ngplus' && !e.courier;
 
   // hover shadow on the lane
   ctx.save();
@@ -1299,7 +1313,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   ctx.restore();
 
   // hull sprite
-  blit(ctx, enemySprite(def), e.pos.x, e.pos.y + wob * 0.4, heading);
+  blit(ctx, corrupted ? corruptedSprite(def) : enemySprite(def), e.pos.x, e.pos.y + wob * 0.4, heading);
 
   // the Courier: white truce beacon, hailing rings
   if (e.courier) {

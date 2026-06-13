@@ -229,6 +229,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [briefed, setBriefed] = useState(PERF_MAP !== null);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
+  const perfIdleRef = useRef(0);
   const [cutscene, setCutscene] = useState<number | null>(null);
   const [cloakTip, setCloakTip] = useState(false);
   const cutsceneRef = useRef<number | null>(null);
@@ -268,6 +269,11 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       if (botRef.current) {
         botRef.current.act(game.time);
         if (game.phase === 'victory') { game.freeplay = true; game.phase = 'build'; }
+        // auto-launch: give the bot ~1.5s real-time to build, then start the wave
+        if (game.phase === 'build') {
+          perfIdleRef.current += dt;
+          if (perfIdleRef.current > 1.5) { perfIdleRef.current = 0; game.startWave(); }
+        }
         const f = fpsRef.current;
         f.frames++;
         if (dt > 0) f.worst = Math.min(f.worst, 1 / dt);
@@ -285,6 +291,13 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           selected: selectedRef.current,
           aimingStrike: aimingRef.current,
         });
+        // perf harness: a synchronous frame for CPU-cost timing immune to rAF throttle
+        if (PERF_MAP !== null) {
+          (window as unknown as { __frame?: (d: number) => void }).__frame = (d: number) => {
+            game.update(d);
+            render(ctx, game, { hover: null, placing: null, canPlaceHere: false, selected: null, aimingStrike: false });
+          };
+        }
       }
       uiTimer += dt;
       if (uiTimer > 0.12) {

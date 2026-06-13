@@ -58,6 +58,8 @@ export interface Enemy {
   courier?: boolean;
   /** bosses: seconds until the next disruption pulse */
   pulseCd?: number;
+  /** transient per-tick: cloaked hull is inside a detector aura (precomputed) */
+  revealed?: boolean;
 }
 
 export interface TowerStats {

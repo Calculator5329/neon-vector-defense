@@ -17,11 +17,64 @@ const TOWER_R = 16;
 
 let uidCounter = 1;
 
+/** In-place array compaction — drops elements failing `keep` without allocating a
+ *  new array. The per-tick lists (enemies, projectiles, particles) can hold
+ *  thousands of items; `.filter()` would allocate a fresh big array every substep,
+ *  and that churn is what produces occasional GC-pause frame spikes at 4x. */
+function compact<T>(arr: T[], keep: (v: T) => boolean): void {
+  let w = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (keep(arr[i])) { if (w !== i) arr[w] = arr[i]; w++; }
+  }
+  arr.length = w;
+}
+
 interface SpawnEntry {
   group: WaveGroup;
   spawned: number;
   timer: number;
   started: boolean;
+}
+
+// ---------- spatial grid ----------
+// Every radius query (targeting, projectile hits, AoE, nearest) used to scan all
+// enemies — O(n) each, O(n²) per tick. At 4x with thousands of piled hulls in
+// freeplay that spikes frame time badly. The grid buckets enemies into cells once
+// per tick so queries only visit local candidates. Callers keep their exact hypot
+// checks; the grid only narrows the candidate set.
+const CELL = 80;
+const GW = Math.ceil(W / CELL) + 1;
+const GH = Math.ceil(H / CELL) + 1;
+
+class EnemyGrid {
+  private cells: Enemy[][] = Array.from({ length: GW * GH }, () => []);
+  readonly byId = new Map<number, Enemy>();
+
+  rebuild(enemies: Enemy[]) {
+    for (const c of this.cells) c.length = 0;
+    this.byId.clear();
+    for (const e of enemies) {
+      if (e.dead || e.finished) continue;
+      this.byId.set(e.uid, e);
+      const cx = Math.min(GW - 1, Math.max(0, (e.pos.x / CELL) | 0));
+      const cy = Math.min(GH - 1, Math.max(0, (e.pos.y / CELL) | 0));
+      this.cells[cy * GW + cx].push(e);
+    }
+  }
+
+  forEachInRadius(x: number, y: number, radius: number, fn: (e: Enemy) => void) {
+    const minx = Math.max(0, ((x - radius) / CELL) | 0);
+    const maxx = Math.min(GW - 1, ((x + radius) / CELL) | 0);
+    const miny = Math.max(0, ((y - radius) / CELL) | 0);
+    const maxy = Math.min(GH - 1, ((y + radius) / CELL) | 0);
+    for (let cy = miny; cy <= maxy; cy++) {
+      const row = cy * GW;
+      for (let cx = minx; cx <= maxx; cx++) {
+        const cell = this.cells[row + cx];
+        for (let i = 0; i < cell.length; i++) fn(cell[i]);
+      }
+    }
+  }
 }
 
 export type Phase = 'build' | 'wave' | 'gameover' | 'victory' | 'armistice';
@@ -113,6 +166,10 @@ export class Game {
   adaptation: { type: import('./types').DamageType | null; resist: number } = { type: null, resist: 0 };
   private dmgWindow: Record<string, number> = {};
 
+  private grid = new EnemyGrid();
+  /** recycled Particle objects — FX churn was the main GC-pause source at 4x */
+  private particlePool: Particle[] = [];
+  /** any detector spire on the field this tick (for cloak reveal precompute) */
   private queue: SpawnEntry[] = [];
   private segLengths: number[] = [];
   totalKills = 0;
@@ -470,11 +527,7 @@ export class Game {
         this.ring(e.pos, e.def.glow, e.def.radius + 6);
       }
       // credit popup
-      this.particles.push({
-        pos: { x: e.pos.x, y: e.pos.y - e.def.radius - 4 },
-        vel: { x: 0, y: -26 },
-        life: 0.7, maxLife: 0.7, size: 10, color: '#ffd32a', kind: 'text', text: `+${e.def.reward}`,
-      });
+      this.emit('text', e.pos.x, e.pos.y - e.def.radius - 4, 0, -26, 0.7, 10, '#ffd32a', `+${e.def.reward}`);
       // drop chance shrinks as kill volume grows in later waves
       if (Math.random() < 0.022 / (1 + this.wave * 0.04)) this.dropPickup(e.pos, false);
     }
@@ -612,9 +665,12 @@ export class Game {
     for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
     this.pickups = this.pickups.filter((p) => p.life > 0);
     // fixed substeps: at 4x speed a frame can cover 0.2s of game time â€” stepped
-    // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s.
+    // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s, and
+    // cap the count so a render stutter can't cascade into a death spiral of ticks.
     let total = Math.min(rawDt, 0.05) * this.speed;
-    while (total > 1e-6 && (this.phase as Phase) !== 'gameover' && (this.phase as Phase) !== 'armistice') {
+    let budget = 8;
+    while (total > 1e-6 && budget-- > 0 &&
+      (this.phase as Phase) !== 'gameover' && (this.phase as Phase) !== 'armistice') {
       const step = Math.min(total, 1 / 30);
       total -= step;
       this.tick(step);
@@ -635,6 +691,10 @@ export class Game {
 
     this.updateSpawns(dt);
     this.updateEnemies(dt);
+    // index enemies for this tick's radius queries, then precompute cloak reveal
+    this.grid.rebuild(this.enemies);
+    this.precomputeReveal();
+    this.updateHealers(dt);
     this.updateAllies(dt);
     this.updateAuras();
     this.updateTowers(dt);
@@ -749,15 +809,6 @@ export class Game {
           }
         }
       }
-      // seraph repair aura
-      if (e.def.heal) {
-        for (const o of this.enemies) {
-          if (o === e || o.dead || o.finished || o.hp >= o.maxHp) continue;
-          if (Math.hypot(o.pos.x - e.pos.x, o.pos.y - e.pos.y) <= e.def.heal.radius) {
-            o.hp = Math.min(o.maxHp, o.hp + e.def.heal.hps * dt);
-          }
-        }
-      }
       const globalSlow = this.chronoTimer > 0 ? 0.35 : 1;
       let move = e.def.speed * e.slow * globalSlow * dt;
       while (move > 0 && e.wp < path.length) {
@@ -819,7 +870,7 @@ export class Game {
         }
       }
     }
-    this.enemies = this.enemies.filter((e) => !e.dead && !e.finished);
+    compact(this.enemies, (e) => !e.dead && !e.finished);
   }
 
   private updateAuras() {
@@ -839,8 +890,8 @@ export class Game {
       }
       // aura effects on enemies: slow (Ion Storm) and sear (Razor Static)
       if (st.slowPower > 0 || st.burnDps > 0) {
-        for (const e of this.enemies) {
-          if (e.courier) continue;
+        this.grid.forEachInRadius(s.pos.x, s.pos.y, st.range, (e) => {
+          if (e.courier || e.dead || e.finished) return;
           if (Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= st.range) {
             if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
             if (st.burnDps > 0) {
@@ -848,32 +899,41 @@ export class Game {
               e.burnTimer = Math.max(e.burnTimer, 0.5);
             }
           }
-        }
+        });
       }
     }
   }
 
   /** Does any tower or support give detection coverage at this enemy's position? */
   private visibleTo(t: Tower, e: Enemy): boolean {
-    if (!e.cloaked) return true;
-    if (t.stats.detection) return true;
-    // EMP spires reveal cloaked enemies inside their aura for everyone
+    return !e.cloaked || t.stats.detection || !!e.revealed;
+  }
+
+  /** Once per tick: flag each cloaked hull covered by a detector spire's aura.
+   *  Replaces a per-(tower,enemy) tower scan with O(detectors x localHulls). */
+  private precomputeReveal() {
+    let anyCloaked = false;
+    for (const e of this.enemies) {
+      if (e.cloaked) { e.revealed = false; anyCloaked = true; }
+    }
+    if (!anyCloaked) return;
     for (const s of this.towers) {
       if (s.def.style === 'support' && s.stats.detection) {
-        if (Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= s.stats.range) return true;
+        this.grid.forEachInRadius(s.pos.x, s.pos.y, s.stats.range, (e) => {
+          if (e.cloaked && Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= s.stats.range) e.revealed = true;
+        });
       }
     }
-    return false;
   }
 
   private pickTarget(t: Tower, range: number): Enemy | null {
     let best: Enemy | null = null;
     let bestVal = -Infinity;
-    for (const e of this.enemies) {
-      if (e.dead || e.finished || e.courier) continue;
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (e.dead || e.finished || e.courier) return;
       const d = Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y);
-      if (d > range + e.def.radius) continue;
-      if (!this.visibleTo(t, e)) continue;
+      if (d > range + e.def.radius) return;
+      if (!this.visibleTo(t, e)) return;
       let val: number;
       switch (t.target) {
         case 'first': val = e.dist; break;
@@ -882,7 +942,7 @@ export class Game {
         case 'close': val = -d; break;
       }
       if (val > bestVal) { bestVal = val; best = e; }
-    }
+    });
     return best;
   }
 
@@ -901,10 +961,10 @@ export class Game {
       if (t.def.style === 'pulse') {
         // cryo / locust cloud: hit everything in range
         let any = false;
-        for (const e of this.enemies) {
-          if (e.dead || e.finished || e.courier) continue;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) continue;
-          if (!this.visibleTo(t, e)) continue;
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+          if (e.dead || e.finished || e.courier) return;
+          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+          if (!this.visibleTo(t, e)) return;
           any = true;
           if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
           if (st.burnDps > 0) {
@@ -912,7 +972,7 @@ export class Game {
             e.burnTimer = Math.max(e.burnTimer, st.burnDuration);
           }
           if (st.damage > 0) this.damageEnemy(e, st.damage, st.damageType, false, t);
-        }
+        });
         if (any) {
           t.cooldown = 1 / st.fireRate;
           t.flash = 0.2;
@@ -924,8 +984,12 @@ export class Game {
 
       if (t.def.style === 'nova') {
         // drowned star: exhale an expanding requiem wave
-        if (this.enemies.some((e) => !e.dead && !e.finished && !e.courier &&
-          Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + 40)) {
+        let inRange = false;
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 40, (e) => {
+          if (!e.dead && !e.finished && !e.courier &&
+            Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + 40) inRange = true;
+        });
+        if (inRange) {
           this.novas.push({
             pos: { ...t.pos }, r: 12, maxR: range, damage: st.damage,
             slowPower: st.slowPower, slowDuration: st.slowDuration,
@@ -941,10 +1005,10 @@ export class Game {
       if (t.def.style === 'gravity') {
         // drag every hostile in range backward along the path, crush hulls
         let any = false;
-        for (const e of this.enemies) {
-          if (e.dead || e.finished || e.courier) continue;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) continue;
-          if (!this.visibleTo(t, e)) continue;
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+          if (e.dead || e.finished || e.courier) return;
+          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+          if (!this.visibleTo(t, e)) return;
           any = true;
           const drag = st.drag * (e.def.boss ? 0.22 : 1);
           e.dist = Math.max(0, e.dist - drag);
@@ -953,7 +1017,7 @@ export class Game {
           e.wp = at.wp;
           if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
           this.damageEnemy(e, st.damage, 'energy', true, t);
-        }
+        });
         if (any) {
           t.cooldown = 1 / st.fireRate;
           t.flash = 0.25;
@@ -967,19 +1031,18 @@ export class Game {
       if (t.def.style === 'resonance') {
         // mark up to `count` hulls with resonance stacks
         const marked: Enemy[] = [];
-        let target = this.pickTarget(t, range);
-        while (target && marked.length < st.count) {
-          marked.push(target);
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+          if (marked.length >= st.count) return;
+          if (e.dead || e.finished || e.courier || marked.includes(e)) return;
+          if (!this.visibleTo(t, e)) return;
+          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+          marked.push(e);
           const dur = st.burnDuration > 0 ? 9999 : 4;
-          target.resonance = Math.min(5, target.resonance + 1);
-          target.resonanceTimer = Math.max(target.resonanceTimer, dur);
-          this.damageEnemy(target, st.damage, st.damageType, false, t);
-          this.addBeam(t.pos, target.pos, t.def.glow, 2.5, 0.22);
-          const exclude = marked;
-          target = this.enemies.find((e) =>
-            !e.dead && !e.finished && !exclude.includes(e) && this.visibleTo(t, e) &&
-            Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius) ?? null;
-        }
+          e.resonance = Math.min(5, e.resonance + 1);
+          e.resonanceTimer = Math.max(e.resonanceTimer, dur);
+          this.damageEnemy(e, st.damage, st.damageType, false, t);
+          this.addBeam(t.pos, e.pos, t.def.glow, 2.5, 0.22);
+        });
         if (marked.length > 0) {
           t.angle = Math.atan2(marked[0].pos.y - t.pos.y, marked[0].pos.x - t.pos.x);
           t.cooldown = 1 / st.fireRate;
@@ -992,13 +1055,13 @@ export class Game {
       if (t.def.style === 'arc') {
         // tesla: zap up to `count` enemies in range, chain jumps extra
         const targets: Enemy[] = [];
-        for (const e of this.enemies) {
-          if (e.dead || e.finished) continue;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) continue;
-          if (!this.visibleTo(t, e)) continue;
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+          if (targets.length >= st.count) return;
+          if (e.dead || e.finished || e.courier) return;
+          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+          if (!this.visibleTo(t, e)) return;
           targets.push(e);
-          if (targets.length >= st.count) break;
-        }
+        });
         if (targets.length === 0) continue;
         for (const e of targets) {
           this.addBeam(t.pos, e.pos, t.def.glow, 2, 0.12);
@@ -1121,11 +1184,13 @@ export class Game {
   private nearestEnemy(pos: Vec, maxDist: number, exclude: Enemy[]): Enemy | null {
     let best: Enemy | null = null;
     let bd = maxDist;
-    for (const e of this.enemies) {
-      if (e.dead || e.finished || exclude.includes(e)) continue;
+    // cap the search radius so a 9999 "anywhere" query still uses the grid
+    const r = Math.min(maxDist, W + H);
+    this.grid.forEachInRadius(pos.x, pos.y, r, (e) => {
+      if (e.dead || e.finished || exclude.includes(e)) return;
       const d = Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y);
       if (d < bd) { bd = d; best = e; }
-    }
+    });
     return best;
   }
 
@@ -1135,7 +1200,8 @@ export class Game {
       if (p.life <= 0) continue;
 
       if (p.kind === 'missile') {
-        const target = this.enemies.find((e) => e.uid === p.targetUid && !e.dead && !e.finished);
+        const cand = p.targetUid !== null ? this.grid.byId.get(p.targetUid) : undefined;
+        const target = cand && !cand.dead && !cand.finished ? cand : undefined;
         if (target) {
           const dir = norm({ x: target.pos.x - p.pos.x, y: target.pos.y - p.pos.y });
           // steer toward target
@@ -1149,10 +1215,7 @@ export class Game {
         }
         // exhaust trail
         if (Math.random() < 0.5) {
-          this.particles.push({
-            pos: { ...p.pos }, vel: { x: -p.vel.x * 0.1, y: -p.vel.y * 0.1 },
-            life: 0.35, maxLife: 0.35, size: 3, color: '#ffb86c', kind: 'smoke',
-          });
+          this.emit('smoke', p.pos.x, p.pos.y, -p.vel.x * 0.1, -p.vel.y * 0.1, 0.35, 3, '#ffb86c');
         }
       }
 
@@ -1163,15 +1226,19 @@ export class Game {
         continue;
       }
 
-      for (const e of this.enemies) {
-        if (e.dead || e.finished || p.hit.has(e.uid)) continue;
-        if (e.cloaked && !p.detection) continue;
+      // projectiles are small; only nearby cells can contain a hit (48 > max hitR)
+      let consumed = false;
+      this.grid.forEachInRadius(p.pos.x, p.pos.y, 48, (e) => {
+        if (consumed || p.life <= 0) return;
+        if (e.dead || e.finished || p.hit.has(e.uid)) return;
+        if (e.cloaked && !p.detection) return;
         const hitR = e.def.radius + (p.kind === 'missile' ? 6 : 4);
         if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= hitR) {
           if (p.kind === 'missile') {
             this.explode(p);
             p.life = 0;
-            break;
+            consumed = true;
+            return;
           }
           p.hit.add(e.uid);
           const dealt = this.damageEnemy(e, p.damage, p.damageType, p.shred, p.src);
@@ -1180,14 +1247,25 @@ export class Game {
             e.burnTimer = Math.max(e.burnTimer, p.burnDuration);
           }
           this.burstFx(p.pos, p.color, 2);
-          if (p.hit.size >= p.pierce) {
-            p.life = 0;
-            break;
-          }
+          if (p.hit.size >= p.pierce) { p.life = 0; consumed = true; }
         }
-      }
+      });
     }
-    this.projectiles = this.projectiles.filter((p) => p.life > 0);
+    compact(this.projectiles, (p) => p.life > 0);
+  }
+
+  /** Seraph tenders repair nearby damaged hulls — grid-scoped to their aura. */
+  private updateHealers(dt: number) {
+    for (const e of this.enemies) {
+      if (!e.def.heal || e.dead || e.finished) continue;
+      const heal = e.def.heal;
+      this.grid.forEachInRadius(e.pos.x, e.pos.y, heal.radius, (o) => {
+        if (o === e || o.dead || o.finished || o.hp >= o.maxHp) return;
+        if (Math.hypot(o.pos.x - e.pos.x, o.pos.y - e.pos.y) <= heal.radius) {
+          o.hp = Math.min(o.maxHp, o.hp + heal.hps * dt);
+        }
+      });
+    }
   }
 
   /** Long Watch only: Combine patrol frames sweep the lane backward, zapping the Hollow */
@@ -1228,14 +1306,15 @@ export class Game {
   private updateNovas(dt: number) {
     for (const n of this.novas) {
       n.r += 230 * dt;
-      for (const e of this.enemies) {
-        if (e.dead || e.finished || e.courier || n.hit.has(e.uid)) continue;
+      // only the ring band can be hit; query the disc out to the current radius
+      this.grid.forEachInRadius(n.pos.x, n.pos.y, n.r + 16, (e) => {
+        if (e.dead || e.finished || e.courier || n.hit.has(e.uid)) return;
         if (Math.abs(Math.hypot(e.pos.x - n.pos.x, e.pos.y - n.pos.y) - n.r) <= e.def.radius + 10) {
           n.hit.add(e.uid);
           if (n.slowPower > 0) this.applySlow(e, n.slowPower, n.slowDuration);
           this.damageEnemy(e, n.damage, 'energy', true, n.src);
         }
-      }
+      });
     }
     this.novas = this.novas.filter((n) => n.r < n.maxR);
   }
@@ -1243,8 +1322,8 @@ export class Game {
   private explode(p: Projectile) {
     this.explosionFx(p.pos, '#ff9f43', p.splash);
     sfx.explosion();
-    for (const e of this.enemies) {
-      if (e.dead || e.finished) continue;
+    this.grid.forEachInRadius(p.pos.x, p.pos.y, p.splash + 16, (e) => {
+      if (e.dead || e.finished) return;
       if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= p.splash + e.def.radius) {
         const dealt = this.damageEnemy(e, p.damage, p.damageType, p.shred, p.src);
         if (dealt > 0 && p.burnDps > 0) {
@@ -1252,23 +1331,32 @@ export class Game {
           e.burnTimer = Math.max(e.burnTimer, p.burnDuration);
         }
       }
-    }
+    });
   }
 
   // ---------- fx ----------
 
   private updateFx(dt: number) {
     if (this.particles.length > 280) this.particles.splice(0, this.particles.length - 280);
-    for (const pt of this.particles) {
+    // in-place compaction that recycles dead particles into the pool (no GC churn)
+    let w = 0;
+    for (let i = 0; i < this.particles.length; i++) {
+      const pt = this.particles[i];
       pt.life -= dt;
+      if (pt.life <= 0) {
+        if (this.particlePool.length < 400) this.particlePool.push(pt);
+        continue;
+      }
       pt.pos.x += pt.vel.x * dt;
       pt.pos.y += pt.vel.y * dt;
       pt.vel.x *= 0.94;
       pt.vel.y *= 0.94;
+      if (w !== i) this.particles[w] = pt;
+      w++;
     }
-    this.particles = this.particles.filter((p) => p.life > 0);
+    this.particles.length = w;
     for (const b of this.beams) b.life -= dt;
-    this.beams = this.beams.filter((b) => b.life > 0);
+    compact(this.beams, (b) => b.life > 0);
   }
 
   private addBeam(from: Vec, to: Vec, color: string, width: number, life: number) {
@@ -1276,30 +1364,36 @@ export class Game {
     this.beams.push({ from: { ...from }, to: { ...to }, color, width, life, maxLife: life });
   }
 
+  /** spawn a particle, reusing a pooled object when available (no allocation) */
+  emit(kind: Particle['kind'], x: number, y: number, vx: number, vy: number,
+       life: number, size: number, color: string, text?: string) {
+    if (this.particles.length > 280) return;
+    let p = this.particlePool.pop();
+    if (p) {
+      p.pos.x = x; p.pos.y = y; p.vel.x = vx; p.vel.y = vy;
+      p.life = life; p.maxLife = life; p.size = size; p.color = color; p.kind = kind; p.text = text;
+    } else {
+      p = { pos: { x, y }, vel: { x: vx, y: vy }, life, maxLife: life, size, color, kind, text };
+    }
+    this.particles.push(p);
+  }
+
   burstFx(pos: Vec, color: string, n: number) {
     if (this.particles.length > 240) return; // pool cap
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 40 + Math.random() * 120;
-      this.particles.push({
-        pos: { ...pos }, vel: { x: Math.cos(a) * sp, y: Math.sin(a) * sp },
-        life: 0.3 + Math.random() * 0.25, maxLife: 0.5, size: 1.5 + Math.random() * 2, color, kind: 'spark',
-      });
+      this.emit('spark', pos.x, pos.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.3 + Math.random() * 0.25, 1.5 + Math.random() * 2, color);
     }
   }
 
   explosionFx(pos: Vec, color: string, radius: number) {
-    this.particles.push({
-      pos: { ...pos }, vel: { x: 0, y: 0 }, life: 0.35, maxLife: 0.35,
-      size: radius, color, kind: 'ring',
-    });
+    this.emit('ring', pos.x, pos.y, 0, 0, 0.35, radius, color);
     this.burstFx(pos, color, 14);
   }
 
   ring(pos: Vec, color: string, size: number) {
-    this.particles.push({
-      pos: { ...pos }, vel: { x: 0, y: 0 }, life: 0.4, maxLife: 0.4, size, color, kind: 'ring',
-    });
+    this.emit('ring', pos.x, pos.y, 0, 0, 0.4, size, color);
   }
 
   setTargetMode(t: Tower, mode: TargetMode) {
