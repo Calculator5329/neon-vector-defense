@@ -22,8 +22,8 @@ interface Progress {
   history: RunRecord[];
   /** leaderboard display name */
   playerName: string;
-  /** story cutscenes on/off */
-  cutscenes: boolean;
+  /** map ids the player has won at least once (gates the next sector) */
+  clearedMaps: string[];
 }
 
 export interface RunRecord {
@@ -48,9 +48,9 @@ export interface BlueprintEntry {
 function load(): Progress {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-    if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true, ...JSON.parse(raw) };
+    if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], ...JSON.parse(raw) };
   } catch { /* corrupted or unavailable — start fresh */ }
-  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true };
+  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [] };
 }
 
 let cache = load();
@@ -78,12 +78,12 @@ export const progress = {
     cache.runs += 1;
     cache.kills += rec.kills;
     if (rec.won) cache.victories += 1;
+    if (rec.won && !cache.clearedMaps.includes(rec.map)) cache.clearedMaps.push(rec.map);
     save();
   },
   get playerName(): string { return cache.playerName; },
   set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
-  get cutscenes(): boolean { return cache.cutscenes; },
-  set cutscenes(on: boolean) { cache.cutscenes = on; save(); },
+  mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
   get cloakTipSeen(): boolean { return (cache as unknown as { cloakTip?: boolean }).cloakTip ?? false; },
   set cloakTipSeen(v: boolean) { (cache as unknown as { cloakTip?: boolean }).cloakTip = v; save(); },
   blueprint(mapId: string): BlueprintEntry[] {
@@ -108,6 +108,12 @@ export const progress = {
   best(mapId: string, diffId: string): number {
     return cache.best[`${mapId}:${diffId}`] ?? 0;
   },
+  /** best wave reached on a map across all protocols */
+  bestWaveAny(mapId: string): number {
+    let m = 0;
+    for (const k in cache.best) if (k.startsWith(`${mapId}:`)) m = Math.max(m, cache.best[k]);
+    return m;
+  },
   recordWave(mapId: string, diffId: string, wave: number) {
     const k = `${mapId}:${diffId}`;
     if (wave > (cache.best[k] ?? 0)) {
@@ -120,7 +126,7 @@ export const progress = {
     save();
   },
   reset() {
-    cache = { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', cutscenes: true };
+    cache = { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [] };
     save();
   },
 };

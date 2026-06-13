@@ -12,15 +12,6 @@ import { progress } from './game/storage';
 import { Bot } from './game/bot';
 import { boardId, submitScore, fetchTop, type ScoreEntry } from './game/leaderboard';
 
-// story cutscenes (generated, captions baked into the frames) — shown in campaign modes
-const CUTSCENES = [
-  { wave: 0, img: '/art/scene-1.png', title: 'CHAPTER I — SEVEN STILL BURNS' },
-  { wave: 14, img: '/art/scene-2.png', title: 'CHAPTER II — THE SCHEDULE' },
-  { wave: 26, img: '/art/scene-3.png', title: 'CHAPTER III — 04:47' },
-  { wave: 41, img: '/art/scene-4.png', title: 'CHAPTER IV — A POLITE ARMADA' },
-  { wave: 50, img: '/art/scene-5.png', title: 'CHAPTER V — THE POUCH' },
-  { wave: -1, img: '/art/scene-6.png', title: 'EPILOGUE — THE LIGHT GOES ON' },
-];
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, playNarration } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 
@@ -51,48 +42,91 @@ export default function App() {
 
 // ---------------- Main menu ----------------
 
+// Sequential unlock: a sector opens only once every prior sector has been
+// progressed (cleared, or reached wave 20+). No swiss-cheese gaps.
+function mapProgressed(m: GameMap): boolean {
+  return progress.mapCleared(m.id) || progress.bestWaveAny(m.id) >= 20;
+}
+function mapUnlocked(idx: number): boolean {
+  for (let i = 0; i < idx; i++) if (!mapProgressed(ALL_MAPS[i])) return false;
+  return true;
+}
+
 function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
   onStart: () => void;
 }) {
+  const apexLocked = progress.record.runs < 1;
+  const ngLocked = !progress.armisticeSeen;
+  const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
+
   return (
     <div className="menu-root">
       <div className="menu-stars" />
-      <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
-      <p className="menu-sub">Year 2347. The Combine has found Lantern Seven. A million archived souls are listening to the hull. Hold the lane.</p>
+      <div className="menu-glow" />
+
+      <header className="menu-hero">
+        <div className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</div>
+        <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
+        <p className="menu-sub">Year 2347. The Combine armada has found the last lighthouse — and the million archived souls sleeping inside it. Build the grid. Hold the lane.</p>
+        <button className="start-btn hero-deploy" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
+        {progress.record.runs > 0 && (
+          <div className="hero-stats">
+            <span><b>{progress.record.victories}</b> lanterns held</span>
+            <span><b>{progress.record.kills.toLocaleString()}</b> hulls destroyed</span>
+            <span><b>{progress.totalWaves}</b> waves cleared</span>
+          </div>
+        )}
+      </header>
 
       <div className="menu-section-label">SELECT SECTOR</div>
       <div className="map-grid">
-        {ALL_MAPS.map((m) => (
-          <button
-            key={m.id}
-            className={`map-card ${props.map.id === m.id ? 'active' : ''}`}
-            onClick={() => { sfx.click(); props.setMap(m); }}
-          >
-            <div className="map-thumb-stack">
-              <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" />
-              <MapThumb map={m} />
-            </div>
-            <div className="map-card-name">{m.name}</div>
-            <div className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</div>
-            <div className="map-card-desc">{m.desc}</div>
-            {progress.best(m.id, props.diff.id) > 0 && (
-              <div className="map-card-best">SERVICE RECORD · WAVE {progress.best(m.id, props.diff.id)}</div>
-            )}
-          </button>
-        ))}
+        {ALL_MAPS.map((m, i) => {
+          const unlocked = mapUnlocked(i);
+          const best = progress.bestWaveAny(m.id);
+          if (!unlocked) {
+            return (
+              <div key={m.id} className="map-card map-card-locked" title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
+                <div className="map-lock">🔒</div>
+                <div className="map-card-name">CLASSIFIED SECTOR</div>
+                <div className="map-card-desc">Advance through {ALL_MAPS[i - 1].name} to receive these coordinates.</div>
+              </div>
+            );
+          }
+          return (
+            <button
+              key={m.id}
+              className={`map-card ${props.map.id === m.id ? 'active' : ''}`}
+              onClick={() => { sfx.click(); props.setMap(m); }}
+            >
+              {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
+              <div className="map-thumb-stack">
+                <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" />
+                <MapThumb map={m} />
+              </div>
+              <div className="map-card-row">
+                <span className="map-card-name">{m.name}</span>
+                <span className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</span>
+              </div>
+              <div className="map-card-desc">{m.desc}</div>
+              {best > 0 && <div className="map-card-best">BEST · WAVE {best}</div>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="menu-section-label">SELECT PROTOCOL</div>
       <div className="diff-row">
         {DIFFICULTIES.map((d) => {
-          const locked = d.id === 'ngplus' && !progress.armisticeSeen;
+          const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked);
           if (locked) {
+            const ng = d.id === 'ngplus';
             return (
-              <div key={d.id} className="diff-card diff-locked" title="Sealed. End the war the other way first.">
-                <div className="diff-name">🔒 ????</div>
-                <div className="diff-desc">The Archive knows another ending.</div>
+              <div key={d.id} className="diff-card diff-locked"
+                title={ng ? 'Sealed. End the war the other way first.' : 'Complete one campaign to unlock Apex.'}>
+                <div className="diff-name">🔒 {ng ? '????' : 'APEX'}</div>
+                <div className="diff-desc">{ng ? 'The Archive knows another ending.' : 'Survive one campaign to unlock.'}</div>
               </div>
             );
           }
@@ -109,78 +143,8 @@ function MainMenu(props: {
         })}
       </div>
 
-      <div className="menu-section-label">SECTOR LEADERBOARD</div>
-      <MenuLeaderboard map={props.map} diff={props.diff} />
-
-      <div className="menu-settings">
-        <button className="tb-btn" onClick={() => { progress.cutscenes = !progress.cutscenes; sfx.click(); props.setDiff({ ...props.diff }); }}>
-          🎬 CUTSCENES {progress.cutscenes ? 'ON' : 'OFF'}
-        </button>
-        <input className="name-input" maxLength={20} placeholder="CALLSIGN"
-          defaultValue={progress.playerName}
-          onBlur={(e) => { progress.playerName = e.target.value.trim(); }} />
-      </div>
-
-      {progress.history.length > 0 && (
-        <div className="history-panel">
-          <div className="menu-section-label">RECENT CAMPAIGNS</div>
-          {progress.history.slice(0, 6).map((r, i) => (
-            <div key={i} className={`lb-row ${r.won ? 'won' : ''}`}>
-              <span className="lb-name">{ALL_MAPS.find((m) => m.id === r.map)?.name ?? r.map} · {DIFFICULTIES.find((d) => d.id === r.diff)?.name ?? r.diff}</span>
-              <span className="lb-wave">W{r.wave}</span>
-              <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
-              <span className="lb-kills">☠{r.kills}</span>
-              <span className="lb-rank">{r.won ? (r.freeplay ? '∞' : '✓') : '✕'}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {progress.record.runs > 0 && (
-        <div className="warden-record">
-          <span>CAMPAIGNS {progress.record.runs}</span>
-          <span>LANTERNS HELD {progress.record.victories}</span>
-          <span>HULLS DESTROYED {progress.record.kills.toLocaleString()}</span>
-          <span>WAVES CLEARED {progress.totalWaves}</span>
-          <span>{progress.armisticeSeen ? 'ARMISTICE ✓' : 'ARMISTICE —'}</span>
-        </div>
-      )}
-
-      <button className="start-btn" onClick={props.onStart}>▶ DEPLOY</button>
-    </div>
-  );
-}
-
-function MenuLeaderboard({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
-  const [fp, setFp] = useState(false);
-  const [rows, setRows] = useState<ScoreEntry[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    setRows(null);
-    fetchTop(boardId(map.id, diff.id, fp)).then((r) => { if (live) setRows(r); });
-    return () => { live = false; };
-  }, [map.id, diff.id, fp]);
-  return (
-    <div className="menu-lb">
-      <div className="menu-lb-head">
-        <span>{map.name} · {diff.name}</span>
-        <button className={`tb-btn ${fp ? 'on' : ''}`} onClick={() => { setFp(!fp); sfx.click(); }}>FREEPLAY</button>
-      </div>
-      {rows === null && <div className="hint-dim">contacting sector command…</div>}
-      {rows !== null && rows.length === 0 && <div className="hint-dim">No records yet. Be the first Warden on this board.</div>}
-      {rows !== null && rows.length > 0 && (
-        <div className="lb-table">
-          {rows.map((r, i) => (
-            <div key={i} className="lb-row">
-              <span className="lb-rank">{i + 1}</span>
-              <span className="lb-name">{r.name}</span>
-              <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
-              <span className="lb-kills">☠{r.kills}</span>
-              {fp && <span className="lb-wave">W{r.wave}</span>}
-            </div>
-          ))}
-        </div>
-      )}
+      <button className="start-btn" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
+      <div className="menu-footer">Warden, the lane is yours. · A Lantern Concord defense simulation</div>
     </div>
   );
 }
@@ -230,14 +194,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   const perfIdleRef = useRef(0);
-  const [cutscene, setCutscene] = useState<number | null>(null);
   const [cloakTip, setCloakTip] = useState(false);
-  const cutsceneRef = useRef<number | null>(null);
-  const briefedRef = useRef(false);
-  const scenesShownRef = useRef(new Set<number>());
-  cutsceneRef.current = cutscene;
-  briefedRef.current = briefed;
-  useEffect(() => { scenesShownRef.current = new Set(); }, [run]);
   const [sideTab, setSideTab] = useState<'build' | 'intel'>('build');
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
@@ -308,24 +265,6 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           game.cloakTipPending = false;
           game.paused = true;
           setCloakTip(true);
-        }
-        // story cutscene triggers (campaign modes only, skippable via menu toggle)
-        if (progress.cutscenes && diff.id !== 'ngplus' && PERF_MAP === null &&
-            cutsceneRef.current === null && briefedRef.current) {
-          const shown = scenesShownRef.current;
-          for (let i = 0; i < CUTSCENES.length; i++) {
-            if (shown.has(i)) continue;
-            const c = CUTSCENES[i];
-            const due = c.wave === -1
-              ? game.phase === 'victory'
-              : game.phase === 'build' && game.wave >= c.wave;
-            if (due) {
-              shown.add(i);
-              game.paused = true;
-              setCutscene(i);
-              break;
-            }
-          }
         }
       }
       raf = requestAnimationFrame(loop);
@@ -538,12 +477,6 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               </div>
             </div>
           )}
-          {cutscene !== null && (
-            <CutsceneOverlay
-              scene={CUTSCENES[cutscene]}
-              onDone={() => { setCutscene(null); game.paused = false; sfx.click(); }}
-            />
-          )}
           {game.phase === 'armistice' && (
             <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={ARMISTICE_LINES}
@@ -652,24 +585,6 @@ function AfterAction({ game }: { game: Game }) {
   );
 }
 
-function CutsceneOverlay({ scene, onDone }: { scene: { img: string; title: string }; onDone: () => void }) {
-  // any key, any click, or the button — a cutscene must never trap the player
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => { ev.preventDefault(); onDone(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onDone]);
-  return (
-    <div className="cutscene-overlay" onClick={onDone}>
-      <div className="cutscene-box">
-        <div className="cutscene-title">{scene.title}</div>
-        <img className="cutscene-img" src={scene.img} alt="" />
-        <button className="start-btn small">CONTINUE ▶</button>
-        <div className="hint-dim">click anywhere or press any key</div>
-      </div>
-    </div>
-  );
-}
 
 function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: DifficultyDef }) {
   const [name, setName] = useState(progress.playerName);
