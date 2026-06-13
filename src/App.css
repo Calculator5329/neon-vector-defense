@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 28px 20px;
+  padding: 28px 20px 104px;
   overflow-y: auto;
   background:
     linear-gradient(rgba(5, 7, 15, 0.42), rgba(5, 7, 15, 0.88) 75%),
@@ -85,7 +85,6 @@
   margin: 14px auto 22px;
   max-width: 560px;
 }
-.hero-deploy { margin-top: 0 !important; }
 .hero-stats {
   display: flex;
   gap: 22px;
@@ -98,14 +97,26 @@
 }
 .hero-stats b { color: var(--text); font-family: 'Orbitron', sans-serif; }
 
-.deploy-target {
-  margin-top: 12px;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: var(--text);
+/* sticky launch bar */
+.deploy-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 12px 20px;
+  background: linear-gradient(rgba(5, 7, 15, 0), rgba(5, 7, 15, 0.92) 38%);
+  border-top: 1px solid var(--edge);
+  backdrop-filter: blur(8px);
 }
-.deploy-target span { color: var(--accent); margin: 0 4px; }
+.deploy-bar-sel { display: flex; align-items: baseline; gap: 9px; }
+.dbar-label { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--dim); }
+.dbar-sec { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #fff; }
+.dbar-dot { color: var(--dim); }
+.dbar-diff { font-family: 'Orbitron', sans-serif; font-size: 15px; color: var(--accent); }
+.deploy-bar-btn { margin: 0 !important; padding: 12px 40px; font-size: 17px; letter-spacing: 4px; }
 
 .menu-section { text-align: center; margin: 32px 0 14px; }
 .menu-section-label {
@@ -1048,6 +1059,12 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .target-row .tb-btn { min-height: 38px; }
   .upgrade-btn { padding: 11px 12px; }
   .menu-title { font-size: clamp(26px, 8vw, 44px); }
+  .deploy-bar { gap: 10px; padding: 10px 12px; flex-wrap: nowrap; }
+  .deploy-bar-sel { flex: 1; min-width: 0; flex-wrap: wrap; }
+  .dbar-label { display: none; }
+  .dbar-sec, .dbar-diff { font-size: 14px; }
+  .deploy-bar-btn { padding: 11px 22px; font-size: 15px; letter-spacing: 2px; flex-shrink: 0; }
+  .menu-root { padding-bottom: 92px; }
 }
 
 /* codex */

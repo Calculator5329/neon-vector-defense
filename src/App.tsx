@@ -72,8 +72,6 @@ function MainMenu(props: {
         <div className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</div>
         <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
         <p className="menu-sub">Year 2347. The Combine armada has found the last lighthouse — and the million archived souls sleeping inside it. Build the grid. Hold the lane.</p>
-        <button className="start-btn hero-deploy" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
-        <div className="deploy-target">{props.map.name} <span>·</span> {props.diff.name}</div>
         {progress.record.runs > 0 && (
           <div className="hero-stats">
             <span><b>{progress.record.victories}</b> lanterns held</span>
@@ -163,6 +161,17 @@ function MainMenu(props: {
       </div>
 
       <div className="menu-footer">Warden, the lane is yours. · A Lantern Concord defense simulation</div>
+
+      {/* sticky launch bar — always visible, reflects the current selection */}
+      <div className="deploy-bar">
+        <div className="deploy-bar-sel">
+          <span className="dbar-label">DEPLOYING TO</span>
+          <span className="dbar-sec">{props.map.name}</span>
+          <span className="dbar-dot">·</span>
+          <span className="dbar-diff">{props.diff.name}</span>
+        </div>
+        <button className="start-btn deploy-bar-btn" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
+      </div>
     </div>
   );
 }
