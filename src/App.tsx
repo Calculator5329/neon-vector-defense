@@ -359,7 +359,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           setCloakTip(true);
         }
         // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed
-        if (PERF_MAP === null && !game.paused) {
+        if (PERF_MAP === null && !game.paused && (game.phase === 'build' || game.phase === 'wave')) {
           const k = progress.record.kills + game.totalKills;
           const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
           if (just) {

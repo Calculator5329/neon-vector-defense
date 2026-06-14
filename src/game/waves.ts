@@ -88,9 +88,15 @@ export function getWave(n: number): Wave {
   ];
 }
 
-/** Health multiplier for endless scaling past the designed waves. */
+/** Health multiplier. Climbs continuously through the whole campaign so a maxed
+ *  defence keeps getting tested (no mid-game "escape velocity"), then steepens
+ *  in freeplay. */
 export function waveHpMult(n: number): number {
-  return n <= WAVES.length ? 1 : 1 + (n - WAVES.length) * 0.28;
+  // flat through the early game (the difficulty ramp handles waves 1-25), then a
+  // steady climb afterward so a maxed defence keeps getting tested — kills the
+  // mid-game "escape velocity". Steepens further in freeplay.
+  const ramp = 1 + Math.max(0, n - 25) * 0.03;
+  return n <= WAVES.length ? ramp : ramp + (n - WAVES.length) * 0.32;
 }
 
 export function waveBonus(n: number): number {
