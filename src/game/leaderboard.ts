@@ -76,6 +76,8 @@ export interface TelemetryEvent {
   won: boolean;
   freeplay: boolean;
   durationS: number;
+  /** comma-separated tower def ids fielded this run (for popularity analysis) */
+  towers?: string;
 }
 
 /** anonymous gameplay telemetry → telemetry collection (write-only, fire-and-forget) */
@@ -97,10 +99,56 @@ export function logTelemetry(e: TelemetryEvent): void {
           won: { booleanValue: e.won },
           freeplay: { booleanValue: e.freeplay },
           durationS: { integerValue: String(Math.floor(e.durationS)) },
+          towers: { stringValue: (e.towers ?? '').slice(0, 200) },
         },
       }),
     }).catch(() => {});
   } catch { /* fire-and-forget */ }
+}
+
+export interface TelemetryRow extends TelemetryEvent {
+  ts: number;
+}
+
+/** Admin-only: read recent telemetry events for the dashboard.
+ *  Requires the telemetry collection to allow read (see firestore.rules). */
+export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
+  try {
+    const res = await fetch(`${BASE}:runQuery?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'telemetry' }],
+          orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }],
+          limit,
+        },
+      }),
+    });
+    if (!res.ok) return [];
+    const rows = await res.json();
+    return rows
+      .filter((r: { document?: unknown }) => r.document)
+      .map((r: { document: { fields: Record<string, { stringValue?: string; integerValue?: string; booleanValue?: boolean }> } }) => {
+        const f = r.document.fields;
+        return {
+          uid: f.uid?.stringValue ?? '',
+          ts: Number(f.ts?.integerValue ?? 0),
+          kind: f.kind?.stringValue ?? '',
+          map: f.map?.stringValue ?? '',
+          diff: f.diff?.stringValue ?? '',
+          wave: Number(f.wave?.integerValue ?? 0),
+          kills: Number(f.kills?.integerValue ?? 0),
+          cash: Number(f.cash?.integerValue ?? 0),
+          won: f.won?.booleanValue ?? false,
+          freeplay: f.freeplay?.booleanValue ?? false,
+          durationS: Number(f.durationS?.integerValue ?? 0),
+          towers: f.towers?.stringValue ?? '',
+        } as TelemetryRow;
+      });
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {

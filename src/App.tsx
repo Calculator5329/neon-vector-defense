@@ -14,6 +14,8 @@ import { boardId, submitScore, fetchTop, submitFeedback, logTelemetry, type Scor
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
+import { isAdmin } from './game/admin';
+import AdminDashboard from './AdminDashboard';
 
 type Screen = 'menu' | 'game';
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
@@ -23,7 +25,15 @@ const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
 const PERF_PARAMS = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const PERF_MAP = PERF_PARAMS.get('perf');
 
+// hidden, read-only ops console: ?admin=lantern-seven (sticky thereafter)
+const ADMIN = isAdmin();
+
 export default function App() {
+  if (ADMIN) return <AdminDashboard />;
+  return <Main />;
+}
+
+function Main() {
   const [screen, setScreen] = useState<Screen>(PERF_MAP !== null ? 'game' : 'menu');
   const [map, setMap] = useState<GameMap>(ALL_MAPS.find((m) => m.id === PERF_MAP) ?? MAPS[0]);
   const [diff, setDiff] = useState<DifficultyDef>(
@@ -396,6 +406,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           uid: progress.uid, kind: game.phase, map: game.map.id, diff: game.diff.id,
           wave: game.wave, kills: game.totalKills, cash: Math.round(game.runStats.cashEarned),
           won: game.phase !== 'gameover', freeplay: game.freeplay, durationS: Math.round(game.time),
+          // tower types fielded this run (standing + any that fired before being sold)
+          towers: [...new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)])].join(','),
         });
       }
       const ctx = canvasRef.current?.getContext('2d');

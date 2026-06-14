@@ -208,6 +208,12 @@ function round(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/** True if any field of the stat block changed between two builds. */
+function statsDiffer(a: TowerStats, b: TowerStats): boolean {
+  const keys = Object.keys(a) as (keyof TowerStats)[];
+  return keys.some((k) => a[k] !== b[k]);
+}
+
 /** Analyze every tower: canonical build points + per-step value, with flags. */
 export function analyzeEfficiency(): { towers: TowerEfficiency[]; medianDpsPerCredit: number } {
   const towers: TowerEfficiency[] = [];
@@ -235,11 +241,13 @@ export function analyzeEfficiency(): { towers: TowerEfficiency[]; medianDpsPerCr
         const up = def.tracks[track].upgrades[tier];
         // a step's "value" credits crowd-dps at half weight; pure utility scores ~0
         const value = Math.max(deltaSingle, deltaAoe * 0.5) / cost;
-        const utilityOnly = deltaSingle < 0.01 && deltaAoe < 0.01;
-        const hasUtility = dAfter.utility.length > dBefore.utility.length ||
-          /detect|slow|drag|execute|aura|shred|mark|continuous/i.test(up.desc);
+        const dpsOnlyGain = deltaSingle < 0.01 && deltaAoe < 0.01;
+        // a step is only truly DEAD if it changes NOTHING in the stat block.
+        // range/rate/coverage steps add no modeled dps but are real value -> 'ok'.
+        const changed = statsDiffer(before, after);
         let flag: UpgradeStep['flag'];
-        if (utilityOnly) flag = hasUtility ? 'ok' : 'dead';
+        if (!changed) flag = 'dead';
+        else if (dpsOnlyGain) flag = 'ok'; // utility / coverage / uptime
         else if (value >= 0.06) flag = 'op';
         else if (value >= 0.025) flag = 'strong';
         else if (value >= 0.008) flag = 'ok';

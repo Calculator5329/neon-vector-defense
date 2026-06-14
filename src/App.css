@@ -1265,3 +1265,116 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .codex-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .codex-name { flex: 1; }
 .codex-tags { color: var(--dim); font-size: 11px; white-space: nowrap; }
+
+/* ============ Admin / Ops console (hidden, read-only) ============ */
+
+.adm-root {
+  height: 100%;
+  overflow-y: auto;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(75, 207, 250, 0.06), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+.adm-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px clamp(16px, 4vw, 48px);
+  background: rgba(8, 12, 26, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--edge);
+}
+.adm-brand h1 { margin: 2px 0 0; font-family: 'Orbitron', sans-serif; font-size: 17px; letter-spacing: 1.5px; color: #eaf1ff; }
+.adm-eyebrow { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 3px; color: var(--dim); }
+.adm-tabs { display: flex; gap: 8px; }
+.adm-tabs button {
+  font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 2px;
+  padding: 8px 16px; color: var(--dim); background: transparent;
+  border: 1px solid var(--edge); border-radius: 6px;
+}
+.adm-tabs button.on { color: var(--accent); border-color: rgba(75, 207, 250, 0.45); background: var(--panel2); }
+.adm-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.adm-readonly {
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 2px;
+  color: var(--gold); border: 1px solid rgba(255, 211, 42, 0.35); padding: 4px 9px; border-radius: 4px;
+}
+.adm-exit { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--dim); background: transparent; border: 1px solid var(--edge); border-radius: 6px; padding: 7px 13px; }
+.adm-exit:hover { color: var(--danger); border-color: rgba(255, 71, 87, 0.4); }
+
+.adm-content { padding: 20px clamp(16px, 4vw, 48px) 60px; display: flex; flex-direction: column; gap: 18px; max-width: 1200px; }
+.adm-meta-bar { font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+.adm-card { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 16px 18px; }
+.adm-card-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.adm-card-head h3 { margin: 0; font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1.5px; color: #eaf1ff; }
+.adm-hint { font-size: 12px; color: var(--dim); margin: 0; }
+.adm-hint code, .adm-empty code { background: var(--panel2); padding: 1px 5px; border-radius: 3px; color: var(--accent); font-size: 11px; }
+.adm-empty { padding: 24px; text-align: center; color: var(--dim); }
+.adm-empty p { margin: 6px 0; }
+.adm-two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .adm-two { grid-template-columns: 1fr; } }
+
+/* horizontal bars */
+.adm-bars { display: flex; flex-direction: column; gap: 6px; }
+.adm-bar-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 10px; }
+.adm-bar-label { font-size: 12px; color: var(--text); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-bar-track { position: relative; height: 20px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+.adm-bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; opacity: 0.85; transition: width 0.3s; }
+.adm-bar-val { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 4px #000; }
+.adm-bar-sub { color: var(--dim); }
+
+/* line chart */
+.adm-line { width: 100%; height: auto; display: block; }
+.adm-grid { stroke: var(--edge); stroke-width: 1; opacity: 0.4; }
+.adm-axis { fill: var(--dim); font-size: 9px; font-family: 'Rajdhani', sans-serif; }
+.adm-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--dim); }
+.adm-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.adm-curve-meta { font-size: 13px; color: var(--text); margin-bottom: 8px; }
+.adm-curve-meta b { color: #fff; }
+.adm-selects { margin-left: auto; display: flex; gap: 8px; }
+.adm-selects select {
+  font-family: 'Rajdhani', sans-serif; font-size: 13px; color: var(--text);
+  background: var(--panel2); border: 1px solid var(--edge); border-radius: 6px; padding: 5px 9px;
+}
+
+/* tables */
+.adm-table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.adm-table th { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px; color: var(--dim); text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
+.adm-table td { padding: 6px 8px; text-align: right; border-bottom: 1px solid rgba(31, 44, 85, 0.4); }
+.adm-table th:first-child, .adm-table td:first-child { text-align: left; }
+.adm-dim { color: var(--dim); }
+.adm-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+
+.adm-grids { display: flex; flex-direction: column; gap: 16px; }
+.adm-grid-skill { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+.adm-wingrid td, .adm-wingrid th { text-align: center; }
+.adm-wingrid .adm-rowhead { text-align: left; color: var(--text); }
+
+.adm-eff-row { cursor: pointer; }
+.adm-eff-row:hover { background: rgba(75, 207, 250, 0.05); }
+.adm-eff-row.open { background: rgba(75, 207, 250, 0.08); }
+.adm-eff-detail td { padding: 0 8px 12px; }
+.adm-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-top: 8px; }
+@media (max-width: 760px) { .adm-steps { grid-template-columns: 1fr; } }
+.adm-steps-name { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 1px; color: var(--dim); margin-bottom: 6px; }
+.adm-step { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; text-align: left; }
+.adm-step-flag { font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 1px; color: #04101a; padding: 2px 5px; border-radius: 3px; min-width: 44px; text-align: center; }
+.adm-step-name { flex: 1; color: var(--text); }
+.adm-step-cost { color: var(--gold); }
+.adm-step-d { color: var(--dim); min-width: 86px; text-align: right; }
+
+/* telemetry */
+.adm-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 760px) { .adm-stat-row { grid-template-columns: repeat(2, 1fr); } }
+.adm-stat { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px; }
+.adm-stat-val { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #fff; }
+.adm-stat-label { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-top: 4px; }
+.adm-histo { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding-top: 8px; }
+.adm-histo-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.adm-histo-stack { width: 100%; display: flex; flex-direction: column-reverse; border-radius: 3px 3px 0 0; overflow: hidden; min-height: 2px; }
+.adm-histo-label { font-size: 9px; color: var(--dim); margin-top: 5px; transform: rotate(-30deg); transform-origin: center; white-space: nowrap; }

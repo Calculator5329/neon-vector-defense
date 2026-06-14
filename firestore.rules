@@ -27,10 +27,14 @@ service cloud.firestore {
         && request.resource.data.ctx is string && request.resource.data.ctx.size() <= 200;
     }
 
-    // anonymous gameplay telemetry: write-only, validated; for future analysis/AI tuning
+    // anonymous gameplay telemetry: append-only, validated. Reads are public so the
+    // in-app admin dashboard (gated client-side) can visualize aggregate player data.
+    // The data carries no PII — uid is a random per-device token, never a login.
     match /telemetry/{id} {
-      allow read, update, delete: if false;
-      allow create: if request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
+      allow read: if true;
+      allow update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'towers'])
+        && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
         && request.resource.data.uid is string && request.resource.data.uid.size() <= 40
         && request.resource.data.ts is int
         && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
@@ -41,7 +45,8 @@ service cloud.firestore {
         && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
         && request.resource.data.won is bool
         && request.resource.data.freeplay is bool
-        && request.resource.data.durationS is int && request.resource.data.durationS >= 0 && request.resource.data.durationS < 100000;
+        && request.resource.data.durationS is int && request.resource.data.durationS >= 0 && request.resource.data.durationS < 100000
+        && (!('towers' in request.resource.data) || (request.resource.data.towers is string && request.resource.data.towers.size() <= 200));
     }
 
     match /{document=**} {
