@@ -78,6 +78,12 @@ export const progress = {
     cache.runs += 1;
     cache.kills += rec.kills;
     if (rec.won) cache.victories += 1;
+    if (rec.freeplay) {
+      const c = cache as unknown as { fpRuns?: number; fpBest?: number; fpKills?: number };
+      c.fpRuns = (c.fpRuns ?? 0) + 1;
+      c.fpBest = Math.max(c.fpBest ?? 0, rec.wave);
+      c.fpKills = (c.fpKills ?? 0) + rec.kills;
+    }
     if (rec.won && !cache.clearedMaps.includes(rec.map)) cache.clearedMaps.push(rec.map);
     if (rec.won && rec.diff === 'hard') (cache as unknown as { apexW?: boolean }).apexW = true;
     save();
@@ -86,6 +92,11 @@ export const progress = {
   set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
   mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
   get apexCleared(): boolean { return (cache as unknown as { apexW?: boolean }).apexW ?? false; },
+  /** lifetime freeplay service record */
+  get freeplay() {
+    const c = cache as unknown as { fpRuns?: number; fpBest?: number; fpKills?: number };
+    return { runs: c.fpRuns ?? 0, bestWave: c.fpBest ?? 0, kills: c.fpKills ?? 0 };
+  },
   /** anonymous per-device id (no login) — correlates feedback, scores & telemetry */
   get uid(): string {
     const c = cache as unknown as { uid?: string };

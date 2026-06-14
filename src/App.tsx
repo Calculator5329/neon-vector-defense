@@ -120,19 +120,19 @@ function MainMenu(props: {
       <header className="menu-hero">
         <div className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</div>
         <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
-        <p className="menu-sub">Year 2347. The Combine armada has found the last lighthouse — and the million archived souls sleeping inside it. Build the grid. Hold the lane.</p>
+        <p className="menu-sub">Year 2347. The Combine armada has found the last lighthouse, and the million archived souls sleeping inside it. Build the grid. Hold the lane.</p>
         {progress.record.runs > 0 && (
           <div className="hero-stats">
             <span><b>{progress.record.victories}</b> lanterns held</span>
             <span><b>{progress.record.kills.toLocaleString()}</b> hulls destroyed</span>
             <span><b>{progress.totalWaves}</b> waves cleared</span>
+            {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
           </div>
         )}
       </header>
 
       <div className="menu-section">
         <div className="menu-section-label">① SELECT SECTOR</div>
-        <div className="menu-section-hint">Where you'll make your stand. Clear one to chart the next.</div>
       </div>
       <div className="map-grid">
         {ALL_MAPS.map((m, i) => {
@@ -154,7 +154,6 @@ function MainMenu(props: {
               className={`map-card ${active ? 'active' : ''}`}
               onClick={() => { sfx.click(); props.setMap(m); }}
             >
-              {active && <div className="sel-pill">● SELECTED</div>}
               {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
               {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
               <div className="map-thumb-stack">
@@ -174,7 +173,6 @@ function MainMenu(props: {
 
       <div className="menu-section">
         <div className="menu-section-label">② SELECT PROTOCOL</div>
-        <div className="menu-section-hint">How hard the armada hits. {firstTime ? 'New here? Start on Recruit.' : 'Tougher protocols, bigger leaderboard scores.'}</div>
       </div>
       <div className="diff-row">
         {DIFFICULTIES.map((d) => {
@@ -200,7 +198,6 @@ function MainMenu(props: {
               className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
               onClick={() => { sfx.click(); props.setDiff(d); }}
             >
-              {active && <div className="sel-pill">● SELECTED</div>}
               {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
               <div className="diff-name">{d.name}</div>
               <div className="diff-desc">{d.desc}</div>
@@ -208,8 +205,6 @@ function MainMenu(props: {
           );
         })}
       </div>
-
-      <div className="menu-footer">Warden, the lane is yours. · A Lantern Concord defense simulation</div>
 
       {/* sticky launch bar — always visible, reflects the current selection */}
       <div className="deploy-bar">

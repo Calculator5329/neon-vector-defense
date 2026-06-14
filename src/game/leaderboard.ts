@@ -104,6 +104,9 @@ export function logTelemetry(e: TelemetryEvent): void {
 }
 
 export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {
+  // endless freeplay boards rank by wave reached (the meaningful metric);
+  // campaign boards rank by cash earned.
+  const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
   try {
     const res = await fetch(`${BASE}/boards/${board}:runQuery?key=${API_KEY}`, {
       method: 'POST',
@@ -111,7 +114,7 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
       body: JSON.stringify({
         structuredQuery: {
           from: [{ collectionId: 'scores' }],
-          orderBy: [{ field: { fieldPath: 'cash' }, direction: 'DESCENDING' }],
+          orderBy: [{ field: { fieldPath: sortField }, direction: 'DESCENDING' }],
           limit,
         },
       }),
