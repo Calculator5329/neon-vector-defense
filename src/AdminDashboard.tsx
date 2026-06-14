@@ -331,6 +331,9 @@ function TowerBalanceLab({ efficiency }: { efficiency: TowerEfficiency[] }) {
   return (
     <div className="adm-card">
       <div className="adm-card-head"><h3>Tower balance lab</h3><span className="adm-hint">per-tower value, matchups, and upgrade health</span></div>
+      <p className="adm-hint adm-eff-legend">
+        These are simulator estimates for finding outliers, not literal combat readouts. Huge crowd DPS means the packed-lane estimate thinks pierce, splash, chain, or aura value is exploding and deserves a sanity pass.
+      </p>
       <div className="adm-tower-lab">
         <div className="adm-tower-list">
           {ranked.map(({ t, b, ratio }) => {
@@ -352,8 +355,8 @@ function TowerBalanceLab({ efficiency }: { efficiency: TowerEfficiency[] }) {
           <div className="adm-mini-kpis">
             <Stat label="best build" value={cur.b.label.replace(/\u00b7/g, ' ')} />
             <Stat label="single DPS" value={String(cur.b.single)} />
-            <Stat label="crowd DPS" value={String(cur.b.aoe)} />
-            <Stat label="DPS / credit" value={cur.b.dpsPerCredit.toFixed(3)} />
+            <Stat label="sim crowd DPS" value={String(cur.b.aoe)} />
+            <Stat label="single DPS / credit" value={cur.b.dpsPerCredit.toFixed(3)} />
           </div>
           <div className="adm-matchups">
             {['armor', 'cloak', 'boss', 'explosive immune', 'cryo immune'].map((h) => (

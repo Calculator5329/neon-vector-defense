@@ -53,6 +53,10 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 }
 
+function liveUnlockKills(game: Game): number {
+  return DEMO_MODE ? DEMO_UNLOCK_KILLS : progress.record.kills + game.totalKills;
+}
+
 export default function App() {
   if (ADMIN) return <AdminDashboard />;
   return <Main />;
@@ -139,8 +143,8 @@ function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AI
           <div className="ai-head">
             <span>WARDEN AI</span>
             <div className="ai-head-actions">
-              <button className="ai-new" onClick={startNew}>NEW</button>
-              <button className="ai-x" onClick={() => { setOpen(false); sfx.click(); }}>x</button>
+              <button className="ai-new" aria-label="Start new Warden AI chat" onClick={startNew}>NEW</button>
+              <button className="ai-x" aria-label="Close Warden AI" onClick={() => { setOpen(false); sfx.click(); }}>x</button>
             </div>
           </div>
           <div className="ai-log">
@@ -153,11 +157,12 @@ function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AI
             <input
               className="ai-input"
               maxLength={900}
+              aria-label="Ask Warden AI about the game"
               placeholder="Ask about the game..."
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <button className="ai-send" disabled={!text.trim() || state === 'busy'}>SEND</button>
+            <button className="ai-send" aria-label="Send question to Warden AI" disabled={!text.trim() || state === 'busy'}>SEND</button>
           </form>
           {(turnsRemaining !== null || conversationsRemaining !== null) && (
             <div className="ai-quota">
@@ -167,7 +172,7 @@ function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AI
           )}
         </div>
       )}
-      <button className="ai-toggle" title="Ask Warden AI" onClick={() => { setOpen((o) => !o); sfx.click(); }}>
+      <button className="ai-toggle" title="Ask Warden AI" aria-label="Ask Warden AI" aria-expanded={open} onClick={() => { setOpen((o) => !o); sfx.click(); }}>
         AI
       </button>
     </div>
@@ -219,7 +224,7 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'inbox' | 'send'>('inbox');
   const [text, setText] = useState('');
-  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [replies, setReplies] = useState<FeedbackReply[]>([]);
   const [readAt, setReadAt] = useState(() => feedbackReadAt());
   const [dismissedReplies, setDismissedReplies] = useState<string[]>(() => loadDismissedReplyIds());
@@ -259,7 +264,12 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
     if (!t) return;
     setState('busy');
     const id = await submitFeedback(t, ctx);
-    if (id) saveFeedbackId(id);
+    if (!id) {
+      setState('err');
+      sfx.error();
+      return;
+    }
+    saveFeedbackId(id);
     setState('done');
     setText('');
     void refreshReplies();
@@ -287,7 +297,7 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
         <div className="fb-panel">
           <div className="fb-head">
             <span>MESSAGES</span>
-            <button className="fb-x" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
+            <button className="fb-x" aria-label="Close messages" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
           </div>
           <div className="fb-tabs">
             <button className={tab === 'inbox' ? 'on' : ''} onClick={() => { setTab('inbox'); sfx.click(); }}>
@@ -298,7 +308,7 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
           {tab === 'inbox' && <div className="fb-replies">
             <div className="fb-section-row">
               <div className="fb-section-title">ADMIN REPLIES</div>
-              <button className="fb-check" disabled={checkingReplies} onClick={() => { void refreshReplies(); sfx.click(); }}>
+              <button className="fb-check" aria-label="Check for admin replies" disabled={checkingReplies} onClick={() => { void refreshReplies(); sfx.click(); }}>
                 {checkingReplies ? 'CHECKING' : 'CHECK'}
               </button>
             </div>
@@ -307,7 +317,7 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
                 <div key={r.id} className="fb-reply">
                   <div className="fb-reply-meta">
                     <span>{new Date(r.replyTs).toLocaleString()} / {r.ctx}</span>
-                    <button className="fb-dismiss" title="Dismiss reply" onClick={() => dismissReply(r.id)}>DISMISS</button>
+                    <button className="fb-dismiss" title="Dismiss reply" aria-label="Dismiss admin reply" onClick={() => dismissReply(r.id)}>DISMISS</button>
                   </div>
                   <div className="fb-reply-body">{r.reply}</div>
                   <div className="fb-reply-quote">You: {r.text}</div>
@@ -331,19 +341,21 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
           ) : (
             <div className="fb-compose">
               <textarea className="fb-text" maxLength={MAX} value={text} autoFocus
+                aria-label="Message to the developer"
                 placeholder="Bug, idea, or anything at all — it goes straight to the developer."
-                onChange={(e) => setText(e.target.value)} />
+                onChange={(e) => { setText(e.target.value); if (state === 'err') setState('idle'); }} />
+              {state === 'err' && <div className="fb-error">Transmission failed. Your draft is still here; try again.</div>}
               <div className="fb-foot">
                 <span className="fb-count">{text.length}/{MAX}</span>
-                <button className="fb-send" disabled={!text.trim() || state === 'busy'} onClick={send}>
-                  {state === 'busy' ? '…' : 'SEND ▸'}
+                <button className="fb-send" aria-label="Send message to developer" disabled={!text.trim() || state === 'busy'} onClick={send}>
+                  {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SEND ▸'}
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
-      <button className={`fb-toggle ${unread ? 'has-reply' : ''}`} title={unread ? `${unread} admin reply` : 'Messages'} onClick={() => { setOpen((o) => { const next = !o; if (next && unread > 0) setTab('inbox'); return next; }); sfx.click(); }}>
+      <button className={`fb-toggle ${unread ? 'has-reply' : ''}`} title={unread ? `${unread} admin reply` : 'Messages'} aria-label={unread ? `${unread} admin reply` : 'Messages'} aria-expanded={open} onClick={() => { setOpen((o) => { const next = !o; if (next && unread > 0) setTab('inbox'); return next; }); sfx.click(); }}>
         {open ? '✕' : '✉'}
       </button>
     </div>
@@ -415,10 +427,12 @@ function MainMenu(props: {
                   const unlocked = mapUnlocked(i);
                   const best = progress.bestWaveAny(m.id);
                   if (!unlocked) {
+                    const prior = ALL_MAPS[Math.max(0, i - 1)];
                     return (
                       <div key={m.id} className="map-card map-card-locked" title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
                         <div className="map-lock">🔒</div>
                         <div className="map-card-name">CLASSIFIED</div>
+                        <div className="map-card-desc">Clear {prior.name} or reach W20.</div>
                       </div>
                     );
                   }
@@ -600,6 +614,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [cloakTip, setCloakTip] = useState(false);
   const [unlockModal, setUnlockModal] = useState<TowerDef | null>(null);
   const [sideOpen, setSideOpen] = useState(true);
+  const [abortConfirm, setAbortConfirm] = useState(false);
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
   const selectedRef = useRef<Tower | null>(null);
@@ -610,6 +625,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
   // unlock modals must never stack on the briefing / tutorial overlays
   overlayRef.current = tutorial || !briefed;
+  const blockingOverlay = tutorial || !briefed || cloakTip || unlockModal !== null ||
+    game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice';
 
   // returning players already earned earlier towers — mark them seen silently so
   // the unlock modal only celebrates genuinely new unlocks during this run.
@@ -801,6 +818,22 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     return () => window.removeEventListener(WIDGET_OPEN_EVENT, pauseForWidgets);
   }, [game]);
 
+  useEffect(() => {
+    document.body.classList.add('game-active');
+    document.body.classList.toggle('game-sidebar-open', sideOpen);
+    document.body.classList.toggle('game-sidebar-collapsed', !sideOpen);
+    document.body.classList.toggle('game-blocking-overlay', blockingOverlay);
+    return () => {
+      document.body.classList.remove('game-active', 'game-sidebar-open', 'game-sidebar-collapsed', 'game-blocking-overlay');
+    };
+  }, [sideOpen, blockingOverlay]);
+
+  useEffect(() => {
+    if (!abortConfirm) return;
+    const id = window.setTimeout(() => setAbortConfirm(false), 3500);
+    return () => window.clearTimeout(id);
+  }, [abortConfirm]);
+
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -817,6 +850,12 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       const n = ev.key === '0' ? 10 : parseInt(ev.key);
       if (n >= 1 && n <= TOWERS_BY_UNLOCK.length) {
         const def = TOWERS_BY_UNLOCK[n - 1];
+        const lockedBy = def.unlockAt - liveUnlockKills(game);
+        if (lockedBy > 0) {
+          sfx.error();
+          game.announce(`${def.name} locked - destroy ${lockedBy.toLocaleString()} more hostiles`);
+          return;
+        }
         setPlacing((p) => (p?.id === def.id ? null : def));
         setSelectedUid(null);
         setAiming(false);
@@ -827,12 +866,30 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   }, [game]);
 
   const selected = selectedRef.current;
+  const abortRisk = game.phase !== 'build' || game.wave > 0 || game.towers.length > 0 || game.totalKills > 0;
+  const requestAbort = () => {
+    if (abortRisk && !abortConfirm) {
+      setAbortConfirm(true);
+      game.paused = true;
+      game.announce('Abort armed - press CONFIRM to leave this run.');
+      sfx.error();
+      return;
+    }
+    onExit();
+  };
 
   return (
     <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
       {AI_HELP_ENABLED && <AIHelpWidget placement="game" getContext={() => buildAIHelpContext({ screen: 'game', map, diff, game, selectedTower: selectedRef.current })} />}
       <div className="topbar">
-        <button className="tb-btn exit" onClick={onExit}>✕ ABORT</button>
+        <button
+          className={`tb-btn exit ${abortConfirm ? 'confirm' : ''}`}
+          aria-label={abortConfirm ? 'Confirm abort run' : 'Abort run'}
+          title={abortRisk ? 'Press once to arm abort, then confirm.' : 'Return to main menu'}
+          onClick={requestAbort}
+        >
+          {abortConfirm ? 'CONFIRM' : '✕ ABORT'}
+        </button>
         <div className="tb-stat lives" title="Reactor cores (lives)">⬢ {game.lives}</div>
         <div className="tb-stat credits" title="Credits">⌬ {Math.floor(game.credits)}</div>
         <div className="tb-stat wave">
@@ -853,18 +910,23 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         <button
           className={`tb-btn ${game.autoNext ? 'on' : ''}`}
           title="Auto-start next wave"
+          aria-label="Toggle auto-start next wave"
           onClick={() => { game.autoNext = !game.autoNext; sfx.click(); }}
         >AUTO</button>
         {[1, 2, 4].map((s) => (
           <button key={s} className={`tb-btn ${game.speed === s ? 'on' : ''}`}
+            title={`Set game speed to ${s}x`}
+            aria-label={`Set game speed to ${s}x`}
             onClick={() => { game.speed = s; sfx.click(); }}>{s}×</button>
         ))}
         <button className={`tb-btn ${game.paused ? 'on' : ''}`}
+          title={game.paused ? 'Resume game' : 'Pause game'}
+          aria-label={game.paused ? 'Resume game' : 'Pause game'}
           onClick={() => { game.paused = !game.paused; sfx.click(); }}>
           {game.paused ? '▶' : '⏸'}
         </button>
         <MusicButton />
-        <button className={`tb-btn ${muted ? '' : 'on'}`} title="Sound effects & voice on/off"
+        <button className={`tb-btn ${muted ? '' : 'on'}`} title="Sound effects & voice on/off" aria-label="Toggle sound effects and voice"
           onClick={() => { const m = !muted; setMuted(m); setMutedState(m); sfx.click(); }}>
           {muted ? '🔇' : '🔊'}
         </button>
@@ -890,6 +952,9 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
                   key={a.def.id}
                   className={`ability-btn ${ready ? 'ready' : ''} ${aiming && a.def.id === 'strike' ? 'aiming' : ''}`}
                   disabled={locked}
+                  aria-label={locked
+                    ? `${a.def.name} locked until wave ${a.def.unlockWave}`
+                    : `${a.def.name} ability, ${'QWERTY'[i]}`}
                   title={locked
                     ? `${a.def.name} — comes online at wave ${a.def.unlockWave}`
                     : `${a.def.name} (${'QWERTY'[i]}) — ${a.def.desc}\n\n${ABILITY_LORE[a.def.id] ?? ''}`}
@@ -1002,7 +1067,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               <ReceiverPanel game={game} />
             </div>
           ) : (
-            <button className="side-rail" title="Expand panel" onClick={() => { setSideOpen(true); sfx.click(); }}>
+            <button className="side-rail" title="Expand panel" aria-label="Expand arsenal panel" onClick={() => { setSideOpen(true); sfx.click(); }}>
               <span className="side-rail-arrow">⟨</span>
               <span className="side-rail-label">ARSENAL</span>
             </button>
@@ -1015,10 +1080,10 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
 
 function HowToPlay({ onDone }: { onDone: () => void }) {
   const steps: [string, string, string][] = [
-    ['🎯', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1–9), then click open ground beside the lane. Towers fire automatically at anything in range.'],
+    ['🎯', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1–9/0), then click open ground beside the lane. Towers fire automatically at anything in range.'],
     ['⌬', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers and upgrades.'],
     ['▲', 'Two upgrade tracks', 'Click a built tower to upgrade it down two paths. The final two tiers are expensive — and devastating — but you must COMMIT to one track to buy them.'],
-    ['⚡', 'Commander abilities', 'Q/W/E/R unlock as you advance — orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
+    ['⚡', 'Commander abilities', 'Q/W/E/R/T/Y unlock as you advance — orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
     ['⬢', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1×/2×/4× sets the pace.'],
   ];
   return (
@@ -1067,7 +1132,7 @@ function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => voi
 function MusicButton() {
   const [on, setOn] = useState(isMusicOn());
   return (
-    <button className={`tb-btn ${on ? 'on' : ''}`} title="Music on/off"
+    <button className={`tb-btn ${on ? 'on' : ''}`} title="Music on/off" aria-label="Toggle music"
       onClick={() => { const v = !on; setMusic(v); setOn(v); }}>♪</button>
   );
 }
@@ -1152,7 +1217,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       <div className="aar-title">GLOBAL LEADERBOARD — {map.name.toUpperCase()} · {diff.name.toUpperCase()}{game.freeplay ? ' · FREEPLAY' : ''}</div>
       {state !== 'done' && (
         <div className="submit-row">
-          <input className="name-input" maxLength={20} placeholder="CALLSIGN"
+          <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
             value={name} onChange={(e) => setName(e.target.value)} />
           <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{game.freeplay ? ` · W${game.wave}` : ''}</span>
           <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
@@ -1208,7 +1273,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
   sig: string;
 }) {
   // lifetime kills (banked at run end) + this run's kills so the bar fills live
-  const kills = DEMO_MODE ? DEMO_UNLOCK_KILLS : progress.record.kills + game.totalKills;
+  const kills = liveUnlockKills(game);
   // the next tower the player will unlock, for the BTD-style progress bar
   const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
@@ -1216,7 +1281,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
     <div className="panel panel-grow">
       <div className="panel-head">
         <div className="panel-title">ARSENAL</div>
-        {onCollapse && <button className="panel-collapse" title="Collapse panel" onClick={onCollapse}>⟩</button>}
+        {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse arsenal panel" onClick={onCollapse}>⟩</button>}
       </div>
       <div className="shop-grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
@@ -1332,7 +1397,7 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
     <div className="panel tower-detail panel-grow" style={{ borderColor: def.color }}>
       <div className="panel-head">
         <button className="back-btn" onClick={() => { onSold(); sfx.click(); }}>← ALL TOWERS</button>
-        {onCollapse && <button className="panel-collapse" title="Collapse panel" onClick={onCollapse}>⟩</button>}
+        {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse upgrade panel" onClick={onCollapse}>⟩</button>}
       </div>
       <div className="panel-title" style={{ color: def.glow }}>
         {def.name}

@@ -82,6 +82,9 @@ export type Phase = 'build' | 'wave' | 'gameover' | 'victory' | 'armistice';
 export const RECEIVER_COST = 4000;
 /** index of the Archive fragment that reveals the LEVIATHAN's cargo */
 export const RECEIVER_FRAGMENT = ARCHIVE.findIndex((f) => f.wave === 50);
+const LONGWATCH_ESCORT_COUNT = 3;
+const LONGWATCH_ESCORT_RANGE = 260;
+const LONGWATCH_ESCORT_SPEED = 82;
 
 export class Game {
   map: GameMap;
@@ -105,8 +108,8 @@ export class Game {
   /** Mirror Protocol: while >0, leaked hulls are thrown back to the entrance */
   mirrorTimer = 0;
   /** Long Watch: friendly Combine escorts patrolling the lane in reverse */
-  allies: { dist: number; pos: Vec; heading: number; cd: number }[] = [];
-  private allyTimer = 12;
+  allies: { dist: number; pos: Vec; heading: number; cd: number; lane: number }[] = [];
+  private allyTimer = 0;
 
   /** global effect timers */
   chronoTimer = 0;
@@ -354,6 +357,11 @@ export class Game {
       timer: group.delay ?? 0,
       started: false,
     }));
+    if (this.diff.id === 'ngplus') {
+      this.allyTimer = 0;
+      this.allies.length = 0;
+      this.deployLongWatchEscorts();
+    }
     sfx.waveStart();
     // threat advisories
     if (def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
@@ -409,7 +417,7 @@ export class Game {
       this.cloakTipPending = true;
     }
     // the Diplomat's Gambit: with the receiver listening, the next LEVIATHAN hails instead of fighting
-    if (this.receiver && typeId === 'leviathan' && !this.courierActive) {
+    if (this.diff.id !== 'ngplus' && this.receiver && typeId === 'leviathan' && !this.courierActive) {
       e.courier = true;
       e.cloaked = false;
       this.courierActive = true;
@@ -421,7 +429,7 @@ export class Game {
 
   /** Available once the wave-50 manifest is recovered. */
   canBuildReceiver(): boolean {
-    return !this.receiver && this.archive.includes(RECEIVER_FRAGMENT) &&
+    return this.diff.id !== 'ngplus' && !this.receiver && this.archive.includes(RECEIVER_FRAGMENT) &&
       this.phase !== 'gameover' && this.phase !== 'armistice';
   }
 
@@ -460,6 +468,42 @@ export class Game {
       remaining -= this.segLengths[i];
     }
     return { pos: { ...path[path.length - 1] }, wp: path.length };
+  }
+
+  private pathLength(): number {
+    return this.segLengths.reduce((a, b) => a + b, 0);
+  }
+
+  private deployLongWatchEscorts() {
+    const total = this.pathLength();
+    if (total <= 0) return;
+    while (this.allies.length < LONGWATCH_ESCORT_COUNT) {
+      const lane = this.allies.length;
+      const spacing = total / (LONGWATCH_ESCORT_COUNT + 1);
+      const dist = Math.max(0, total - spacing * (lane + 1));
+      const at = this.posAtDist(dist);
+      this.allies.push({ dist, pos: at.pos, heading: Math.PI, cd: lane * 0.16, lane });
+    }
+  }
+
+  private pickEscortTarget(pos: Vec, maxDist: number, exclude: Set<number> = new Set()): Enemy | null {
+    let best: Enemy | null = null;
+    let bestScore = -Infinity;
+    this.grid.forEachInRadius(pos.x, pos.y, maxDist + 36, (e) => {
+      if (e.dead || e.finished || e.courier || exclude.has(e.uid)) return;
+      const d = Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y);
+      if (d > maxDist + e.def.radius) return;
+      const score =
+        e.dist * 0.02 +
+        (maxDist - d) * 0.1 +
+        (e.def.boss ? 110 : 0) +
+        (1 - e.hp / Math.max(1, e.maxHp)) * 24;
+      if (score > bestScore) {
+        bestScore = score;
+        best = e;
+      }
+    });
+    return best;
   }
 
   // ---------- damage ----------
@@ -948,7 +992,7 @@ export class Game {
 
   private updateTowers(dt: number) {
     const globalRate = (this.overdriveTimer > 0 ? 2 : 1) * (this.frenzyTimer > 0 ? 1.5 : 1)
-      * (this.receiver ? 0.75 : 1); // beacon fuel diverted to the antique receiver
+      * (this.receiver && this.diff.id !== 'ngplus' ? 0.75 : 1); // beacon fuel diverted to the antique receiver
     for (const t of this.towers) {
       t.flash = Math.max(0, t.flash - dt);
       t.recoil = Math.max(0, t.recoil - dt * 5);
@@ -1348,22 +1392,29 @@ export class Game {
     }
   }
 
-  /** Long Watch only: Combine patrol frames sweep the lane backward, zapping the Hollow */
+  /** Long Watch only: allied treaty escorts patrol backward and suppress the Hollow. */
   private updateAllies(dt: number) {
     if (this.diff.id !== 'ngplus') return;
-    if (this.phase === 'wave') {
-      this.allyTimer -= dt;
-      if (this.allyTimer <= 0 && this.allies.length < 2) {
-        this.allyTimer = 30;
-        const total = this.segLengths.reduce((a, b) => a + b, 0);
-        const at = this.posAtDist(total);
-        this.allies.push({ dist: total, pos: at.pos, heading: Math.PI, cd: 0 });
-        this.announce('✦ Combine escort entering the corridor');
-      }
+    if (this.phase !== 'wave') {
+      this.allies.length = 0;
+      return;
     }
+
+    this.allyTimer -= dt;
+    if (this.allyTimer <= 0) {
+      this.deployLongWatchEscorts();
+      this.allyTimer = 2.5;
+    }
+
+    const total = this.pathLength();
+    const escortDamage = 13 + this.wave * 0.95;
     for (const a of this.allies) {
       const prev = a.pos;
-      a.dist -= 55 * dt;
+      a.dist -= LONGWATCH_ESCORT_SPEED * dt;
+      if (a.dist <= 0) {
+        a.dist = total;
+        this.ring(prev, '#b388ff', 34);
+      }
       const at = this.posAtDist(Math.max(0, a.dist));
       a.pos = at.pos;
       if (Math.hypot(a.pos.x - prev.x, a.pos.y - prev.y) > 0.5) {
@@ -1371,16 +1422,27 @@ export class Game {
       }
       a.cd -= dt;
       if (a.cd <= 0) {
-        const target = this.nearestEnemy(a.pos, 120, []);
-        if (target && !target.courier) {
-          a.cd = 0.45;
-          this.addBeam(a.pos, target.pos, '#b388ff', 2.5, 0.12);
-          this.trueDamage(target, 5);
-          this.burstFx(target.pos, '#b388ff', 2);
+        const hit = new Set<number>();
+        let target = this.pickEscortTarget(a.pos, LONGWATCH_ESCORT_RANGE, hit);
+        if (target) {
+          a.cd = 0.34;
+          let from = a.pos;
+          for (let jump = 0; target && jump < 3; jump++) {
+            hit.add(target.uid);
+            const falloff = jump === 0 ? 1 : jump === 1 ? 0.55 : 0.35;
+            const dmg = escortDamage * falloff * (target.def.boss ? 0.62 : 1);
+            this.addBeam(from, target.pos, jump === 0 ? '#b388ff' : '#d6a2ff', jump === 0 ? 3.2 : 2, 0.14);
+            this.trueDamage(target, dmg);
+            this.applySlow(target, 0.22, 0.75);
+            this.burstFx(target.pos, '#b388ff', jump === 0 ? 5 : 3);
+            from = target.pos;
+            target = this.pickEscortTarget(from, 115, hit);
+          }
+        } else {
+          a.cd = 0.12;
         }
       }
     }
-    this.allies = this.allies.filter((a) => a.dist > 0);
   }
 
   private updateNovas(dt: number) {

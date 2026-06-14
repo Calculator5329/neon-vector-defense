@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function isValidBoard(board) {
-      return board.matches('^(orbital|reactor|hyperlane|mobius|blackout|throat)_(easy|normal|hard|extinction|ngplus)(_fp)?$');
+      return board.matches('^(orbital|reactor|hyperlane|mobius|blackout|throat|umbral|cinder)_(easy|normal|hard|extinction|ngplus)(_fp)?$');
     }
 
     // public leaderboards: anyone can read; signed visitors may append validated scores

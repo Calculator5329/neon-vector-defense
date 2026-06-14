@@ -547,19 +547,19 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
 
   // Combine escorts (Long Watch): violet sentinels sweeping the lane backward
   for (const a of game.allies) {
-    blit(ctx, enemySprite(ENEMIES['titan']), a.pos.x, a.pos.y, a.heading, 0.62);
+    blit(ctx, enemySprite(ENEMIES['titan']), a.pos.x, a.pos.y, a.heading, 0.72);
     ctx.save();
     ctx.strokeStyle = '#b388ff';
     ctx.shadowColor = '#b388ff';
-    ctx.shadowBlur = 12;
-    ctx.lineWidth = 1.6;
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 2;
     ctx.setLineDash([5, 6]);
-    ctx.lineDashOffset = -game.time * 14;
-    circle(ctx, a.pos.x, a.pos.y, 26);
+    ctx.lineDashOffset = -game.time * 18;
+    circle(ctx, a.pos.x, a.pos.y, 32);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = '#ffffff';
-    circle(ctx, a.pos.x, a.pos.y - 30, 2);
+    circle(ctx, a.pos.x, a.pos.y - 36, 2.5);
     ctx.fill();
     ctx.restore();
   }

@@ -12,9 +12,10 @@ import {
   query,
 } from 'firebase/firestore';
 import { db, ensurePlayerAuth } from './firebaseClient';
+import { ALL_MAPS, DIFFICULTIES } from './maps';
 
-const VALID_MAPS = new Set(['orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat']);
-const VALID_DIFFS = new Set(['easy', 'normal', 'hard', 'extinction', 'ngplus']);
+const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
+const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
 
 export interface ScoreEntry {
   name: string;
