@@ -86,6 +86,19 @@ export const progress = {
   set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
   mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
   get apexCleared(): boolean { return (cache as unknown as { apexW?: boolean }).apexW ?? false; },
+  /** anonymous per-device id (no login) — correlates feedback, scores & telemetry */
+  get uid(): string {
+    const c = cache as unknown as { uid?: string };
+    if (!c.uid) { c.uid = 'w_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); save(); }
+    return c.uid;
+  },
+  /** tower ids whose unlock modal has already been shown */
+  unlockSeen(id: string): boolean { return ((cache as unknown as { unlk?: string[] }).unlk ?? []).includes(id); },
+  markUnlockSeen(id: string) {
+    const c = cache as unknown as { unlk?: string[] };
+    c.unlk = c.unlk ?? [];
+    if (!c.unlk.includes(id)) { c.unlk.push(id); save(); }
+  },
   get cloakTipSeen(): boolean { return (cache as unknown as { cloakTip?: boolean }).cloakTip ?? false; },
   set cloakTipSeen(v: boolean) { (cache as unknown as { cloakTip?: boolean }).cloakTip = v; save(); },
   get tutorialSeen(): boolean { return (cache as unknown as { tut?: boolean }).tut ?? false; },

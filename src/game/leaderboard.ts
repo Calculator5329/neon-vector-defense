@@ -13,6 +13,7 @@ export interface ScoreEntry {
   wave: number;
   freeplay: boolean;
   ts: number;
+  uid?: string;
 }
 
 /** board id for a mode: mapId:diffId, with :fp for freeplay runs */
@@ -33,6 +34,7 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
           wave: { integerValue: String(entry.wave) },
           freeplay: { booleanValue: entry.freeplay },
           ts: { integerValue: String(entry.ts) },
+          uid: { stringValue: (entry.uid ?? '').slice(0, 40) },
         },
       }),
     });
@@ -40,6 +42,65 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
   } catch {
     return false;
   }
+}
+
+/** player feedback → feedback collection (write-only). ctx = where in the app. */
+export async function submitFeedback(uid: string, text: string, ctx: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/feedback?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          uid: { stringValue: uid.slice(0, 40) },
+          text: { stringValue: text.slice(0, 1000) },
+          ts: { integerValue: String(Date.now()) },
+          ctx: { stringValue: ctx.slice(0, 200) },
+        },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export interface TelemetryEvent {
+  uid: string;
+  kind: string;
+  map: string;
+  diff: string;
+  wave: number;
+  kills: number;
+  cash: number;
+  won: boolean;
+  freeplay: boolean;
+  durationS: number;
+}
+
+/** anonymous gameplay telemetry → telemetry collection (write-only, fire-and-forget) */
+export function logTelemetry(e: TelemetryEvent): void {
+  try {
+    void fetch(`${BASE}/telemetry?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          uid: { stringValue: e.uid.slice(0, 40) },
+          ts: { integerValue: String(Date.now()) },
+          kind: { stringValue: e.kind.slice(0, 30) },
+          map: { stringValue: e.map.slice(0, 30) },
+          diff: { stringValue: e.diff.slice(0, 30) },
+          wave: { integerValue: String(e.wave) },
+          kills: { integerValue: String(e.kills) },
+          cash: { integerValue: String(Math.floor(e.cash)) },
+          won: { booleanValue: e.won },
+          freeplay: { booleanValue: e.freeplay },
+          durationS: { integerValue: String(Math.floor(e.durationS)) },
+        },
+      }),
+    }).catch(() => {});
+  } catch { /* fire-and-forget */ }
 }
 
 export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {

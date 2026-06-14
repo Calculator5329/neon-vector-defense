@@ -10,7 +10,7 @@ import { BRIEFING, LONGWATCH_BRIEFING, ARCHIVE, ABILITY_LORE, RECEIVER_DESC, ARM
 import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
-import { boardId, submitScore, fetchTop, type ScoreEntry } from './game/leaderboard';
+import { boardId, submitScore, fetchTop, submitFeedback, logTelemetry, type ScoreEntry } from './game/leaderboard';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, playNarration } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
@@ -30,15 +30,64 @@ export default function App() {
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
 
-  if (screen === 'menu') {
-    return (
-      <MainMenu
-        map={map} diff={diff} setMap={setMap} setDiff={setDiff}
-        onStart={() => { sfx.click(); setScreen('game'); }}
-      />
-    );
-  }
-  return <GameScreen map={map} diff={diff} onExit={() => setScreen('menu')} />;
+  return (
+    <>
+      {screen === 'menu'
+        ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
+            onStart={() => { sfx.click(); setScreen('game'); }} />
+        : <GameScreen map={map} diff={diff} onExit={() => setScreen('menu')} />}
+      <FeedbackWidget ctx={screen} />
+    </>
+  );
+}
+
+// ---------------- Feedback (always available, anonymous) ----------------
+
+function FeedbackWidget({ ctx }: { ctx: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const MAX = 1000;
+  if (PERF_MAP !== null) return null; // not during perf runs
+  const send = async () => {
+    const t = text.trim();
+    if (!t) return;
+    setState('busy');
+    await submitFeedback(progress.uid, t, ctx);
+    setState('done');
+    setText('');
+    setTimeout(() => { setOpen(false); setState('idle'); }, 1600);
+  };
+  return (
+    <div className="fb-root">
+      {open && (
+        <div className="fb-panel">
+          <div className="fb-head">
+            <span>SEND FEEDBACK</span>
+            <button className="fb-x" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
+          </div>
+          {state === 'done' ? (
+            <div className="fb-thanks">Transmission received. Thank you, Warden. ✦</div>
+          ) : (
+            <>
+              <textarea className="fb-text" maxLength={MAX} value={text} autoFocus
+                placeholder="Bug, idea, or anything at all — it goes straight to the developer."
+                onChange={(e) => setText(e.target.value)} />
+              <div className="fb-foot">
+                <span className="fb-count">{text.length}/{MAX}</span>
+                <button className="fb-send" disabled={!text.trim() || state === 'busy'} onClick={send}>
+                  {state === 'busy' ? '…' : 'SEND ▸'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      <button className="fb-toggle" title="Send feedback" onClick={() => { setOpen((o) => !o); sfx.click(); }}>
+        {open ? '✕' : '✉'}
+      </button>
+    </div>
+  );
 }
 
 // ---------------- Main menu ----------------
@@ -223,6 +272,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   const perfIdleRef = useRef(0);
   const [cloakTip, setCloakTip] = useState(false);
+  const [unlockModal, setUnlockModal] = useState<TowerDef | null>(null);
   const [sideTab, setSideTab] = useState<'build' | 'intel'>('build');
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
@@ -237,6 +287,10 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     playSectorTheme(diff.id === 'ngplus' ? 'hollow' : (map.music ?? map.id));
     return () => playSectorTheme(null);
   }, [map.id, map.music, diff.id]);
+
+  // anonymous run-end telemetry (one event per run, terminal phases only)
+  const loggedRunRef = useRef(false);
+  useEffect(() => { loggedRunRef.current = false; }, [run]);
 
   // main loop
   useEffect(() => {
@@ -265,6 +319,16 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         if (now - f.t > 1000) { f.fps = f.frames; f.frames = 0; f.t = now; }
       }
       game.update(dt);
+      // fire one anonymous telemetry event when a run ends (skip perf bot runs)
+      if (PERF_MAP === null && !loggedRunRef.current &&
+          (game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice')) {
+        loggedRunRef.current = true;
+        logTelemetry({
+          uid: progress.uid, kind: game.phase, map: game.map.id, diff: game.diff.id,
+          wave: game.wave, kills: game.totalKills, cash: Math.round(game.runStats.cashEarned),
+          won: game.phase !== 'gameover', freeplay: game.freeplay, durationS: Math.round(game.time),
+        });
+      }
       const ctx = canvasRef.current?.getContext('2d');
       if (ctx) {
         const hover = hoverRef.current;
@@ -293,6 +357,16 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           game.cloakTipPending = false;
           game.paused = true;
           setCloakTip(true);
+        }
+        // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed
+        if (PERF_MAP === null && !game.paused) {
+          const k = progress.record.kills + game.totalKills;
+          const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
+          if (just) {
+            progress.markUnlockSeen(just.id);
+            game.paused = true;
+            setUnlockModal(just);
+          }
         }
       }
       raf = requestAnimationFrame(loop);
@@ -508,6 +582,24 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               </div>
             </div>
           )}
+          {unlockModal && (
+            <div className="cutscene-overlay" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>
+              <div className="cutscene-box unlock-modal" style={{ borderColor: unlockModal.color }} onClick={(e) => e.stopPropagation()}>
+                <div className="unlock-eyebrow">NEW INSTRUMENT UNLOCKED</div>
+                <div className="unlock-head">
+                  <TowerIcon def={unlockModal} />
+                  <div>
+                    <div className="unlock-name" style={{ color: unlockModal.glow }}>{unlockModal.name}</div>
+                    <div className="unlock-type">{unlockModal.base.damageType} · ⌬{unlockModal.cost}</div>
+                  </div>
+                </div>
+                <p className="tip-text">{unlockModal.desc}</p>
+                <p className="unlock-lore">“{unlockModal.lore}”</p>
+                <p className="hint-dim">Find it in your ARSENAL — two upgrade paths, commit to one for its devastating final tiers.</p>
+                <button className="start-btn small" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>DEPLOY IT ▸</button>
+              </div>
+            </div>
+          )}
           {game.phase === 'armistice' && (
             <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={ARMISTICE_LINES}
@@ -668,6 +760,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: game.freeplay,
       ts: Date.now(),
+      uid: progress.uid,
     });
     if (ok) {
       setTop(await fetchTop(board));

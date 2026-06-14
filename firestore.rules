@@ -4,16 +4,46 @@ service cloud.firestore {
     // public leaderboards: anyone can read and append a validated score; nothing can be edited
     match /boards/{board}/scores/{id} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts'])
+      allow create: if request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
         && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
         && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
         && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
         && request.resource.data.freeplay is bool
-        && request.resource.data.ts is int;
+        && request.resource.data.ts is int
+        && request.resource.data.uid is string && request.resource.data.uid.size() <= 40;
       allow update, delete: if false;
     }
+
+    // player feedback: write-only from clients, validated; read/edit blocked (console only)
+    match /feedback/{id} {
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx'])
+        && request.resource.data.uid is string && request.resource.data.uid.size() <= 40
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 1000
+        && request.resource.data.ts is int
+        && request.resource.data.ctx is string && request.resource.data.ctx.size() <= 200;
+    }
+
+    // anonymous gameplay telemetry: write-only, validated; for future analysis/AI tuning
+    match /telemetry/{id} {
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
+        && request.resource.data.uid is string && request.resource.data.uid.size() <= 40
+        && request.resource.data.ts is int
+        && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
+        && request.resource.data.map is string && request.resource.data.map.size() <= 30
+        && request.resource.data.diff is string && request.resource.data.diff.size() <= 30
+        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
+        && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
+        && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
+        && request.resource.data.won is bool
+        && request.resource.data.freeplay is bool
+        && request.resource.data.durationS is int && request.resource.data.durationS >= 0 && request.resource.data.durationS < 100000;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
