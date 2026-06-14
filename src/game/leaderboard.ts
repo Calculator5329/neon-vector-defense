@@ -120,6 +120,10 @@ export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply
   }
 }
 
+/** Build/version tag stamped on every telemetry event, so the dashboard can compare
+ *  player outcomes BEFORE vs AFTER a balance patch. Bump this when you ship changes. */
+export const TELEMETRY_BUILD = 'hollow-1';
+
 export interface TelemetryEvent {
   kind: string;
   map: string;
@@ -134,6 +138,12 @@ export interface TelemetryEvent {
   coresLeft?: number;
   /** comma-separated tower def ids fielded this run (for popularity analysis) */
   towers?: string;
+  /** top damage contributors this run: "towerId:pct,..." (causal "who carried") */
+  dmg?: string;
+  /** commander abilities cast this run */
+  abilities?: number;
+  /** stamped automatically from TELEMETRY_BUILD — don't pass at the call site */
+  build?: string;
 }
 
 /** anonymous gameplay telemetry -> telemetry collection (write-only for players). */
@@ -156,6 +166,9 @@ export function logTelemetry(e: TelemetryEvent): void {
         leaks: Math.max(0, Math.floor(e.leaks ?? 0)),
         coresLeft: Math.max(0, Math.floor(e.coresLeft ?? 0)),
         towers: (e.towers ?? '').slice(0, 200),
+        dmg: (e.dmg ?? '').slice(0, 120),
+        abilities: Math.max(0, Math.floor(e.abilities ?? 0)),
+        build: TELEMETRY_BUILD.slice(0, 30),
       });
     } catch {
       // Fire-and-forget telemetry must never affect the game loop.
@@ -192,6 +205,9 @@ export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
         leaks: Number(data.leaks ?? 0),
         coresLeft: Number(data.coresLeft ?? 0),
         towers: data.towers ?? '',
+        dmg: data.dmg ?? '',
+        abilities: Number(data.abilities ?? 0),
+        build: data.build ?? '',
       };
     });
   } catch {

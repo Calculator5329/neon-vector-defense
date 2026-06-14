@@ -66,7 +66,7 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow update, delete: if false;
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers'])
+        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build'])
         && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.ts is int && request.resource.data.ts > 0
@@ -81,7 +81,10 @@ service cloud.firestore {
         && request.resource.data.durationS is int && request.resource.data.durationS >= 0 && request.resource.data.durationS < 100000
         && (!('leaks' in request.resource.data) || (request.resource.data.leaks is int && request.resource.data.leaks >= 0 && request.resource.data.leaks < 1000000))
         && (!('coresLeft' in request.resource.data) || (request.resource.data.coresLeft is int && request.resource.data.coresLeft >= 0 && request.resource.data.coresLeft < 1000000))
-        && (!('towers' in request.resource.data) || (request.resource.data.towers is string && request.resource.data.towers.size() <= 200));
+        && (!('towers' in request.resource.data) || (request.resource.data.towers is string && request.resource.data.towers.size() <= 200))
+        && (!('dmg' in request.resource.data) || (request.resource.data.dmg is string && request.resource.data.dmg.size() <= 120))
+        && (!('abilities' in request.resource.data) || (request.resource.data.abilities is int && request.resource.data.abilities >= 0 && request.resource.data.abilities < 100000))
+        && (!('build' in request.resource.data) || (request.resource.data.build is string && request.resource.data.build.size() <= 30));
     }
 
     match /{document=**} {

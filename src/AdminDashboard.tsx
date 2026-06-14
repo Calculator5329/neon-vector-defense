@@ -714,17 +714,151 @@ function bucket(wave: number): string {
   return `w${lo}-${lo + 4}`;
 }
 
-function TelemetryTab() {
+// ---- telemetry analysis helpers ----
+const DAY = 86_400_000;
+const RANGE_MS: Record<string, number> = { '24h': DAY, '7d': 7 * DAY, '30d': 30 * DAY, all: Infinity };
+const SKILL_FOR: Record<string, string> = { easy: 'rookie', normal: 'standard', hard: 'expert', extinction: 'expert', ngplus: 'expert' };
+const dayKey = (ts: number) => new Date(ts).toISOString().slice(0, 10);
+/** Wilson 95% lower bound — a small-sample-aware win rate (3/3 ranks below 200/300). */
+function wilsonLow(wins: number, n: number): number {
+  if (n === 0) return 0;
+  const z = 1.96, p = wins / n, d = 1 + (z * z) / n;
+  return Math.max(0, (p + (z * z) / (2 * n) - z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n)) / d);
+}
+function median(xs: number[]): number {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/** Pick-rate × win-rate scatter — classifies towers into meta / trap / sleeper / dead. */
+function MetaScatter({ data }: { data: { id: string; name: string; pick: number; win: number; n: number }[] }) {
+  const W = 580, H = 360, pad = 44;
+  const maxPick = Math.max(0.01, ...data.map((d) => d.pick));
+  const maxN = Math.max(1, ...data.map((d) => d.n));
+  const sx = (p: number) => pad + (p / maxPick) * (W - pad * 2);
+  const sy = (w: number) => H - pad - w * (H - pad * 2);
+  return (
+    <svg className="adm-scatter" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      <line x1={sx(maxPick / 2)} y1={pad} x2={sx(maxPick / 2)} y2={H - pad} className="adm-grid" />
+      <line x1={pad} y1={sy(0.5)} x2={W - pad} y2={sy(0.5)} className="adm-grid" />
+      <text x={W - pad} y={pad - 6} className="adm-quad" textAnchor="end">★ META (popular · winning)</text>
+      <text x={pad} y={pad - 6} className="adm-quad" textAnchor="start">◇ SLEEPER (rare · winning)</text>
+      <text x={W - pad} y={H - pad + 16} className="adm-quad" textAnchor="end">⚠ TRAP (popular · losing)</text>
+      <text x={pad} y={H - pad + 16} className="adm-quad" textAnchor="start">· niche</text>
+      <text x={W / 2} y={H - 6} className="adm-axis" textAnchor="middle">pick rate →</text>
+      <text x={12} y={H / 2} className="adm-axis" textAnchor="middle" transform={`rotate(-90 12 ${H / 2})`}>win rate →</text>
+      {data.map((d) => {
+        const r = 4 + 11 * Math.sqrt(d.n / maxN);
+        return (
+          <g key={d.id}>
+            <circle cx={sx(d.pick)} cy={sy(d.win)} r={r} fill={towerGlow(d.id)} opacity={0.45} stroke={towerGlow(d.id)} />
+            <text x={sx(d.pick)} y={sy(d.win) - r - 2} className="adm-axis" textAnchor="middle">{d.name.split(' ')[0]}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Runs-per-day bars + win-rate line over time. */
+function TimeSeries({ rows }: { rows: TelemetryRow[] }) {
+  const byDay = new Map<string, { n: number; wins: number }>();
+  for (const r of rows) {
+    const k = dayKey(r.ts);
+    const e = byDay.get(k) ?? { n: 0, wins: 0 };
+    e.n++; if (r.won) e.wins++;
+    byDay.set(k, e);
+  }
+  const days = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-30);
+  if (days.length < 2) return <div className="adm-empty">Need at least two days of data for a trend.</div>;
+  const W = 580, H = 200, pad = 30;
+  const maxN = Math.max(1, ...days.map(([, e]) => e.n));
+  const bw = (W - pad * 2) / days.length;
+  const sy = (v: number) => H - pad - v * (H - pad * 2);
+  const line = days.map(([, e], i) => `${i === 0 ? 'M' : 'L'}${(pad + bw * (i + 0.5)).toFixed(1)},${sy(e.wins / e.n).toFixed(1)}`).join(' ');
+  return (
+    <svg className="adm-line" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      {[0, 0.5, 1].map((g) => <line key={g} x1={pad} y1={sy(g)} x2={W - pad} y2={sy(g)} className="adm-grid" />)}
+      {days.map(([, e], i) => (
+        <rect key={i} x={pad + bw * i + 1} y={H - pad - (e.n / maxN) * (H - pad * 2)} width={bw - 2}
+          height={(e.n / maxN) * (H - pad * 2)} fill="#54a0ff" opacity={0.25} />
+      ))}
+      <path d={line} fill="none" stroke="#2ed573" strokeWidth={2} />
+      <text x={pad} y={H - 8} className="adm-axis">{days[0][0].slice(5)}</text>
+      <text x={W - pad} y={H - 8} className="adm-axis" textAnchor="end">{days[days.length - 1][0].slice(5)}</text>
+    </svg>
+  );
+}
+
+interface TFilter { range: string; map: string; diff: string; mode: string; build: string }
+
+function FilterBar({ filter, setFilter, builds, fetchedAt, onRefresh, onExport, shown, total }: {
+  filter: TFilter; setFilter: (f: TFilter) => void; builds: string[];
+  fetchedAt: number; onRefresh: () => void; onExport: () => void; shown: number; total: number;
+}) {
+  const set = (k: keyof TFilter) => (e: React.ChangeEvent<HTMLSelectElement>) => setFilter({ ...filter, [k]: e.target.value });
+  return (
+    <div className="adm-filterbar">
+      <select value={filter.range} onChange={set('range')}>
+        <option value="all">all time</option><option value="30d">last 30d</option>
+        <option value="7d">last 7d</option><option value="24h">last 24h</option>
+      </select>
+      <select value={filter.map} onChange={set('map')}>
+        <option value="all">all sectors</option>{ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+      </select>
+      <select value={filter.diff} onChange={set('diff')}>
+        <option value="all">all protocols</option>{DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+      </select>
+      <select value={filter.mode} onChange={set('mode')}>
+        <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
+      </select>
+      {builds.length > 1 && (
+        <select value={filter.build} onChange={set('build')}>
+          <option value="all">all builds</option>{builds.map((b) => <option key={b} value={b}>{b || '(pre-build)'}</option>)}
+        </select>
+      )}
+      <span className="adm-filter-count">{shown}/{total} runs</span>
+      <div className="adm-filter-actions">
+        <span className="adm-hint">as of {fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : '—'}</span>
+        <button className="adm-mini" onClick={onRefresh}>↻ refresh</button>
+        <button className="adm-mini" onClick={onExport}>⤓ CSV</button>
+      </div>
+    </div>
+  );
+}
+
+function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
   const [rows, setRows] = useState<TelemetryRow[] | null>(null);
   const [err, setErr] = useState(false);
+  const [fetchedAt, setFetchedAt] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [filter, setFilter] = useState<TFilter>({ range: 'all', map: 'all', diff: 'all', mode: 'all', build: 'all' });
 
   useEffect(() => {
     let live = true;
-    fetchTelemetry(1000).then((r) => { if (live) { setRows(r); } }).catch(() => { if (live) setErr(true); });
+    setRows(null); setErr(false);
+    fetchTelemetry(2000).then((r) => { if (live) { setRows(r); setFetchedAt(Date.now()); } }).catch(() => { if (live) setErr(true); });
     return () => { live = false; };
-  }, []);
+  }, [reloadKey]);
+
+  const builds = useMemo(() => [...new Set((rows ?? []).map((r) => r.build ?? ''))].sort(), [rows]);
+
+  // apply the filter bar (time range / sector / protocol / mode / build)
+  const filtered = useMemo(() => {
+    if (!rows) return null;
+    const now = Date.now();
+    const winMs = RANGE_MS[filter.range] ?? Infinity;
+    return rows.filter((r) =>
+      (filter.range === 'all' || now - r.ts <= winMs) &&
+      (filter.map === 'all' || r.map === filter.map) &&
+      (filter.diff === 'all' || r.diff === filter.diff) &&
+      (filter.mode === 'all' || (filter.mode === 'freeplay' ? r.freeplay : !r.freeplay)) &&
+      (filter.build === 'all' || (r.build ?? '') === filter.build));
+  }, [rows, filter]);
 
   const stats = useMemo(() => {
+    const rows = filtered;
     if (!rows || rows.length === 0) return null;
     const n = rows.length;
     const avg = (f: (r: TelemetryRow) => number) => rows.reduce((s, r) => s + f(r), 0) / n;
@@ -778,6 +912,45 @@ function TelemetryTab() {
     }).filter((t) => t.runs > 0).sort((a, b) => b.runs - a.runs);
     const freeplayRows = rows.filter((r) => r.freeplay);
     const uniquePlayers = new Set(rows.map((r) => r.uid).filter(Boolean)).size;
+
+    // pick-rate × win-rate scatter (meta classification)
+    const scatter = TOWERS.map((t) => {
+      const e = towerImpact.get(t.id);
+      if (!e || e.runs === 0) return null;
+      return { id: t.id, name: t.name, pick: e.runs / Math.max(1, withTowers), win: e.wins / e.runs, n: e.runs };
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // damage-share "who actually carried" (from the dmg field: "id:pct,...")
+    const dmgAcc = new Map<string, { sum: number; runs: number }>();
+    let withDmg = 0;
+    for (const r of rows) {
+      if (!r.dmg) continue;
+      withDmg++;
+      for (const part of r.dmg.split(',')) {
+        const [id, p] = part.split(':');
+        if (!id) continue;
+        const e = dmgAcc.get(id) ?? { sum: 0, runs: 0 };
+        e.sum += Number(p) || 0; e.runs++;
+        dmgAcc.set(id, e);
+      }
+    }
+    const dmgLeaders = TOWERS.map((t) => {
+      const e = dmgAcc.get(t.id);
+      return { id: t.id, name: t.name, avgShare: e ? e.sum / Math.max(1, withDmg) : 0, runs: e?.runs ?? 0 };
+    }).filter((t) => t.runs > 0).sort((a, b) => b.avgShare - a.avgShare);
+
+    // real median loss-wave per sector×protocol (for sim-vs-real reconciliation)
+    const lossMap = new Map<string, number[]>();
+    for (const r of rows) {
+      if (r.kind !== 'gameover') continue;
+      const k = `${r.map}|${r.diff}`;
+      (lossMap.get(k) ?? lossMap.set(k, []).get(k)!).push(r.wave);
+    }
+    const lossMedians = [...lossMap.entries()].map(([k, ws]) => {
+      const [map, diff] = k.split('|');
+      return { map, diff, median: median(ws), n: ws.length };
+    });
+
     return {
       n,
       uniquePlayers,
@@ -786,6 +959,7 @@ function TelemetryTab() {
       avgDur: avg((r) => r.durationS),
       avgLeaks: avg((r) => r.leaks ?? 0),
       avgCoresLeft: avg((r) => r.coresLeft ?? 0),
+      avgAbilities: avg((r) => r.abilities ?? 0),
       wins: rows.filter((r) => r.won).length,
       histo,
       fails,
@@ -795,109 +969,171 @@ function TelemetryTab() {
       popularity,
       towerOutcomes,
       withTowers,
+      scatter,
+      dmgLeaders,
+      withDmg,
+      lossMedians,
       freeplayRuns: freeplayRows.length,
       bestFreeplayWave: freeplayRows.length ? Math.max(...freeplayRows.map((r) => r.wave)) : 0,
     };
-  }, [rows]);
+  }, [filtered]);
+
+  const exportCsv = () => {
+    const rs = filtered ?? [];
+    const cols = ['ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'abilities', 'build', 'towers', 'dmg', 'uid'];
+    const esc = (v: unknown) => { const x = String(v ?? '').replace(/"/g, '""'); return /[",\n]/.test(x) ? `"${x}"` : x; };
+    const csv = [cols.join(','), ...rs.map((r) => cols.map((c) => esc((r as unknown as Record<string, unknown>)[c])).join(','))].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `telemetry-${dayKey(fetchedAt || 0)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   if (err) return <TelemetryError />;
   if (rows === null) return <div className="adm-content"><div className="adm-card"><div className="adm-empty">Establishing uplink to telemetry…</div></div></div>;
   if (rows.length === 0) return <TelemetryEmpty />;
-  const s = stats!;
-  const maxBucket = Math.max(1, ...s.histo.map(([, e]) => e.gameover + e.victory + e.armistice));
+
+  const s = stats;
+  const matched = report && report !== 'missing' ? report : null;
+  // sim-vs-real: predicted bot reach wave vs real median loss wave, per slice
+  const divergence = (s && matched ? s.lossMedians : [])
+    .filter((d) => d.n >= 3)
+    .map((d) => {
+      const cell = matched!.grid.find((g) => g.map === d.map && g.diff === d.diff && g.skill === (SKILL_FOR[d.diff] ?? 'expert'));
+      return cell ? { ...d, simReach: cell.avgWave, delta: d.median - cell.avgWave } : null;
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 8);
 
   return (
     <div className="adm-content">
-      <div className="adm-meta-bar">{s.n} run events · {Math.round((s.wins / s.n) * 100)}% ended in a win</div>
+      <FilterBar filter={filter} setFilter={setFilter} builds={builds} fetchedAt={fetchedAt}
+        onRefresh={() => setReloadKey((k) => k + 1)} onExport={exportCsv}
+        shown={filtered?.length ?? 0} total={rows.length} />
 
-      <div className="adm-stat-row">
-        <Stat label="runs logged" value={s.n.toLocaleString()} />
-        <Stat label="players seen" value={s.uniquePlayers.toLocaleString()} />
-        <Stat label="avg wave reached" value={s.avgWave.toFixed(1)} />
-        <Stat label="avg run length" value={`${Math.round(s.avgDur / 60)}m ${Math.round(s.avgDur % 60)}s`} />
-      </div>
+      {!s ? (
+        <div className="adm-card"><div className="adm-empty">No runs match this filter.</div></div>
+      ) : ((s: NonNullable<typeof stats>) => {
+        const maxBucket = Math.max(1, ...s.histo.map(([, e]) => e.gameover + e.victory + e.armistice));
+        return (
+          <>
+            <div className="adm-stat-row">
+              <Stat label="runs (filtered)" value={s.n.toLocaleString()} />
+              <Stat label="players seen" value={s.uniquePlayers.toLocaleString()} />
+              <Stat label="win rate" value={pct(s.wins / s.n)} />
+              <Stat label="avg wave reached" value={s.avgWave.toFixed(1)} />
+            </div>
 
-      <div className="adm-card">
-        <div className="adm-card-head"><h3>Telemetry readout</h3><span className="adm-hint">live player data, newest {s.n} runs</span></div>
-        <div className="adm-insight-grid">
-          <div className="adm-insight">
-            <b>Where do players lose?</b>
-            {s.fails.length > 0 ? s.fails.map((f) => <span key={f.label}>{f.label}: {f.losses} losses out of {f.total} endings</span>) : <span>No losses in this sample.</span>}
-          </div>
-          <div className="adm-insight">
-            <b>Hardest live slices</b>
-            {s.roughModes.length > 0 ? s.roughModes.map((m) => <span key={`${m.kind}-${m.id}`}>{m.kind} {m.label}: {pct(m.rate)} win over {m.n} runs</span>) : <span>Need at least 2 runs per slice.</span>}
-          </div>
-          <div className="adm-insight">
-            <b>Core pressure</b>
-            <span>Avg leaks: {s.avgLeaks.toFixed(1)}</span>
-            <span>Avg cores left at ending: {s.avgCoresLeft.toFixed(1)}</span>
-            <span>{s.freeplayRuns} freeplay runs, best wave {s.bestFreeplayWave}</span>
-          </div>
-          <div className="adm-insight">
-            <b>Most-played towers by outcome</b>
-            {s.towerOutcomes.slice(0, 4).map((t) => <span key={t.id}>{t.name}: {t.runs} runs, {pct(t.winRate)} win, avg w{t.avgWave.toFixed(1)}</span>)}
-          </div>
-        </div>
-      </div>
-
-      <div className="adm-card">
-        <div className="adm-card-head"><h3>Run outcome by wave reached</h3><span className="adm-hint">where players' runs end</span></div>
-        <div className="adm-histo">
-          {s.histo.map(([b, e]) => {
-            const total = e.gameover + e.victory + e.armistice;
-            return (
-              <div key={b} className="adm-histo-col" title={`${b}: ${e.gameover} lost · ${e.victory} won · ${e.armistice} armistice`}>
-                <div className="adm-histo-stack" style={{ height: `${(total / maxBucket) * 100}%` }}>
-                  <div style={{ flex: e.gameover, background: '#ff4757' }} />
-                  <div style={{ flex: e.victory, background: '#2ed573' }} />
-                  <div style={{ flex: e.armistice, background: '#ffd32a' }} />
-                </div>
-                <span className="adm-histo-label">{b}</span>
+            {matched && (
+              <div className="adm-card">
+                <div className="adm-card-head"><h3>Sim vs real — does the model predict reality?</h3>
+                  <span className="adm-hint">bot-predicted reach wave vs players' median loss wave</span></div>
+                {divergence.length === 0 ? <div className="adm-empty">Need ≥3 real losses in a sector×protocol slice (widen the filter).</div> : (
+                  <table className="adm-table">
+                    <thead><tr><th>slice</th><th>sim reach (bot)</th><th>real median loss</th><th>Δ</th><th>read</th></tr></thead>
+                    <tbody>
+                      {divergence.map((d) => (
+                        <tr key={`${d.map}-${d.diff}`}>
+                          <td style={{ textAlign: 'left' }}>{mapName(d.map)} · {diffName(d.diff)} <span className="adm-dim">({d.n})</span></td>
+                          <td>w{Math.round(d.simReach)}</td>
+                          <td>w{Math.round(d.median)}</td>
+                          <td style={{ color: Math.abs(d.delta) >= 8 ? '#feca57' : undefined }}>{d.delta >= 0 ? '+' : ''}{Math.round(d.delta)}</td>
+                          <td style={{ textAlign: 'right' }} className="adm-dim">{d.delta > 4 ? 'players outlast the bot' : d.delta < -4 ? 'bot over-predicts' : 'sim matches'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <p className="adm-hint">Large +Δ = the bot under-predicts human skill there (use real data to judge that slice, not the sim). Δ≈0 = trust the sim.</p>
               </div>
-            );
-          })}
-        </div>
-        <div className="adm-legend">
-          <span><i style={{ background: '#ff4757' }} /> grid offline</span>
-          <span><i style={{ background: '#2ed573' }} /> sector secured</span>
-          <span><i style={{ background: '#ffd32a' }} /> armistice</span>
-        </div>
-      </div>
+            )}
 
-      <div className="adm-two">
-        <div className="adm-card">
-          <div className="adm-card-head"><h3>Win rate by sector</h3></div>
-          <HBars data={s.byMap.map((d) => ({ label: d.label, value: Math.round(d.rate * 100), color: winColor(d.rate), sub: `${d.n} runs` }))} max={100} unit="%" />
-        </div>
-        <div className="adm-card">
-          <div className="adm-card-head"><h3>Win rate by protocol</h3></div>
-          <HBars data={s.byDiff.map((d) => ({ label: d.label, value: Math.round(d.rate * 100), color: winColor(d.rate), sub: `${d.n} runs` }))} max={100} unit="%" />
-        </div>
-      </div>
+            <div className="adm-card">
+              <div className="adm-card-head"><h3>Telemetry readout</h3><span className="adm-hint">filtered player data</span></div>
+              <div className="adm-insight-grid">
+                <div className="adm-insight">
+                  <b>Where do players lose?</b>
+                  {s.fails.length > 0 ? s.fails.map((f) => <span key={f.label}>{f.label}: {f.losses} of {f.total} endings</span>) : <span>No losses in this sample.</span>}
+                </div>
+                <div className="adm-insight">
+                  <b>Hardest live slices</b><span className="adm-dim">win% (≥95% floor · n)</span>
+                  {s.roughModes.length > 0 ? s.roughModes.map((m) => <span key={`${m.kind}-${m.id}`}>{m.kind} {m.label}: {pct(m.rate)} (≥{pct(wilsonLow(Math.round(m.rate * m.n), m.n))} · {m.n})</span>) : <span>Need ≥2 runs per slice.</span>}
+                </div>
+                <div className="adm-insight">
+                  <b>Core pressure</b>
+                  <span>Avg leaks: {s.avgLeaks.toFixed(1)} · cores left: {s.avgCoresLeft.toFixed(1)}</span>
+                  <span>Avg abilities cast: {s.avgAbilities.toFixed(1)}</span>
+                  <span>{s.freeplayRuns} freeplay runs, best wave {s.bestFreeplayWave}</span>
+                </div>
+                <div className="adm-insight">
+                  <b>Avg run length</b>
+                  <span>{Math.round(s.avgDur / 60)}m {Math.round(s.avgDur % 60)}s · {Math.round(s.avgKills)} hulls</span>
+                </div>
+              </div>
+            </div>
 
-      <div className="adm-card">
-        <div className="adm-card-head"><h3>Tower popularity</h3><span className="adm-hint">{s.withTowers} of {s.n} runs reported a loadout</span></div>
-        {s.withTowers === 0
-          ? <div className="adm-empty">No loadout data yet — runs logged before this build don't include tower composition. New runs will populate this.</div>
-          : <HBars data={s.popularity.map((t) => ({ label: t.name, value: t.count, color: towerGlow(t.id) }))} />}
-      </div>
+            <div className="adm-card">
+              <div className="adm-card-head"><h3>Run outcome by wave reached</h3><span className="adm-hint">where players' runs end</span></div>
+              <div className="adm-histo">
+                {s.histo.map(([b, e]) => {
+                  const total = e.gameover + e.victory + e.armistice;
+                  return (
+                    <div key={b} className="adm-histo-col" title={`${b}: ${e.gameover} lost · ${e.victory} won · ${e.armistice} armistice`}>
+                      <div className="adm-histo-stack" style={{ height: `${(total / maxBucket) * 100}%` }}>
+                        <div style={{ flex: e.gameover, background: '#ff4757' }} />
+                        <div style={{ flex: e.victory, background: '#2ed573' }} />
+                        <div style={{ flex: e.armistice, background: '#ffd32a' }} />
+                      </div>
+                      <span className="adm-histo-label">{b}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="adm-legend">
+                <span><i style={{ background: '#ff4757' }} /> grid offline</span>
+                <span><i style={{ background: '#2ed573' }} /> sector secured</span>
+                <span><i style={{ background: '#ffd32a' }} /> armistice</span>
+              </div>
+            </div>
 
-      <div className="adm-card">
-        <div className="adm-card-head"><h3>Tower outcome correlation</h3><span className="adm-hint">runs containing each tower type</span></div>
-        {s.towerOutcomes.length === 0
-          ? <div className="adm-empty">No tower outcome data yet.</div>
-          : <HBars
-              data={s.towerOutcomes.map((t) => ({
-                label: t.name,
-                value: Math.round(t.winRate * 100),
-                color: towerGlow(t.id),
-                sub: `${t.runs} runs / avg w${t.avgWave.toFixed(1)}`,
-              }))}
-              max={100}
-              unit="%"
-            />}
-      </div>
+            <div className="adm-card">
+              <div className="adm-card-head"><h3>Tower meta map</h3>
+                <span className="adm-hint">{s.withTowers} runs with loadouts · bubble = sample size</span></div>
+              {s.scatter.length === 0
+                ? <div className="adm-empty">No loadout data in this slice yet.</div>
+                : <MetaScatter data={s.scatter} />}
+              <p className="adm-hint">Top-right = meta picks · top-left = under-used winners (sleepers) · bottom-right = popular traps. Cross-check against the BALANCE tab's efficiency flags.</p>
+            </div>
+
+            <div className="adm-card">
+              <div className="adm-card-head"><h3>Who actually carried</h3>
+                <span className="adm-hint">avg share of a run's damage · {s.withDmg} runs reported damage</span></div>
+              {s.dmgLeaders.length === 0
+                ? <div className="adm-empty">No damage-share data yet — new runs (this build) report it.</div>
+                : <HBars data={s.dmgLeaders.slice(0, 12).map((t) => ({ label: t.name, value: Math.round(t.avgShare), color: towerGlow(t.id), sub: `${t.runs} runs` }))} unit="%" />}
+            </div>
+
+            <div className="adm-card">
+              <div className="adm-card-head"><h3>Activity & win-rate over time</h3>
+                <span className="adm-hint">bars = runs/day · line = daily win rate</span></div>
+              <TimeSeries rows={filtered ?? []} />
+            </div>
+
+            <div className="adm-two">
+              <div className="adm-card">
+                <div className="adm-card-head"><h3>Win rate by sector</h3></div>
+                <HBars data={s.byMap.map((d) => ({ label: d.label, value: Math.round(d.rate * 100), color: winColor(d.rate), sub: `${d.n} runs` }))} max={100} unit="%" />
+              </div>
+              <div className="adm-card">
+                <div className="adm-card-head"><h3>Win rate by protocol</h3></div>
+                <HBars data={s.byDiff.map((d) => ({ label: d.label, value: Math.round(d.rate * 100), color: winColor(d.rate), sub: `${d.n} runs` }))} max={100} unit="%" />
+              </div>
+            </div>
+          </>
+        );
+      })(s)}
     </div>
   );
 }
@@ -1100,7 +1336,14 @@ function InboxTab({ user }: { user: User }) {
 }
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<'inbox' | 'balance' | 'telemetry'>('inbox');
+  const [tab, setTabState] = useState<'inbox' | 'balance' | 'telemetry'>(() => {
+    const t = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('tab') : null;
+    return t === 'balance' || t === 'telemetry' ? t : 'inbox';
+  });
+  const setTab = (t: 'inbox' | 'balance' | 'telemetry') => {
+    setTabState(t);
+    try { const u = new URL(location.href); u.searchParams.set('tab', t); history.replaceState(null, '', u); } catch { /* ignore */ }
+  };
   const [report, setReport] = useState<Report | null | 'missing'>(null);
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -1163,7 +1406,7 @@ export default function AdminDashboard() {
                 <p className="adm-hint">Run <code>npm run balance</code> to generate it.</p>
               </div></div></div>
             : <BalanceTab report={report} />
-      ) : <TelemetryTab />}
+      ) : <TelemetryTab report={report} />}
     </div>
   );
 }

@@ -30,6 +30,7 @@ import AdminDashboard from './AdminDashboard';
 
 type Screen = 'menu' | 'game';
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
+const WIDGET_OPEN_EVENT = 'nvd-widget-open-change';
 
 // browser perf harness: /?perf=<mapId>&diff=<diffId> auto-runs the expert bot at 4x
 // with rendering on and a live FPS meter. Example: /?perf=throat&diff=hard
@@ -41,6 +42,16 @@ const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlo
 
 // Unlinked owner console route; real access control is Firebase Auth + rules.
 const ADMIN = isAdmin();
+
+function utilityWidgetOpen(): boolean {
+  return document.body.classList.contains('ai-open') || document.body.classList.contains('fb-open');
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+}
 
 export default function App() {
   if (ADMIN) return <AdminDashboard />;
@@ -114,7 +125,11 @@ function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AI
   };
   useEffect(() => {
     document.body.classList.toggle('ai-open', open);
-    return () => document.body.classList.remove('ai-open');
+    window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'ai', open } }));
+    return () => {
+      document.body.classList.remove('ai-open');
+      window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'ai', open: false } }));
+    };
   }, [open]);
 
   return (
@@ -232,7 +247,11 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
   }, [open, readAt, replies]);
   useEffect(() => {
     document.body.classList.toggle('fb-open', open);
-    return () => document.body.classList.remove('fb-open');
+    window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'feedback', open } }));
+    return () => {
+      document.body.classList.remove('fb-open');
+      window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'feedback', open: false } }));
+    };
   }, [open]);
   if (PERF_MAP !== null) return null; // not during perf runs
   const send = async () => {
@@ -658,6 +677,13 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           leaks: game.runStats.leaks, coresLeft: game.lives,
           // tower types fielded this run (standing + any that fired before being sold)
           towers: [...new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)])].join(','),
+          // top-3 damage contributors as "id:pct" — causal "which tower carried"
+          dmg: (() => {
+            const e = Object.entries(game.runStats.dmg).sort((a, b) => b[1] - a[1]);
+            const total = e.reduce((s, [, v]) => s + v, 0) || 1;
+            return e.slice(0, 3).map(([id, v]) => `${id}:${Math.round((v / total) * 100)}`).join(',');
+          })(),
+          abilities: game.runStats.abilitiesCast,
         });
       }
       const ctx = canvasRef.current?.getContext('2d');
@@ -766,9 +792,19 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const useAbilityRef = useRef(useAbility);
   useAbilityRef.current = useAbility;
 
+  useEffect(() => {
+    const pauseForWidgets = () => {
+      if (utilityWidgetOpen()) game.paused = true;
+    };
+    window.addEventListener(WIDGET_OPEN_EVENT, pauseForWidgets);
+    pauseForWidgets();
+    return () => window.removeEventListener(WIDGET_OPEN_EVENT, pauseForWidgets);
+  }, [game]);
+
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
+      if (utilityWidgetOpen() || isTypingTarget(ev.target)) return;
       if (ev.key === 'Escape') { setPlacing(null); setSelectedUid(null); setAiming(false); }
       if (ev.key === ' ') {
         ev.preventDefault();
@@ -1358,6 +1394,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 // ---------------- The Diplomat's Gambit ----------------
 
 function ReceiverPanel({ game }: { game: Game }) {
+  if (game.diff.id === 'ngplus') return null;
   if (game.receiver) {
     return (
       <div className="panel receiver listening">
