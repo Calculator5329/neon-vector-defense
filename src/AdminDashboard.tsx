@@ -103,6 +103,53 @@ function LineChart({ points, series, height = 200 }: {
   );
 }
 
+/** Economy view: credits banked at each wave launch + towers standing, on their
+ *  own absolute scales. This is where the snowball shows up — when the gold line
+ *  goes vertical, the lane has become trivially affordable. */
+function EconPanel({ points }: { points: CurvePoint[] }) {
+  const W = 640, H = 170, padL = 52, padB = 22, padT = 12, padR = 44;
+  if (points.length < 2) return null;
+  const xs = points.map((p) => p.wave);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const maxC = Math.max(1, ...points.map((p) => p.creditsStart));
+  const maxT = Math.max(1, ...points.map((p) => p.towersStart));
+  const sx = (w: number) => padL + ((w - minX) / Math.max(1, maxX - minX)) * (W - padL - padR);
+  const syC = (v: number) => padT + (1 - v / maxC) * (H - padT - padB);
+  const syT = (v: number) => padT + (1 - v / maxT) * (H - padT - padB);
+  const credPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p.wave).toFixed(1)},${syC(p.creditsStart).toFixed(1)}`).join(' ');
+  const towPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p.wave).toFixed(1)},${syT(p.towersStart).toFixed(1)}`).join(' ');
+  // snowball point: first wave where banked credits pass half their eventual peak
+  const snowball = points.find((p) => p.creditsStart >= maxC * 0.5);
+  const fmtK = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
+  return (
+    <div className="adm-econ">
+      <div className="adm-card-head" style={{ marginTop: 8 }}>
+        <h3>Economy</h3><span className="adm-hint">credits banked at each wave launch · towers standing</span>
+      </div>
+      <svg className="adm-line" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+        {[0, 0.5, 1].map((g) => (
+          <g key={g}>
+            <line x1={padL} y1={syC(maxC * g)} x2={W - padR} y2={syC(maxC * g)} className="adm-grid" />
+            <text x={padL - 6} y={syC(maxC * g) + 3} className="adm-axis" textAnchor="end" fill="#ffd32a">⌬{fmtK(maxC * g)}</text>
+            <text x={W - padR + 6} y={syT(maxT * g) + 3} className="adm-axis" textAnchor="start" fill="#4bcffa">{Math.round(maxT * g)}</text>
+          </g>
+        ))}
+        {snowball && <line x1={sx(snowball.wave)} y1={padT} x2={sx(snowball.wave)} y2={H - padB} className="adm-marker" />}
+        <path d={credPath} fill="none" stroke="#ffd32a" strokeWidth={2} />
+        <path d={towPath} fill="none" stroke="#4bcffa" strokeWidth={1.6} strokeDasharray="4 3" />
+        {[minX, Math.round((minX + maxX) / 2), maxX].map((w) => (
+          <text key={w} x={sx(w)} y={H - 6} className="adm-axis" textAnchor="middle">w{w}</text>
+        ))}
+      </svg>
+      <div className="adm-legend">
+        <span><i style={{ background: '#ffd32a' }} /> credits banked (left axis)</span>
+        <span><i style={{ background: '#4bcffa' }} /> towers standing (right axis)</span>
+        {snowball && <span style={{ color: '#ffd32a' }}>snowball point ≈ wave {snowball.wave} (banked credits pass half their peak of ⌬{fmtK(maxC)})</span>}
+      </div>
+    </div>
+  );
+}
+
 // ---------------- BALANCE tab ----------------
 
 function GridBlock({ grid, skill }: { grid: GridCell[]; skill: string }) {
@@ -157,6 +204,7 @@ function CurveViewer({ curves }: { curves: WaveCurve[] }) {
             bot: <b>{curve.skill}</b> · reaches wave <b>{Math.round(curve.avgFinalWave)}</b> ·{' '}
             <span style={{ color: winColor(curve.winRate) }}>{Math.round(curve.winRate * 100)}% win</span>
           </div>
+          <p className="adm-note">⚠ These curves are <b>bot</b> play. A skilled human reaches much further — the bot tends to plateau exactly where the economy snowballs (see below) and it can't pilot premium late-game towers well. Read the curves as a floor, not a ceiling.</p>
           <LineChart
             points={curve.points}
             series={[
@@ -171,6 +219,7 @@ function CurveViewer({ curves }: { curves: WaveCurve[] }) {
             <span><i style={{ background: '#2ed573' }} /> cores remaining (fraction of starting pool)</span>
           </div>
           <p className="adm-hint">Spikes in the red line are difficulty walls; a falling green line that never recovers is a death spiral.</p>
+          <EconPanel points={curve.points} />
         </>
       ) : <div className="adm-empty">No curve for this combination.</div>}
     </div>
@@ -181,24 +230,37 @@ const FLAG_COLOR: Record<UpgradeStep['flag'], string> = {
   dead: '#ff4757', weak: '#ff9f43', ok: '#a4b0be', strong: '#54a0ff', op: '#2ed573',
 };
 
-function EfficiencyTable({ efficiency, median }: { efficiency: TowerEfficiency[]; median: number }) {
+// blended efficiency: best of single-target and (half-weighted) crowd dps per credit
+const blendEff = (b: BuildPoint) => Math.max(b.dpsPerCredit, b.aoePerCredit * 0.5);
+
+function EfficiencyTable({ efficiency }: { efficiency: TowerEfficiency[] }) {
   const [open, setOpen] = useState<string | null>(null);
-  const sorted = [...efficiency].sort((a, b) => b.dpsPerCreditT4 - a.dpsPerCreditT4);
+  const dmgVals = efficiency.filter((t) => t.style !== 'support' && (t.builds[1].single > 0 || t.builds[1].aoe > 0))
+    .map((t) => blendEff(t.builds[1])).sort((a, b) => a - b);
+  const median = dmgVals.length ? dmgVals[Math.floor(dmgVals.length / 2)] : 0;
+  const sorted = [...efficiency].sort((a, b) => blendEff(b.builds[1]) - blendEff(a.builds[1]));
   const valueOf = (t: TowerEfficiency): { label: string; color: string } => {
-    if (t.style === 'support' || t.rawDpsT4 <= 0) return { label: 'utility', color: '#a4b0be' };
-    if (t.dpsPerCreditT4 >= median * 1.4) return { label: 'over-valued', color: '#2ed573' };
-    if (t.dpsPerCreditT4 <= median * 0.6) return { label: 'under-valued', color: '#ff9f43' };
+    const b = t.builds[1];
+    if (t.style === 'support' || (b.single <= 0 && b.aoe <= 0)) return { label: 'utility', color: '#a4b0be' };
+    const e = blendEff(b);
+    if (e >= median * 1.4) return { label: 'over-valued', color: '#2ed573' };
+    if (e <= median * 0.6) return { label: 'under-valued', color: '#ff9f43' };
     return { label: 'fair', color: '#a4b0be' };
   };
   return (
     <div className="adm-card">
-      <div className="adm-card-head"><h3>Tower cost-efficiency</h3><span className="adm-hint">at A·t4 build · costMult 1 · click a row for upgrade-step breakdown</span></div>
+      <div className="adm-card-head"><h3>Tower cost-efficiency</h3><span className="adm-hint">at A·t4 build · costMult 1 · map-independent · click a row for the upgrade-step breakdown</span></div>
       <table className="adm-table adm-eff">
         <thead>
           <tr>
-            <th>tower</th><th>style</th><th>type</th><th>cost</th><th>raw DPS</th><th>DPS/⌬</th>
-            <th title="effective vs Aegis armor">vs armor</th><th title="effective vs phase-cloak">vs cloak</th>
-            <th title="effective vs boss hulls">vs boss</th><th>value</th>
+            <th>tower</th><th>style</th><th>type</th><th>cost</th>
+            <th title="sustained single-target damage/sec">single DPS</th>
+            <th title="potential damage/sec into a packed lane (pierce / splash / multi-target / aura)">crowd DPS</th>
+            <th title="single-target DPS per credit spent">DPS/⌬</th>
+            <th title="effective DPS vs Aegis armor (kinetic = 0)">vs armor</th>
+            <th title="effective DPS vs phase-cloak (no sensors = 0)">vs cloak</th>
+            <th title="effective DPS vs boss hulls (slow/drag/execute ignored)">vs boss</th>
+            <th title="over/under-valued vs the median, judged on the BEST of single & crowd DPS-per-credit">value</th>
           </tr>
         </thead>
         <tbody>
@@ -213,7 +275,8 @@ function EfficiencyTable({ efficiency, median }: { efficiency: TowerEfficiency[]
                   <td className="adm-dim">{t.style}</td>
                   <td className="adm-dim">{t.damageType}</td>
                   <td>⌬{t.cost}</td>
-                  <td>{t.rawDpsT4}</td>
+                  <td>{b.single}</td>
+                  <td style={{ color: b.aoe > b.single * 1.5 ? '#54a0ff' : undefined }}>{b.aoe}</td>
                   <td>{b.dpsPerCredit.toFixed(3)}</td>
                   <td style={{ color: b.vsArmored === 0 ? '#ff4757' : undefined }}>{b.vsArmored}</td>
                   <td style={{ color: b.vsCloaked === 0 ? '#ff4757' : undefined }}>{b.vsCloaked}</td>
@@ -222,7 +285,7 @@ function EfficiencyTable({ efficiency, median }: { efficiency: TowerEfficiency[]
                 </tr>
                 {isOpen && (
                   <tr className="adm-eff-detail">
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <div className="adm-steps">
                         {([0, 1] as const).map((tr) => (
                           <div key={tr} className="adm-steps-track">
@@ -246,6 +309,11 @@ function EfficiencyTable({ efficiency, median }: { efficiency: TowerEfficiency[]
           })}
         </tbody>
       </table>
+      <p className="adm-hint adm-eff-legend">
+        <b>single DPS</b> = sustained one-target damage · <b>crowd DPS</b> = damage into a packed lane (pierce/splash/multi-target/aura — this is where AoE towers earn their keep) ·
+        <b> DPS/⌬</b> = single-target damage per credit · <b>vs armor/cloak/boss</b> = effective DPS vs that hull type (<span style={{ color: '#ff4757' }}>red 0</span> = can't damage it) ·
+        <b> value</b> judges over/under on the <i>better</i> of single &amp; crowd efficiency, so utility/AoE towers aren't penalized for low single-target numbers.
+      </p>
     </div>
   );
 }
@@ -270,7 +338,7 @@ function BalanceTab({ report }: { report: Report }) {
         </div>
       </div>
 
-      <EfficiencyTable efficiency={report.efficiency} median={report.meta.medianDpsPerCredit} />
+      <EfficiencyTable efficiency={report.efficiency} />
 
       <div className="adm-card">
         <div className="adm-card-head"><h3>Strategy matrix</h3><span className="adm-hint">{stratArena} · constrained bots, identical cadence</span></div>

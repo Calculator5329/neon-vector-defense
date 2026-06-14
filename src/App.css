@@ -1378,3 +1378,15 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .adm-histo-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
 .adm-histo-stack { width: 100%; display: flex; flex-direction: column-reverse; border-radius: 3px 3px 0 0; overflow: hidden; min-height: 2px; }
 .adm-histo-label { font-size: 9px; color: var(--dim); margin-top: 5px; transform: rotate(-30deg); transform-origin: center; white-space: nowrap; }
+
+/* admin: bot caveat note, economy panel, efficiency legend */
+.adm-note {
+  font-size: 12.5px; color: #ffd9a0; line-height: 1.5; margin: 8px 0 2px;
+  padding: 8px 11px; background: rgba(255, 159, 67, 0.08);
+  border-left: 2px solid #ff9f43; border-radius: 0 6px 6px 0;
+}
+.adm-note b { color: #ffc48a; }
+.adm-econ { margin-top: 6px; }
+.adm-marker { stroke: #ffd32a; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; }
+.adm-eff-legend { line-height: 1.6; margin-top: 12px; border-top: 1px solid var(--edge); padding-top: 10px; }
+.adm-eff-legend b { color: var(--text); }
