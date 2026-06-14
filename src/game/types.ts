@@ -263,6 +263,8 @@ export interface DifficultyDef {
   costMult: number;
   /** enemy hp multiplier */
   hpMult: number;
+  /** per-wave HP growth after wave 25 (kills mid-game escape velocity; steeper = harder late game) */
+  lateScale: number;
   waves: number;
   desc: string;
 }

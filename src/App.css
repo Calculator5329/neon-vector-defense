@@ -470,7 +470,27 @@
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+  position: relative;
+  transition: width 0.18s ease;
 }
+.sidebar.collapsed { width: 36px; overflow: visible; }
+.side-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.side-toggle {
+  align-self: flex-end;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--panel2);
+  border: 1px solid var(--edge);
+  color: var(--accent);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.side-toggle:hover { border-color: var(--accent); box-shadow: 0 0 12px rgba(75, 207, 250, 0.25); }
+.sidebar.collapsed .side-toggle { align-self: center; }
 
 .panel {
   background:
@@ -732,12 +752,59 @@
 .fb-thanks { font-size: 13.5px; color: var(--good); line-height: 1.5; padding: 8px 2px; }
 
 /* tower-unlock modal */
-.unlock-modal { max-width: 460px; border-width: 2px; border-style: solid; text-align: left; }
-.unlock-eyebrow { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 4px; color: var(--gold); text-align: center; margin-bottom: 12px; }
-.unlock-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
-.unlock-name { font-family: 'Orbitron', sans-serif; font-size: 19px; letter-spacing: 1px; }
-.unlock-type { font-size: 12px; color: var(--gold); margin-top: 3px; text-transform: capitalize; }
-.unlock-lore { font-style: italic; color: var(--dim); font-size: 12.5px; line-height: 1.4; margin: 8px 0; }
+.unlock-modal {
+  max-width: 432px;
+  width: 92%;
+  border-width: 1.5px;
+  border-style: solid;
+  text-align: left;
+  padding: 22px 26px 24px;
+  border-radius: 16px;
+  background:
+    radial-gradient(130% 90% at 50% -10%, color-mix(in srgb, var(--bc, #ffd32a) 14%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(20, 26, 46, 0.97), rgba(9, 12, 22, 0.98));
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.7),
+    0 0 30px -6px var(--bc, rgba(255, 211, 42, 0.5)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: unlock-in 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+@keyframes unlock-in { from { opacity: 0; transform: translateY(16px) scale(0.95); } to { opacity: 1; transform: none; } }
+.unlock-eyebrow {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 16px;
+  text-shadow: 0 0 14px rgba(255, 211, 42, 0.55);
+}
+.unlock-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--edge);
+}
+.unlock-badge {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--tc, #4bcffa) 55%, transparent);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tg, #4bcffa) 22%, transparent), rgba(8, 11, 20, 0.6) 70%);
+  box-shadow: inset 0 0 18px -4px var(--tg, rgba(75, 207, 250, 0.5));
+}
+.unlock-badge svg { width: 48px; height: 48px; filter: drop-shadow(0 0 8px var(--tg, rgba(75, 207, 250, 0.6))); }
+.unlock-name { font-family: 'Orbitron', sans-serif; font-size: 21px; letter-spacing: 1px; line-height: 1.05; }
+.unlock-type { font-size: 12px; color: var(--gold); margin-top: 5px; text-transform: capitalize; }
+.unlock-lore { font-style: italic; color: var(--dim); font-size: 12.5px; line-height: 1.45; margin: 10px 0; }
+.unlock-modal .tip-text { margin: 0 0 4px; }
+.unlock-modal .start-btn { margin-top: 16px; width: 100%; }
 
 .tier-track { display: flex; gap: 4px; margin: 0 0 8px; }
 .tier-pip {

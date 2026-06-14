@@ -7,7 +7,7 @@ import { ABILITIES } from './abilities';
 import { ARCHIVE } from './lore';
 import { progress } from './storage';
 import { computeStats, sellValue, TOWER_MAP } from './towers';
-import { getWave, waveBonus, waveHpMult, incomeMult } from './waves';
+import { getWave, waveBonus, incomeMult } from './waves';
 import { sfx, vox, playStinger } from './sound';
 import { TOWERS } from './towers';
 
@@ -372,7 +372,12 @@ export class Game {
     // stays fair while the late game bites
     const ramp = Math.min(1, this.wave / 25);
     const diffMult = 1 + (this.diff.hpMult - 1) * ramp;
-    const hp = Math.ceil(def.hp * waveHpMult(this.wave) * diffMult);
+    // post-25 climb that kills the mid-game "escape velocity" — steeper on the
+    // harder protocols so Apex/Extinction keep demanding new strategy late.
+    const late = 1 + Math.max(0, this.wave - 25) * this.diff.lateScale;
+    // beyond the designed campaign (freeplay) the siege steepens hard.
+    const fp = 1 + Math.max(0, this.wave - this.diff.waves) * 0.18;
+    const hp = Math.ceil(def.hp * diffMult * late * fp);
     return {
       uid: uidCounter++,
       def,

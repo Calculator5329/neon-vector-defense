@@ -6,13 +6,13 @@ import { TOWERS, TOWERS_BY_UNLOCK, sellValue } from './game/towers';
 import { ALL_MAPS, MAPS, DIFFICULTIES } from './game/maps';
 import { ENEMIES } from './game/enemies';
 import { ABILITIES } from './game/abilities';
-import { BRIEFING, LONGWATCH_BRIEFING, ARCHIVE, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LINES } from './game/lore';
+import { BRIEFING, LONGWATCH_BRIEFING, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LINES } from './game/lore';
 import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
 import { boardId, submitScore, fetchTop, submitFeedback, logTelemetry, type ScoreEntry } from './game/leaderboard';
 
-import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, playNarration } from './game/sound';
+import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 
 type Screen = 'menu' | 'game';
@@ -268,14 +268,27 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const perfIdleRef = useRef(0);
   const [cloakTip, setCloakTip] = useState(false);
   const [unlockModal, setUnlockModal] = useState<TowerDef | null>(null);
-  const [sideTab, setSideTab] = useState<'build' | 'intel'>('build');
+  const [sideOpen, setSideOpen] = useState(true);
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
   const selectedRef = useRef<Tower | null>(null);
   const aimingRef = useRef(false);
+  const overlayRef = useRef(false);
   placingRef.current = placing;
   aimingRef.current = aiming;
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
+  // unlock modals must never stack on the briefing / tutorial overlays
+  overlayRef.current = tutorial || !briefed;
+
+  // returning players already earned earlier towers — mark them seen silently so
+  // the unlock modal only celebrates genuinely new unlocks during this run.
+  useEffect(() => {
+    if (PERF_MAP !== null) return;
+    const banked = progress.record.kills;
+    for (const d of TOWERS_BY_UNLOCK) {
+      if (d.unlockAt > 0 && d.unlockAt <= banked) progress.markUnlockSeen(d.id);
+    }
+  }, [game]);
 
   // sector ambience while deployed
   useEffect(() => {
@@ -354,7 +367,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           setCloakTip(true);
         }
         // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed
-        if (PERF_MAP === null && !game.paused && (game.phase === 'build' || game.phase === 'wave')) {
+        if (PERF_MAP === null && !game.paused && !overlayRef.current && (game.phase === 'build' || game.phase === 'wave')) {
           const k = progress.record.kills + game.totalKills;
           const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
           if (just) {
@@ -579,10 +592,12 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           )}
           {unlockModal && (
             <div className="cutscene-overlay" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>
-              <div className="cutscene-box unlock-modal" style={{ borderColor: unlockModal.color }} onClick={(e) => e.stopPropagation()}>
-                <div className="unlock-eyebrow">NEW INSTRUMENT UNLOCKED</div>
+              <div className="cutscene-box unlock-modal" style={{ borderColor: unlockModal.color, ['--bc' as string]: unlockModal.glow }} onClick={(e) => e.stopPropagation()}>
+                <div className="unlock-eyebrow">◆ NEW INSTRUMENT UNLOCKED ◆</div>
                 <div className="unlock-head">
-                  <TowerIcon def={unlockModal} />
+                  <div className="unlock-badge" style={{ ['--tc' as string]: unlockModal.color, ['--tg' as string]: unlockModal.glow }}>
+                    <TowerIcon def={unlockModal} />
+                  </div>
                   <div>
                     <div className="unlock-name" style={{ color: unlockModal.glow }}>{unlockModal.name}</div>
                     <div className="unlock-type">{unlockModal.base.damageType} · ⌬{unlockModal.cost}</div>
@@ -612,27 +627,20 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           )}
         </div>
 
-        <div className="sidebar">
-          <div className="side-tabs">
-            <button className={sideTab === 'build' ? 'on' : ''} onClick={() => { setSideTab('build'); setSelectedUid(null); sfx.click(); }}>⚒ BUILD</button>
-            <button className={sideTab === 'intel' ? 'on' : ''} onClick={() => { setSideTab('intel'); sfx.click(); }}>
-              ✦ INTEL{game.newArchive ? <span className="tab-dot" /> : null}
-            </button>
-          </div>
-          {sideTab === 'build' ? (
-            <>
+        <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`}>
+          <button className="side-toggle" title={sideOpen ? 'Collapse panel' : 'Expand panel'}
+            onClick={() => { setSideOpen((o) => !o); sfx.click(); }}>
+            {sideOpen ? '⟩' : '⟨'}
+          </button>
+          {sideOpen && (
+            <div className="side-body">
               {selected ? (
                 <UpgradePanel game={game} tower={selected} onSold={() => setSelectedUid(null)} />
               ) : (
                 <Shop game={game} placing={placing} setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} />
               )}
               <ReceiverPanel game={game} />
-            </>
-          ) : (
-            <>
-              <ArchivePanel game={game} />
-              <Codex />
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -876,18 +884,6 @@ function Shop({ game, placing, setPlacing }: {
       ) : (
         <p className="hint-dim pad">1–9, 0 select · click map to build · Space launches</p>
       )}
-      <div className="bp-row">
-        <button className="tb-btn" disabled={game.towers.length === 0}
-          title="Save the current layout (positions + upgrades) as this sector's blueprint"
-          onClick={() => { game.saveBlueprint(); }}>
-          ⬇ SAVE LAYOUT
-        </button>
-        <button className="tb-btn" disabled={progress.blueprint(game.map.id).length === 0}
-          title="Rebuild the saved blueprint, placing and upgrading as far as credits allow"
-          onClick={() => { game.applyBlueprint(); }}>
-          ⬆ BUILD SAVED{progress.blueprint(game.map.id).length > 0 ? ` (${progress.blueprint(game.map.id).length})` : ''}
-        </button>
-      </div>
     </div>
   );
 }
@@ -1035,70 +1031,5 @@ function ReceiverPanel({ game }: { game: Game }) {
 
 // ---------------- Archive ----------------
 
-function ArchivePanel({ game }: { game: Game }) {
-  const [open, setOpen] = useState(true);
-  const fresh = game.newArchive;
-  return (
-    <div className="panel codex">
-      <button className={`panel-title btn ${fresh && !open ? 'archive-fresh' : ''}`}
-        onClick={() => { setOpen(!open); game.newArchive = false; sfx.click(); }}>
-        ARCHIVE {game.archive.length}/{ARCHIVE.length} {fresh && !open ? '✦' : open ? '▾' : '▸'}
-      </button>
-      {open && (
-        <div className="codex-list">
-          {ARCHIVE.map((f, i) => (
-            game.archive.includes(i) ? (
-              <div key={i} className="archive-frag">
-                {f.art && <img className="archive-art" src={f.art} alt="" />}
-                <div className="archive-title">
-                  <button className="frag-play" title="Listen" onClick={() => { playNarration(i); }}>▶</button>
-                  {f.title}
-                </div>
-                <div className="archive-text">{f.text}</div>
-              </div>
-            ) : (
-              <div key={i} className="archive-frag locked">
-                <div className="archive-title">▒▒▒▒▒▒▒▒▒▒</div>
-                <div className="archive-text">Recovered after wave {f.wave}.</div>
-              </div>
-            )
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------- Codex ----------------
-
-function Codex() {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="panel codex">
-      <button className="panel-title btn" onClick={() => { setOpen(!open); sfx.click(); }}>
-        THREAT CODEX {open ? '▾' : '▸'}
-      </button>
-      {open && (
-        <div className="codex-list">
-          {Object.values(ENEMIES).map((e) => (
-            <div key={e.id} className="codex-entry">
-              <div className="codex-row">
-                <span className="codex-dot" style={{ background: e.color, boxShadow: `0 0 6px ${e.glow}` }} />
-                <span className="codex-name">{e.name}</span>
-                <span className="codex-tags">
-                  {e.hp > 1 ? `${e.hp}hp ` : ''}
-                  {e.armored ? '🛡armored ' : ''}
-                  {e.immuneExplosive ? '⊘blast ' : ''}
-                  {e.immuneCryo ? '⊘cryo ' : ''}
-                  {e.boss ? '☠BOSS' : ''}
-                </span>
-              </div>
-              <div className="codex-lore">{e.lore}</div>
-            </div>
-          ))}
-          <p className="hint-dim">Armored hulls ignore kinetic fire (use energy, blasts, or AP rounds). Cloaked signatures need sensor towers or an EMP Spire.</p>
-        </div>
-      )}
-    </div>
-  );
-}
+// INTEL panel (Archive + Threat Codex) temporarily removed from the sidebar.
+// The ArchivePanel / Codex components were here — recover from git history when re-adding.
