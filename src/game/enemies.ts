@@ -80,6 +80,33 @@ const defs: EnemyDef[] = [
     boss: true, shape: 'capital',
     lore: 'The Combine\'s answer to a fortified sector: erase the sector. Carries four TITANs in its launch cradles. There is no Relay 1 through 3 anymore.',
   },
+
+  // ---- THE HOLLOW: the hunger that followed the Combine home. It does not deliver,
+  // it does not queue — it eats light. Bleeds through in the deepest sieges and freeplay.
+  {
+    id: 'wisp', name: 'Hollow Wisp', hp: 2, speed: 142, radius: 9, reward: 6,
+    color: '#2c2046', glow: '#b388ff', children: [], shape: 'tri',
+    immuneCryo: true,
+    lore: 'A scrap of un-light, fast and starving. Cold cannot slow what was never warm.',
+  },
+  {
+    id: 'gorge', name: 'Hollow Gorge', hp: 9, speed: 72, radius: 13, reward: 16,
+    color: '#231634', glow: '#9b6dff', children: ['wisp', 'wisp'], shape: 'hex',
+    armored: true, immuneExplosive: true,
+    lore: 'Light bends around it and does not return. Kinetic rounds flatten; blasts simply stop. Bring energy — or bring nothing.',
+  },
+  {
+    id: 'lampblack', name: 'Lampblack Tender', hp: 7, speed: 64, radius: 14, reward: 20,
+    color: '#1a1230', glow: '#7d5fff', children: ['gorge'], shape: 'hex',
+    heal: { radius: 110, hps: 7 }, immuneCryo: true,
+    lore: 'It mends its kin by un-happening their wounds. Where it tends the convoy, damage forgets it was ever dealt.',
+  },
+  {
+    id: 'umbra', name: 'THE UMBRA', hp: 1400, speed: 22, radius: 40, reward: 850,
+    color: '#0a0614', glow: '#b388ff', children: ['titan', 'titan'],
+    boss: true, armored: true, immuneExplosive: true, shape: 'capital',
+    lore: 'The thing the Combine spent three centuries holding back. Where it passes, the lighthouse forgets it was ever lit. It does not deliver. It does not queue. It eats the light — and then it starts on the dark.',
+  },
 ];
 
 export const ENEMIES: Record<string, EnemyDef> = Object.fromEntries(defs.map((d) => [d.id, d]));

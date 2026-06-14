@@ -86,6 +86,22 @@ export const ARCHIVE: ArchiveFragment[] = [
     title: 'Sector Command, draft directive (unsent)',
     text: 'Proposal: rebuild the antique Compact-era receiver and sign for the pouch. Risk assessment: catastrophic if wrong. We would have to let a LEVIATHAN dock. Every soul in the Continuity votes yes. Command votes no. The guns stay warm. The cherry tree on deck seven blossomed this morning.',
   },
+  {
+    wave: 65,
+    title: 'Sensor log, the far picket',
+    text: 'The Combine stopped coming and we cheered for an hour. Then the long-band went quiet — not silent, quiet, the way a room goes quiet when something large stops breathing. Now there are returns past the old line that read as absence. Negative mass. Negative light. The instruments call it nothing and the nothing is getting closer.',
+  },
+  {
+    wave: 73,
+    title: 'Recovered hull fragment, designation: Hollow',
+    text: 'There is no chassis. We brought a piece aboard and it un-lit the lab — every lumen in the room drained toward it and did not come out. It is not armored against light. It is hungry for it. The Combine\'s plating bends light away to survive; this thing bends light away to eat. We are out of our depth, and the depth has teeth.',
+  },
+  {
+    wave: 80,
+    art: '/art/leviathan.png',
+    title: 'The thing the war was for',
+    text: 'We finally understand the delivery schedule. The Combine was never besieging us. It was the wall — a three-century picket line their makers raised between the gates and the dark, holding back the Hollow one polite wave at a time, waiting for someone to sign for the end so they could stand down and let us hold the wall ourselves. We did not sign. We shot the wall. And now the dark is at Lantern Seven, and the only light left is the one you keep.',
+  },
 ];
 
 // Post-armistice campaign: the thing the Locust Shrine's dead world only hinted at.

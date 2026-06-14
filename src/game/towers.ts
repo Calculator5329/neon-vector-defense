@@ -372,6 +372,86 @@ export const TOWERS: TowerDef[] = [
       ]),
     ],
   },
+  {
+    id: 'abyss', name: 'Abyss Gate', short: 'ABY', cost: 5200, unlockAt: 14000,
+    desc: 'Forbidden endgame tower. Opens a void gate on a target cluster, shredding defenses, dragging hulls backward, and freezing the lane around the breach.',
+    lore: 'The gate does not fire. It briefly convinces the battlefield that somewhere else is closer.',
+    color: '#6c5ce7', glow: '#c8b6ff', style: 'rift',
+    base: base({
+      range: 210, fireRate: 0.28, damage: 18, damageType: 'energy',
+      pierce: 999, splash: 72, count: 1, detection: true,
+      slowPower: 0.35, slowDuration: 1.2, drag: 55, shred: true,
+    }),
+    tracks: [
+      track('Event Horizon', [
+        u('Mass Shadow', '+25% breach radius.', 1800, (s) => { s.splash *= 1.25; }),
+        u('Cruel Gravity', '+45% drag.', 2600, (s) => { s.drag *= 1.45; }),
+        u('Hawking Teeth', '+14 breach damage.', 3400, (s) => { s.damage += 14; }),
+        u('Collapse Rhythm', '+50% breach rate.', 5200, (s) => { s.fireRate *= 1.5; }),
+        u('Binary Horizon', 'BONUS: opens two gates per cycle.', 8200, (s) => { s.count = 2; }),
+        u('THE MOUTH OF MIDNIGHT', 'BONUS: huge breach, 62 damage, brutal drag. The convoy exits through itself.', 16000, (s) => { s.damage = 62; s.splash = 132; s.drag *= 2.2; }),
+      ]),
+      track('Wormhole Network', [
+        u('Far Aperture', '+35% range.', 1600, (s) => { s.range *= 1.35; }),
+        u('Second Mouth', 'Opens a second gate on another cluster.', 3000, (s) => { s.count = 2; }),
+        u('Slipstream Shear', '+40% breach rate.', 3800, (s) => { s.fireRate *= 1.4; }),
+        u('Causal Burn', 'Breach applies 22 dps burn for 3 seconds.', 5400, (s) => { s.burnDps = 22; s.burnDuration = 3; }),
+        u('Gate Choir', 'BONUS: opens three gates per cycle.', 9000, (s) => { s.count = 3; }),
+        u('OMNIPRESENT EXIT', 'BONUS: five gates, unlimited reach, deeper slow. Every road leads through the abyss.', 17000, (s) => { s.count = 5; s.range = 9999; s.slowPower = 0.62; s.slowDuration = 2.2; }),
+      ]),
+    ],
+  },
+  // ---- THE HOLLOW arsenal: light against the hunger ----
+  {
+    id: 'ember', name: 'Ember Lattice', short: 'EMB', cost: 380, unlockAt: 1000,
+    desc: 'Strings a lattice of caged starfire across its airspace — everything inside burns. The fire is energy, so armor and the Hollow are no shelter.',
+    lore: 'Lantern-keepers lit a lattice of signal-fires when a relay went dark. This one never goes out, and it is no longer a signal.',
+    color: '#ff7f50', glow: '#ffd0a0', style: 'pulse',
+    base: base({ range: 95, fireRate: 1.1, damage: 0, damageType: 'energy', burnDps: 5, burnDuration: 2, pierce: 99 }),
+    tracks: [
+      track('Wildfire', [
+        u('Banked Coals', 'Sear 8 dps.', 200, (s) => { s.burnDps = 8; }),
+        u('Spreading Flame', '+35% lattice radius.', 280, (s) => { s.range *= 1.35; }),
+        u('White Heat', 'Sear 13 dps.', 420, (s) => { s.burnDps = 13; }),
+        u('Forge Wind', '+1 damage per pulse, +30% rate.', 700, (s) => { s.damage += 1; s.fireRate *= 1.3; }),
+        u('CONFLAGRATION', 'BONUS: sear 22 dps.', 1500, (s) => { s.burnDps = 22; }),
+        u('STAR-EATER', 'BONUS: sear 34 dps, +40% radius. It burns the cold itself.', 3200, (s) => { s.burnDps = 34; s.range *= 1.4; }),
+      ]),
+      track('Hearthlight', [
+        u('Warding Glow', 'Reveals cloaked hulls in the lattice.', 220, (s) => { s.detection = true; }),
+        u('Cinder Bite', '+2 damage per pulse.', 320, (s) => { s.damage += 2; }),
+        u('Embered Air', 'Lattice slows hulls 30%.', 460, (s) => { s.slowPower = 0.3; s.slowDuration = 1; }),
+        u('Coalwalk', '+3 damage per pulse.', 720, (s) => { s.damage += 3; }),
+        u('PYRE FIELD', 'BONUS: slow 45%, +4 damage.', 1500, (s) => { s.slowPower = 0.45; s.damage += 4; }),
+        u('THE LONG NOON', 'BONUS: +60% radius, sear +12 dps. A noon that does not end.', 3200, (s) => { s.range *= 1.6; s.burnDps += 12; }),
+      ]),
+    ],
+  },
+  {
+    id: 'sunspear', name: 'Sunspear Battery', short: 'SUN', cost: 720, unlockAt: 2400,
+    desc: 'A focused spear of daylight on a rail. Energy, armor-shredding, and it sees through any cloak — built to put down the things the dark hides.',
+    lore: 'Forged from the Meridian Gate\'s last working lens, after the Prism Array proved the principle. One shot, one dawn, repeated.',
+    color: '#ffe066', glow: '#fff3a0', style: 'rail',
+    base: base({ range: 9999, fireRate: 0.55, damage: 5, damageType: 'energy', detection: true, shred: true }),
+    tracks: [
+      track('Zenith', [
+        u('Focused Beam', '+70% fire rate.', 400, (s) => { s.fireRate *= 1.7; }),
+        u('Solar Slug', '9 damage.', 520, (s) => { s.damage = 9; }),
+        u('Twin Dawn', 'Two spears per shot.', 760, (s) => { s.count = 2; }),
+        u('Corona Rounds', '13 damage, pierce 3.', 1000, (s) => { s.damage = 13; s.pierce = 3; }),
+        u('NOON GUN', 'BONUS: 22 damage.', 1800, (s) => { s.damage = 22; }),
+        u('SECOND SUNRISE', 'BONUS: 2× damage, pierce 6. Dawn comes twice, and the dark does not.', 3800, (s) => { s.damage *= 2; s.pierce = 6; }),
+      ]),
+      track('Eclipse', [
+        u('Fast Cycler', '+25% fire rate.', 240, (s) => { s.fireRate *= 1.25; }),
+        u('Glare', 'Executes non-boss hulls under 15% hp.', 480, (s) => { s.execute = 0.15; }),
+        u('Burning Core', 'Hits sear 8 dps for 3s, +2 damage.', 640, (s) => { s.burnDps = 8; s.burnDuration = 3; s.damage += 2; }),
+        u('Heliograph', 'Execute threshold 25%.', 980, (s) => { s.execute = 0.25; }),
+        u('STARFALL', 'BONUS: execute 35%, +6 damage.', 1700, (s) => { s.execute = 0.35; s.damage += 6; }),
+        u('THE LAST LIGHT', 'BONUS: 3× damage, executes any non-boss hull under HALF health. The dark blinks first.', 3900, (s) => { s.damage *= 3; s.execute = 0.5; }),
+      ]),
+    ],
+  },
 ];
 
 export const TOWER_MAP: Record<string, TowerDef> = Object.fromEntries(TOWERS.map((t) => [t.id, t]));

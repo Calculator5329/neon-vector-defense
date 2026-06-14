@@ -1,0 +1,17 @@
+{
+  "name": "neon-vector-defense-ai-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret:key": "wrangler secret put OPENROUTER_API_KEY",
+    "secret:cookie": "wrangler secret put AI_COOKIE_SECRET"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}

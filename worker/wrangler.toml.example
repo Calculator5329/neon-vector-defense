@@ -1,0 +1,11 @@
+name = "neon-vector-defense-ai"
+main = "openrouter-proxy.js"
+compatibility_date = "2026-06-14"
+
+[vars]
+APP_URL = "https://neon-vector-defense-7.web.app"
+OPENROUTER_MODEL = "google/gemini-3-flash-preview"
+
+# Set secrets with:
+# wrangler secret put OPENROUTER_API_KEY
+# wrangler secret put AI_COOKIE_SECRET

@@ -157,6 +157,9 @@ export class Game {
       won,
       freeplay: this.freeplay,
       date: Date.now(),
+      leaks: this.runStats.leaks,
+      durationS: Math.round(this.time),
+      towers: [...new Set([...this.towers.map((t) => t.def.id), ...Object.keys(this.runStats.dmg)])].join(','),
     });
   }
 
@@ -709,8 +712,8 @@ export class Game {
           progress.addArchive(i);
           this.newArchive = true;
           this.announce(i === RECEIVER_FRAGMENT
-            ? '✦ Manifest decoded. There may be another way to end this — open the ARCHIVE'
-            : '✦ Archive fragment recovered — open the ARCHIVE');
+            ? '✦ Manifest decoded. There may be another way to end this.'
+            : '✦ Archive fragment recovered.');
           sfx.archive();
           vox('archive');
         }
@@ -1079,6 +1082,53 @@ export class Game {
           t.flash = 0.2;
           sfx.resonance();
         }
+        continue;
+      }
+
+      if (t.def.style === 'rift') {
+        // Abyss Gate: open one or more breaches on target clusters.
+        const first = this.pickTarget(t, range);
+        if (!first) continue;
+        const centers: Enemy[] = [first];
+        const gates = Math.max(1, st.count);
+        for (let i = 1; i < gates; i++) {
+          const next = this.enemies.find((e) => !e.dead && !e.finished && !e.courier && !centers.includes(e) &&
+            this.visibleTo(t, e) && Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius &&
+            centers.every((c) => Math.hypot(e.pos.x - c.pos.x, e.pos.y - c.pos.y) > st.splash * 1.2));
+          if (next) centers.push(next);
+        }
+        const hit = new Set<number>();
+        for (const center of centers) {
+          const cpos = { ...center.pos };
+          this.addBeam(t.pos, cpos, t.def.glow, 5.5, 0.2);
+          this.addBeam({ x: cpos.x, y: cpos.y - st.splash * 0.65 }, { x: cpos.x, y: cpos.y + st.splash * 0.65 }, '#ffffff', 2, 0.18);
+          this.grid.forEachInRadius(cpos.x, cpos.y, st.splash + 20, (e) => {
+            if (e.dead || e.finished || e.courier || hit.has(e.uid)) return;
+            if (!this.visibleTo(t, e)) return;
+            if (Math.hypot(e.pos.x - cpos.x, e.pos.y - cpos.y) > st.splash + e.def.radius) return;
+            hit.add(e.uid);
+            const drag = st.drag * (e.def.boss ? 0.18 : 1);
+            if (drag > 0) {
+              e.dist = Math.max(0, e.dist - drag);
+              const at = this.posAtDist(e.dist);
+              e.pos = at.pos;
+              e.wp = at.wp;
+            }
+            if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+            if (st.burnDps > 0) {
+              e.burnDps = Math.max(e.burnDps, st.burnDps);
+              e.burnTimer = Math.max(e.burnTimer, st.burnDuration);
+            }
+            this.damageEnemy(e, st.damage, st.damageType, true, t);
+          });
+          this.ring(cpos, t.def.glow, st.splash);
+          this.burstFx(cpos, t.def.glow, 9);
+        }
+        t.angle = Math.atan2(first.pos.y - t.pos.y, first.pos.x - t.pos.x);
+        t.cooldown = 1 / st.fireRate;
+        t.flash = 0.45;
+        t.recoil = 1;
+        sfx.gravity();
         continue;
       }
 
@@ -1471,4 +1521,3 @@ function predict(e: Enemy, path: Vec[], from: Vec, projSpeed: number): Vec {
 export interface EnemyDefLookup {
   [id: string]: EnemyDef;
 }
-

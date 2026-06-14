@@ -1,10 +1,20 @@
-// Global leaderboards on Firestore via REST — no SDK, ~zero bundle cost.
-// Security lives in firestore.rules (public read, validated append-only).
-// The API key is a Firebase *web* key: public by design.
+// Global leaderboards, feedback, and telemetry on Firestore.
+// Firebase web config is public by design; access control lives in firestore.rules.
 
-const PROJECT = 'neon-vector-defense-7';
-const API_KEY = 'AIzaSyAxKfk-rZAFLS7OeqCqIFEzNYKlv3tdrhs';
-const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit as limitResults,
+  orderBy,
+  query,
+} from 'firebase/firestore';
+import { db, ensurePlayerAuth } from './firebaseClient';
+
+const VALID_MAPS = new Set(['orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat']);
+const VALID_DIFFS = new Set(['easy', 'normal', 'hard', 'extinction', 'ngplus']);
 
 export interface ScoreEntry {
   name: string;
@@ -16,57 +26,101 @@ export interface ScoreEntry {
   uid?: string;
 }
 
-/** board id for a mode: mapId:diffId, with :fp for freeplay runs */
+/** board id for a mode: mapId_diffId, with _fp for freeplay runs */
 export function boardId(mapId: string, diffId: string, freeplay: boolean): string {
   return `${mapId}_${diffId}${freeplay ? '_fp' : ''}`;
 }
 
+function validBoard(board: string): boolean {
+  const match = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?:_fp)?$/.exec(board);
+  return !!match?.groups && VALID_MAPS.has(match.groups.map) && VALID_DIFFS.has(match.groups.diff);
+}
+
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
+  if (!validBoard(board)) return false;
   try {
-    const res = await fetch(`${BASE}/boards/${board}/scores?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fields: {
-          name: { stringValue: entry.name.slice(0, 20) },
-          cash: { integerValue: String(Math.floor(entry.cash)) },
-          kills: { integerValue: String(entry.kills) },
-          wave: { integerValue: String(entry.wave) },
-          freeplay: { booleanValue: entry.freeplay },
-          ts: { integerValue: String(entry.ts) },
-          uid: { stringValue: (entry.uid ?? '').slice(0, 40) },
-        },
-      }),
+    await ensurePlayerAuth();
+    await addDoc(collection(db, 'boards', board, 'scores'), {
+      name: entry.name.slice(0, 20),
+      cash: Math.max(0, Math.floor(entry.cash)),
+      kills: Math.max(0, Math.floor(entry.kills)),
+      wave: Math.max(0, Math.floor(entry.wave)),
+      freeplay: entry.freeplay,
+      ts: Math.floor(entry.ts),
+      uid: (entry.uid ?? '').slice(0, 40),
     });
-    return res.ok;
+    return true;
   } catch {
     return false;
   }
 }
 
-/** player feedback → feedback collection (write-only). ctx = where in the app. */
-export async function submitFeedback(uid: string, text: string, ctx: string): Promise<boolean> {
+/** player feedback -> feedback collection. Invisible anonymous auth identifies only the sender. */
+export async function submitFeedback(text: string, ctx: string): Promise<string | null> {
   try {
-    const res = await fetch(`${BASE}/feedback?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fields: {
-          uid: { stringValue: uid.slice(0, 40) },
-          text: { stringValue: text.slice(0, 1000) },
-          ts: { integerValue: String(Date.now()) },
-          ctx: { stringValue: ctx.slice(0, 200) },
-        },
-      }),
+    const uid = await ensurePlayerAuth();
+    const ref = await addDoc(collection(db, 'feedback'), {
+      uid,
+      text: text.slice(0, 1000),
+      ts: Date.now(),
+      ctx: ctx.slice(0, 200),
+      status: 'open',
     });
-    return res.ok;
+    return ref.id;
   } catch {
-    return false;
+    return null;
+  }
+}
+
+export interface FeedbackReply {
+  id: string;
+  text: string;
+  ctx: string;
+  ts: number;
+  reply: string;
+  replyTs: number;
+  status: string;
+}
+
+type FeedbackData = {
+  text?: string;
+  ctx?: string;
+  ts?: number;
+  reply?: string;
+  replyTs?: number;
+  status?: string;
+};
+
+/** Fetch only feedback documents this browser created, so replies can show without player login. */
+export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply[]> {
+  const clean = [...new Set(ids)]
+    .filter((id) => /^[A-Za-z0-9_-]{8,80}$/.test(id))
+    .slice(-20);
+  if (clean.length === 0) return [];
+  try {
+    await ensurePlayerAuth();
+    const snaps = await Promise.all(clean.map((id) => getDoc(doc(db, 'feedback', id))));
+    return snaps
+      .filter((snap) => snap.exists())
+      .map((snap) => {
+        const data = snap.data() as FeedbackData;
+        return {
+          id: snap.id,
+          text: data.text ?? '',
+          ctx: data.ctx ?? '',
+          ts: Number(data.ts ?? 0),
+          reply: data.reply ?? '',
+          replyTs: Number(data.replyTs ?? 0),
+          status: data.status ?? 'open',
+        };
+      })
+      .filter((row) => !!row.reply);
+  } catch {
+    return [];
   }
 }
 
 export interface TelemetryEvent {
-  uid: string;
   kind: string;
   map: string;
   diff: string;
@@ -76,113 +130,93 @@ export interface TelemetryEvent {
   won: boolean;
   freeplay: boolean;
   durationS: number;
+  leaks?: number;
+  coresLeft?: number;
   /** comma-separated tower def ids fielded this run (for popularity analysis) */
   towers?: string;
 }
 
-/** anonymous gameplay telemetry → telemetry collection (write-only, fire-and-forget) */
+/** anonymous gameplay telemetry -> telemetry collection (write-only for players). */
 export function logTelemetry(e: TelemetryEvent): void {
-  try {
-    void fetch(`${BASE}/telemetry?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fields: {
-          uid: { stringValue: e.uid.slice(0, 40) },
-          ts: { integerValue: String(Date.now()) },
-          kind: { stringValue: e.kind.slice(0, 30) },
-          map: { stringValue: e.map.slice(0, 30) },
-          diff: { stringValue: e.diff.slice(0, 30) },
-          wave: { integerValue: String(e.wave) },
-          kills: { integerValue: String(e.kills) },
-          cash: { integerValue: String(Math.floor(e.cash)) },
-          won: { booleanValue: e.won },
-          freeplay: { booleanValue: e.freeplay },
-          durationS: { integerValue: String(Math.floor(e.durationS)) },
-          towers: { stringValue: (e.towers ?? '').slice(0, 200) },
-        },
-      }),
-    }).catch(() => {});
-  } catch { /* fire-and-forget */ }
+  void (async () => {
+    try {
+      const uid = await ensurePlayerAuth();
+      await addDoc(collection(db, 'telemetry'), {
+        uid,
+        ts: Date.now(),
+        kind: e.kind.slice(0, 30),
+        map: e.map.slice(0, 30),
+        diff: e.diff.slice(0, 30),
+        wave: Math.max(0, Math.floor(e.wave)),
+        kills: Math.max(0, Math.floor(e.kills)),
+        cash: Math.max(0, Math.floor(e.cash)),
+        won: e.won,
+        freeplay: e.freeplay,
+        durationS: Math.max(0, Math.floor(e.durationS)),
+        leaks: Math.max(0, Math.floor(e.leaks ?? 0)),
+        coresLeft: Math.max(0, Math.floor(e.coresLeft ?? 0)),
+        towers: (e.towers ?? '').slice(0, 200),
+      });
+    } catch {
+      // Fire-and-forget telemetry must never affect the game loop.
+    }
+  })();
 }
 
 export interface TelemetryRow extends TelemetryEvent {
+  uid: string;
   ts: number;
 }
 
-/** Admin-only: read recent telemetry events for the dashboard.
- *  Requires the telemetry collection to allow read (see firestore.rules). */
+type TelemetryData = TelemetryRow;
+
+/** Admin-only: read recent telemetry events for the dashboard. */
 export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
   try {
-    const res = await fetch(`${BASE}:runQuery?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        structuredQuery: {
-          from: [{ collectionId: 'telemetry' }],
-          orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }],
-          limit,
-        },
-      }),
+    const q = query(collection(db, 'telemetry'), orderBy('ts', 'desc'), limitResults(limit));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data() as Partial<TelemetryData>;
+      return {
+        uid: data.uid ?? '',
+        ts: Number(data.ts ?? 0),
+        kind: data.kind ?? '',
+        map: data.map ?? '',
+        diff: data.diff ?? '',
+        wave: Number(data.wave ?? 0),
+        kills: Number(data.kills ?? 0),
+        cash: Number(data.cash ?? 0),
+        won: data.won ?? false,
+        freeplay: data.freeplay ?? false,
+        durationS: Number(data.durationS ?? 0),
+        leaks: Number(data.leaks ?? 0),
+        coresLeft: Number(data.coresLeft ?? 0),
+        towers: data.towers ?? '',
+      };
     });
-    if (!res.ok) return [];
-    const rows = await res.json();
-    return rows
-      .filter((r: { document?: unknown }) => r.document)
-      .map((r: { document: { fields: Record<string, { stringValue?: string; integerValue?: string; booleanValue?: boolean }> } }) => {
-        const f = r.document.fields;
-        return {
-          uid: f.uid?.stringValue ?? '',
-          ts: Number(f.ts?.integerValue ?? 0),
-          kind: f.kind?.stringValue ?? '',
-          map: f.map?.stringValue ?? '',
-          diff: f.diff?.stringValue ?? '',
-          wave: Number(f.wave?.integerValue ?? 0),
-          kills: Number(f.kills?.integerValue ?? 0),
-          cash: Number(f.cash?.integerValue ?? 0),
-          won: f.won?.booleanValue ?? false,
-          freeplay: f.freeplay?.booleanValue ?? false,
-          durationS: Number(f.durationS?.integerValue ?? 0),
-          towers: f.towers?.stringValue ?? '',
-        } as TelemetryRow;
-      });
   } catch {
     return [];
   }
 }
 
 export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {
-  // endless freeplay boards rank by wave reached (the meaningful metric);
-  // campaign boards rank by cash earned.
+  if (!validBoard(board)) return [];
   const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
   try {
-    const res = await fetch(`${BASE}/boards/${board}:runQuery?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        structuredQuery: {
-          from: [{ collectionId: 'scores' }],
-          orderBy: [{ field: { fieldPath: sortField }, direction: 'DESCENDING' }],
-          limit,
-        },
-      }),
+    const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(limit));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data() as Partial<ScoreEntry>;
+      return {
+        name: data.name ?? '???',
+        cash: Number(data.cash ?? 0),
+        kills: Number(data.kills ?? 0),
+        wave: Number(data.wave ?? 0),
+        freeplay: data.freeplay ?? false,
+        ts: Number(data.ts ?? 0),
+        uid: data.uid ?? '',
+      };
     });
-    if (!res.ok) return [];
-    const rows = await res.json();
-    return rows
-      .filter((r: { document?: unknown }) => r.document)
-      .map((r: { document: { fields: Record<string, { stringValue?: string; integerValue?: string; booleanValue?: boolean }> } }) => {
-        const f = r.document.fields;
-        return {
-          name: f.name?.stringValue ?? '???',
-          cash: Number(f.cash?.integerValue ?? 0),
-          kills: Number(f.kills?.integerValue ?? 0),
-          wave: Number(f.wave?.integerValue ?? 0),
-          freeplay: f.freeplay?.booleanValue ?? false,
-          ts: Number(f.ts?.integerValue ?? 0),
-          uid: f.uid?.stringValue ?? '',
-        };
-      });
   } catch {
     return [];
   }

@@ -11,26 +11,28 @@ interesting engineering is under the surface: procedural canvas rendering,
 headless balance simulations, bot playtests, local progression, generated art,
 procedural audio, and Firebase-backed leaderboards.
 
-**Live game:** [neon-vector-defense-7.web.app](https://neon-vector-defense-7.web.app)
+**Live game:** [neon-vector-defense-7.web.app](https://neon-vector-defense-7.web.app)  
+**Recruiter demo:** [neon-vector-defense-7.web.app/?demo=1](https://neon-vector-defense-7.web.app/?demo=1)
 
 ## Gameplay
 
-- **3 sectors** - Orbital Relay, Twin Reactor, and Hyperlane Junction, each
-  with a custom lane shape, no-build zones, and visual theme.
-- **3 protocols** - Recruit, Veteran, and Apex, with different cash, hull,
-  wave, cloak, and scaling rules.
-- **10 towers with 2 upgrade tracks** - including support, crowd-control,
-  anti-cloak, burst, drone, missile, gravity, and resonance towers.
-- **Commander abilities** - Q/W/E/R abilities for orbital strikes, slow fields,
-  overdrive, and emergency salvage.
+- **6 sectors** - Orbital Relay, Twin Reactor, Hyperlane Junction, Mobius
+  Drift, Blackout Reach, and The Throat, each with a custom lane shape,
+  no-build zones, and visual theme.
+- **5 protocols** - Recruit, Veteran, Apex, Extinction, and Long Watch, with
+  different cash, hull, wave, cloak, and scaling rules.
+- **14 towers with 2 upgrade tracks** - including support, crowd-control,
+  anti-cloak, burst, drone, missile, gravity, resonance, and late-game towers.
+- **6 commander abilities** - Q/W/E/R/T/Y abilities for orbital strikes, slow
+  fields, overdrive, emergency salvage, and late-run control tools.
 - **Enemy variants** - armored, blast-proof, cryo-proof, phase-cloaked, repair,
   boss, and nested-hull units.
-- **Progression** - service records, tower unlocks, freeplay, archive
+- **Progression** - service records, tower unlocks, freeplay, recovered signal
   fragments, and alternate ending progression persist locally.
 - **Leaderboards and feedback** - public Firestore-backed scoreboards and
   anonymous feedback submission.
-- **AI field assistant** - a menu helper backed by a Google Cloud Function,
-  OpenRouter, and server-side usage limits.
+- **AI field assistant** - an optional helper backed by the included
+  Cloudflare Worker proxy, OpenRouter, and server-side usage limits.
 
 ## The Game World
 
@@ -39,7 +41,7 @@ carry the Continuity: backed-up minds of every colonist who ever crossed. The
 Vex Combine armada besieging them is not truly invading; it is a
 self-replicating logistics fleet still executing a siege order from a war that
 ended 284 years ago. You are the Warden of Lantern Seven. Hold the lane and
-read the Archive.
+follow the recovered signal fragments.
 
 ## Technical Highlights
 
@@ -58,9 +60,21 @@ read the Archive.
 - **Generated art pipeline** - optional scripts generate menu, sector,
   briefing, victory, defeat, and archive images through OpenRouter image
   models.
-- **Firebase integration** - Firestore REST calls keep the bundle light while
-  security rules validate append-only leaderboard, feedback, and telemetry
-  writes.
+- **Firebase integration** - the Firebase SDK handles anonymous player auth,
+  public leaderboard reads, validated score/feedback/telemetry writes, and
+  admin-only feedback and telemetry reads.
+
+## Recruiter Demo
+
+Append `?demo=1` to the live URL to launch a no-persistence demo session:
+
+```txt
+https://neon-vector-defense-7.web.app/?demo=1
+```
+
+Demo mode unlocks all sectors, protocols, and towers for that browser session.
+It skips telemetry and disables score submission so recruiter exploration does
+not pollute production data.
 
 ## Local Development
 
@@ -80,10 +94,14 @@ npm run balance    # write public/balance-report.json for the admin dashboard
 npm run balance -- quick
 ```
 
+`public/balance-report.json` is intentionally committed as demo/admin dashboard
+data generated from the balance harness, not as production telemetry.
+
 ## Generated Art
 
-Generated art lives in `public/art/`. Regeneration is optional and requires an
-OpenRouter key. Keep keys in `.env.local`, which is gitignored by `*.local`.
+Generated art lives in `public/art/`; generated audio lives in `public/audio/`.
+Regeneration is optional and requires an OpenRouter key. Keep keys in
+`.env.local`, which is gitignored.
 
 ```powershell
 $env:OPENROUTER_API_KEY="sk-or-..."
@@ -91,7 +109,8 @@ node scripts/genart.mjs
 ```
 
 Some one-off generation scripts also read `.env.local` directly. Do not commit
-local key files.
+local key files. Source code and docs are MIT licensed; generated art/audio are
+reserved project assets. See `ASSET_PROVENANCE.md`.
 
 ## Controls
 
@@ -101,7 +120,7 @@ local key files.
 | Click map | Place tower or collect power-ups |
 | Shift-click map | Keep placing the selected tower |
 | Click tower | Open upgrade, targeting, stats, lore, and sell panel |
-| `Q` `W` `E` `R` | Commander abilities |
+| `Q` `W` `E` `R` `T` `Y` | Commander abilities |
 | Right-click / `Esc` | Cancel placement, aiming, or selection |
 | `Space` | Launch the next wave or pause mid-wave |
 
@@ -113,13 +132,18 @@ public identifiers, not server secrets, so the protection layer is
 
 The intended rules model is:
 
-- Leaderboards are public read and append-only.
-- Feedback and telemetry are append-only with validation.
+- Leaderboards are public read and append-only for anonymously authenticated
+  visitors.
+- Feedback is append-only for anonymously authenticated visitors, and
+  readable/repliable only by allowlisted Google admin accounts.
+- Telemetry is append-only for anonymously authenticated visitors with
+  admin-only reads.
 - Updates/deletes are denied.
-- Admin dashboards are read-only and should only expose aggregate/non-sensitive
-  gameplay data.
-- AI help usage data is written only by the Cloud Function through Admin SDK;
-  normal Firestore rules keep those collections closed to clients.
+- The unlinked owner console uses Firebase Auth with Google sign-in plus the
+  same admin email allowlist in `firestore.rules` and
+  `src/game/firebaseClient.ts`. Keep both allowlists synchronized.
+- AI help uses the Cloudflare Worker proxy in `worker/` so Firebase can remain
+  on Spark.
 
 Before making a new public release, deploy the matching rules:
 
@@ -127,48 +151,89 @@ Before making a new public release, deploy the matching rules:
 firebase deploy --only firestore:rules
 ```
 
+## Admin Console
+
+The owner console is an unlinked route:
+
+```txt
+/admin
+```
+
+It uses Firebase Auth with Google sign-in and the Firestore admin allowlist.
+Players do not need visible accounts; leaderboard, feedback, and telemetry
+writes use anonymous Firebase Auth behind the scenes. Admin replies are saved
+onto feedback records for triage and can be shown only to the browser that
+submitted the original feedback.
+
+Before using it in production:
+
+- Enable **Authentication -> Sign-in method -> Google** in the Firebase console.
+- Confirm the deployed domain is authorized for Firebase Auth.
+- Confirm the admin email allowlist in `firestore.rules` and
+  `src/game/firebaseClient.ts`.
+- Deploy updated rules:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
 ## AI Help Setup
 
-The menu AI widget calls `/api/ai/help`, which Firebase Hosting rewrites to the
-`aiHelp` Cloud Function. The frontend never sees the OpenRouter key.
+Firebase Spark cannot run server code, so it cannot safely store the OpenRouter
+key by itself. Keep Firebase on Spark for Hosting/Auth/Firestore, and run the AI
+proxy somewhere that supports secrets. A Cloudflare Worker template is included
+in `worker/`.
 
-Install the function dependencies once:
+The frontend reads the AI endpoint from:
 
 ```bash
-cd functions
+VITE_AI_HELP_URL=https://your-worker-name.your-subdomain.workers.dev
+```
+
+Do not put the OpenRouter key in `VITE_*` variables; Vite exposes those to the
+browser.
+
+Cloudflare Worker setup:
+
+```bash
+cd worker
+copy wrangler.toml.example wrangler.toml
 npm install
+npm run secret:key
+npm run secret:cookie
+npm run deploy
 ```
 
-Set runtime environment variables for the function:
+If you prefer not to install dependencies in `worker/`, you can also run the
+same commands with `npx wrangler@latest ...`.
+
+Then build the game with the Worker URL:
 
 ```bash
-firebase functions:secrets:set OPENROUTER_API_KEY
-firebase functions:secrets:set AI_COOKIE_SECRET
+$env:VITE_AI_HELP_URL="https://your-worker-name.your-subdomain.workers.dev"
+npm run build
+firebase deploy --only hosting,firestore:rules
 ```
 
-Also set non-secret params or environment values for:
-
-```bash
-OPENROUTER_MODEL=google/gemini-3-flash-preview
-APP_URL=https://neon-vector-defense-7.web.app
-```
-
-The deployed function enforces:
+The Worker template enforces:
 
 - 5 turns per conversation
 - 5 conversations per signed visitor cookie
-- 20 new conversations per IP per hour
-- 100 turns per IP per day
 
-The signed `HttpOnly` cookie survives localStorage clears, while the IP buckets
-catch casual cookie/cache resets. Anonymous limits are not identity proof; use
-login, App Check, or CAPTCHA if stronger abuse control is needed.
+The AI widget is hidden when `VITE_AI_HELP_URL` is missing. No request is sent
+until the player submits a question, and the client sends a compact gameplay
+context rather than raw local history.
+
+Because this Spark-friendly path does not use a persistent server database,
+anonymous limits can still be reset by deleting cookies. Add Worker KV/D1,
+Turnstile, or another persistent edge store later if stronger abuse control is
+needed.
 
 ## Deployment
 
 ```bash
 npm run build
-firebase deploy --only functions:aiHelp,hosting
+firebase deploy --only hosting,firestore:rules
 ```
 
 Configured Firebase project: `neon-vector-defense-7`

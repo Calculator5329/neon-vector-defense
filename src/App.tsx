@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import './App.css';
 import { Game, W, H } from './game/engine';
 import { render, drawTowerBody, setRenderQuality } from './game/render';
@@ -10,8 +10,18 @@ import { BRIEFING, LONGWATCH_BRIEFING, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LI
 import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
-import { boardId, submitScore, fetchTop, submitFeedback, logTelemetry, type ScoreEntry } from './game/leaderboard';
+import {
+  boardId,
+  submitScore,
+  fetchTop,
+  submitFeedback,
+  fetchFeedbackReplies,
+  logTelemetry,
+  type FeedbackReply,
+  type ScoreEntry,
+} from './game/leaderboard';
 import { askAIHelp } from './game/aiHelp';
+import { buildAIHelpContext, type AIHelpContext } from './game/aiContext';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
@@ -25,8 +35,11 @@ const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
 // with rendering on and a live FPS meter. Example: /?perf=throat&diff=hard
 const PERF_PARAMS = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const PERF_MAP = PERF_PARAMS.get('perf');
+const DEMO_MODE = PERF_PARAMS.get('demo') === '1';
+const AI_HELP_ENABLED = Boolean(import.meta.env.VITE_AI_HELP_URL);
+const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
 
-// hidden, read-only ops console: ?admin=lantern-seven (sticky thereafter)
+// Unlinked owner console route; real access control is Firebase Auth + rules.
 const ADMIN = isAdmin();
 
 export default function App() {
@@ -47,7 +60,9 @@ function Main() {
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
             onStart={() => { sfx.click(); setScreen('game'); }} />
         : <GameScreen map={map} diff={diff} onExit={() => setScreen('menu')} />}
-      {screen === 'menu' && <AIHelpWidget />}
+      {AI_HELP_ENABLED && screen === 'menu' && (
+        <AIHelpWidget getContext={() => buildAIHelpContext({ screen: 'menu', map, diff })} />
+      )}
       <FeedbackWidget ctx={screen} />
     </>
   );
@@ -57,7 +72,7 @@ function Main() {
 
 type AIChatMessage = { role: 'assistant' | 'user'; content: string };
 
-function AIHelpWidget() {
+function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AIHelpContext; placement?: 'menu' | 'game' }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [state, setState] = useState<'idle' | 'busy'>('idle');
@@ -65,7 +80,7 @@ function AIHelpWidget() {
   const [turnsRemaining, setTurnsRemaining] = useState<number | null>(null);
   const [conversationsRemaining, setConversationsRemaining] = useState<number | null>(null);
   const [messages, setMessages] = useState<AIChatMessage[]>([
-    { role: 'assistant', content: 'Ask me about towers, protocols, controls, freeplay, or leaderboards.' },
+    { role: 'assistant', content: 'Ask me about towers, waves, hidden hulls, unlocks, controls, or your last run.' },
   ]);
 
   const send = async () => {
@@ -75,7 +90,7 @@ function AIHelpWidget() {
     setState('busy');
     setMessages((m) => [...m, { role: 'user', content: q }]);
     try {
-      const res = await askAIHelp(q, conversationId);
+      const res = await askAIHelp(q, conversationId, getContext(), messages);
       setConversationId(res.conversationId);
       setTurnsRemaining(res.turnsRemaining);
       setConversationsRemaining(res.conversationsRemaining);
@@ -94,12 +109,16 @@ function AIHelpWidget() {
   const startNew = () => {
     setConversationId(undefined);
     setTurnsRemaining(null);
-    setMessages([{ role: 'assistant', content: 'New uplink ready. What do you want to know?' }]);
+    setMessages([{ role: 'assistant', content: 'New uplink ready. What do you want to know about this run?' }]);
     sfx.click();
   };
+  useEffect(() => {
+    document.body.classList.toggle('ai-open', open);
+    return () => document.body.classList.remove('ai-open');
+  }, [open]);
 
   return (
-    <div className="ai-root">
+    <div className={`ai-root ${placement === 'game' ? 'in-game' : 'on-menu'}`}>
       {open && (
         <div className="ai-panel">
           <div className="ai-head">
@@ -142,33 +161,156 @@ function AIHelpWidget() {
 
 // ---------------- Feedback (always available, anonymous) ----------------
 
+const FEEDBACK_IDS_KEY = 'nvd-feedback-ids-v1';
+const FEEDBACK_READ_KEY = 'nvd-feedback-read-v1';
+const FEEDBACK_DISMISSED_KEY = 'nvd-feedback-dismissed-v1';
+
+function loadFeedbackIds(): string[] {
+  try {
+    const raw = localStorage.getItem(FEEDBACK_IDS_KEY);
+    return raw ? JSON.parse(raw).filter((id: unknown) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFeedbackId(id: string) {
+  const ids = [...loadFeedbackIds().filter((x) => x !== id), id].slice(-20);
+  try { localStorage.setItem(FEEDBACK_IDS_KEY, JSON.stringify(ids)); } catch { /* non-fatal */ }
+}
+
+function feedbackReadAt(): number {
+  try { return Number(localStorage.getItem(FEEDBACK_READ_KEY) ?? 0); } catch { return 0; }
+}
+
+function markFeedbackRead(ts: number) {
+  try { localStorage.setItem(FEEDBACK_READ_KEY, String(ts)); } catch { /* non-fatal */ }
+}
+
+function loadDismissedReplyIds(): string[] {
+  try {
+    const raw = localStorage.getItem(FEEDBACK_DISMISSED_KEY);
+    return raw ? JSON.parse(raw).filter((id: unknown) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissedReplyIds(ids: string[]) {
+  try { localStorage.setItem(FEEDBACK_DISMISSED_KEY, JSON.stringify([...new Set(ids)].slice(-50))); } catch { /* non-fatal */ }
+}
+
 function FeedbackWidget({ ctx }: { ctx: string }) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<'inbox' | 'send'>('inbox');
   const [text, setText] = useState('');
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [replies, setReplies] = useState<FeedbackReply[]>([]);
+  const [readAt, setReadAt] = useState(() => feedbackReadAt());
+  const [dismissedReplies, setDismissedReplies] = useState<string[]>(() => loadDismissedReplyIds());
+  const [checkingReplies, setCheckingReplies] = useState(false);
   const MAX = 1000;
+  const refreshReplies = useCallback(async () => {
+    setCheckingReplies(true);
+    const rows = await fetchFeedbackReplies(loadFeedbackIds());
+    rows.sort((a, b) => b.replyTs - a.replyTs);
+    setReplies(rows);
+    setCheckingReplies(false);
+  }, []);
+  useEffect(() => {
+    void refreshReplies();
+    const id = window.setInterval(refreshReplies, 15000);
+    return () => window.clearInterval(id);
+  }, [refreshReplies]);
+  useEffect(() => {
+    if (!open || replies.length === 0) return;
+    const newest = Math.max(...replies.map((r) => r.replyTs));
+    if (newest > readAt) {
+      markFeedbackRead(newest);
+      setReadAt(newest);
+    }
+  }, [open, readAt, replies]);
+  useEffect(() => {
+    document.body.classList.toggle('fb-open', open);
+    return () => document.body.classList.remove('fb-open');
+  }, [open]);
   if (PERF_MAP !== null) return null; // not during perf runs
   const send = async () => {
     const t = text.trim();
     if (!t) return;
     setState('busy');
-    await submitFeedback(progress.uid, t, ctx);
+    const id = await submitFeedback(t, ctx);
+    if (id) saveFeedbackId(id);
     setState('done');
     setText('');
-    setTimeout(() => { setOpen(false); setState('idle'); }, 1600);
+    void refreshReplies();
+    setTab('inbox');
+    setTimeout(() => setState('idle'), 2200);
+  };
+  const visibleReplies = replies.filter((r) => !dismissedReplies.includes(r.id));
+  const unread = visibleReplies.filter((r) => r.replyTs > readAt).length;
+  const dismissedCount = replies.length - visibleReplies.length;
+  const sentCount = loadFeedbackIds().length;
+  const dismissReply = (id: string) => {
+    const next = [...dismissedReplies, id];
+    setDismissedReplies(next);
+    saveDismissedReplyIds(next);
+    sfx.click();
+  };
+  const restoreReplies = () => {
+    setDismissedReplies([]);
+    saveDismissedReplyIds([]);
+    sfx.click();
   };
   return (
-    <div className={`fb-root ${ctx === 'menu' ? 'on-menu' : ''}`}>
+    <div className={`fb-root ${ctx === 'menu' ? 'on-menu' : 'on-game'}`}>
       {open && (
         <div className="fb-panel">
           <div className="fb-head">
-            <span>SEND FEEDBACK</span>
+            <span>MESSAGES</span>
             <button className="fb-x" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
           </div>
-          {state === 'done' ? (
-            <div className="fb-thanks">Transmission received. Thank you, Warden. ✦</div>
+          <div className="fb-tabs">
+            <button className={tab === 'inbox' ? 'on' : ''} onClick={() => { setTab('inbox'); sfx.click(); }}>
+              INBOX{unread > 0 ? ` ${unread}` : ''}
+            </button>
+            <button className={tab === 'send' ? 'on' : ''} onClick={() => { setTab('send'); sfx.click(); }}>SEND</button>
+          </div>
+          {tab === 'inbox' && <div className="fb-replies">
+            <div className="fb-section-row">
+              <div className="fb-section-title">ADMIN REPLIES</div>
+              <button className="fb-check" disabled={checkingReplies} onClick={() => { void refreshReplies(); sfx.click(); }}>
+                {checkingReplies ? 'CHECKING' : 'CHECK'}
+              </button>
+            </div>
+            {visibleReplies.length > 0 ? (
+              visibleReplies.slice(0, 4).map((r) => (
+                <div key={r.id} className="fb-reply">
+                  <div className="fb-reply-meta">
+                    <span>{new Date(r.replyTs).toLocaleString()} / {r.ctx}</span>
+                    <button className="fb-dismiss" title="Dismiss reply" onClick={() => dismissReply(r.id)}>DISMISS</button>
+                  </div>
+                  <div className="fb-reply-body">{r.reply}</div>
+                  <div className="fb-reply-quote">You: {r.text}</div>
+                </div>
+              ))
+            ) : (
+              <div className="fb-no-replies">
+                {dismissedCount > 0
+                  ? 'All admin replies are dismissed on this browser.'
+                  : sentCount === 0
+                    ? 'No messages sent from this browser yet.'
+                    : 'No admin replies yet. Replies will appear here and the message icon will light up.'}
+              </div>
+            )}
+            {dismissedCount > 0 && (
+              <button className="fb-restore" onClick={restoreReplies}>RESTORE DISMISSED ({dismissedCount})</button>
+            )}
+          </div>}
+          {tab === 'send' && (state === 'done' ? (
+            <div className="fb-thanks">Transmission received. Admin replies will appear in Inbox.</div>
           ) : (
-            <>
+            <div className="fb-compose">
               <textarea className="fb-text" maxLength={MAX} value={text} autoFocus
                 placeholder="Bug, idea, or anything at all — it goes straight to the developer."
                 onChange={(e) => setText(e.target.value)} />
@@ -178,11 +320,11 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
                   {state === 'busy' ? '…' : 'SEND ▸'}
                 </button>
               </div>
-            </>
-          )}
+            </div>
+          ))}
         </div>
       )}
-      <button className="fb-toggle" title="Send feedback" onClick={() => { setOpen((o) => !o); sfx.click(); }}>
+      <button className={`fb-toggle ${unread ? 'has-reply' : ''}`} title={unread ? `${unread} admin reply` : 'Messages'} onClick={() => { setOpen((o) => { const next = !o; if (next && unread > 0) setTab('inbox'); return next; }); sfx.click(); }}>
         {open ? '✕' : '✉'}
       </button>
     </div>
@@ -194,9 +336,11 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
 // Sequential unlock: a sector opens only once every prior sector has been
 // progressed (cleared, or reached wave 20+). No swiss-cheese gaps.
 function mapProgressed(m: GameMap): boolean {
+  if (DEMO_MODE) return true;
   return progress.mapCleared(m.id) || progress.bestWaveAny(m.id) >= 20;
 }
 function mapUnlocked(idx: number): boolean {
+  if (DEMO_MODE) return true;
   for (let i = 0; i < idx; i++) if (!mapProgressed(ALL_MAPS[i])) return false;
   return true;
 }
@@ -207,9 +351,9 @@ function MainMenu(props: {
   onStart: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
-  const apexLocked = progress.record.runs < 1;
-  const ngLocked = !progress.armisticeSeen;
-  const firstTime = progress.record.runs < 1;
+  const apexLocked = !DEMO_MODE && progress.record.runs < 1;
+  const ngLocked = !DEMO_MODE && !progress.armisticeSeen;
+  const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
 
   return (
@@ -226,6 +370,12 @@ function MainMenu(props: {
           <button className={tab === 'board' ? 'on' : ''} onClick={() => { setTab('board'); sfx.click(); }}>LEADERBOARD</button>
         </nav>
       </header>
+
+      {DEMO_MODE && (
+        <div className="menu-demo-banner">
+          RECRUITER DEMO: all sectors, protocols, and towers are unlocked for this session. Progression, telemetry, and score submission are disabled.
+        </div>
+      )}
 
       {progress.record.runs > 0 && (
         <div className="hero-stats">
@@ -283,10 +433,10 @@ function MainMenu(props: {
               <div className="diff-row">
                 {DIFFICULTIES.map((d) => {
                   const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked)
-                    || (d.id === 'extinction' && !progress.apexCleared);
+                    || (d.id === 'extinction' && !DEMO_MODE && !progress.apexCleared);
                   if (locked) {
                     const reason = d.id === 'ngplus'
-                      ? { label: '🔒 ????', desc: 'The Archive knows another ending.', title: 'Sealed. End the war the other way first.' }
+                      ? { label: '🔒 SEALED SIGNAL', desc: 'Another ending unlocks this protocol.', title: 'Sealed. End the war the other way first.' }
                       : d.id === 'extinction'
                         ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
                         : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
@@ -365,7 +515,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           <div className="board-empty">No records on this board yet — deploy and claim the top spot.</div>
         ) : (
           rows.map((r, i) => (
-            <div key={i} className={`board-row ${r.uid && r.uid === progress.uid ? 'me' : ''}`}>
+            <div key={i} className="board-row">
               <span className="board-rank">{i + 1}</span>
               <span className="board-name">{r.name}</span>
               {fp && <span className="board-wave">{r.wave}</span>}
@@ -421,8 +571,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
   const [muted, setMutedState] = useState(isMuted());
   const [aiming, setAiming] = useState(false);
-  const [tutorial, setTutorial] = useState(PERF_MAP === null && !progress.tutorialSeen);
-  const [briefed, setBriefed] = useState(PERF_MAP !== null);
+  const [tutorial, setTutorial] = useState(PERF_MAP === null && !DEMO_MODE && !progress.tutorialSeen);
+  const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   // adaptive render quality: smoothed fps + a hysteresis flag (see render.setRenderQuality)
@@ -445,7 +595,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   // returning players already earned earlier towers — mark them seen silently so
   // the unlock modal only celebrates genuinely new unlocks during this run.
   useEffect(() => {
-    if (PERF_MAP !== null) return;
+    if (PERF_MAP !== null || DEMO_MODE) return;
     const banked = progress.record.kills;
     for (const d of TOWERS_BY_UNLOCK) {
       if (d.unlockAt > 0 && d.unlockAt <= banked) progress.markUnlockSeen(d.id);
@@ -498,13 +648,14 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       }
       game.update(dt);
       // fire one anonymous telemetry event when a run ends (skip perf bot runs)
-      if (PERF_MAP === null && !loggedRunRef.current &&
+      if (PERF_MAP === null && !DEMO_MODE && !loggedRunRef.current &&
           (game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice')) {
         loggedRunRef.current = true;
         logTelemetry({
-          uid: progress.uid, kind: game.phase, map: game.map.id, diff: game.diff.id,
+          kind: game.phase, map: game.map.id, diff: game.diff.id,
           wave: game.wave, kills: game.totalKills, cash: Math.round(game.runStats.cashEarned),
           won: game.phase !== 'gameover', freeplay: game.freeplay, durationS: Math.round(game.time),
+          leaks: game.runStats.leaks, coresLeft: game.lives,
           // tower types fielded this run (standing + any that fired before being sold)
           towers: [...new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)])].join(','),
         });
@@ -539,7 +690,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           setCloakTip(true);
         }
         // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed
-        if (PERF_MAP === null && !game.paused && !overlayRef.current && (game.phase === 'build' || game.phase === 'wave')) {
+        if (PERF_MAP === null && !DEMO_MODE && !game.paused && !overlayRef.current && (game.phase === 'build' || game.phase === 'wave')) {
           const k = progress.record.kills + game.totalKills;
           const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
           if (just) {
@@ -642,7 +793,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const selected = selectedRef.current;
 
   return (
-    <div className="game-root">
+    <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
+      {AI_HELP_ENABLED && <AIHelpWidget placement="game" getContext={() => buildAIHelpContext({ screen: 'game', map, diff, game, selectedTower: selectedRef.current })} />}
       <div className="topbar">
         <button className="tb-btn exit" onClick={onExit}>✕ ABORT</button>
         <div className="tb-stat lives" title="Reactor cores (lives)">⬢ {game.lives}</div>
@@ -803,9 +955,13 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           {sideOpen ? (
             <div className="side-body">
               {selected ? (
-                <UpgradePanel game={game} tower={selected} onSold={() => setSelectedUid(null)} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
+                <UpgradePanel game={game} tower={selected}
+                  sig={`${Math.floor(game.credits)}|${selected.tierA}|${selected.tierB}|${selected.committed}|${selected.invested}|${selected.kills}|${selected.target}|${selected.rateBuff.toFixed(2)}|${selected.rangeBuff.toFixed(2)}`}
+                  onSold={() => setSelectedUid(null)} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
               ) : (
-                <Shop game={game} placing={placing} setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
+                <Shop game={game} placing={placing}
+                  sig={`${Math.floor(game.credits)}|${game.totalKills}`}
+                  setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
               )}
               <ReceiverPanel game={game} />
             </div>
@@ -925,6 +1081,15 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   if (!eligible) return null;
   const board = boardId(map.id, diff.id, game.freeplay);
 
+  if (DEMO_MODE) {
+    return (
+      <div className="submit-score demo-score-disabled">
+        <div className="aar-title">RECRUITER DEMO RUN</div>
+        <p>Leaderboard submission is disabled in demo mode so live score data stays clean.</p>
+      </div>
+    );
+  }
+
   const submit = async () => {
     const n = (name.trim() || 'WARDEN').slice(0, 20);
     progress.playerName = n;
@@ -936,7 +1101,6 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: game.freeplay,
       ts: Date.now(),
-      uid: progress.uid,
     });
     if (ok) {
       setTop(await fetchTop(board));
@@ -997,11 +1161,18 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
 
 // ---------------- Shop ----------------
 
-function Shop({ game, placing, setPlacing, onCollapse }: {
+// Memoized: the loop re-renders GameScreen ~8x/s, but the shop only needs to
+// repaint when affordability (credits) or the unlock bar (kills) actually move.
+// `sig` snapshots those so React.memo can skip otherwise-identical renders (the
+// inline callbacks change identity every parent render, so the comparator ignores
+// them — they close over stable useState setters, so old closures stay correct).
+const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
   game: Game; placing: TowerDef | null; setPlacing: (d: TowerDef | null) => void; onCollapse?: () => void;
+  /** render signature: floor(credits)|totalKills — see comparator below */
+  sig: string;
 }) {
   // lifetime kills (banked at run end) + this run's kills so the bar fills live
-  const kills = progress.record.kills + game.totalKills;
+  const kills = DEMO_MODE ? DEMO_UNLOCK_KILLS : progress.record.kills + game.totalKills;
   // the next tower the player will unlock, for the BTD-style progress bar
   const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
@@ -1062,7 +1233,7 @@ function Shop({ game, placing, setPlacing, onCollapse }: {
       )}
     </div>
   );
-}
+}, (a, b) => a.sig === b.sig && a.placing === b.placing);
 
 function TowerIcon({ def }: { def: TowerDef }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -1113,7 +1284,11 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
   );
 }
 
-function UpgradePanel({ game, tower, onSold, onCollapse }: { game: Game; tower: Tower; onSold: () => void; onCollapse?: () => void }) {
+// Memoized like Shop: repaints only when the selected tower's shown state changes
+// (tiers/commit/invested/kills/target/buffs) or affordability (credits).
+const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollapse }: {
+  game: Game; tower: Tower; onSold: () => void; onCollapse?: () => void; sig: string;
+}) {
   const def = tower.def;
   const s = tower.stats;
   const rank = Game.rankOf(tower);
@@ -1169,7 +1344,7 @@ function UpgradePanel({ game, tower, onSold, onCollapse }: { game: Game; tower: 
       <p className="hint-dim pad">Esc or right-click to deselect.</p>
     </div>
   );
-}
+}, (a, b) => a.tower === b.tower && a.sig === b.sig);
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (

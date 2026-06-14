@@ -1,8 +1,28 @@
 {
   "name": "neon-vector-defense",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A neon sci-fi tower defense game built with React, TypeScript, Canvas, Firebase, and headless balance simulations.",
+  "homepage": "https://neon-vector-defense-7.web.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Calculator5329/neon-vector-defense.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "typescript",
+    "canvas",
+    "game-dev",
+    "tower-defense",
+    "simulation",
+    "firebase",
+    "vite"
+  ],
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -20,6 +40,7 @@
     "vite": "^8.0.12"
   },
   "dependencies": {
+    "firebase": "^12.14.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   }

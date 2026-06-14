@@ -1,42 +1,75 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // public leaderboards: anyone can read and append a validated score; nothing can be edited
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          '5329548871,eg@gmail.com',
+          '5329548871.eg@gmail.com'
+        ];
+    }
+
+    function isValidBoard(board) {
+      return board.matches('^(orbital|reactor|hyperlane|mobius|blackout|throat)_(easy|normal|hard|extinction|ngplus)(_fp)?$');
+    }
+
+    // public leaderboards: anyone can read; signed visitors may append validated scores
     match /boards/{board}/scores/{id} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid'])
+      allow create: if request.auth != null
+        && isValidBoard(board)
+        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
         && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
         && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
         && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
         && request.resource.data.freeplay is bool
-        && request.resource.data.ts is int
-        && request.resource.data.uid is string && request.resource.data.uid.size() <= 40;
+        && request.resource.data.freeplay == board.matches('.*_fp$')
+        && request.resource.data.ts is int && request.resource.data.ts > 0
+        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() <= 40));
       allow update, delete: if false;
     }
 
-    // player feedback: write-only from clients, validated; read/edit blocked (console only)
+    // player feedback: write-only from clients, admin-readable/repliable after Google sign-in
     match /feedback/{id} {
-      allow read, update, delete: if false;
-      allow create: if request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx'])
-        && request.resource.data.uid is string && request.resource.data.uid.size() <= 40
+      // The browser that created a message stores its random doc id and may read
+      // it only once an admin reply exists. Listing remains admin-only.
+      allow get: if isAdmin()
+        || (request.auth != null && resource.data.uid == request.auth.uid && ('reply' in resource.data));
+      allow list: if isAdmin();
+      allow delete: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status'])
+        && request.resource.data.uid == request.auth.uid
         && request.resource.data.text is string
         && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 1000
-        && request.resource.data.ts is int
-        && request.resource.data.ctx is string && request.resource.data.ctx.size() <= 200;
+        && request.resource.data.ts is int && request.resource.data.ts > 0
+        && request.resource.data.ctx is string && request.resource.data.ctx.size() <= 200
+        && (!('status' in request.resource.data) || request.resource.data.status == 'open');
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reply', 'replyTs', 'repliedBy'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status', 'reply', 'replyTs', 'repliedBy'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.text == resource.data.text
+        && request.resource.data.ts == resource.data.ts
+        && request.resource.data.ctx == resource.data.ctx
+        && (!('status' in request.resource.data) || request.resource.data.status in ['open', 'replied', 'archived'])
+        && (!('reply' in request.resource.data) || (request.resource.data.reply is string && request.resource.data.reply.size() <= 2000))
+        && (!('replyTs' in request.resource.data) || request.resource.data.replyTs is int)
+        && (!('repliedBy' in request.resource.data) || (request.resource.data.repliedBy is string && request.resource.data.repliedBy.size() <= 120));
     }
 
-    // anonymous gameplay telemetry: append-only, validated. Reads are public so the
-    // in-app admin dashboard (gated client-side) can visualize aggregate player data.
-    // The data carries no PII — uid is a random per-device token, never a login.
+    // anonymous gameplay telemetry: player append-only, admin-read only.
     match /telemetry/{id} {
-      allow read: if true;
+      allow read: if isAdmin();
       allow update, delete: if false;
-      allow create: if request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'towers'])
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers'])
         && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
-        && request.resource.data.uid is string && request.resource.data.uid.size() <= 40
-        && request.resource.data.ts is int
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.ts is int && request.resource.data.ts > 0
         && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
         && request.resource.data.map is string && request.resource.data.map.size() <= 30
         && request.resource.data.diff is string && request.resource.data.diff.size() <= 30
@@ -46,6 +79,8 @@ service cloud.firestore {
         && request.resource.data.won is bool
         && request.resource.data.freeplay is bool
         && request.resource.data.durationS is int && request.resource.data.durationS >= 0 && request.resource.data.durationS < 100000
+        && (!('leaks' in request.resource.data) || (request.resource.data.leaks is int && request.resource.data.leaks >= 0 && request.resource.data.leaks < 1000000))
+        && (!('coresLeft' in request.resource.data) || (request.resource.data.coresLeft is int && request.resource.data.coresLeft >= 0 && request.resource.data.coresLeft < 1000000))
         && (!('towers' in request.resource.data) || (request.resource.data.towers is string && request.resource.data.towers.size() <= 200));
     }
 

@@ -76,16 +76,32 @@ const WAVES: Wave[] = [
   /* 68 */ [g('leviathan', 5, 3.2), g('titan', 6, 1.6, { delay: 3 })],
   /* 69 */ [g('leviathan', 4, 3, { cloaked: true }), g('juggernaut', 24, 0.3, { delay: 1 })],
   /* 70 */ [g('leviathan', 7, 2.6), g('titan', 8, 1.4, { delay: 4 })],
+  // ---- THE HOLLOW finale (waves 71-80): the Combine thins, the dark arrives ----
+  /* 71 */ [g('titan', 8, 1.6), g('gorge', 8, 0.8, { delay: 1 })],
+  /* 72 */ [g('leviathan', 2, 6), g('juggernaut', 16, 0.4, { delay: 2 }), g('gorge', 10, 0.7, { delay: 1 })],
+  /* 73 */ [g('titan', 6, 1.8, { cloaked: true }), g('gorge', 12, 0.6, { delay: 1 })],
+  /* 74 */ [g('leviathan', 3, 4), g('lampblack', 3, 2.5, { delay: 1 }), g('titan', 4, 2, { delay: 2 })],
+  /* 75 */ [g('gorge', 16, 0.5), g('wisp', 24, 0.3, { delay: 0.5 }), g('titan', 6, 1.6, { delay: 1 })],
+  /* 76 */ [g('leviathan', 3, 4), g('titan', 8, 1.6, { delay: 2 }), g('lampblack', 4, 2, { delay: 1 })],
+  /* 77 */ [g('titan', 14, 1.1, { cloaked: true }), g('gorge', 14, 0.5, { delay: 1 })],
+  /* 78 */ [g('leviathan', 4, 3.4), g('gorge', 16, 0.5, { delay: 1 }), g('wisp', 28, 0.3, { delay: 0.5 })],
+  /* 79 */ [g('leviathan', 5, 3, { cloaked: true }), g('lampblack', 5, 1.8, { delay: 1 }), g('titan', 8, 1.2, { delay: 1 })],
+  /* 80 */ [g('umbra', 1, 1), g('titan', 6, 1.8, { delay: 3 }), g('gorge', 14, 0.5, { delay: 2 })],
 ];
 
-/** Get wave definition for a 1-based wave number. Beyond the table, scale endlessly. */
+/** Get wave definition for a 1-based wave number. Beyond the table, scale endlessly —
+ *  and the deeper you push, the more the Hollow bleeds through the old Combine line. */
 export function getWave(n: number): Wave {
   if (n <= WAVES.length) return WAVES[n - 1];
   const over = n - WAVES.length;
-  return [
-    g('leviathan', 4 + Math.floor(over * 1.5), Math.max(0.8, 2.6 - over * 0.1)),
-    g('titan', 8 + over * 2, Math.max(0.5, 1.4 - over * 0.05), { delay: 2, cloaked: over % 2 === 0 }),
+  const groups: WaveGroup[] = [
+    g('leviathan', 3 + Math.floor(over * 1.1), Math.max(0.8, 2.6 - over * 0.08)),
+    g('titan', 6 + over * 2, Math.max(0.5, 1.4 - over * 0.05), { delay: 2, cloaked: over % 2 === 0 }),
   ];
+  if (over >= 2) groups.push(g('gorge', 8 + over, Math.max(0.3, 0.8 - over * 0.03), { delay: 1 }));
+  if (over >= 5) groups.push(g('lampblack', 2 + Math.floor(over / 3), 2.4, { delay: 1 }));
+  if (over >= 8 && over % 3 === 0) groups.push(g('umbra', 1 + Math.floor(over / 14), 6, { delay: 3 }));
+  return groups;
 }
 
 export function waveBonus(n: number): number {

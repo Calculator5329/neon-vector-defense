@@ -111,7 +111,49 @@ export const MAPS2: GameMap[] = [
   },
 ];
 
-export const ALL_MAPS = [...MAPS, ...MAPS2];
+// THE HOLLOW sectors — the dark past the Combine's old line.
+export const MAPS3: GameMap[] = [
+  {
+    id: 'umbral',
+    name: 'Umbral Reach',
+    desc: 'A dead corridor the Hollow has already started eating. Outside the three light-pools, your towers lose 35% range — the dark drinks the beam.',
+    difficulty: 'Hard',
+    pathWidth: 44,
+    music: 'reactor',
+    path: [
+      { x: -40, y: 130 }, { x: 300, y: 130 }, { x: 300, y: 500 }, { x: 600, y: 500 },
+      { x: 600, y: 160 }, { x: 940, y: 160 }, { x: 940, y: 540 }, { x: 1320, y: 540 },
+    ],
+    blockers: [],
+    zones: [
+      { x: 300, y: 315, r: 150 },
+      { x: 600, y: 330, r: 150 },
+      { x: 940, y: 350, r: 150 },
+    ],
+    theme: { bg1: '#0a0614', bg2: '#190b28', path: '#22103a', pathEdge: '#8a5cff' },
+  },
+  {
+    id: 'cinder',
+    name: 'Cinder Causeway',
+    desc: 'A wreckage-choked double-back of burnt relay struts. A kill-box paradise — until the Umbra walks the lane and the kill-box becomes a coffin.',
+    difficulty: 'Hard',
+    pathWidth: 42,
+    music: 'hyperlane',
+    path: [
+      { x: 640, y: -40 }, { x: 640, y: 170 }, { x: 240, y: 170 }, { x: 240, y: 470 },
+      { x: 560, y: 470 }, { x: 560, y: 300 }, { x: 900, y: 300 }, { x: 900, y: 560 },
+      { x: 1120, y: 560 }, { x: 1120, y: 200 }, { x: 1320, y: 200 },
+    ],
+    blockers: [
+      { x: 400, y: 320, r: 70 },
+      { x: 760, y: 410, r: 62 },
+      { x: 1010, y: 120, r: 58 },
+    ],
+    theme: { bg1: '#140a04', bg2: '#281408', path: '#34190a', pathEdge: '#d06a2a' },
+  },
+];
+
+export const ALL_MAPS = [...MAPS, ...MAPS2, ...MAPS3];
 
 export const DIFFICULTIES: DifficultyDef[] = [
   { id: 'easy', name: 'Recruit', lives: 200, cash: 900, costMult: 0.85, hpMult: 0.9, lateScale: 0.015, waves: 50, desc: '200 cores · cheap towers · no phase-cloaks · 50 waves' },

@@ -103,7 +103,7 @@ export interface UpgradeDef {
   apply: (s: TowerStats) => void;
 }
 
-export type FireStyle = 'bolt' | 'missile' | 'arc' | 'beam' | 'pulse' | 'rail' | 'support' | 'gravity' | 'resonance' | 'nova' | 'sweep';
+export type FireStyle = 'bolt' | 'missile' | 'arc' | 'beam' | 'pulse' | 'rail' | 'support' | 'gravity' | 'resonance' | 'nova' | 'sweep' | 'rift';
 
 export interface UpgradeTrack {
   name: string;

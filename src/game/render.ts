@@ -1310,6 +1310,55 @@ export function drawTowerBody(
       ctx.fill();
       break;
     }
+    case 'rift': { // abyss gate: a caged wound in space
+      ctx.rotate(-angle);
+      ctx.rotate(time * 0.6);
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([5, 4]);
+      ctx.lineDashOffset = -time * 12;
+      circle(ctx, 0, 0, 12.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.rotate(-time * 1.8);
+      ctx.strokeStyle = withAlpha(def.glow, 0.72);
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 14, 5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.rotate(time * 3.1);
+      ctx.globalAlpha = alpha * 0.55;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 12, 4, Math.PI / 2.7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = alpha;
+
+      const pulse = 8 + Math.sin(time * 4) * 1.2 + (flash > 0 ? 3 : 0);
+      const rg = ctx.createRadialGradient(0, 0, 0.5, 0, 0, pulse + 9);
+      rg.addColorStop(0, '#000000');
+      rg.addColorStop(0.42, '#050012');
+      rg.addColorStop(0.7, def.color);
+      rg.addColorStop(1, withAlpha(def.glow, 0));
+      ctx.fillStyle = rg;
+      circle(ctx, 0, 0, pulse + 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = def.glow;
+      ctx.shadowBlur = 10;
+      for (let i = 0; i < 5; i++) {
+        const a = time * 1.4 + (i * Math.PI * 2) / 5;
+        path(ctx, [
+          [Math.cos(a) * 15, Math.sin(a) * 15],
+          [Math.cos(a + 0.14) * 9, Math.sin(a + 0.14) * 9],
+          [Math.cos(a - 0.14) * 9, Math.sin(a - 0.14) * 9],
+        ]);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+      break;
+    }
     case 'support': { // EMP spire
       ctx.rotate(-angle);
       // triple rotating antenna arcs

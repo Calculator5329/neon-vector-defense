@@ -2,6 +2,7 @@
 // The Archive is knowledge the Warden keeps; best waves are the service record.
 
 const KEY = 'nvd-progress-v1';
+const DEMO_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1';
 
 interface Progress {
   /** indices into ARCHIVE recovered across all runs */
@@ -35,6 +36,9 @@ export interface RunRecord {
   won: boolean;
   freeplay: boolean;
   date: number;
+  leaks?: number;
+  durationS?: number;
+  towers?: string;
 }
 
 export interface BlueprintEntry {
@@ -56,6 +60,7 @@ function load(): Progress {
 let cache = load();
 
 function save() {
+  if (DEMO_MODE) return;
   try {
     if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(cache));
   } catch { /* storage full or blocked — non-fatal */ }
@@ -158,5 +163,3 @@ export const progress = {
     save();
   },
 };
-
-

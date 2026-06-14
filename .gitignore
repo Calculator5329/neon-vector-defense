@@ -7,19 +7,35 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+.env
+.env.*
+!.env.example
+
 node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude/
+.cursor/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
 .firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+*service-account*.json
+*credentials*.json
+worker/wrangler.toml
+worker/.wrangler/
