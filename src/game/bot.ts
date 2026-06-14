@@ -5,8 +5,8 @@ import type { Tower, Vec } from './types';
 
 export type BotSkill = 'rookie' | 'standard' | 'expert';
 
-interface PlanStep { tower: string; a: number; b: number }
-interface Profile {
+export interface PlanStep { tower: string; a: number; b: number }
+export interface Profile {
   actInterval: number;
   plan: PlanStep[];
   filler: PlanStep;
@@ -15,7 +15,7 @@ interface Profile {
   reserve: number;
 }
 
-const PROFILES: Record<BotSkill, Profile> = {
+export const PROFILES: Record<BotSkill, Profile> = {
   rookie: {
     actInterval: 2.5,
     plan: [
@@ -72,9 +72,9 @@ export class Bot {
   private planIdx = 0;
   private placed: { tower: Tower; a: number; b: number }[] = [];
 
-  constructor(game: Game, skill: BotSkill) {
+  constructor(game: Game, skill: BotSkill | Profile) {
     this.game = game;
-    this.profile = PROFILES[skill];
+    this.profile = typeof skill === 'string' ? PROFILES[skill] : skill;
     this.computeSpots();
   }
 

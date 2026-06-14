@@ -132,6 +132,7 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
           wave: Number(f.wave?.integerValue ?? 0),
           freeplay: f.freeplay?.booleanValue ?? false,
           ts: Number(f.ts?.integerValue ?? 0),
+          uid: f.uid?.stringValue ?? '',
         };
       });
   } catch {

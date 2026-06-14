@@ -59,7 +59,7 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
     setTimeout(() => { setOpen(false); setState('idle'); }, 1600);
   };
   return (
-    <div className="fb-root">
+    <div className={`fb-root ${ctx === 'menu' ? 'on-menu' : ''}`}>
       {open && (
         <div className="fb-panel">
           <div className="fb-head">
@@ -107,6 +107,7 @@ function MainMenu(props: {
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
   onStart: () => void;
 }) {
+  const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
   const apexLocked = progress.record.runs < 1;
   const ngLocked = !progress.armisticeSeen;
   const firstTime = progress.record.runs < 1;
@@ -115,95 +116,107 @@ function MainMenu(props: {
   return (
     <div className="menu-root">
       <div className="menu-stars" />
-      <div className="menu-glow" />
 
-      <header className="menu-hero">
-        <div className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</div>
-        <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
-        <p className="menu-sub">Year 2347. The Combine armada has found the last lighthouse, and the million archived souls sleeping inside it. Build the grid. Hold the lane.</p>
-        {progress.record.runs > 0 && (
-          <div className="hero-stats">
-            <span><b>{progress.record.victories}</b> lanterns held</span>
-            <span><b>{progress.record.kills.toLocaleString()}</b> hulls destroyed</span>
-            <span><b>{progress.totalWaves}</b> waves cleared</span>
-            {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
-          </div>
-        )}
+      <header className="menu-topbar">
+        <div className="menu-brand">
+          <span className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</span>
+          <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
+        </div>
+        <nav className="menu-tabs">
+          <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { setTab('deploy'); sfx.click(); }}>DEPLOY</button>
+          <button className={tab === 'board' ? 'on' : ''} onClick={() => { setTab('board'); sfx.click(); }}>LEADERBOARD</button>
+        </nav>
       </header>
 
-      <div className="menu-section">
-        <div className="menu-section-label">① SELECT SECTOR</div>
-      </div>
-      <div className="map-grid">
-        {ALL_MAPS.map((m, i) => {
-          const unlocked = mapUnlocked(i);
-          const best = progress.bestWaveAny(m.id);
-          if (!unlocked) {
-            return (
-              <div key={m.id} className="map-card map-card-locked" title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
-                <div className="map-lock">🔒</div>
-                <div className="map-card-name">CLASSIFIED SECTOR</div>
-                <div className="map-card-desc">Advance through {ALL_MAPS[i - 1].name} to receive these coordinates.</div>
-              </div>
-            );
-          }
-          const active = props.map.id === m.id;
-          return (
-            <button
-              key={m.id}
-              className={`map-card ${active ? 'active' : ''}`}
-              onClick={() => { sfx.click(); props.setMap(m); }}
-            >
-              {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
-              {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
-              <div className="map-thumb-stack">
-                <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" />
-                <MapThumb map={m} />
-              </div>
-              <div className="map-card-row">
-                <span className="map-card-name">{m.name}</span>
-                <span className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</span>
-              </div>
-              <div className="map-card-desc">{m.desc}</div>
-              {best > 0 && <div className="map-card-best">BEST · WAVE {best}</div>}
-            </button>
-          );
-        })}
-      </div>
+      {progress.record.runs > 0 && (
+        <div className="hero-stats">
+          <span><b>{progress.record.victories}</b> lanterns held</span>
+          <span><b>{progress.record.kills.toLocaleString()}</b> hulls destroyed</span>
+          <span><b>{progress.totalWaves}</b> waves cleared</span>
+          {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
+        </div>
+      )}
 
-      <div className="menu-section">
-        <div className="menu-section-label">② SELECT PROTOCOL</div>
-      </div>
-      <div className="diff-row">
-        {DIFFICULTIES.map((d) => {
-          const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked)
-            || (d.id === 'extinction' && !progress.apexCleared);
-          if (locked) {
-            const reason = d.id === 'ngplus'
-              ? { label: '🔒 ????', desc: 'The Archive knows another ending.', title: 'Sealed. End the war the other way first.' }
-              : d.id === 'extinction'
-                ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
-                : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
-            return (
-              <div key={d.id} className="diff-card diff-locked" title={reason.title}>
-                <div className="diff-name">{reason.label}</div>
-                <div className="diff-desc">{reason.desc}</div>
+      <div className="menu-content">
+        {tab === 'deploy' ? (
+          <>
+            <div className="menu-col">
+              <div className="menu-section-label">① SELECT SECTOR</div>
+              <div className="map-grid">
+                {ALL_MAPS.map((m, i) => {
+                  const unlocked = mapUnlocked(i);
+                  const best = progress.bestWaveAny(m.id);
+                  if (!unlocked) {
+                    return (
+                      <div key={m.id} className="map-card map-card-locked" title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
+                        <div className="map-lock">🔒</div>
+                        <div className="map-card-name">CLASSIFIED</div>
+                      </div>
+                    );
+                  }
+                  const active = props.map.id === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      className={`map-card ${active ? 'active' : ''}`}
+                      onClick={() => { sfx.click(); props.setMap(m); }}
+                      title={m.desc}
+                    >
+                      {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
+                      {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
+                      <div className="map-thumb-stack">
+                        <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" />
+                        <MapThumb map={m} />
+                      </div>
+                      <div className="map-card-row">
+                        <span className="map-card-name">{m.name}</span>
+                        <span className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</span>
+                      </div>
+                      {best > 0 && <div className="map-card-best">BEST · W{best}</div>}
+                    </button>
+                  );
+                })}
               </div>
-            );
-          }
-          const active = props.diff.id === d.id;
-          return (
-            <button
-              key={d.id}
-              className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
-              onClick={() => { sfx.click(); props.setDiff(d); }}
-            >
-              {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
-              <div className="diff-name">{d.name}</div>
-              <div className="diff-desc">{d.desc}</div>
-            </button>
-          );
-        })}
+            </div>
+
+            <div className="menu-col">
+              <div className="menu-section-label">② SELECT PROTOCOL</div>
+              <div className="diff-row">
+                {DIFFICULTIES.map((d) => {
+                  const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked)
+                    || (d.id === 'extinction' && !progress.apexCleared);
+                  if (locked) {
+                    const reason = d.id === 'ngplus'
+                      ? { label: '🔒 ????', desc: 'The Archive knows another ending.', title: 'Sealed. End the war the other way first.' }
+                      : d.id === 'extinction'
+                        ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
+                        : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
+                    return (
+                      <div key={d.id} className="diff-card diff-locked" title={reason.title}>
+                        <div className="diff-name">{reason.label}</div>
+                        <div className="diff-desc">{reason.desc}</div>
+                      </div>
+                    );
+                  }
+                  const active = props.diff.id === d.id;
+                  return (
+                    <button
+                      key={d.id}
+                      className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
+                      onClick={() => { sfx.click(); props.setDiff(d); }}
+                    >
+                      {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
+                      <div className="diff-name">{d.name}</div>
+                      <div className="diff-desc">{d.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        ) : (
+          <LeaderboardTab map={props.map} diff={props.diff} />
+        )}
       </div>
 
       {/* sticky launch bar — always visible, reflects the current selection */}
@@ -216,6 +229,54 @@ function MainMenu(props: {
         </div>
         <button className="start-btn deploy-bar-btn" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
       </div>
+    </div>
+  );
+}
+
+function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
+  const [fp, setFp] = useState(false);
+  const [rows, setRows] = useState<ScoreEntry[] | null>(null);
+  const board = boardId(map.id, diff.id, fp);
+  useEffect(() => {
+    let live = true;
+    setRows(null);
+    fetchTop(board, 10).then((r) => { if (live) setRows(r); });
+    return () => { live = false; };
+  }, [board]);
+  return (
+    <div className="board-tab">
+      <div className="board-head">
+        <div className="board-title">{map.name} <span>· {diff.name}</span></div>
+        <div className="board-modes">
+          <button className={!fp ? 'on' : ''} onClick={() => { setFp(false); sfx.click(); }}>CAMPAIGN</button>
+          <button className={fp ? 'on' : ''} onClick={() => { setFp(true); sfx.click(); }}>FREEPLAY</button>
+        </div>
+      </div>
+      <div className={`board-list ${fp ? 'fp' : ''}`}>
+        <div className="board-row board-row-head">
+          <span className="board-rank">#</span>
+          <span className="board-name">CALLSIGN</span>
+          {fp && <span className="board-wave">WAVE</span>}
+          <span className="board-kills">HULLS</span>
+          <span className="board-cash">CREDITS</span>
+        </div>
+        {rows === null ? (
+          <div className="board-empty">Establishing uplink…</div>
+        ) : rows.length === 0 ? (
+          <div className="board-empty">No records on this board yet — deploy and claim the top spot.</div>
+        ) : (
+          rows.map((r, i) => (
+            <div key={i} className={`board-row ${r.uid && r.uid === progress.uid ? 'me' : ''}`}>
+              <span className="board-rank">{i + 1}</span>
+              <span className="board-name">{r.name}</span>
+              {fp && <span className="board-wave">{r.wave}</span>}
+              <span className="board-kills">{r.kills.toLocaleString()}</span>
+              <span className="board-cash">⌬{r.cash.toLocaleString()}</span>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="board-foot">Pick a sector or protocol on the DEPLOY tab to view its board · {fp ? 'freeplay ranks by wave reached' : 'campaign ranks by credits earned'}</div>
     </div>
   );
 }
@@ -628,19 +689,20 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         </div>
 
         <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`}>
-          <button className="side-toggle" title={sideOpen ? 'Collapse panel' : 'Expand panel'}
-            onClick={() => { setSideOpen((o) => !o); sfx.click(); }}>
-            {sideOpen ? '⟩' : '⟨'}
-          </button>
-          {sideOpen && (
+          {sideOpen ? (
             <div className="side-body">
               {selected ? (
-                <UpgradePanel game={game} tower={selected} onSold={() => setSelectedUid(null)} />
+                <UpgradePanel game={game} tower={selected} onSold={() => setSelectedUid(null)} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
               ) : (
-                <Shop game={game} placing={placing} setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} />
+                <Shop game={game} placing={placing} setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
               )}
               <ReceiverPanel game={game} />
             </div>
+          ) : (
+            <button className="side-rail" title="Expand panel" onClick={() => { setSideOpen(true); sfx.click(); }}>
+              <span className="side-rail-arrow">⟨</span>
+              <span className="side-rail-label">ARSENAL</span>
+            </button>
           )}
         </div>
       </div>
@@ -824,8 +886,8 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
 
 // ---------------- Shop ----------------
 
-function Shop({ game, placing, setPlacing }: {
-  game: Game; placing: TowerDef | null; setPlacing: (d: TowerDef | null) => void;
+function Shop({ game, placing, setPlacing, onCollapse }: {
+  game: Game; placing: TowerDef | null; setPlacing: (d: TowerDef | null) => void; onCollapse?: () => void;
 }) {
   // lifetime kills (banked at run end) + this run's kills so the bar fills live
   const kills = progress.record.kills + game.totalKills;
@@ -833,8 +895,11 @@ function Shop({ game, placing, setPlacing }: {
   const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
   return (
-    <div className="panel">
-      <div className="panel-title">ARSENAL</div>
+    <div className="panel panel-grow">
+      <div className="panel-head">
+        <div className="panel-title">ARSENAL</div>
+        {onCollapse && <button className="panel-collapse" title="Collapse panel" onClick={onCollapse}>⟩</button>}
+      </div>
       <div className="shop-grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
           const lockedBy = def.unlockAt - kills;
@@ -937,13 +1002,16 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
   );
 }
 
-function UpgradePanel({ game, tower, onSold }: { game: Game; tower: Tower; onSold: () => void }) {
+function UpgradePanel({ game, tower, onSold, onCollapse }: { game: Game; tower: Tower; onSold: () => void; onCollapse?: () => void }) {
   const def = tower.def;
   const s = tower.stats;
   const rank = Game.rankOf(tower);
   return (
-    <div className="panel tower-detail" style={{ borderColor: def.color }}>
-      <button className="back-btn" onClick={() => { onSold(); sfx.click(); }}>← ALL TOWERS</button>
+    <div className="panel tower-detail panel-grow" style={{ borderColor: def.color }}>
+      <div className="panel-head">
+        <button className="back-btn" onClick={() => { onSold(); sfx.click(); }}>← ALL TOWERS</button>
+        {onCollapse && <button className="panel-collapse" title="Collapse panel" onClick={onCollapse}>⟩</button>}
+      </div>
       <div className="panel-title" style={{ color: def.glow }}>
         {def.name}
         {(tower.tierA >= 5 || tower.tierB >= 5) && <span className="rank-stars"> ✦ASCENDED</span>}
