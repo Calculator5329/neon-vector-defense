@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import './App.css';
 import { Game, W, H } from './game/engine';
-import { render, drawTowerBody } from './game/render';
+import { render, drawTowerBody, setRenderQuality } from './game/render';
 import { TOWERS, TOWERS_BY_UNLOCK, sellValue } from './game/towers';
 import { ALL_MAPS, MAPS, DIFFICULTIES } from './game/maps';
 import { ENEMIES } from './game/enemies';
@@ -336,6 +336,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [briefed, setBriefed] = useState(PERF_MAP !== null);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
+  // adaptive render quality: smoothed fps + a hysteresis flag (see render.setRenderQuality)
+  const qualRef = useRef({ fps: 60, lite: false });
   const perfIdleRef = useRef(0);
   const [cloakTip, setCloakTip] = useState(false);
   const [unlockModal, setUnlockModal] = useState<TowerDef | null>(null);
@@ -384,6 +386,14 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     const loop = (now: number) => {
       const dt = (now - last) / 1000;
       last = now;
+      // adaptive render quality: ease the FX detail down when the frame rate sags on a
+      // packed late-game board, and back up when it recovers (hysteresis avoids flicker).
+      if (dt > 0 && dt < 0.5) {
+        const q = qualRef.current;
+        q.fps = q.fps * 0.9 + (1 / dt) * 0.1;
+        if (!q.lite && q.fps < 45) { q.lite = true; setRenderQuality(true); }
+        else if (q.lite && q.fps > 55) { q.lite = false; setRenderQuality(false); }
+      }
       if (botRef.current) {
         botRef.current.act(game.time);
         if (game.phase === 'victory') { game.freeplay = true; game.phase = 'build'; }

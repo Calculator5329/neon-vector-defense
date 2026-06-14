@@ -10,6 +10,16 @@ import { ENEMIES } from './enemies';
 
 const SS = 3; // supersample factor
 
+// ---------- adaptive quality ----------
+// When the frame rate sags on a packed late-game board, the main loop flips this
+// flag (App.tsx, fps EMA). It drops the cheapest-to-lose per-hull FX and lowers the
+// enemy-count threshold for level-of-detail. Render stays correct, just plainer.
+let qualityLite = false;
+export function setRenderQuality(lite: boolean) { qualityLite = lite; }
+/** above this many live hulls, per-enemy flourishes (flame, shadow, status ring) are dropped */
+const LOD_HULLS = 160;
+const LOD_HULLS_LITE = 90;
+
 function makeSprite(size: number, draw: (c: CanvasRenderingContext2D) => void): HTMLCanvasElement {
   const cv = document.createElement('canvas');
   cv.width = size * SS;
@@ -640,12 +650,22 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
-  // ambient vignette
-  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.95);
+  // ambient vignette — constant per resolution, so bake it once and blit
+  ctx.drawImage(vignetteSprite(), 0, 0);
+}
+
+let vignetteCache: HTMLCanvasElement | null = null;
+function vignetteSprite(): HTMLCanvasElement {
+  if (vignetteCache) return vignetteCache;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d')!;
+  const vg = c.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.95);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,8,0.42)');
-  ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, W, H);
+  c.fillStyle = vg;
+  c.fillRect(0, 0, W, H);
+  return (vignetteCache = cv);
 }
 
 function drawAnimatedLane(ctx: CanvasRenderingContext2D, game: Game) {
@@ -842,6 +862,68 @@ function drawTower(ctx: CanvasRenderingContext2D, t: Tower, time: number, select
   }
 }
 
+// The tower base platform (hex plate, under-glow, bolts, ring, powered core) is
+// identical every frame — only the head rotates/animates. Drawing it live cost a
+// shadowBlur pass + 3-5 gradient allocations PER TOWER PER FRAME, the single biggest
+// fixed render cost. Bake it once per visual variant and blit it instead.
+const platformCache = new Map<string, HTMLCanvasElement>();
+function towerPlatform(def: TowerDef, ascended: boolean, powered: boolean, overdriven: boolean): HTMLCanvasElement {
+  const key = `${def.id}|${ascended ? 1 : 0}|${powered ? 1 : 0}|${overdriven ? 1 : 0}`;
+  let s = platformCache.get(key);
+  if (s) return s;
+  s = makeSprite(72, (c) => {
+    if (ascended) c.scale(1.18, 1.18);
+    // grounding shadow + colored under-glow
+    c.save();
+    c.globalAlpha = 0.4;
+    c.fillStyle = '#000008';
+    c.beginPath();
+    c.ellipse(0, 6, 18, 8, 0, 0, Math.PI * 2);
+    c.fill();
+    const ug = c.createRadialGradient(0, 0, 2, 0, 0, 24);
+    ug.addColorStop(0, withAlpha(def.glow, 0.22));
+    ug.addColorStop(1, withAlpha(def.glow, 0));
+    c.globalAlpha = 1;
+    c.fillStyle = ug;
+    circle(c, 0, 0, 24);
+    c.fill();
+    c.restore();
+    // base platform: dark hex plate + glow ring + bolts
+    c.shadowColor = def.glow;
+    c.shadowBlur = overdriven ? 16 : 9;
+    const bg = c.createLinearGradient(0, -16, 0, 16);
+    bg.addColorStop(0, '#1a2440');
+    bg.addColorStop(1, '#0a0f20');
+    c.fillStyle = bg;
+    c.strokeStyle = overdriven ? '#ffb054' : def.color;
+    c.lineWidth = 1.8;
+    poly(c, 6, 16, Math.PI / 6);
+    c.fill();
+    c.stroke();
+    c.shadowBlur = 0;
+    c.fillStyle = withAlpha(def.color, 0.8);
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + (i * Math.PI) / 3;
+      circle(c, Math.cos(a) * 12, Math.sin(a) * 12, 1.3);
+      c.fill();
+    }
+    c.strokeStyle = withAlpha(def.glow, 0.4);
+    c.lineWidth = 1;
+    circle(c, 0, 0, 10.5);
+    c.stroke();
+    if (powered) {
+      const g = c.createRadialGradient(0, 0, 1, 0, 0, 13);
+      g.addColorStop(0, withAlpha('#ffd32a', 0.55));
+      g.addColorStop(1, 'rgba(255,211,42,0)');
+      c.fillStyle = g;
+      circle(c, 0, 0, 13);
+      c.fill();
+    }
+  });
+  platformCache.set(key, s);
+  return s;
+}
+
 export function drawTowerBody(
   ctx: CanvasRenderingContext2D, pos: Vec, def: TowerDef,
   angle: number, tierA: number, tierB: number, alpha = 1, flash = 0, time = 0, recoil = 0, overdriven = false,
@@ -850,25 +932,29 @@ export function drawTowerBody(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(pos.x, pos.y);
-  // grounding shadow
-  ctx.save();
-  ctx.globalAlpha = alpha * 0.4;
-  ctx.fillStyle = '#000008';
-  ctx.beginPath();
-  ctx.ellipse(0, 6, 18, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // colored under-glow so towers pop off the deck
-  const ug = ctx.createRadialGradient(0, 0, 2, 0, 0, 24);
-  ug.addColorStop(0, withAlpha(def.glow, 0.22));
-  ug.addColorStop(1, withAlpha(def.glow, 0));
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = ug;
-  circle(ctx, 0, 0, 24);
-  ctx.fill();
-  ctx.restore();
+
+  // base platform — cached sprite (replaces a per-frame shadowBlur + 3 gradients/tower)
+  const powered = tierA + tierB >= 6 || ascended;
+  const plat = towerPlatform(def, ascended, powered, overdriven);
+  const pdim = plat.width / SS;
+  ctx.drawImage(plat, -pdim / 2, -pdim / 2, pdim, pdim);
+
+  // muzzle-fire pulse (the cached plate bakes a fixed glow; add the firing flare live)
+  if (flash > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const fg = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
+    fg.addColorStop(0, withAlpha(def.glow, Math.min(0.6, flash)));
+    fg.addColorStop(1, withAlpha(def.glow, 0));
+    ctx.fillStyle = fg;
+    circle(ctx, 0, 0, 22);
+    ctx.fill();
+    ctx.restore();
+  }
+
   if (ascended) {
-    ctx.scale(1.18, 1.18);
-    // halo crown
+    ctx.scale(1.18, 1.18); // head inherits the ascended scale (plate baked it)
+    // halo crown — animated, stays live
     ctx.save();
     ctx.rotate(time * 0.7);
     ctx.strokeStyle = '#ffd32a';
@@ -889,43 +975,6 @@ export function drawTowerBody(
       ctx.fill();
     }
     ctx.restore();
-  }
-
-  // base platform: dark hex plate + glow ring + bolts
-  ctx.shadowColor = def.glow;
-  ctx.shadowBlur = flash > 0 ? 20 : overdriven ? 16 : 9;
-  const bg = ctx.createLinearGradient(0, -16, 0, 16);
-  bg.addColorStop(0, '#1a2440');
-  bg.addColorStop(1, '#0a0f20');
-  ctx.fillStyle = bg;
-  ctx.strokeStyle = overdriven ? '#ffb054' : def.color;
-  ctx.lineWidth = 1.8;
-  poly(ctx, 6, 16, Math.PI / 6);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.shadowBlur = 0;
-  // bolts on the plate
-  ctx.fillStyle = withAlpha(def.color, 0.8);
-  for (let i = 0; i < 6; i++) {
-    const a = Math.PI / 6 + (i * Math.PI) / 3;
-    circle(ctx, Math.cos(a) * 12, Math.sin(a) * 12, 1.3);
-    ctx.fill();
-  }
-  // inner ring
-  ctx.strokeStyle = withAlpha(def.glow, 0.4);
-  ctx.lineWidth = 1;
-  circle(ctx, 0, 0, 10.5);
-  ctx.stroke();
-
-  // powered core glow under high-tier turrets
-  if (tierA + tierB >= 6 || ascended) {
-    const g = ctx.createRadialGradient(0, 0, 1, 0, 0, 13);
-    g.addColorStop(0, withAlpha('#ffd32a', 0.55));
-    g.addColorStop(1, 'rgba(255,211,42,0)');
-    ctx.fillStyle = g;
-    circle(ctx, 0, 0, 13);
-    ctx.fill();
   }
 
   ctx.rotate(angle);
@@ -1333,6 +1382,8 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   const next = map.path[Math.min(e.wp, map.path.length - 1)];
   const heading = Math.atan2(next.y - e.pos.y, next.x - e.pos.x);
   const wob = def.boss ? 0 : Math.sin(time * 6 + e.phase) * 1.2;
+  // level-of-detail: on a packed board, drop the cheapest-to-lose per-hull flourishes
+  const lod = game.enemies.length > (qualityLite ? LOD_HULLS_LITE : LOD_HULLS);
 
   ctx.save();
   if (e.cloaked) {
@@ -1340,37 +1391,41 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   }
   const corrupted = game.diff.id === 'ngplus' && !e.courier;
 
-  // hover shadow on the lane
-  ctx.save();
-  ctx.globalAlpha = (e.cloaked ? 0.12 : 0.3);
-  ctx.fillStyle = '#000008';
-  ctx.beginPath();
-  ctx.ellipse(e.pos.x, e.pos.y + def.radius * 0.85, def.radius * 0.95, def.radius * 0.34, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  // hover shadow on the lane (dropped at high hull counts)
+  if (!lod) {
+    ctx.save();
+    ctx.globalAlpha = (e.cloaked ? 0.12 : 0.3);
+    ctx.fillStyle = '#000008';
+    ctx.beginPath();
+    ctx.ellipse(e.pos.x, e.pos.y + def.radius * 0.85, def.radius * 0.95, def.radius * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
-  // engine flame behind hull — solid two-layer triangles, no gradients (cheap at 200 hulls)
-  const flick = 0.7 + 0.3 * Math.sin(time * 22 + e.phase);
-  const fl = def.radius * (def.boss ? 1.5 : 1.05) * flick;
-  ctx.save();
-  ctx.translate(e.pos.x, e.pos.y + wob * 0.4);
-  ctx.rotate(heading);
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = withAlphaCss(def.glow, 0.4);
-  path(ctx, [
-    [-def.radius * 0.85, -def.radius * 0.26],
-    [-def.radius * 0.85 - fl, 0],
-    [-def.radius * 0.85, def.radius * 0.26],
-  ]);
-  ctx.fill();
-  ctx.fillStyle = withAlphaCss('#ffffff', 0.35);
-  path(ctx, [
-    [-def.radius * 0.85, -def.radius * 0.12],
-    [-def.radius * 0.85 - fl * 0.55, 0],
-    [-def.radius * 0.85, def.radius * 0.12],
-  ]);
-  ctx.fill();
-  ctx.restore();
+  // engine flame behind hull — solid two-layer triangles (dropped at high hull counts)
+  if (!lod) {
+    const flick = 0.7 + 0.3 * Math.sin(time * 22 + e.phase);
+    const fl = def.radius * (def.boss ? 1.5 : 1.05) * flick;
+    ctx.save();
+    ctx.translate(e.pos.x, e.pos.y + wob * 0.4);
+    ctx.rotate(heading);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = withAlphaCss(def.glow, 0.4);
+    path(ctx, [
+      [-def.radius * 0.85, -def.radius * 0.26],
+      [-def.radius * 0.85 - fl, 0],
+      [-def.radius * 0.85, def.radius * 0.26],
+    ]);
+    ctx.fill();
+    ctx.fillStyle = withAlphaCss('#ffffff', 0.35);
+    path(ctx, [
+      [-def.radius * 0.85, -def.radius * 0.12],
+      [-def.radius * 0.85 - fl * 0.55, 0],
+      [-def.radius * 0.85, def.radius * 0.12],
+    ]);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // hull sprite
   blit(ctx, corrupted ? corruptedSprite(def) : enemySprite(def), e.pos.x, e.pos.y + wob * 0.4, heading);
@@ -1415,7 +1470,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
 
   // critical damage: flicker + sparks glow
   const pct = e.hp / e.maxHp;
-  if (pct < 0.35 && Math.sin(time * 30 + e.phase * 3) > 0.4) {
+  if (!lod && pct < 0.35 && Math.sin(time * 30 + e.phase * 3) > 0.4) {
     ctx.save();
     ctx.globalAlpha = 0.6;
     ctx.fillStyle = '#ffae00';
@@ -1470,8 +1525,10 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
     ctx.restore();
   }
 
-  // status rings
-  if (e.slow < 1 || game.chronoTimer > 0) {
+  // slow ring — only for individually-slowed hulls (a global chrono field is shown
+  // by the full-screen tint, so we don't stroke a dashed ring on every hull) and not
+  // when the board is packed.
+  if (e.slow < 1 && !lod) {
     ctx.save();
     ctx.strokeStyle = '#7efff5';
     ctx.globalAlpha = 0.7;
