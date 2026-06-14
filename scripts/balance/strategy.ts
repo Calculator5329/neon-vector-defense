@@ -73,7 +73,7 @@ export function strategies(): NamedStrategy[] {
       profile: mixProfile(
         [{ tower: 'prismarr', a: 6, b: 4 }, { tower: 'watchfire', a: 6, b: 0 },
          { tower: 'tesla', a: 6, b: 0 }, { tower: 'rail', a: 6, b: 0 },
-         { tower: 'requiem', a: 6, b: 0 }, { tower: 'anchor', a: 6, b: 0 }],
+         { tower: 'requiem', a: 6, b: 0 }, { tower: 'gauss', a: 6, b: 0 }],
         { tower: 'prismarr', a: 6, b: 4 }),
     },
     {

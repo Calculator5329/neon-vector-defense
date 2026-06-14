@@ -96,7 +96,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'rail', name: 'Railgun Post', short: 'RLG', cost: 420, unlockAt: 175,
+    id: 'rail', name: 'Railgun Post', short: 'RLG', cost: 420, unlockAt: 280,
     desc: 'Hypersonic slug with unlimited range. Slow, surgical, lethal.',
     lore: 'The slug arrives before the sound does. The sound never arrives — this is space.',
     color: '#ff6b6b', glow: '#ffa8a8', style: 'rail',
@@ -121,7 +121,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'missile', name: 'Missile Battery', short: 'MSL', cost: 540, unlockAt: 500,
+    id: 'missile', name: 'Missile Battery', short: 'MSL', cost: 540, unlockAt: 560,
     desc: 'Homing warheads with splash damage. Useless against Shade-class plating.',
     lore: 'Old colonial ordnance, re-fused for drone signatures. Crude. Beloved.',
     color: '#ff9f43', glow: '#ffc48a', style: 'missile',
@@ -147,15 +147,15 @@ export const TOWERS: TowerDef[] = [
   },
   {
     id: 'drone', name: 'Drone Carrier', short: 'DRN', cost: 600, unlockAt: 800,
-    desc: 'Launches autonomous interceptors that strafe hostiles in its airspace.',
+    desc: 'Launches autocannon interceptors that strafe hostiles with kinetic fire. A swarm to fight the swarm — but kinetic rounds flatten against armor.',
     lore: 'Fights the swarm with a swarm. The interceptors have started naming themselves.',
     color: '#1dd1a1', glow: '#8ef5d9', style: 'bolt',
-    base: base({ range: 160, fireRate: 2.4, damage: 1, damageType: 'energy', pierce: 2, projectileSpeed: 420 }),
+    base: base({ range: 160, fireRate: 2.4, damage: 1, damageType: 'kinetic', pierce: 2, projectileSpeed: 420 }),
     tracks: [
       track('Carrier Group', [
         u('Second Wing', 'Two volleys at once.', 320, (s) => { s.count = 2; }),
         u('Sensor Suite', 'Drones detect cloaks.', 280, (s) => { s.detection = true; }),
-        u('Plasma Vulcans', '+1 damage, pierce 4.', 520, (s) => { s.damage += 1; s.pierce = 4; }),
+        u('Autocannon Pods', '+1 damage, pierce 4.', 520, (s) => { s.damage += 1; s.pierce = 4; }),
         u('Carrier Group', 'Four volleys, +45% rate.', 980, (s) => { s.count = 4; s.fireRate *= 1.45; }),
         u('Ace Squadron', 'BONUS: six volleys.', 1500, (s) => { s.count = 6; }),
         u('CARRIER ETERNAL', 'BONUS: +2 damage, +60% rate. The hangar never sleeps.', 3300, (s) => { s.damage += 2; s.fireRate *= 1.6; }),
@@ -171,7 +171,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 300,
+    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 380,
     desc: 'Support pylon. Reveals cloaked hostiles and overclocks nearby towers.',
     lore: 'Sees through Vex phase-cloaks by listening for the silence they leave behind.',
     color: '#54a0ff', glow: '#a3ccff', style: 'support',
@@ -196,7 +196,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'cantor', name: 'Starlight Cantor', short: 'CNT', cost: 650, unlockAt: 1300,
+    id: 'cantor', name: 'Starlight Cantor', short: 'CNT', cost: 680, unlockAt: 2000,
     desc: 'Sings the beacon-tone at hulls, marking them with resonance: +10% damage taken per stack from all sources.',
     lore: 'The Continuity asked for one instrument that fights the way they would: by being heard.',
     color: '#f6e58d', glow: '#fff8c4', style: 'resonance',
@@ -221,32 +221,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'anchor', name: 'Singularity Anchor', short: 'SGA', cost: 750, unlockAt: 2000,
-    desc: 'Pins a captive micro-singularity over the lane: drags every hostile in range backward and crushes hulls. Bosses resist.',
-    lore: 'The lane bends. The queue runs backward. The Combine politely re-forms it.',
-    color: '#a55eea', glow: '#d6a2ff', style: 'gravity',
-    base: base({ range: 95, fireRate: 0.45, damage: 1, damageType: 'energy', drag: 46, pierce: 99 }),
-    tracks: [
-      track('Deep Well', [
-        u('Event Horizon', '+30% pull radius.', 320, (s) => { s.range *= 1.3; }),
-        u('Tidal Shear', 'Crush damage 3.', 450, (s) => { s.damage = 3; }),
-        u('Deep Well', 'Drag distance +70%.', 600, (s) => { s.drag *= 1.7; }),
-        u('Collapse Protocol', '+80% pulse rate.', 1100, (s) => { s.fireRate *= 1.8; }),
-        u('Galaxy Anvil', 'BONUS: drag distance doubled.', 1800, (s) => { s.drag *= 2; }),
-        u('POINT OF NO RETURN', 'BONUS: crush 8, +50% rate. Forward is a rumor.', 3800, (s) => { s.damage = 8; s.fireRate *= 1.5; }),
-      ]),
-      track('Crusher', [
-        u('Tidal Blades', '+1 crush damage.', 300, (s) => { s.damage += 1; }),
-        u('Dense Core', '+25% radius.', 420, (s) => { s.range *= 1.25; }),
-        u('Spaghettification', '+2 crush damage.', 560, (s) => { s.damage += 2; }),
-        u('Frozen Orbit', 'Pulses slow hulls 30%.', 900, (s) => { s.slowPower = 0.3; s.slowDuration = 1; }),
-        u('ACCRETION ENGINE', 'BONUS: crush 8.', 1700, (s) => { s.damage = 8; }),
-        u('BLACK DAWN', 'BONUS: crush 12, +60% drag. Light reconsiders.', 3700, (s) => { s.damage = 12; s.drag *= 1.6; }),
-      ]),
-    ],
-  },
-  {
-    id: 'prismarr', name: 'Prism Array', short: 'PRM', cost: 1500, unlockAt: 3000,
+    id: 'prismarr', name: 'Prism Array', short: 'PRM', cost: 1600, unlockAt: 4400,
     desc: 'Focused photon lance that melts through entire convoys. Premium hardware.',
     lore: 'One was mounted on the Meridian Gate. The Gate held for nine years.',
     color: '#be2edd', glow: '#e0a6f5', style: 'beam',
@@ -272,32 +247,7 @@ export const TOWERS: TowerDef[] = [
   },
   // ---- the strange ones ----
   {
-    id: 'oracle', name: 'Oracle Lens', short: 'ORC', cost: 900, unlockAt: 4200,
-    desc: 'A lens that sees one second ahead. Fires where hulls will be — and erases non-boss hulls already fated to die (low hp).',
-    lore: 'Grown, not built, from the optic nerve of something that watched the universe begin. It is always slightly disappointed.',
-    color: '#00d2d3', glow: '#9ffff5', style: 'rail',
-    base: base({ range: 180, fireRate: 0.6, damage: 2, damageType: 'energy', detection: true, execute: 0.12 }),
-    tracks: [
-      track('Fate', [
-        u('Read the Thread', '+30% range.', 320, (s) => { s.range *= 1.3; }),
-        u('Inevitable', 'Execute threshold 18%.', 480, (s) => { s.execute = 0.18; }),
-        u('Quickened Sight', '+60% rate.', 640, (s) => { s.fireRate *= 1.6; }),
-        u('Cut the Cord', 'Execute 25%.', 1000, (s) => { s.execute = 0.25; }),
-        u('Scissors of Atropos', 'BONUS: execute 33%.', 1800, (s) => { s.execute = 0.33; }),
-        u('THE FORETOLD END', 'BONUS: erases any non-boss hull already over HALF dead. It read the last page first.', 3900, (s) => { s.damage = 12; s.execute = 0.5; s.fireRate *= 1.3; }),
-      ]),
-      track('Vision', [
-        u('Far Sight', '+50% range.', 300, (s) => { s.range *= 1.5; }),
-        u('Third Eye', '+30% rate.', 460, (s) => { s.fireRate *= 1.3; }),
-        u('Doom Glimpse', '+3 damage.', 700, (s) => { s.damage += 3; }),
-        u('Many Futures', 'Two gazes per cycle.', 1100, (s) => { s.count = 2; }),
-        u('PANOPTICON', 'BONUS: unlimited range.', 1600, (s) => { s.range = 9999; }),
-        u('EYES OF THE INFINITE', 'BONUS: three gazes, +5 damage. Nothing is unobserved.', 3700, (s) => { s.count = 3; s.damage += 5; }),
-      ]),
-    ],
-  },
-  {
-    id: 'locust', name: 'Locust Shrine', short: 'LCS', cost: 700, unlockAt: 5800,
+    id: 'locust', name: 'Locust Shrine', short: 'LCS', cost: 900, unlockAt: 5800,
     desc: 'A reliquary of engineered nano-locusts. Periodically blesses its airspace with a devouring cloud that gnaws every hull.',
     lore: 'Salvaged from a dead world the Combine never touched. Whatever ate that world, we keep a cupful of it here, and it is grateful.',
     color: '#b8e994', glow: '#dff9c4', style: 'pulse',
@@ -322,7 +272,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1800, unlockAt: 7800,
+    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1900, unlockAt: 7800,
     desc: 'Houses the cooling ember of a star that died protecting its system. Periodically exhales a requiem wave — an expanding ring that wounds everything it crosses.',
     lore: 'Stars do not die quietly. This one agreed to keep grieving on our side of the line.',
     color: '#f8a5c2', glow: '#ffd9e8', style: 'nova',
@@ -347,7 +297,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'watchfire', name: 'Watchfire Beacon', short: 'WFB', cost: 2400, unlockAt: 10000,
+    id: 'watchfire', name: 'Watchfire Beacon', short: 'WFB', cost: 2500, unlockAt: 10000,
     desc: 'Lantern Seven\'s own beacon, turned outward. A rotating lance of captured starlight that scours everything its beam crosses — continuous damage, no aiming, no cooldown.',
     lore: 'The light that guided a million ships home now sweeps the dark for the things that followed them. The keeper wept when they reversed the lens. Then they reversed it.',
     color: '#ffe8a3', glow: '#fff6d0', style: 'sweep',
@@ -403,7 +353,7 @@ export const TOWERS: TowerDef[] = [
   },
   // ---- THE HOLLOW arsenal: light against the hunger ----
   {
-    id: 'ember', name: 'Ember Lattice', short: 'EMB', cost: 380, unlockAt: 1000,
+    id: 'ember', name: 'Ember Lattice', short: 'EMB', cost: 420, unlockAt: 1100,
     desc: 'Strings a lattice of caged starfire across its airspace — everything inside burns. The fire is energy, so armor and the Hollow are no shelter.',
     lore: 'Lantern-keepers lit a lattice of signal-fires when a relay went dark. This one never goes out, and it is no longer a signal.',
     color: '#ff7f50', glow: '#ffd0a0', style: 'pulse',
@@ -428,7 +378,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'sunspear', name: 'Sunspear Battery', short: 'SUN', cost: 720, unlockAt: 2400,
+    id: 'sunspear', name: 'Sunspear Battery', short: 'SUN', cost: 760, unlockAt: 2600,
     desc: 'A focused spear of daylight on a rail. Energy, armor-shredding, and it sees through any cloak — built to put down the things the dark hides.',
     lore: 'Forged from the Meridian Gate\'s last working lens, after the Prism Array proved the principle. One shot, one dawn, repeated.',
     color: '#ffe066', glow: '#fff3a0', style: 'rail',
@@ -449,6 +399,82 @@ export const TOWERS: TowerDef[] = [
         u('Heliograph', 'Execute threshold 25%.', 980, (s) => { s.execute = 0.25; }),
         u('STARFALL', 'BONUS: execute 35%, +6 damage.', 1700, (s) => { s.execute = 0.35; s.damage += 6; }),
         u('THE LAST LIGHT', 'BONUS: 3× damage, executes any non-boss hull under HALF health. The dark blinks first.', 3900, (s) => { s.damage *= 3; s.execute = 0.5; }),
+      ]),
+    ],
+  },
+  // ---- kinetic / explosive / fire reinforcements ----
+  {
+    id: 'flak', name: 'Flak Battery', short: 'FLK', cost: 360, unlockAt: 160,
+    desc: 'Throws a fast wall of bursting flak — cheap shrapnel that shreds swarms. Blast-plated hulls swallow it whole, so keep a backup.',
+    lore: 'Colonial point-defense, re-aimed at the lane. It was built to kill incoming missiles. Drones are easier.',
+    color: '#ffa502', glow: '#ffd56b', style: 'missile',
+    base: base({ range: 150, fireRate: 1.5, damage: 1, damageType: 'explosive', splash: 28, projectileSpeed: 480, count: 1 }),
+    tracks: [
+      track('Barrage', [
+        u('Twin Barrels', 'Two shells per burst.', 130, (s) => { s.count = 2; }),
+        u('Wide Burst', '+45% blast radius.', 200, (s) => { s.splash *= 1.45; }),
+        u('Rapid Cycler', '+55% fire rate.', 300, (s) => { s.fireRate *= 1.55; }),
+        u('Heavy Shells', '+2 damage.', 520, (s) => { s.damage += 2; }),
+        u('FLAK STORM', 'BONUS: four barrels.', 1200, (s) => { s.count = 4; }),
+        u('IRON RAIN', 'BONUS: +3 damage, +60% blast, +40% rate. The sky rusts.', 2600, (s) => { s.damage += 3; s.splash *= 1.6; s.fireRate *= 1.4; }),
+      ]),
+      track('Proximity', [
+        u('Proximity Fuses', '+30% blast radius.', 150, (s) => { s.splash *= 1.3; }),
+        u('Tracer Rounds', 'Detects cloaked hulls.', 200, (s) => { s.detection = true; }),
+        u('Incendiary Mix', 'Shells set hulls burning: 5 dps.', 340, (s) => { s.burnDps = 5; s.burnDuration = 2; }),
+        u('Cluster Payload', '+1 shell, +1 damage.', 560, (s) => { s.count += 1; s.damage += 1; }),
+        u('DEADHAND', 'BONUS: burn 12 dps, +40% blast.', 1300, (s) => { s.burnDps = 12; s.splash *= 1.4; }),
+        u('SCATTERSTORM', 'BONUS: six shells, +2 damage. Everything in the lane is downwind.', 2700, (s) => { s.count = Math.max(s.count, 6); s.damage += 2; }),
+      ]),
+    ],
+  },
+  {
+    id: 'cinder', name: 'Cinder Mortar', short: 'CDR', cost: 640, unlockAt: 1500,
+    desc: 'Lobs incendiary shells that splash, then leave the lane burning. The blast is a courtesy; the fire is the point.',
+    lore: 'Loaded with the last of Relay 6\'s reactor coolant — which, it turns out, is not coolant at all once it meets air.',
+    color: '#ff6348', glow: '#ffae6b', style: 'missile',
+    base: base({ range: 160, fireRate: 0.75, damage: 2, damageType: 'explosive', splash: 40, burnDps: 9, burnDuration: 4, projectileSpeed: 340 }),
+    tracks: [
+      track('Wildfire', [
+        u('Thermite Core', 'Burn 15 dps.', 280, (s) => { s.burnDps = 15; }),
+        u('Wide Bloom', '+40% blast radius.', 360, (s) => { s.splash *= 1.4; }),
+        u('Long Burn', 'Fire lingers 7s.', 460, (s) => { s.burnDuration = 7; }),
+        u('Double Shell', 'Two shells, +1 damage.', 760, (s) => { s.count = 2; s.damage += 1; }),
+        u('FIRESTORM', 'BONUS: burn 26 dps.', 1500, (s) => { s.burnDps = 26; }),
+        u('THE LONG SUMMER', 'BONUS: burn 40 dps, +50% blast, lingers 10s. The lane forgets it was ever cold.', 3400, (s) => { s.burnDps = 40; s.splash *= 1.5; s.burnDuration = 10; }),
+      ]),
+      track('Pyroclasm', [
+        u('Shaped Charge', '+3 blast damage.', 260, (s) => { s.damage += 3; }),
+        u('Tracer Fuses', 'Detects cloaked hulls.', 360, (s) => { s.detection = true; }),
+        u('Cluster Burn', '+1 shell.', 600, (s) => { s.count += 1; }),
+        u('Magma Core', 'Burn 22 dps, +2 damage.', 900, (s) => { s.burnDps = 22; s.damage += 2; }),
+        u('CALDERA', 'BONUS: +60% blast, +6 damage.', 1600, (s) => { s.splash *= 1.6; s.damage += 6; }),
+        u('ASHFALL', 'BONUS: four shells, burn 34 dps. Nothing walks out of the cloud the same shape it walked in.', 3500, (s) => { s.count = Math.max(s.count, 4); s.burnDps = 34; }),
+      ]),
+    ],
+  },
+  {
+    id: 'gauss', name: 'Gauss Bastion', short: 'GAU', cost: 1500, unlockAt: 3400,
+    desc: 'A fortress-grade gauss driver: one tungsten slug, unlimited range, obscene single-target punch. Raw kinetic, so shred the armor first.',
+    lore: 'Salvaged from the Meridian Gate\'s anchor cannon. It does not aim so much as decide.',
+    color: '#dfe6e9', glow: '#ffffff', style: 'rail',
+    base: base({ range: 9999, fireRate: 0.4, damage: 8, damageType: 'kinetic', pierce: 2 }),
+    tracks: [
+      track('Mass Driver', [
+        u('Hardened Slugs', 'Rounds shred armor.', 380, (s) => { s.shred = true; }),
+        u('Fast Loader', '+70% fire rate.', 520, (s) => { s.fireRate *= 1.7; }),
+        u('Tungsten Core', '16 damage.', 760, (s) => { s.damage = 16; }),
+        u('Through-and-Through', 'Pierce 5, +6 damage.', 1200, (s) => { s.pierce = 5; s.damage += 6; }),
+        u('SIEGE BREAKER', 'BONUS: 34 damage.', 2000, (s) => { s.damage = 34; }),
+        u('CONTINENTAL GUN', 'BONUS: 2× damage, pierces the WHOLE lane, shreds. The slug arrives before the order to fire.', 4200, (s) => { s.damage *= 2; s.pierce = 999; s.shred = true; }),
+      ]),
+      track('Bastion', [
+        u('Spotter Array', 'Detects cloaked hulls.', 340, (s) => { s.detection = true; }),
+        u('Twin Drivers', 'Two slugs per shot.', 620, (s) => { s.count = 2; }),
+        u('Sabot Rounds', 'Shred armor, +5 damage.', 820, (s) => { s.shred = true; s.damage += 5; }),
+        u('Kill-Order', 'Executes non-boss hulls under 20% hp.', 1300, (s) => { s.execute = 0.2; }),
+        u('SIEGE WALL', 'BONUS: three slugs, +8 damage.', 2100, (s) => { s.count = 3; s.damage += 8; }),
+        u('THE LAST WORD', 'BONUS: 2× damage, execute 40%. It does not leave survivors to disagree.', 4400, (s) => { s.damage *= 2; s.execute = 0.4; }),
       ]),
     ],
   },
