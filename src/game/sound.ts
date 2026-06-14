@@ -198,10 +198,32 @@ interface Voice {
   echo?: number;        // 0..1 send to the delay
 }
 
+// One reusable white-noise buffer for every burst — building+filling a fresh
+// AudioBuffer per call was a steady allocation drip at high fire rates (the gain
+// envelope below shapes the decay, so the source buffer can be flat and shared).
+let noiseBuf: AudioBuffer | null = null;
+function pooledNoise(c: AudioContext): AudioBuffer {
+  if (noiseBuf && noiseBuf.sampleRate === c.sampleRate) return noiseBuf;
+  const len = Math.floor(c.sampleRate); // 1 second, long enough for any burst
+  const b = c.createBuffer(1, len, c.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return (noiseBuf = b);
+}
+
+// Global concurrent-voice cap: a packed late-game board can't spawn unbounded
+// oscillator graphs (the per-type throttles bound each sound, not the total).
+let activeVoices = 0;
+const MAX_VOICES = 30;
+function bump(node: AudioScheduledSourceNode) {
+  activeVoices++;
+  node.onended = () => { activeVoices = Math.max(0, activeVoices - 1); };
+}
+
 function voice(v: Voice) {
   if (!sfxOn) return;
   const c = ensure();
-  if (!c || !sfxBus || !delaySend) return;
+  if (!c || !sfxBus || !delaySend || activeVoices >= MAX_VOICES) return;
   const t = c.currentTime;
   const gn = c.createGain();
   const atk = v.attack ?? 0.004;
@@ -234,23 +256,23 @@ function voice(v: Voice) {
     o.connect(gn);
     o.start(t);
     o.stop(t + v.dur + 0.05);
+    return o;
   };
-  mk(0);
+  bump(mk(0)); // one voice-count per call, released when the primary osc ends
   if (v.detune) mk(v.detune);
 }
 
 function noiseBurst(dur: number, vol: number, opts: { bp?: number; q?: number; lp?: number; lp2?: number; echo?: number } = {}) {
   if (!sfxOn) return;
   const c = ensure();
-  if (!c || !sfxBus || !delaySend) return;
+  if (!c || !sfxBus || !delaySend || activeVoices >= MAX_VOICES) return;
   const t = c.currentTime;
-  const len = Math.max(1, Math.floor(c.sampleRate * dur));
-  const buf = c.createBuffer(1, len, c.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.4);
   const src = c.createBufferSource();
-  src.buffer = buf;
+  src.buffer = pooledNoise(c);
+  // start at a random offset so reusing one buffer doesn't sound repetitive
+  src.loop = true;
   const gn = c.createGain();
+  // a sharper-than-linear decay approximates the old per-sample envelope
   gn.gain.setValueAtTime(vol, t);
   gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   let node: AudioNode = src;
@@ -276,7 +298,9 @@ function noiseBurst(dur: number, vol: number, opts: { bp?: number; q?: number; l
     send.gain.value = opts.echo;
     gn.connect(send).connect(delaySend);
   }
-  src.start(t);
+  src.start(t, Math.random() * 0.9); // random offset into the shared buffer
+  src.stop(t + dur + 0.02);          // looped source must be stopped explicitly
+  bump(src);
 }
 
 /** sub-bass thump for impacts */

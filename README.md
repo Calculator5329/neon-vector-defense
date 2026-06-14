@@ -29,6 +29,8 @@ procedural audio, and Firebase-backed leaderboards.
   fragments, and alternate ending progression persist locally.
 - **Leaderboards and feedback** - public Firestore-backed scoreboards and
   anonymous feedback submission.
+- **AI field assistant** - a menu helper backed by a Google Cloud Function,
+  OpenRouter, and server-side usage limits.
 
 ## The Game World
 
@@ -116,6 +118,8 @@ The intended rules model is:
 - Updates/deletes are denied.
 - Admin dashboards are read-only and should only expose aggregate/non-sensitive
   gameplay data.
+- AI help usage data is written only by the Cloud Function through Admin SDK;
+  normal Firestore rules keep those collections closed to clients.
 
 Before making a new public release, deploy the matching rules:
 
@@ -123,11 +127,48 @@ Before making a new public release, deploy the matching rules:
 firebase deploy --only firestore:rules
 ```
 
+## AI Help Setup
+
+The menu AI widget calls `/api/ai/help`, which Firebase Hosting rewrites to the
+`aiHelp` Cloud Function. The frontend never sees the OpenRouter key.
+
+Install the function dependencies once:
+
+```bash
+cd functions
+npm install
+```
+
+Set runtime environment variables for the function:
+
+```bash
+firebase functions:secrets:set OPENROUTER_API_KEY
+firebase functions:secrets:set AI_COOKIE_SECRET
+```
+
+Also set non-secret params or environment values for:
+
+```bash
+OPENROUTER_MODEL=google/gemini-3-flash-preview
+APP_URL=https://neon-vector-defense-7.web.app
+```
+
+The deployed function enforces:
+
+- 5 turns per conversation
+- 5 conversations per signed visitor cookie
+- 20 new conversations per IP per hour
+- 100 turns per IP per day
+
+The signed `HttpOnly` cookie survives localStorage clears, while the IP buckets
+catch casual cookie/cache resets. Anonymous limits are not identity proof; use
+login, App Check, or CAPTCHA if stronger abuse control is needed.
+
 ## Deployment
 
 ```bash
 npm run build
-firebase deploy --only hosting
+firebase deploy --only functions:aiHelp,hosting
 ```
 
 Configured Firebase project: `neon-vector-defense-7`

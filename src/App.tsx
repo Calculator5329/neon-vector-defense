@@ -11,6 +11,7 @@ import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
 import { boardId, submitScore, fetchTop, submitFeedback, logTelemetry, type ScoreEntry } from './game/leaderboard';
+import { askAIHelp } from './game/aiHelp';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
@@ -46,8 +47,96 @@ function Main() {
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
             onStart={() => { sfx.click(); setScreen('game'); }} />
         : <GameScreen map={map} diff={diff} onExit={() => setScreen('menu')} />}
+      {screen === 'menu' && <AIHelpWidget />}
       <FeedbackWidget ctx={screen} />
     </>
+  );
+}
+
+// ---------------- AI help (menu-only, rate-limited server side) ----------------
+
+type AIChatMessage = { role: 'assistant' | 'user'; content: string };
+
+function AIHelpWidget() {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [state, setState] = useState<'idle' | 'busy'>('idle');
+  const [conversationId, setConversationId] = useState<string | undefined>();
+  const [turnsRemaining, setTurnsRemaining] = useState<number | null>(null);
+  const [conversationsRemaining, setConversationsRemaining] = useState<number | null>(null);
+  const [messages, setMessages] = useState<AIChatMessage[]>([
+    { role: 'assistant', content: 'Ask me about towers, protocols, controls, freeplay, or leaderboards.' },
+  ]);
+
+  const send = async () => {
+    const q = text.trim();
+    if (!q || state === 'busy') return;
+    setText('');
+    setState('busy');
+    setMessages((m) => [...m, { role: 'user', content: q }]);
+    try {
+      const res = await askAIHelp(q, conversationId);
+      setConversationId(res.conversationId);
+      setTurnsRemaining(res.turnsRemaining);
+      setConversationsRemaining(res.conversationsRemaining);
+      setMessages((m) => [...m, { role: 'assistant', content: res.reply }]);
+      sfx.click();
+    } catch (error) {
+      setMessages((m) => [...m, {
+        role: 'assistant',
+        content: error instanceof Error ? error.message : 'AI uplink is unavailable.',
+      }]);
+    } finally {
+      setState('idle');
+    }
+  };
+
+  const startNew = () => {
+    setConversationId(undefined);
+    setTurnsRemaining(null);
+    setMessages([{ role: 'assistant', content: 'New uplink ready. What do you want to know?' }]);
+    sfx.click();
+  };
+
+  return (
+    <div className="ai-root">
+      {open && (
+        <div className="ai-panel">
+          <div className="ai-head">
+            <span>WARDEN AI</span>
+            <div className="ai-head-actions">
+              <button className="ai-new" onClick={startNew}>NEW</button>
+              <button className="ai-x" onClick={() => { setOpen(false); sfx.click(); }}>x</button>
+            </div>
+          </div>
+          <div className="ai-log">
+            {messages.map((m, i) => (
+              <div key={i} className={`ai-msg ${m.role}`}>{m.content}</div>
+            ))}
+            {state === 'busy' && <div className="ai-msg assistant">Thinking...</div>}
+          </div>
+          <form className="ai-form" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+            <input
+              className="ai-input"
+              maxLength={900}
+              placeholder="Ask about the game..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <button className="ai-send" disabled={!text.trim() || state === 'busy'}>SEND</button>
+          </form>
+          {(turnsRemaining !== null || conversationsRemaining !== null) && (
+            <div className="ai-quota">
+              {turnsRemaining !== null && <span>{turnsRemaining} turns left</span>}
+              {conversationsRemaining !== null && <span>{conversationsRemaining} chats left</span>}
+            </div>
+          )}
+        </div>
+      )}
+      <button className="ai-toggle" title="Ask Warden AI" onClick={() => { setOpen((o) => !o); sfx.click(); }}>
+        AI
+      </button>
+    </div>
   );
 }
 
