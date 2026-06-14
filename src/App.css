@@ -1390,3 +1390,16 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .adm-marker { stroke: #ffd32a; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; }
 .adm-eff-legend { line-height: 1.6; margin-top: 12px; border-top: 1px solid var(--edge); padding-top: 10px; }
 .adm-eff-legend b { color: var(--text); }
+
+/* admin: difficulty heatmap + tuning */
+.adm-heat { overflow-x: auto; padding-bottom: 4px; }
+.adm-heat-row { display: flex; align-items: center; gap: 8px; }
+.adm-heat-label { width: 88px; flex: 0 0 88px; text-align: right; font-size: 11.5px; color: var(--text); }
+.adm-heat-cells { display: flex; gap: 1px; }
+.adm-heat-cell { position: relative; width: 14px; height: 22px; flex: 0 0 14px; border-radius: 1px; }
+.adm-heat-cell.empty { background: transparent; }
+.adm-heat-mark { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; }
+.adm-heat-axisrow { margin-bottom: 3px; }
+.adm-heat-tick { width: 14px; flex: 0 0 14px; font-size: 8px; color: var(--dim); text-align: center; font-variant-numeric: tabular-nums; }
+.adm-devs { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 4px; font-size: 12.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.adm-dev { padding: 5px 9px; background: var(--panel2); border-radius: 5px; }

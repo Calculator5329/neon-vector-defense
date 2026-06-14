@@ -60,7 +60,7 @@ function save(name, audio, cost) {
 }
 
 const BRIEF_SYS = 'You are a professional voice actor recording a final take for a video game. Delivery: weathered, tired but resolute military commander over a crackling long-range radio; slow, gravelly, deliberate. Speak the user message VERBATIM, exactly as written. Output ONLY the spoken line itself - no acknowledgements, no preamble, no commentary.';
-const BRIEF = 'Sector Command to Warden of Lantern Seven. The Combine fleet has entered your approach corridor. Seven carries the Continuity of four colony ships. One million, one hundred and six thousand archived souls. They are awake in there. They can hear the hull. Lanterns One through Four are dark. Hold the lane, Warden. We are still trying to find out why the enemy is still fighting.';
+const BRIEF = 'Sector Command to Warden of Lantern Seven. The Combine fleet has entered your approach corridor. Seven carries the Continuity of four colony ships. One million, one hundred and six thousand archived souls. They are awake in there. They can hear the hull. Their frames nest inside one another: crack one open and what is inside keeps coming. Expect armor, blast-lattices, phase-cloaks, and carrier-class hulls. Lanterns One through Four are dark. Hold the lane, Warden. We are still trying to find out why the enemy is still fighting.';
 
 const MUSIC = 'Dark ambient sci-fi game menu theme: slow sorrowful minor-key synth pads, deep sub drone, sparse glassy music-box arpeggios in vast reverb, lonely lighthouse drifting in deep space, cinematic, seamless loop, no vocals, no drums.';
 

@@ -9,6 +9,7 @@ import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWER_MAP } from './game/towers';
 import { clearAdmin } from './game/admin';
 import { fetchTelemetry, type TelemetryRow } from './game/leaderboard';
+import { analyzeDifficulty, DIFFICULTY_TARGETS, type WaveDifficulty } from './game/difficulty';
 
 // ---- report shape (mirrors scripts/balance.ts) ----
 
@@ -318,6 +319,134 @@ function EfficiencyTable({ efficiency }: { efficiency: TowerEfficiency[] }) {
   );
 }
 
+// ---------------- difficulty model (player estimate) ----------------
+
+const heatColor = (i: number) => {
+  const c = Math.min(100, Math.max(0, i));
+  return `hsl(${Math.round(142 - 1.42 * c)}, 62%, ${44 - c * 0.12}%)`;
+};
+const TAG_COLOR: Record<string, string> = { boss: '#ffffff', cloak: '#54a0ff', armor: '#8395a7', heal: '#7bed9f' };
+
+function compressRanges(nums: number[]): string {
+  if (nums.length === 0) return 'none';
+  const s = [...nums].sort((a, b) => a - b);
+  const out: string[] = [];
+  let lo = s[0], prev = s[0];
+  for (let i = 1; i <= s.length; i++) {
+    if (s[i] === prev + 1) { prev = s[i]; continue; }
+    out.push(lo === prev ? `${lo}` : `${lo}–${prev}`);
+    lo = prev = s[i];
+  }
+  return out.join(', ');
+}
+
+function DiffLineChart({ waves, targetFn }: { waves: WaveDifficulty[]; targetFn: (p: number) => number }) {
+  const W = 640, H = 200, padL = 30, padB = 22, padT = 10, padR = 10;
+  const n = waves.length;
+  const sx = (i: number) => padL + (i / Math.max(1, n - 1)) * (W - padL - padR);
+  const sy = (v: number) => padT + (1 - Math.min(100, v) / 100) * (H - padT - padB);
+  const idxPath = waves.map((w, i) => `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${sy(w.index).toFixed(1)}`).join(' ');
+  const tgtPath = waves.map((w, i) => `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${sy(targetFn((w.wave - 1) / Math.max(1, n - 1))).toFixed(1)}`).join(' ');
+  return (
+    <svg className="adm-line" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      {[0, 25, 50, 70, 100].map((g) => (
+        <g key={g}>
+          <line x1={padL} y1={sy(g)} x2={W - padR} y2={sy(g)} className="adm-grid" />
+          <text x={padL - 5} y={sy(g) + 3} className="adm-axis" textAnchor="end">{g}</text>
+        </g>
+      ))}
+      {waves.filter((w) => w.tags.includes('boss')).map((w, i) => (
+        <line key={i} x1={sx(w.wave - 1)} y1={padT} x2={sx(w.wave - 1)} y2={H - padB} className="adm-marker" />
+      ))}
+      <path d={tgtPath} fill="none" stroke="#6c7aa6" strokeWidth={1.6} strokeDasharray="5 4" />
+      <path d={idxPath} fill="none" stroke="#ff6b6b" strokeWidth={2} />
+      {[1, Math.round(n / 2), n].map((w) => (
+        <text key={w} x={sx(w - 1)} y={H - 6} className="adm-axis" textAnchor="middle">w{w}</text>
+      ))}
+    </svg>
+  );
+}
+
+function DifficultyModel() {
+  const curves = useMemo(() => analyzeDifficulty(), []);
+  const maxW = Math.max(...curves.map((c) => c.waves.length));
+  const [sel, setSel] = useState(curves.find((c) => c.diff === 'hard')?.diff ?? curves[0].diff);
+  const [target, setTarget] = useState('Standard arc');
+  const selCurve = curves.find((c) => c.diff === sel)!;
+  const targetFn = DIFFICULTY_TARGETS[target];
+  const n = selCurve.waves.length;
+  const dev = selCurve.waves.map((w) => ({ wave: w.wave, delta: w.index - targetFn((w.wave - 1) / Math.max(1, n - 1)) }));
+  const tooEasy = compressRanges(dev.filter((d) => d.delta <= -15).map((d) => d.wave));
+  const tooHard = compressRanges(dev.filter((d) => d.delta >= 15).map((d) => d.wave));
+
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head">
+        <h3>Difficulty model — player estimate</h3>
+        <span className="adm-hint">incoming effective HP ÷ buying power, × threat &amp; speed · map-independent · no bot needed</span>
+      </div>
+
+      <div className="adm-heat" style={{ ['--cells' as string]: maxW }}>
+        <div className="adm-heat-row adm-heat-axisrow">
+          <span className="adm-heat-label" />
+          <div className="adm-heat-cells">
+            {Array.from({ length: maxW }, (_, i) => (
+              <span key={i} className="adm-heat-tick">{(i + 1) % 10 === 0 ? i + 1 : ''}</span>
+            ))}
+          </div>
+        </div>
+        {curves.map((c) => (
+          <div key={c.diff} className="adm-heat-row">
+            <span className="adm-heat-label">{c.name}</span>
+            <div className="adm-heat-cells">
+              {Array.from({ length: maxW }, (_, i) => {
+                const w = c.waves[i];
+                if (!w) return <span key={i} className="adm-heat-cell empty" />;
+                const tag = w.tags[0];
+                return (
+                  <span key={i} className="adm-heat-cell" style={{ background: heatColor(w.index) }}
+                    title={`${c.name} · wave ${w.wave}\nindex ${w.index}/100\nthreat ${w.threat.toFixed(2)} (effHP ${w.effHP.toLocaleString()} / bank ⌬${w.bank.toLocaleString()})\nhulls ${w.hulls}${w.tags.length ? ` · ${w.tags.join(', ')}` : ''}`}>
+                    {tag && <span className="adm-heat-mark" style={{ background: TAG_COLOR[tag] }} />}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="adm-legend">
+        <span><i style={{ background: heatColor(20) }} /> trivial</span>
+        <span><i style={{ background: heatColor(55) }} /> fair</span>
+        <span><i style={{ background: heatColor(85) }} /> wall</span>
+        <span style={{ marginLeft: 10 }}>marks:</span>
+        {Object.entries(TAG_COLOR).map(([k, v]) => <span key={k}><i style={{ background: v }} /> {k}</span>)}
+      </div>
+
+      <div className="adm-card-head" style={{ marginTop: 16 }}>
+        <h3 style={{ fontSize: 12 }}>Tune to a target curve</h3>
+        <div className="adm-selects">
+          <select value={sel} onChange={(e) => setSel(e.target.value)}>
+            {curves.map((c) => <option key={c.diff} value={c.diff}>{c.name}</option>)}
+          </select>
+          <select value={target} onChange={(e) => setTarget(e.target.value)}>
+            {Object.keys(DIFFICULTY_TARGETS).map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </div>
+      </div>
+      <DiffLineChart waves={selCurve.waves} targetFn={targetFn} />
+      <div className="adm-legend">
+        <span><i style={{ background: '#ff6b6b' }} /> estimated difficulty</span>
+        <span><i style={{ background: '#6c7aa6' }} /> your target ({target})</span>
+      </div>
+      <div className="adm-devs">
+        <div className="adm-dev"><b style={{ color: '#54a0ff' }}>Too easy vs target</b> (≥15 under): {tooEasy}</div>
+        <div className="adm-dev"><b style={{ color: '#ff4757' }}>Too hard vs target</b> (≥15 over): {tooHard}</div>
+      </div>
+      <p className="adm-hint">The late-game sag is the economy snowball — when banked credits outgrow incoming HP. Lift it by tapering income (incomeMult/waveBonus) or steepening late HP (lateScale), then re-check here.</p>
+    </div>
+  );
+}
+
 function BalanceTab({ report }: { report: Report }) {
   const skills = ['rookie', 'standard', 'expert'];
   const stratArena = `${mapName(report.meta.strategyArena.map)} · ${diffName(report.meta.strategyArena.diff)}`;
@@ -328,6 +457,8 @@ function BalanceTab({ report }: { report: Report }) {
         Generated {new Date(report.generatedAt).toLocaleString()} ·{' '}
         {report.meta.quick ? 'QUICK pass' : 'full pass'} · curve seeds {report.meta.curveSeeds} · grid seeds {report.meta.gridSeeds}
       </div>
+
+      <DifficultyModel />
 
       <CurveViewer curves={report.curves} />
 
