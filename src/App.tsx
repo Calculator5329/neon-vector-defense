@@ -222,7 +222,7 @@ function saveDismissedReplyIds(ids: string[]) {
 
 function FeedbackWidget({ ctx }: { ctx: string }) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'inbox' | 'send'>('inbox');
+  const [tab, setTab] = useState<'inbox' | 'send'>('send');
   const [text, setText] = useState('');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [replies, setReplies] = useState<FeedbackReply[]>([]);

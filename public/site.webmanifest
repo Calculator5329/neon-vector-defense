@@ -1,0 +1,21 @@
+{
+  "name": "Neon Vector Defense",
+  "short_name": "NVD",
+  "description": "A neon sci-fi tower defense game with deep upgrades, escalating protocols, and global leaderboards.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05070f",
+  "theme_color": "#070a14",
+  "categories": ["games", "strategy"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
