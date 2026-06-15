@@ -177,6 +177,7 @@ export class Game {
   private queue: SpawnEntry[] = [];
   private segLengths: number[] = [];
   totalKills = 0;
+  private waveStartTotalKills = 0;
   time = 0;
   /** set when player chooses to continue past victory */
   freeplay = false;
@@ -313,9 +314,10 @@ export class Game {
   applyBlueprint(): number {
     const bp = progress.blueprint(this.map.id);
     let placed = 0;
+    const unlockedKills = progress.record.kills + this.totalKills;
     for (const e of bp) {
       const def = TOWER_MAP[e.id];
-      if (!def || def.unlockAt > progress.totalWaves) continue;
+      if (!def || def.unlockAt > unlockedKills) continue;
       const pos = { x: e.x, y: e.y };
       if (this.credits < this.cost(def) || !this.canPlace(pos)) continue;
       const t = this.placeTower(def, pos);
@@ -346,6 +348,7 @@ export class Game {
 
   startWave() {
     if (this.phase !== 'build') return;
+    this.waveStartTotalKills = progress.record.kills + this.totalKills;
     this.wave++;
     this.phase = 'wave';
     const def = getWave(this.wave);
@@ -771,9 +774,10 @@ export class Game {
         vox('victory');
       } else {
         progress.recordWave(this.map.id, this.diff.id, this.wave);
-        const before = progress.totalWaves;
+        const beforeKills = this.waveStartTotalKills;
         progress.addWaves(1);
-        if (TOWERS.some((t) => t.unlockAt > before && t.unlockAt <= progress.totalWaves)) {
+        const currentKills = progress.record.kills + this.totalKills;
+        if (TOWERS.some((t) => t.unlockAt > beforeKills && t.unlockAt <= currentKills)) {
           this.announce('✦ New instrument pattern decrypted — check the Arsenal');
           vox('unlock');
         } else if (this.wave % 5 === 0) {

@@ -119,7 +119,7 @@ export interface TowerDef {
   /** flavor line shown in the upgrade panel */
   lore: string;
   cost: number;
-  /** cumulative waves cleared (all-time) required to unlock in the shop */
+  /** cumulative kills (all-time) required to unlock in the shop */
   unlockAt: number;
   color: string;
   glow: string;

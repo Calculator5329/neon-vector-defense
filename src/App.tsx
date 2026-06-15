@@ -372,6 +372,7 @@ function mapProgressed(m: GameMap): boolean {
 }
 function mapUnlocked(idx: number): boolean {
   if (DEMO_MODE) return true;
+  if (idx < 2) return true;
   for (let i = 0; i < idx; i++) if (!mapProgressed(ALL_MAPS[i])) return false;
   return true;
 }

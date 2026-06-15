@@ -14,11 +14,10 @@ service cloud.firestore {
       return board.matches('^(orbital|reactor|hyperlane|mobius|blackout|throat|umbral|cinder)_(easy|normal|hard|extinction|ngplus)(_fp)?$');
     }
 
-    // public leaderboards: anyone can read; signed visitors may append validated scores
+    // public leaderboards: anyone can read; players may append validated scores
     match /boards/{board}/scores/{id} {
       allow read: if true;
-      allow create: if request.auth != null
-        && isValidBoard(board)
+      allow create: if isValidBoard(board)
         && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
@@ -28,7 +27,7 @@ service cloud.firestore {
         && request.resource.data.freeplay is bool
         && request.resource.data.freeplay == board.matches('.*_fp$')
         && request.resource.data.ts is int && request.resource.data.ts > 0
-        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() <= 40));
+        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40));
       allow update, delete: if false;
     }
 
@@ -37,12 +36,13 @@ service cloud.firestore {
       // The browser that created a message stores its random doc id and may read
       // it only once an admin reply exists. Listing remains admin-only.
       allow get: if isAdmin()
-        || (request.auth != null && resource.data.uid == request.auth.uid && ('reply' in resource.data));
+        || ('reply' in resource.data);
       allow list: if isAdmin();
       allow delete: if false;
-      allow create: if request.auth != null
+      allow create: if request.resource.data.keys().hasAll(['uid', 'text', 'ts', 'ctx', 'status'])
         && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status'])
-        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.uid is string
+        && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
         && request.resource.data.text is string
         && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 1000
         && request.resource.data.ts is int && request.resource.data.ts > 0
@@ -65,10 +65,10 @@ service cloud.firestore {
     match /telemetry/{id} {
       allow read: if isAdmin();
       allow update, delete: if false;
-      allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build'])
+      allow create: if request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build'])
         && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
-        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.uid is string
+        && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
         && request.resource.data.ts is int && request.resource.data.ts > 0
         && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
         && request.resource.data.map is string && request.resource.data.map.size() <= 30

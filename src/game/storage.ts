@@ -11,7 +11,7 @@ interface Progress {
   best: Record<string, number>;
   /** true once the Diplomat's Gambit ending has been seen */
   armistice: boolean;
-  /** cumulative waves cleared across all runs - the tower unlock track */
+  /** cumulative waves cleared across all runs - service record only */
   totalWaves: number;
   /** lifetime service record */
   runs: number;

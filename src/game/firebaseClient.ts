@@ -3,7 +3,6 @@ import {
   GoogleAuthProvider,
   getAuth,
   onAuthStateChanged,
-  signInAnonymously,
   signInWithPopup,
   signOut,
   type User,
@@ -56,16 +55,6 @@ function millis(v: Timestamp | number | undefined): number {
 
 export function isAllowedAdminEmail(user: User | null): boolean {
   return !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
-}
-
-let anonAuthPromise: Promise<string> | null = null;
-
-export async function ensurePlayerAuth(): Promise<string> {
-  if (auth.currentUser) return auth.currentUser.uid;
-  anonAuthPromise ??= signInAnonymously(auth)
-    .then((cred) => cred.user.uid)
-    .finally(() => { anonAuthPromise = null; });
-  return anonAuthPromise;
 }
 
 export function watchAdminAuth(cb: (user: User | null, allowed: boolean) => void): () => void {

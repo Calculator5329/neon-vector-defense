@@ -11,8 +11,9 @@ import {
   orderBy,
   query,
 } from 'firebase/firestore';
-import { db, ensurePlayerAuth } from './firebaseClient';
+import { db } from './firebaseClient';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
+import { progress } from './storage';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
@@ -40,7 +41,6 @@ function validBoard(board: string): boolean {
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!validBoard(board)) return false;
   try {
-    await ensurePlayerAuth();
     await addDoc(collection(db, 'boards', board, 'scores'), {
       name: entry.name.slice(0, 20),
       cash: Math.max(0, Math.floor(entry.cash)),
@@ -48,27 +48,28 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
       wave: Math.max(0, Math.floor(entry.wave)),
       freeplay: entry.freeplay,
       ts: Math.floor(entry.ts),
-      uid: (entry.uid ?? '').slice(0, 40),
+      uid: (entry.uid ?? progress.uid).slice(0, 40),
     });
     return true;
-  } catch {
+  } catch (error) {
+    console.warn('Score submit failed', error);
     return false;
   }
 }
 
-/** player feedback -> feedback collection. Invisible anonymous auth identifies only the sender. */
+/** player feedback -> feedback collection. A local per-device id correlates replies without login. */
 export async function submitFeedback(text: string, ctx: string): Promise<string | null> {
   try {
-    const uid = await ensurePlayerAuth();
     const ref = await addDoc(collection(db, 'feedback'), {
-      uid,
+      uid: progress.uid,
       text: text.slice(0, 1000),
       ts: Date.now(),
       ctx: ctx.slice(0, 200),
       status: 'open',
     });
     return ref.id;
-  } catch {
+  } catch (error) {
+    console.warn('Feedback submit failed', error);
     return null;
   }
 }
@@ -99,10 +100,15 @@ export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply
     .slice(-20);
   if (clean.length === 0) return [];
   try {
-    await ensurePlayerAuth();
-    const snaps = await Promise.all(clean.map((id) => getDoc(doc(db, 'feedback', id))));
+    const snaps = await Promise.all(clean.map(async (id) => {
+      try {
+        return await getDoc(doc(db, 'feedback', id));
+      } catch {
+        return null;
+      }
+    }));
     return snaps
-      .filter((snap) => snap.exists())
+      .filter((snap): snap is NonNullable<typeof snap> => snap !== null && snap.exists())
       .map((snap) => {
         const data = snap.data() as FeedbackData;
         return {
@@ -116,7 +122,8 @@ export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply
         };
       })
       .filter((row) => !!row.reply);
-  } catch {
+  } catch (error) {
+    console.warn('Feedback reply fetch failed', error);
     return [];
   }
 }
@@ -151,9 +158,8 @@ export interface TelemetryEvent {
 export function logTelemetry(e: TelemetryEvent): void {
   void (async () => {
     try {
-      const uid = await ensurePlayerAuth();
       await addDoc(collection(db, 'telemetry'), {
-        uid,
+        uid: progress.uid,
         ts: Date.now(),
         kind: e.kind.slice(0, 30),
         map: e.map.slice(0, 30),
@@ -171,7 +177,8 @@ export function logTelemetry(e: TelemetryEvent): void {
         abilities: Math.max(0, Math.floor(e.abilities ?? 0)),
         build: TELEMETRY_BUILD.slice(0, 30),
       });
-    } catch {
+    } catch (error) {
+      console.warn('Telemetry log failed', error);
       // Fire-and-forget telemetry must never affect the game loop.
     }
   })();
