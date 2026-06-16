@@ -1,5 +1,5 @@
 import type {
-  AbilityId, AbilityState, Beam, DifficultyDef, Enemy, EnemyDef, GameMap,
+  AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, Enemy, EnemyDef, GameMap,
   Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, Vec, WaveGroup,
 } from './types';
 import { ENEMIES, rbe } from './enemies';
@@ -102,6 +102,7 @@ export class Game {
   projectiles: Projectile[] = [];
   particles: Particle[] = [];
   beams: Beam[] = [];
+  burnZones: BurnZone[] = [];
   pickups: Pickup[] = [];
   novas: { pos: Vec; r: number; maxR: number; damage: number; slowPower: number; slowDuration: number; color: string; hit: Set<number>; src: Tower }[] = [];
   abilities: AbilityState[] = ABILITIES.map((def) => ({ def, cd: 0 }));
@@ -219,7 +220,7 @@ export class Game {
     const tier = this.tierOf(t, track);
     if (tier >= 6) return 0;
     // the two committed bonus tiers cost dramatically more — a real late-game sink
-    const bonusMult = tier === 4 ? 2.4 : tier === 5 ? 4.5 : 1;
+    const bonusMult = tier === 4 ? 3.2 : tier === 5 ? 6.5 : 1;
     return Math.round((t.def.tracks[track].upgrades[tier].cost * this.diff.costMult * bonusMult) / 5) * 5;
   }
 
@@ -741,6 +742,7 @@ export class Game {
     // index enemies for this tick's radius queries, then precompute cloak reveal
     this.grid.rebuild(this.enemies);
     this.precomputeReveal();
+    this.updateBurnZones(dt);
     this.updateHealers(dt);
     this.updateAllies(dt);
     this.updateAuras();
@@ -1277,30 +1279,48 @@ export class Game {
         continue;
       }
 
-      // bolt & missile: spawn projectiles
-      for (let i = 0; i < st.count; i++) {
-        const spread = st.count > 1 ? (i - (st.count - 1) / 2) * 0.12 : 0;
-        const lead = t.def.style === 'missile' ? target.pos : predict(target, this.map.path, t.pos, st.projectileSpeed);
+      // bolt & missile: spawn projectiles. Drone Carrier uses many weaker
+      // interceptors that split across targets instead of one pulse-like burst.
+      const isDrone = t.def.id === 'drone';
+      const launchCount = Math.max(1, st.count) * (isDrone ? Math.max(1, st.droneSwarm) : 1);
+      const droneTargets: Enemy[] = isDrone ? [] : [target];
+      if (isDrone) {
+        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+          if (droneTargets.length >= launchCount) return;
+          if (e.dead || e.finished || e.courier || droneTargets.includes(e)) return;
+          if (!this.visibleTo(t, e)) return;
+          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius) droneTargets.push(e);
+        });
+        if (droneTargets.length === 0) droneTargets.push(target);
+      }
+      for (let i = 0; i < launchCount; i++) {
+        const shotTarget = isDrone ? droneTargets[i % droneTargets.length] : target;
+        const spread = launchCount > 1 ? (i - (launchCount - 1) / 2) * (isDrone ? 0.075 : 0.12) : 0;
+        const lead = t.def.style === 'missile' ? shotTarget.pos : predict(shotTarget, this.map.path, t.pos, st.projectileSpeed);
         const ang = Math.atan2(lead.y - t.pos.y, lead.x - t.pos.x) + spread;
+        const muzzle = isDrone ? 11 + (i % Math.max(1, st.droneSwarm)) * 2 : 14;
         this.projectiles.push({
           uid: uidCounter++,
           src: t,
-          kind: t.def.style === 'missile' ? 'missile' : 'bolt',
-          pos: { x: t.pos.x + Math.cos(ang) * 14, y: t.pos.y + Math.sin(ang) * 14 },
+          kind: t.def.style === 'missile' ? 'missile' : isDrone ? 'drone' : 'bolt',
+          pos: { x: t.pos.x + Math.cos(ang) * muzzle, y: t.pos.y + Math.sin(ang) * muzzle },
           vel: { x: Math.cos(ang) * st.projectileSpeed, y: Math.sin(ang) * st.projectileSpeed },
-          damage: st.damage,
+          damage: isDrone ? st.damage * 0.72 : st.damage,
           damageType: st.damageType,
           pierce: st.pierce,
           splash: st.splash,
           speed: st.projectileSpeed,
-          targetUid: target.uid,
-          life: 2.2,
+          targetUid: shotTarget.uid,
+          life: isDrone ? 2.8 : 2.2,
           color: t.def.glow,
           hit: new Set(),
           burnDps: st.burnDps,
           burnDuration: st.burnDuration,
+          burnZoneRadius: st.burnZoneRadius,
+          burnZoneDps: st.burnZoneDps,
+          burnZoneDuration: st.burnZoneDuration,
           shred: st.shred,
-          detection: st.detection || !target.cloaked ? true : false,
+          detection: st.detection || !shotTarget.cloaked ? true : false,
         });
       }
       if (t.def.style === 'missile') sfx.missile();
@@ -1380,6 +1400,21 @@ export class Game {
       });
     }
     compact(this.projectiles, (p) => p.life > 0);
+  }
+
+  /** Lingering fire fields left by Cinder Mortar impacts. */
+  private updateBurnZones(dt: number) {
+    for (const z of this.burnZones) {
+      z.life -= dt;
+      if (z.life <= 0) continue;
+      this.grid.forEachInRadius(z.pos.x, z.pos.y, z.radius + 16, (e) => {
+        if (e.dead || e.finished || e.courier) return;
+        if (e.cloaked && !z.detection && !e.revealed) return;
+        if (Math.hypot(e.pos.x - z.pos.x, e.pos.y - z.pos.y) > z.radius + e.def.radius) return;
+        this.damageEnemy(e, z.dps * dt, 'energy', false, z.src);
+      });
+    }
+    compact(this.burnZones, (z) => z.life > 0);
   }
 
   /** Seraph tenders repair nearby damaged hulls — grid-scoped to their aura. */
@@ -1468,6 +1503,21 @@ export class Game {
   private explode(p: Projectile) {
     this.explosionFx(p.pos, '#ff9f43', p.splash);
     sfx.explosion();
+    if (p.burnZoneDps > 0 && p.burnZoneRadius > 0 && p.burnZoneDuration > 0) {
+      if (this.burnZones.length >= 28) this.burnZones.shift();
+      this.burnZones.push({
+        uid: uidCounter++,
+        pos: { ...p.pos },
+        radius: p.burnZoneRadius,
+        dps: p.burnZoneDps,
+        life: p.burnZoneDuration,
+        maxLife: p.burnZoneDuration,
+        color: p.color,
+        src: p.src,
+        detection: p.detection,
+      });
+      this.ring(p.pos, p.color, p.burnZoneRadius);
+    }
     this.grid.forEachInRadius(p.pos.x, p.pos.y, p.splash + 16, (e) => {
       if (e.dead || e.finished) return;
       if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= p.splash + e.def.radius) {

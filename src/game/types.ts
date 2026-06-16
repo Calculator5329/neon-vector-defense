@@ -83,6 +83,12 @@ export interface TowerStats {
   /** burn damage per second applied on hit */
   burnDps: number;
   burnDuration: number;
+  /** lingering fire field left at an impact point */
+  burnZoneRadius: number;
+  burnZoneDps: number;
+  burnZoneDuration: number;
+  /** extra micro-shots for swarm-carrier projectile volleys */
+  droneSwarm: number;
   /** chain lightning jumps */
   chain: number;
   /** aura buffs for support towers */
@@ -188,7 +194,7 @@ export interface Projectile {
   uid: number;
   /** firing tower, for kill attribution */
   src?: Tower;
-  kind: 'bolt' | 'missile';
+  kind: 'bolt' | 'missile' | 'drone';
   pos: Vec;
   vel: Vec;
   damage: number;
@@ -202,7 +208,22 @@ export interface Projectile {
   hit: Set<number>;
   burnDps: number;
   burnDuration: number;
+  burnZoneRadius: number;
+  burnZoneDps: number;
+  burnZoneDuration: number;
   shred: boolean;
+  detection: boolean;
+}
+
+export interface BurnZone {
+  uid: number;
+  pos: Vec;
+  radius: number;
+  dps: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  src?: Tower;
   detection: boolean;
 }
 

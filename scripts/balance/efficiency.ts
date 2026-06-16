@@ -32,11 +32,13 @@ export function dpsOf(def: TowerDef, s: TowerStats): Dps {
   if (s.detection) util.push('detect');
   if (s.drag > 0) util.push(`drag ${s.drag}`);
   if (s.execute > 0) util.push(`execute<${Math.round(s.execute * 100)}%`);
+  if (s.burnZoneDps > 0) util.push(`burn zone ${s.burnZoneDps}/s`);
+  if (s.droneSwarm > 0) util.push(`${s.droneSwarm} interceptors`);
   if (s.buffRate > 0) util.push(`+${Math.round(s.buffRate * 100)}% rate aura`);
   if (s.buffRange > 0) util.push(`+${Math.round(s.buffRange * 100)}% range aura`);
   if (s.shred) util.push('armor shred');
 
-  const burn = s.burnDps; // sustained while applied; a fair sustained add for clouds/napalm
+  const burn = s.burnDps + s.burnZoneDps; // sustained while applied; fair sustained add for clouds/napalm
   const rate = s.fireRate;
   const dmg = s.damage;
   let single = 0;
@@ -44,7 +46,9 @@ export function dpsOf(def: TowerDef, s: TowerStats): Dps {
 
   switch (def.style) {
     case 'bolt': {
-      single = dmg * rate * s.count;
+      const shots = s.count * Math.max(1, s.droneSwarm);
+      const shotDmg = s.droneSwarm > 0 ? dmg * 0.72 : dmg;
+      single = shotDmg * rate * shots;
       aoe = single * Math.max(s.pierce, s.splash > 0 ? SPLASH_TARGETS : 1);
       break;
     }
@@ -109,7 +113,7 @@ const KINETIC: DamageType = 'kinetic';
 
 /** Effective single-target dps against a hull archetype (0 = can't hurt it). */
 export function effectiveVs(def: TowerDef, s: TowerStats, archetype: 'armored' | 'explosiveImmune' | 'cryoImmune' | 'cloaked' | 'boss'): number {
-  const base = dpsOf(def, s).single + s.burnDps;
+  const base = dpsOf(def, s).single + s.burnDps + s.burnZoneDps;
   switch (archetype) {
     case 'armored': // immune to kinetic unless the round shreds armor
       return s.damageType === KINETIC && !s.shred ? 0 : base;
@@ -129,7 +133,7 @@ export function effectiveVs(def: TowerDef, s: TowerStats, archetype: 'armored' |
 /** Cost to buy a single upgrade step on a track at a given current tier. */
 export function stepCost(def: TowerDef, track: 0 | 1, tier: number): number {
   if (tier >= 6) return 0;
-  const bonusMult = tier === 4 ? 2.4 : tier === 5 ? 4.5 : 1;
+  const bonusMult = tier === 4 ? 3.2 : tier === 5 ? 6.5 : 1;
   return Math.round((def.tracks[track].upgrades[tier].cost * bonusMult) / 5) * 5;
 }
 

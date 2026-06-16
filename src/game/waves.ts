@@ -110,5 +110,5 @@ export function waveBonus(n: number): number {
 
 /** Kill rewards taper after wave 30 so the late game stays a decision, not a pile. */
 export function incomeMult(n: number): number {
-  return n <= 30 ? 1 : Math.max(0.35, 1 - (n - 30) * 0.018);
+  return n <= 30 ? 1 : Math.max(0.20, 1 - (n - 30) * 0.03);
 }

@@ -585,6 +585,29 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
     ctx.restore();
   }
 
+  // cinder burn zones
+  for (const z of game.burnZones) {
+    const a = Math.max(0, z.life / z.maxLife);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.12 + a * 0.18;
+    const g = ctx.createRadialGradient(z.pos.x, z.pos.y, 0, z.pos.x, z.pos.y, z.radius);
+    g.addColorStop(0, withAlphaCss('#ffffff', 0.18));
+    g.addColorStop(0.25, withAlphaCss(z.color, 0.34));
+    g.addColorStop(1, withAlphaCss(z.color, 0));
+    ctx.fillStyle = g;
+    circle(ctx, z.pos.x, z.pos.y, z.radius);
+    ctx.fill();
+    ctx.globalAlpha = 0.25 + a * 0.35;
+    ctx.strokeStyle = z.color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 8]);
+    ctx.lineDashOffset = -game.time * 18;
+    circle(ctx, z.pos.x, z.pos.y, z.radius * (0.88 + 0.08 * Math.sin(game.time * 6 + z.uid)));
+    ctx.stroke();
+    ctx.restore();
+  }
+
   drawProjectiles(ctx, game);
   drawBeams(ctx, game);
   drawParticles(ctx, game);
@@ -1681,6 +1704,13 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, game: Game) {
       ctx.fill();
       ctx.fillStyle = withAlphaCss('#ffb86c', 0.55);
       path(ctx, [[-6, -1.8], [-16, 0], [-6, 1.8]]);
+      ctx.fill();
+    } else if (p.kind === 'drone') {
+      ctx.fillStyle = withAlphaCss(p.color, 0.82);
+      path(ctx, [[8, 0], [-4, -4.5], [-1, 0], [-4, 4.5]]);
+      ctx.fill();
+      ctx.fillStyle = withAlphaCss('#ffffff', 0.72);
+      path(ctx, [[5, 0], [0, -1.5], [-7, 0], [0, 1.5]]);
       ctx.fill();
     } else {
       // energy bolt: colored tail + white core
