@@ -10,6 +10,7 @@ import { computeStats, sellValue, TOWER_MAP } from './towers';
 import { getWave, waveBonus, incomeMult } from './waves';
 import { sfx, vox, playStinger } from './sound';
 import { TOWERS } from './towers';
+import { RunRecorder, type PrivateRunAnalyticsDoc, type PublicRunDoc, type RunTelemetryState, type RunUploadBundle } from './runTelemetry';
 
 export const W = 1280;
 export const H = 720;
@@ -139,11 +140,14 @@ export class Game {
   /** per-run telemetry for the after-action report */
   runStats = {
     dmg: {} as Record<string, number>,
+    dmgByTowerUid: {} as Record<number, number>,
     kills: {} as Record<string, number>,
     leaks: 0,
     abilitiesCast: 0,
     cashEarned: 0,
   };
+
+  readonly recorder: RunRecorder;
 
   /** all credit income flows through here so the run's earnings are scored */
   private earn(n: number) {
@@ -151,7 +155,7 @@ export class Game {
     this.runStats.cashEarned += n;
   }
 
-  private finishRun(won: boolean) {
+  private finishRun(won: boolean, outcome: 'victory' | 'armistice' | 'gameover') {
     progress.addRun({
       map: this.map.id,
       diff: this.diff.id,
@@ -165,6 +169,8 @@ export class Game {
       durationS: Math.round(this.time),
       towers: [...new Set([...this.towers.map((t) => t.def.id), ...Object.keys(this.runStats.dmg)])].join(','),
     });
+    if (outcome === 'victory') this.recorder.recordCampaignClear(this.telemetryState());
+    else this.recorder.recordRunEnd(this.telemetryState(), outcome);
   }
 
   /** Apex only: the Combine studies your fire and armors against your favorite damage type */
@@ -188,10 +194,59 @@ export class Game {
     this.diff = diff;
     this.credits = diff.cash;
     this.lives = diff.lives;
+    this.recorder = new RunRecorder({
+      map,
+      diff,
+      startingCash: diff.cash,
+      startingLives: diff.lives,
+      availableTowerIds: TOWERS.filter((t) => t.unlockAt <= progress.record.kills).map((t) => t.id),
+      lifetimeKillsAtStart: progress.record.kills,
+      runsBeforeStart: progress.record.runs,
+      victoriesBeforeStart: progress.record.victories,
+      session: progress.engagement,
+    });
     for (let i = 1; i < map.path.length; i++) {
       const a = map.path[i - 1], b = map.path[i];
       this.segLengths.push(Math.hypot(b.x - a.x, b.y - a.y));
     }
+    this.recorder.recordRunStart(this.telemetryState());
+  }
+
+  get runId(): string {
+    return this.recorder.runId;
+  }
+
+  telemetryState(): RunTelemetryState {
+    return {
+      time: this.time,
+      wave: this.wave,
+      credits: this.credits,
+      lives: this.lives,
+      totalKills: this.totalKills,
+      freeplay: this.freeplay,
+      phase: this.phase,
+      towers: this.towers,
+      enemyCount: this.enemies.length,
+      speed: this.speed,
+      paused: this.paused,
+      runStats: this.runStats,
+    };
+  }
+
+  buildRunUploadBundle(callsign: string, build: string): RunUploadBundle {
+    return this.recorder.makePublicRun(this.telemetryState(), callsign, build);
+  }
+
+  buildRunAnalyticsDoc(callsign: string, uid: string, build: string): PrivateRunAnalyticsDoc {
+    return this.recorder.makePrivateAnalytics(this.telemetryState(), uid, callsign, build);
+  }
+
+  publicRunSummary(callsign: string, build: string): PublicRunDoc['summary'] {
+    return this.buildRunUploadBundle(callsign, build).run.summary;
+  }
+
+  abandonRun(reason: string) {
+    this.recorder.recordAbandoned(this.telemetryState(), reason);
   }
 
   cost(def: TowerDef): number {
@@ -251,6 +306,7 @@ export class Game {
   placeTower(def: TowerDef, pos: Vec): Tower | null {
     const cost = this.cost(def);
     if (this.credits < cost || !this.canPlace(pos)) {
+      this.recorder.recordFailedPlacement(this.telemetryState(), def.id, this.credits < cost ? 'credits' : 'space', cost, pos);
       sfx.error();
       return null;
     }
@@ -274,6 +330,7 @@ export class Game {
       recoil: 0,
     };
     this.towers.push(t);
+    this.recorder.recordTowerPlace(this.telemetryState(), t, cost);
     sfx.build();
     this.ring(pos, def.glow, 30);
     return t;
@@ -281,16 +338,20 @@ export class Game {
 
   upgradeTower(t: Tower, track: 0 | 1): boolean {
     const cost = this.upgradeCost(t, track);
-    if (cost === 0 || this.credits < cost || this.upgradeState(t, track) !== 'ok') {
+    const state = this.upgradeState(t, track);
+    if (cost === 0 || this.credits < cost || state !== 'ok') {
+      this.recorder.recordFailedUpgrade(this.telemetryState(), t, track, cost === 0 ? 'maxed' : this.credits < cost ? 'credits' : state, cost);
       sfx.error();
       return false;
     }
+    const upgradeName = t.def.tracks[track].upgrades[this.tierOf(t, track)].name;
     this.credits -= cost;
     t.invested += cost;
     if (track === 0) t.tierA++; else t.tierB++;
     // buying a bonus tier (5+) commits the tower to that track
     if (this.tierOf(t, track) >= 5) t.committed = track;
     t.stats = computeStats(t.def, t.tierA, t.tierB);
+    this.recorder.recordTowerUpgrade(this.telemetryState(), t, track, cost, upgradeName);
     sfx.upgrade();
     this.ring(t.pos, '#ffffff', 26);
     return true;
@@ -306,6 +367,7 @@ export class Game {
       b: t.tierB,
     }));
     progress.saveBlueprint(this.map.id, bp);
+    this.recorder.recordBlueprint(this.telemetryState(), 'save', bp.length);
     this.announce(`⬇ Defense layout saved — ${bp.length} instruments`);
     sfx.archive();
     return bp.length;
@@ -335,11 +397,14 @@ export class Game {
     this.announce(placed > 0
       ? `⬆ Blueprint deployed — ${placed} of ${bp.length} instruments rebuilt`
       : '⬆ Blueprint deployment failed — no credits, space, or unlocks');
+    this.recorder.recordBlueprint(this.telemetryState(), 'apply', placed);
     return placed;
   }
 
   sellTower(t: Tower) {
-    this.credits += sellValue(t.invested);
+    const refund = sellValue(t.invested);
+    this.credits += refund;
+    this.recorder.recordTowerSell(this.telemetryState(), t, refund);
     this.towers = this.towers.filter((x) => x !== t);
     sfx.sell();
     this.ring(t.pos, '#ffd32a', 24);
@@ -361,6 +426,11 @@ export class Game {
       timer: group.delay ?? 0,
       started: false,
     }));
+    this.recorder.recordWaveStart(this.telemetryState(), this.queue.map((entry) => ({
+      type: entry.group.type,
+      count: entry.group.count,
+      cloaked: !!entry.group.cloaked,
+    })));
     if (this.diff.id === 'ngplus') {
       this.allyTimer = 0;
       this.allies.length = 0;
@@ -444,6 +514,7 @@ export class Game {
     }
     this.credits -= RECEIVER_COST;
     this.receiver = true;
+    this.recorder.recordReceiverBuild(this.telemetryState(), RECEIVER_COST);
     this.announce('📡 Antique receiver assembled — beacon fuel diverted, towers −25% rate');
     sfx.archive();
     return true;
@@ -527,7 +598,10 @@ export class Game {
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
     this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + dmg;
-    if (src) this.runStats.dmg[src.def.id] = (this.runStats.dmg[src.def.id] ?? 0) + dmg;
+    if (src) {
+      this.runStats.dmg[src.def.id] = (this.runStats.dmg[src.def.id] ?? 0) + dmg;
+      this.runStats.dmgByTowerUid[src.uid] = (this.runStats.dmgByTowerUid[src.uid] ?? 0) + dmg;
+    }
     e.hp -= dmg;
     if (e.hp <= 0) {
       this.killEnemy(e);
@@ -601,9 +675,11 @@ export class Game {
     const p = this.pickups.find((pk) => Math.hypot(pk.pos.x - pos.x, pk.pos.y - pos.y) <= 20);
     if (!p) return false;
     this.pickups = this.pickups.filter((x) => x !== p);
+    let value = 0;
     switch (p.kind) {
       case 'credits': {
         const amount = 40 + this.wave * 4;
+        value = amount;
         this.earn(amount);
         this.announce(`⌬ Salvage cache recovered: +${amount}`);
         break;
@@ -620,10 +696,12 @@ export class Game {
         this.announce('❄ Cryo burst: hostiles flash-frozen');
         break;
       case 'core':
+        value = 1;
         this.lives += 1;
         this.announce('⬢ Reactor core recovered: +1 core');
         break;
     }
+    this.recorder.recordPickupCollect(this.telemetryState(), p.kind, p.pos, value);
     sfx.pickup();
     this.ring(p.pos, '#ffd32a', 26);
     return true;
@@ -700,6 +778,7 @@ export class Game {
     }
     a.cd = a.def.cooldown;
     this.runStats.abilitiesCast++;
+    this.recorder.recordAbilityCast(this.telemetryState(), id, pos);
     return true;
   }
 
@@ -753,7 +832,9 @@ export class Game {
 
     // wave completion
     if (this.phase === 'wave' && this.queue.length === 0 && this.enemies.length === 0) {
-      this.earn(waveBonus(this.wave));
+      const bonus = waveBonus(this.wave);
+      this.earn(bonus);
+      this.recorder.recordWaveEnd(this.telemetryState(), bonus);
       // archive fragments unlock by wave
       ARCHIVE.forEach((f, i) => {
         if (f.wave <= this.wave && !this.archive.includes(i)) {
@@ -770,7 +851,7 @@ export class Game {
       if (this.wave >= this.diff.waves && !this.freeplay) {
         this.phase = 'victory';
         progress.recordWave(this.map.id, this.diff.id, this.wave);
-        this.finishRun(true);
+        this.finishRun(true, 'victory');
         sfx.victory();
         playStinger('victory');
         vox('victory');
@@ -779,7 +860,9 @@ export class Game {
         const beforeKills = this.waveStartTotalKills;
         progress.addWaves(1);
         const currentKills = progress.record.kills + this.totalKills;
-        if (TOWERS.some((t) => t.unlockAt > beforeKills && t.unlockAt <= currentKills)) {
+        const unlocked = TOWERS.filter((t) => t.unlockAt > beforeKills && t.unlockAt <= currentKills);
+        if (unlocked.length > 0) {
+          for (const tower of unlocked) this.recorder.recordUnlockEarned(tower.id);
           this.announce('✦ New instrument pattern decrypted — check the Arsenal');
           vox('unlock');
         } else if (this.wave % 5 === 0) {
@@ -893,7 +976,7 @@ export class Game {
           this.phase = 'armistice';
           progress.markArmistice();
           progress.recordWave(this.map.id, this.diff.id, this.wave);
-          this.finishRun(true);
+          this.finishRun(true, 'armistice');
           this.enemies = [];
           this.queue = [];
           sfx.victory();
@@ -901,8 +984,10 @@ export class Game {
           vox('armistice');
           return;
         }
-        this.lives -= rbe(e.def.id);
-        this.runStats.leaks += rbe(e.def.id);
+        const coresLost = rbe(e.def.id);
+        this.lives -= coresLost;
+        this.runStats.leaks += coresLost;
+        this.recorder.recordLeak(this.telemetryState(), e.def.id, coresLost);
         this.hurtFlash = Math.min(1, this.hurtFlash + 0.55);
         this.shake = Math.min(1, this.shake + (e.def.boss ? 0.8 : 0.25));
         sfx.leak();
@@ -910,7 +995,7 @@ export class Game {
           this.lives = 0;
           this.phase = 'gameover';
           progress.recordWave(this.map.id, this.diff.id, this.wave);
-          this.finishRun(false);
+          this.finishRun(false, 'gameover');
           sfx.gameOver();
           playStinger('defeat');
           vox('gameover');
@@ -1594,6 +1679,7 @@ export class Game {
 
   setTargetMode(t: Tower, mode: TargetMode) {
     t.target = mode;
+    this.recorder.recordTargetMode(this.telemetryState(), t, mode);
   }
 }
 

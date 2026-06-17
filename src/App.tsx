@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import './App.css';
 import { Game, W, H } from './game/engine';
 import { render, drawTowerBody, setRenderQuality } from './game/render';
@@ -14,11 +14,16 @@ import {
   boardId,
   submitScore,
   fetchTop,
+  fetchGlobalTop,
+  submitRunReplay,
+  submitRunAnalytics,
   submitFeedback,
   fetchFeedbackReplies,
   logTelemetry,
+  TELEMETRY_BUILD,
   type FeedbackReply,
   type ScoreEntry,
+  type RankedScoreEntry,
 } from './game/leaderboard';
 import { askAIHelp } from './game/aiHelp';
 import { buildAIHelpContext, type AIHelpContext } from './game/aiContext';
@@ -68,6 +73,7 @@ function Main() {
   const [diff, setDiff] = useState<DifficultyDef>(
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
+  useEffect(() => { progress.markSession(); }, []);
 
   return (
     <>
@@ -78,7 +84,7 @@ function Main() {
       {AI_HELP_ENABLED && screen === 'menu' && (
         <AIHelpWidget getContext={() => buildAIHelpContext({ screen: 'menu', map, diff })} />
       )}
-      <FeedbackWidget ctx={screen} />
+      {screen === 'menu' && <FeedbackWidget ctx="menu" />}
     </>
   );
 }
@@ -87,7 +93,17 @@ function Main() {
 
 type AIChatMessage = { role: 'assistant' | 'user'; content: string };
 
-function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AIHelpContext; placement?: 'menu' | 'game' }) {
+function AIHelpWidget({
+  getContext,
+  placement = 'menu',
+  blocked = false,
+  sideOpen = false,
+}: {
+  getContext: () => AIHelpContext;
+  placement?: 'menu' | 'game';
+  blocked?: boolean;
+  sideOpen?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [state, setState] = useState<'idle' | 'busy'>('idle');
@@ -128,6 +144,9 @@ function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AI
     sfx.click();
   };
   useEffect(() => {
+    if (blocked && open) setOpen(false);
+  }, [blocked, open]);
+  useEffect(() => {
     document.body.classList.toggle('ai-open', open);
     window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'ai', open } }));
     return () => {
@@ -137,7 +156,10 @@ function AIHelpWidget({ getContext, placement = 'menu' }: { getContext: () => AI
   }, [open]);
 
   return (
-    <div className={`ai-root ${placement === 'game' ? 'in-game' : 'on-menu'}`}>
+    <div
+      className={`ai-root ${placement === 'game' ? 'in-game' : 'on-menu'} ${placement === 'game' ? (sideOpen ? 'sidebar-open' : 'sidebar-collapsed') : ''} ${blocked ? 'widget-blocked' : ''}`}
+      data-testid="ai-widget"
+    >
       {open && (
         <div className="ai-panel">
           <div className="ai-head">
@@ -220,7 +242,7 @@ function saveDismissedReplyIds(ids: string[]) {
   try { localStorage.setItem(FEEDBACK_DISMISSED_KEY, JSON.stringify([...new Set(ids)].slice(-50))); } catch { /* non-fatal */ }
 }
 
-function FeedbackWidget({ ctx }: { ctx: string }) {
+function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: string; blocked?: boolean; sideOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'inbox' | 'send'>('send');
   const [text, setText] = useState('');
@@ -250,6 +272,9 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
       setReadAt(newest);
     }
   }, [open, readAt, replies]);
+  useEffect(() => {
+    if (blocked && open) setOpen(false);
+  }, [blocked, open]);
   useEffect(() => {
     document.body.classList.toggle('fb-open', open);
     window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'feedback', open } }));
@@ -292,7 +317,10 @@ function FeedbackWidget({ ctx }: { ctx: string }) {
     sfx.click();
   };
   return (
-    <div className={`fb-root ${ctx === 'menu' ? 'on-menu' : 'on-game'}`}>
+    <div
+      className={`fb-root ${ctx === 'menu' ? 'on-menu' : 'on-game'} ${ctx === 'game' ? (sideOpen ? 'sidebar-open' : 'sidebar-collapsed') : ''} ${blocked ? 'widget-blocked' : ''}`}
+      data-testid="message-widget"
+    >
       {open && (
         <div className="fb-panel">
           <div className="fb-head">
@@ -423,14 +451,14 @@ function MainMenu(props: {
           <>
             <div className="menu-col">
               <div className="menu-section-label">① SELECT SECTOR</div>
-              <div className="map-grid">
+              <div className="map-grid" data-testid="map-grid">
                 {ALL_MAPS.map((m, i) => {
                   const unlocked = mapUnlocked(i);
                   const best = progress.bestWaveAny(m.id);
                   if (!unlocked) {
                     const prior = ALL_MAPS[Math.max(0, i - 1)];
                     return (
-                      <div key={m.id} className="map-card map-card-locked" title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
+                      <div key={m.id} className="map-card map-card-locked" data-testid={`map-card-${m.id}`} title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
                         <div className="map-lock">🔒</div>
                         <div className="map-card-name">CLASSIFIED</div>
                         <div className="map-card-desc">Clear {prior.name} or reach W20.</div>
@@ -442,6 +470,7 @@ function MainMenu(props: {
                     <button
                       key={m.id}
                       className={`map-card ${active ? 'active' : ''}`}
+                      data-testid={`map-card-${m.id}`}
                       onClick={() => { sfx.click(); props.setMap(m); }}
                       title={m.desc}
                     >
@@ -464,7 +493,7 @@ function MainMenu(props: {
 
             <div className="menu-col">
               <div className="menu-section-label">② SELECT PROTOCOL</div>
-              <div className="diff-row">
+              <div className="diff-row" data-testid="diff-row">
                 {DIFFICULTIES.map((d) => {
                   const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked)
                     || (d.id === 'extinction' && !DEMO_MODE && !progress.apexCleared);
@@ -475,7 +504,7 @@ function MainMenu(props: {
                         ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
                         : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
                     return (
-                      <div key={d.id} className="diff-card diff-locked" title={reason.title}>
+                      <div key={d.id} className="diff-card diff-locked" data-testid={`diff-card-${d.id}`} title={reason.title}>
                         <div className="diff-name">{reason.label}</div>
                         <div className="diff-desc">{reason.desc}</div>
                       </div>
@@ -486,6 +515,7 @@ function MainMenu(props: {
                     <button
                       key={d.id}
                       className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
+                      data-testid={`diff-card-${d.id}`}
                       onClick={() => { sfx.click(); props.setDiff(d); }}
                     >
                       {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
@@ -510,7 +540,7 @@ function MainMenu(props: {
           <span className="dbar-dot">·</span>
           <span className="dbar-diff">{props.diff.name}</span>
         </div>
-        <button className="start-btn deploy-bar-btn" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
+        <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
       </div>
     </div>
   );
@@ -518,48 +548,84 @@ function MainMenu(props: {
 
 function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
   const [fp, setFp] = useState(false);
-  const [rows, setRows] = useState<ScoreEntry[] | null>(null);
+  const [globalRows, setGlobalRows] = useState<RankedScoreEntry[] | null>(null);
+  const [localRows, setLocalRows] = useState<ScoreEntry[] | null>(null);
   const board = boardId(map.id, diff.id, fp);
   useEffect(() => {
     let live = true;
-    setRows(null);
-    fetchTop(board, 10).then((r) => { if (live) setRows(r); });
+    setGlobalRows(null);
+    setLocalRows(null);
+    Promise.all([fetchGlobalTop(fp, 20), fetchTop(board, 5)]).then(([global, local]) => {
+      if (!live) return;
+      setGlobalRows(global);
+      setLocalRows(local);
+    });
     return () => { live = false; };
-  }, [board]);
+  }, [board, fp]);
   return (
     <div className="board-tab">
       <div className="board-head">
-        <div className="board-title">{map.name} <span>· {diff.name}</span></div>
+        <div className="board-title">GLOBAL LEADERBOARD <span>{fp ? 'FREEPLAY' : 'CAMPAIGN'}</span></div>
         <div className="board-modes">
           <button className={!fp ? 'on' : ''} onClick={() => { setFp(false); sfx.click(); }}>CAMPAIGN</button>
           <button className={fp ? 'on' : ''} onClick={() => { setFp(true); sfx.click(); }}>FREEPLAY</button>
         </div>
       </div>
-      <div className={`board-list ${fp ? 'fp' : ''}`}>
+      <div className={`board-list board-global ${fp ? 'fp' : ''}`}>
         <div className="board-row board-row-head">
           <span className="board-rank">#</span>
           <span className="board-name">CALLSIGN</span>
+          <span className="board-context">SECTOR</span>
+          <span className="board-context">PROTOCOL</span>
           {fp && <span className="board-wave">WAVE</span>}
           <span className="board-kills">HULLS</span>
           <span className="board-cash">CREDITS</span>
         </div>
-        {rows === null ? (
-          <div className="board-empty">Establishing uplink…</div>
-        ) : rows.length === 0 ? (
-          <div className="board-empty">No records on this board yet — deploy and claim the top spot.</div>
+        {globalRows === null ? (
+          <div className="board-empty">Establishing uplink...</div>
+        ) : globalRows.length === 0 ? (
+          <div className="board-empty">No global records yet - deploy and claim the top spot.</div>
         ) : (
-          rows.map((r, i) => (
-            <div key={i} className="board-row">
+          globalRows.map((r, i) => (
+            <div key={`${r.board}-${i}`} className="board-row">
               <span className="board-rank">{i + 1}</span>
               <span className="board-name">{r.name}</span>
+              <span className="board-context">{r.mapName}</span>
+              <span className="board-context">{r.diffName}</span>
               {fp && <span className="board-wave">{r.wave}</span>}
               <span className="board-kills">{r.kills.toLocaleString()}</span>
-              <span className="board-cash">⌬{r.cash.toLocaleString()}</span>
+              <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
             </div>
           ))
         )}
       </div>
-      <div className="board-foot">Pick a sector or protocol on the DEPLOY tab to view its board · {fp ? 'freeplay ranks by wave reached' : 'campaign ranks by credits earned'}</div>
+      <div className="board-local-head">
+        <span>{map.name}</span>
+        <b>{diff.name}</b>
+      </div>
+      <div className={`board-list board-local ${fp ? 'fp' : ''}`}>
+        <div className="board-row board-row-head">
+          <span className="board-rank">#</span>
+          <span className="board-name">CALLSIGN</span>
+          {fp && <span className="board-wave">WAVE</span>}
+          <span className="board-cash">CREDITS</span>
+        </div>
+        {localRows === null ? (
+          <div className="board-empty compact">Checking local board...</div>
+        ) : localRows.length === 0 ? (
+          <div className="board-empty compact">No records for this sector/protocol yet.</div>
+        ) : (
+          localRows.map((r, i) => (
+            <div key={i} className="board-row">
+              <span className="board-rank">{i + 1}</span>
+              <span className="board-name">{r.name}</span>
+              {fp && <span className="board-wave">{r.wave}</span>}
+              <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="board-foot">{fp ? 'Global freeplay ranks by wave reached' : 'Global campaign ranks by credits earned'} - local board follows your deploy selection</div>
     </div>
   );
 }
@@ -628,6 +694,10 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   overlayRef.current = tutorial || !briefed;
   const blockingOverlay = tutorial || !briefed || cloakTip || unlockModal !== null ||
     game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice';
+  const sideOpenRef = useRef(sideOpen);
+  const blockingOverlayRef = useRef(blockingOverlay);
+  sideOpenRef.current = sideOpen;
+  blockingOverlayRef.current = blockingOverlay;
 
   // returning players already earned earlier towers — mark them seen silently so
   // the unlock modal only celebrates genuinely new unlocks during this run.
@@ -637,6 +707,22 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     for (const d of TOWERS_BY_UNLOCK) {
       if (d.unlockAt > 0 && d.unlockAt <= banked) progress.markUnlockSeen(d.id);
     }
+  }, [game]);
+
+  useEffect(() => {
+    const noteInput = () => game.recorder.noteInput();
+    const noteVisibility = () => game.recorder.noteVisibility(document.hidden);
+    window.addEventListener('pointerdown', noteInput);
+    window.addEventListener('keydown', noteInput);
+    window.addEventListener('touchstart', noteInput);
+    document.addEventListener('visibilitychange', noteVisibility);
+    noteVisibility();
+    return () => {
+      window.removeEventListener('pointerdown', noteInput);
+      window.removeEventListener('keydown', noteInput);
+      window.removeEventListener('touchstart', noteInput);
+      document.removeEventListener('visibilitychange', noteVisibility);
+    };
   }, [game]);
 
   // sector ambience while deployed
@@ -670,6 +756,19 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         if (!q.lite && q.fps < 45) { q.lite = true; setRenderQuality(true); }
         else if (q.lite && q.fps > 55) { q.lite = false; setRenderQuality(false); }
       }
+      game.recorder.observeAttention(dt, {
+        hidden: document.hidden,
+        paused: game.paused,
+        speed: game.speed,
+        panel: sideOpenRef.current ? (selectedRef.current ? 'upgrade' : 'shop') : 'none',
+        overlay: blockingOverlayRef.current,
+        widgetOpen: utilityWidgetOpen(),
+        fps: qualRef.current.fps,
+        viewportW: window.innerWidth,
+        viewportH: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+        userAgent: navigator.userAgent,
+      });
       if (botRef.current) {
         botRef.current.act(game.time);
         if (game.phase === 'victory') { game.freeplay = true; game.phase = 'build'; }
@@ -703,6 +802,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           })(),
           abilities: game.runStats.abilitiesCast,
         });
+        void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
       }
       const ctx = canvasRef.current?.getContext('2d');
       if (ctx) {
@@ -738,6 +838,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           const k = progress.record.kills + game.totalKills;
           const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
           if (just) {
+            game.recorder.recordUnlockViewed(just.id);
             progress.markUnlockSeen(just.id);
             game.paused = true;
             setUnlockModal(just);
@@ -819,7 +920,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     return () => window.removeEventListener(WIDGET_OPEN_EVENT, pauseForWidgets);
   }, [game]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.body.classList.add('game-active');
     document.body.classList.toggle('game-sidebar-open', sideOpen);
     document.body.classList.toggle('game-sidebar-collapsed', !sideOpen);
@@ -853,10 +954,12 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         const def = TOWERS_BY_UNLOCK[n - 1];
         const lockedBy = def.unlockAt - liveUnlockKills(game);
         if (lockedBy > 0) {
+          game.recorder.recordTowerShopSelect(def, 'locked');
           sfx.error();
           game.announce(`${def.name} locked - destroy ${lockedBy.toLocaleString()} more hostiles`);
           return;
         }
+        game.recorder.recordTowerShopSelect(def, game.credits >= game.cost(def) ? 'selected' : 'unaffordable');
         setPlacing((p) => (p?.id === def.id ? null : def));
         setSelectedUid(null);
         setAiming(false);
@@ -876,12 +979,24 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       sfx.error();
       return;
     }
+    if (abortRisk && game.phase !== 'gameover' && game.phase !== 'victory' && game.phase !== 'armistice') {
+      game.abandonRun('abort');
+      void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
+    }
     onExit();
   };
 
   return (
-    <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
-      {AI_HELP_ENABLED && <AIHelpWidget placement="game" getContext={() => buildAIHelpContext({ screen: 'game', map, diff, game, selectedTower: selectedRef.current })} />}
+    <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} data-testid="game-root">
+      {AI_HELP_ENABLED && (
+        <AIHelpWidget
+          placement="game"
+          blocked={blockingOverlay}
+          sideOpen={sideOpen}
+          getContext={() => buildAIHelpContext({ screen: 'game', map, diff, game, selectedTower: selectedRef.current })}
+        />
+      )}
+      <FeedbackWidget ctx="game" blocked={blockingOverlay} sideOpen={sideOpen} />
       <div className="topbar">
         <button
           className={`tb-btn exit ${abortConfirm ? 'confirm' : ''}`}
@@ -936,6 +1051,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       <div className="game-body">
         <div className="canvas-wrap">
           <canvas
+            data-testid="game-canvas"
             ref={canvasRef} width={W} height={H}
             onMouseMove={onCanvasMove} onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick} onContextMenu={onContext}
@@ -974,7 +1090,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           {game.noticeTimer > 0 && <div className="notice">{game.notice}</div>}
 
           {game.phase === 'build' && (
-            <button className="wave-btn" onClick={() => { game.startWave(); setTick((t) => t + 1); }}>
+            <button className="wave-btn" data-testid="launch-wave" onClick={() => { game.startWave(); setTick((t) => t + 1); }}>
               ▶ LAUNCH WAVE {game.wave + 1}
             </button>
           )}
@@ -1046,14 +1162,14 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
             <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
-                { label: '∞ FREEPLAY', fn: () => { game.freeplay = true; game.phase = 'build'; sfx.click(); } },
+                { label: '∞ FREEPLAY', fn: () => { loggedRunRef.current = false; game.freeplay = true; game.phase = 'build'; sfx.click(); } },
                 { label: 'MAIN MENU', fn: onExit },
               ]}
             />
           )}
         </div>
 
-        <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`}>
+        <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game-sidebar">
           {sideOpen ? (
             <div className="side-body">
               {selected ? (
@@ -1088,7 +1204,7 @@ function HowToPlay({ onDone }: { onDone: () => void }) {
     ['⬢', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1×/2×/4× sets the pace.'],
   ];
   return (
-    <div className="overlay">
+    <div className="overlay" data-testid="tutorial-overlay">
       <div className="overlay-box howto">
         <h2 style={{ color: '#4bcffa' }}>HOW TO HOLD THE LANE</h2>
         <div className="howto-steps">
@@ -1117,7 +1233,7 @@ function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => voi
     return () => stopRef.current();
   }, [audio]);
   return (
-    <div className="overlay">
+    <div className="overlay" data-testid="briefing-overlay">
       <div className="overlay-box briefing" style={{ borderColor: '#4bcffa' }}>
         <img className="brief-portrait" src={portrait} alt="Transmission" />
         <h2 style={{ color: '#4bcffa' }}>INCOMING TRANSMISSION</h2>
@@ -1180,6 +1296,9 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const [top, setTop] = useState<ScoreEntry[] | null>(null);
   const eligible = game.phase === 'victory' || game.phase === 'armistice' ||
     (game.phase === 'gameover' && game.freeplay);
+  useEffect(() => {
+    if (eligible && !DEMO_MODE) game.recorder.recordLeaderboardOpen();
+  }, [eligible, game]);
   if (!eligible) return null;
   const board = boardId(map.id, diff.id, game.freeplay);
 
@@ -1196,6 +1315,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     const n = (name.trim() || 'WARDEN').slice(0, 20);
     progress.playerName = n;
     setState('busy');
+    game.recorder.recordScoreSubmitAttempt(game.telemetryState());
+    const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
     const ok = await submitScore(board, {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
@@ -1203,7 +1324,10 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: game.freeplay,
       ts: Date.now(),
+      runId: replayOk ? game.runId : undefined,
     });
+    game.recorder.recordScoreSubmitResult(ok);
+    void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
     if (ok) {
       setTop(await fetchTop(board));
       setState('done');
@@ -1278,18 +1402,20 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
   // the next tower the player will unlock, for the BTD-style progress bar
   const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
+  useEffect(() => { game.recorder.recordShopOpen(); }, [game]);
   return (
     <div className="panel panel-grow">
       <div className="panel-head">
         <div className="panel-title">ARSENAL</div>
         {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse arsenal panel" onClick={onCollapse}>⟩</button>}
       </div>
-      <div className="shop-grid">
+      <div className="shop-grid" data-testid="shop-grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
           const lockedBy = def.unlockAt - kills;
           if (lockedBy > 0) {
             return (
-              <div key={def.id} className="shop-item shop-locked" title={`${def.name} — destroy ${lockedBy} more hostiles to unlock`}>
+              <div key={def.id} className="shop-item shop-locked" data-testid={`tower-${def.id}`} title={`${def.name} — destroy ${lockedBy} more hostiles to unlock`}
+                onClick={() => { game.recorder.recordTowerShopSelect(def, 'locked'); sfx.error(); }}>
                 <div className="shop-lock-icon">🔒</div>
                 <div className="shop-name">{def.name}</div>
                 <div className="shop-cost">{lockedBy} kills</div>
@@ -1302,8 +1428,9 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
             <button
               key={def.id}
               className={`shop-item ${placing?.id === def.id ? 'active' : ''} ${afford ? '' : 'poor'}`}
+              data-testid={`tower-${def.id}`}
               style={{ ['--tc' as string]: def.color, ['--tg' as string]: def.glow }}
-              onClick={() => { sfx.click(); setPlacing(placing?.id === def.id ? null : def); }}
+              onClick={() => { sfx.click(); game.recorder.recordTowerShopSelect(def, afford ? 'selected' : 'unaffordable'); setPlacing(placing?.id === def.id ? null : def); }}
               title={def.desc}
             >
               <TowerIcon def={def} />
@@ -1394,6 +1521,7 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
   const def = tower.def;
   const s = tower.stats;
   const rank = Game.rankOf(tower);
+  useEffect(() => { game.recorder.recordUpgradePanelOpen(tower); }, [game, tower]);
   return (
     <div className="panel tower-detail panel-grow" style={{ borderColor: def.color }}>
       <div className="panel-head">

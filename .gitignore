@@ -16,6 +16,9 @@ dist
 dist-ssr
 *.local
 *.tsbuildinfo
+test-results/
+playwright-report/
+blob-report/
 
 # Editor directories and files
 .vscode/*

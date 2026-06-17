@@ -14,11 +14,15 @@ service cloud.firestore {
       return board.matches('^(orbital|reactor|hyperlane|mobius|blackout|throat|umbral|cinder)_(easy|normal|hard|extinction|ngplus)(_fp)?$');
     }
 
+    function isValidRunId(runId) {
+      return runId.matches('^r_[A-Za-z0-9_-]{8,80}$');
+    }
+
     // public leaderboards: anyone can read; players may append validated scores
     match /boards/{board}/scores/{id} {
       allow read: if true;
       allow create: if isValidBoard(board)
-        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid'])
+        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid', 'runId'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
         && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
@@ -27,8 +31,70 @@ service cloud.firestore {
         && request.resource.data.freeplay is bool
         && request.resource.data.freeplay == board.matches('.*_fp$')
         && request.resource.data.ts is int && request.resource.data.ts > 0
-        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40));
+        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40))
+        && (!('runId' in request.resource.data) || (request.resource.data.runId is string && isValidRunId(request.resource.data.runId)));
       allow update, delete: if false;
+    }
+
+    // public sanitized run replays: anyone may fetch by id; listing is admin-only.
+    match /runs/{runId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow delete: if false;
+      allow create, update: if isValidRunId(runId)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.runId == runId
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
+        && request.resource.data.build is string && request.resource.data.build.size() <= 30
+        && request.resource.data.chunkCount is int && request.resource.data.chunkCount >= 0 && request.resource.data.chunkCount <= 100
+        && request.resource.data.eventCount is int && request.resource.data.eventCount >= 0 && request.resource.data.eventCount <= 100000
+        && request.resource.data.summary is map
+        && request.resource.data.setup is map
+        && request.resource.data.final is map
+        && request.resource.data.events is list && request.resource.data.events.size() <= 650
+        && request.resource.data.snapshots is list && request.resource.data.snapshots.size() <= 120;
+
+      match /chunks/{chunkId} {
+        allow get: if true;
+        allow list: if isAdmin();
+        allow delete: if false;
+        allow create, update: if isValidRunId(runId)
+          && chunkId.matches('^c[0-9]{1,4}$')
+          && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'chunk', 'events'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'chunk', 'events'])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.runId == runId
+          && request.resource.data.chunk is int && request.resource.data.chunk >= 0 && request.resource.data.chunk <= 9999
+          && request.resource.data.events is list && request.resource.data.events.size() <= 650;
+      }
+    }
+
+    // private engagement analytics: players write; only admins can read.
+    match /runAnalytics/{runId} {
+      allow read: if isAdmin();
+      allow delete: if false;
+      allow create, update: if isValidRunId(runId)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.runId == runId
+        && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
+        && request.resource.data.build is string && request.resource.data.build.size() <= 30
+        && request.resource.data.summary is map
+        && request.resource.data.onboarding is map
+        && request.resource.data.abandonment is map
+        && request.resource.data.difficulty is map
+        && request.resource.data.economy is map
+        && request.resource.data.towerInterest is map
+        && request.resource.data.progression is map
+        && request.resource.data.leaderboard is map
+        && request.resource.data.attention is map
+        && request.resource.data.performance is map;
     }
 
     // player feedback: write-only from clients, admin-readable/repliable after Google sign-in

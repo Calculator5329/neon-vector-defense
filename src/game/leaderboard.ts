@@ -4,16 +4,18 @@
 import {
   addDoc,
   collection,
-  doc,
+  doc as firestoreDoc,
   getDoc,
   getDocs,
   limit as limitResults,
   orderBy,
   query,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from './firebaseClient';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
+import type { PrivateRunAnalyticsDoc, RunUploadBundle } from './runTelemetry';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
@@ -26,6 +28,15 @@ export interface ScoreEntry {
   freeplay: boolean;
   ts: number;
   uid?: string;
+  runId?: string;
+}
+
+export interface RankedScoreEntry extends ScoreEntry {
+  board: string;
+  map: string;
+  diff: string;
+  mapName: string;
+  diffName: string;
 }
 
 /** board id for a mode: mapId_diffId, with _fp for freeplay runs */
@@ -38,10 +49,28 @@ function validBoard(board: string): boolean {
   return !!match?.groups && VALID_MAPS.has(match.groups.map) && VALID_DIFFS.has(match.groups.diff);
 }
 
+function isValidRunId(id: string): boolean {
+  return /^r_[A-Za-z0-9_-]{8,80}$/.test(id);
+}
+
+function boardMeta(board: string): Omit<RankedScoreEntry, keyof ScoreEntry> | null {
+  const match = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?:_fp)?$/.exec(board);
+  if (!match?.groups || !VALID_MAPS.has(match.groups.map) || !VALID_DIFFS.has(match.groups.diff)) return null;
+  const map = ALL_MAPS.find((m) => m.id === match.groups!.map);
+  const diff = DIFFICULTIES.find((d) => d.id === match.groups!.diff);
+  return {
+    board,
+    map: match.groups.map,
+    diff: match.groups.diff,
+    mapName: map?.name ?? match.groups.map,
+    diffName: diff?.name ?? match.groups.diff,
+  };
+}
+
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!validBoard(board)) return false;
   try {
-    await addDoc(collection(db, 'boards', board, 'scores'), {
+    const payload: ScoreEntry = {
       name: entry.name.slice(0, 20),
       cash: Math.max(0, Math.floor(entry.cash)),
       kills: Math.max(0, Math.floor(entry.kills)),
@@ -49,7 +78,9 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
       freeplay: entry.freeplay,
       ts: Math.floor(entry.ts),
       uid: (entry.uid ?? progress.uid).slice(0, 40),
-    });
+    };
+    if (entry.runId && isValidRunId(entry.runId)) payload.runId = entry.runId;
+    await addDoc(collection(db, 'boards', board, 'scores'), payload);
     return true;
   } catch (error) {
     console.warn('Score submit failed', error);
@@ -102,7 +133,7 @@ export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply
   try {
     const snaps = await Promise.all(clean.map(async (id) => {
       try {
-        return await getDoc(doc(db, 'feedback', id));
+        return await getDoc(firestoreDoc(db, 'feedback', id));
       } catch {
         return null;
       }
@@ -184,12 +215,40 @@ export function logTelemetry(e: TelemetryEvent): void {
   })();
 }
 
+export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean> {
+  if (!isValidRunId(bundle.run.runId)) return false;
+  try {
+    await setDoc(firestoreDoc(db, 'runs', bundle.run.runId), bundle.run);
+    await Promise.all(bundle.chunks.map((chunk) =>
+      setDoc(firestoreDoc(db, 'runs', bundle.run.runId, 'chunks', `c${chunk.chunk}`), chunk)));
+    return true;
+  } catch (error) {
+    console.warn('Run replay submit failed', error);
+    return false;
+  }
+}
+
+export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<boolean> {
+  if (!isValidRunId(doc.runId)) return false;
+  try {
+    await setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn('Run analytics submit failed', error);
+    return false;
+  }
+}
+
 export interface TelemetryRow extends TelemetryEvent {
   uid: string;
   ts: number;
 }
 
 type TelemetryData = TelemetryRow;
+
+export interface RunAnalyticsRow extends PrivateRunAnalyticsDoc {
+  id: string;
+}
 
 /** Admin-only: read recent telemetry events for the dashboard. */
 export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
@@ -223,6 +282,16 @@ export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
   }
 }
 
+export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]> {
+  try {
+    const q = query(collection(db, 'runAnalytics'), orderBy('endedAt', 'desc'), limitResults(limit));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as PrivateRunAnalyticsDoc) }));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {
   if (!validBoard(board)) return [];
   const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
@@ -239,9 +308,27 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
         freeplay: data.freeplay ?? false,
         ts: Number(data.ts ?? 0),
         uid: data.uid ?? '',
+        runId: data.runId ?? '',
       };
     });
   } catch {
     return [];
   }
+}
+
+export async function fetchGlobalTop(freeplay: boolean, limit = 20): Promise<RankedScoreEntry[]> {
+  const boards = ALL_MAPS.flatMap((map) =>
+    DIFFICULTIES.map((diff) => boardId(map.id, diff.id, freeplay)));
+  const perBoardLimit = Math.max(3, Math.min(10, limit));
+  const rows = await Promise.all(boards.map(async (board) => {
+    const meta = boardMeta(board);
+    if (!meta) return [];
+    const scores = await fetchTop(board, perBoardLimit);
+    return scores.map((score) => ({ ...score, ...meta }));
+  }));
+  const sortField: keyof ScoreEntry = freeplay ? 'wave' : 'cash';
+  return rows
+    .flat()
+    .sort((a, b) => (Number(b[sortField]) - Number(a[sortField])) || b.kills - a.kills || b.ts - a.ts)
+    .slice(0, limit);
 }

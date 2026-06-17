@@ -26,12 +26,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test": "npm run test:e2e",
+    "test:e2e": "node ./tests/e2e/run-playwright.mjs",
+    "test:e2e:headed": "node ./tests/e2e/run-playwright.mjs --headed",
     "preview": "vite preview",
     "sim": "tsx scripts/sim.ts",
     "perf": "tsx scripts/perf.ts",
     "balance": "tsx scripts/balance.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.3.1",

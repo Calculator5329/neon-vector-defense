@@ -25,6 +25,11 @@ interface Progress {
   playerName: string;
   /** map ids the player has won at least once (gates the next sector) */
   clearedMaps: string[];
+  /** coarse anonymous retention counters */
+  firstSeenAt: number;
+  lastSeenAt: number;
+  sessions: number;
+  sessionDays: Record<string, number>;
 }
 
 export interface RunRecord {
@@ -52,9 +57,9 @@ export interface BlueprintEntry {
 function load(): Progress {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-    if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], ...JSON.parse(raw) };
+    if (raw) return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {}, ...JSON.parse(raw) };
   } catch { /* corrupted or unavailable — start fresh */ }
-  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [] };
+  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {} };
 }
 
 let cache = load();
@@ -108,6 +113,31 @@ export const progress = {
     if (!c.uid) { c.uid = 'w_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); save(); }
     return c.uid;
   },
+  markSession() {
+    const now = Date.now();
+    const day = new Date(now).toISOString().slice(0, 10);
+    if (!cache.firstSeenAt) cache.firstSeenAt = now;
+    if (!cache.lastSeenAt || now - cache.lastSeenAt > 30 * 60 * 1000) {
+      cache.sessions += 1;
+      cache.sessionDays[day] = (cache.sessionDays[day] ?? 0) + 1;
+    }
+    cache.lastSeenAt = now;
+    save();
+  },
+  get engagement() {
+    const now = Date.now();
+    const firstSeenAt = cache.firstSeenAt || now;
+    const lastSeenAt = cache.lastSeenAt || firstSeenAt;
+    const day = new Date(now).toISOString().slice(0, 10);
+    return {
+      firstSeenAt,
+      lastSeenAt,
+      sessions: cache.sessions,
+      sessionsToday: cache.sessionDays[day] ?? 0,
+      daysSinceFirstSeen: Math.floor((now - firstSeenAt) / 86400000),
+      daysSinceLastSeen: Math.floor((now - lastSeenAt) / 86400000),
+    };
+  },
   /** tower ids whose unlock modal has already been shown */
   unlockSeen(id: string): boolean { return ((cache as unknown as { unlk?: string[] }).unlk ?? []).includes(id); },
   markUnlockSeen(id: string) {
@@ -159,7 +189,7 @@ export const progress = {
     save();
   },
   reset() {
-    cache = { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [] };
+    cache = { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {} };
     save();
   },
 };
