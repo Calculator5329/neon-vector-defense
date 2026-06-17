@@ -13,7 +13,9 @@ import { Bot } from './game/bot';
 import {
   boardId,
   submitScore,
+  submitDailyScore,
   fetchTop,
+  fetchDailyTop,
   fetchGlobalTop,
   submitRunReplay,
   submitRunAnalytics,
@@ -71,7 +73,18 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function liveUnlockKills(game: Game): number {
+  if (game.isDailyFreeplay) return DEMO_UNLOCK_KILLS;
   return DEMO_MODE ? DEMO_UNLOCK_KILLS : progress.record.kills + game.totalKills;
+}
+
+function towerAvailable(game: Game, def: TowerDef): boolean {
+  return DEMO_MODE || game.towerAvailable(def);
+}
+
+function towerLockText(game: Game, def: TowerDef): string {
+  if (game.isDailyFreeplay) return `${def.name} is not in today's Daily arsenal`;
+  const lockedBy = Math.max(1, def.unlockAt - liveUnlockKills(game));
+  return `${def.name} locked - destroy ${lockedBy.toLocaleString()} more hostiles`;
 }
 
 export default function App() {
@@ -589,6 +602,9 @@ function MainMenu(props: {
                   <div className="daily-freeplay-rules">
                     {props.dailySeed.rules.slice(0, 2).join('  /  ')}
                   </div>
+                  <div className="daily-freeplay-rules">
+                    {props.dailySeed.towerIds.length} fixed towers - no campaign unlocks or global score.
+                  </div>
                 </div>
                 <button className="tb-btn on" onClick={props.onStartDaily}>DAILY FREEPLAY</button>
               </div>
@@ -807,12 +823,12 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   // returning players already earned earlier towers — mark them seen silently so
   // the unlock modal only celebrates genuinely new unlocks during this run.
   useEffect(() => {
-    if (PERF_MAP !== null || DEMO_MODE) return;
+    if (PERF_MAP !== null || DEMO_MODE || dailySeed) return;
     const banked = progress.record.kills;
     for (const d of TOWERS_BY_UNLOCK) {
       if (d.unlockAt > 0 && d.unlockAt <= banked) progress.markUnlockSeen(d.id);
     }
-  }, [game]);
+  }, [dailySeed, game]);
 
   useEffect(() => {
     const notePointer = () => game.recorder.noteInput('pointer');
@@ -991,7 +1007,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           setCloakTip(true);
         }
         // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed
-        if (PERF_MAP === null && !DEMO_MODE && !game.paused && !overlayRef.current && (game.phase === 'build' || game.phase === 'wave')) {
+        if (PERF_MAP === null && !DEMO_MODE && !game.isDailyFreeplay && !game.paused && !overlayRef.current && (game.phase === 'build' || game.phase === 'wave')) {
           const k = progress.record.kills + game.totalKills;
           const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
           if (just) {
@@ -1121,11 +1137,10 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       const n = ev.key === '0' ? 10 : parseInt(ev.key);
       if (n >= 1 && n <= TOWERS_BY_UNLOCK.length) {
         const def = TOWERS_BY_UNLOCK[n - 1];
-        const lockedBy = def.unlockAt - liveUnlockKills(game);
-        if (lockedBy > 0) {
+        if (!towerAvailable(game, def)) {
           game.recorder.recordTowerShopSelect(def, 'locked');
           sfx.error();
-          game.announce(`${def.name} locked - destroy ${lockedBy.toLocaleString()} more hostiles`);
+          game.announce(towerLockText(game, def));
           return;
         }
         game.recorder.recordTowerShopSelect(def, game.credits >= game.cost(def) ? 'selected' : 'unaffordable');
@@ -1203,7 +1218,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     const meta = game.freeplayMeta();
     const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
     game.recorder.recordReplaySubmitResult(replayOk);
-    const ok = await submitScore(boardId(map.id, diff.id, true), {
+    const scoreEntry = {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
       kills: game.totalKills,
@@ -1214,7 +1229,10 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       meta: meta.summary,
       daily: meta.daily || undefined,
       checkpoint: true,
-    });
+    };
+    const ok = meta.daily
+      ? await submitDailyScore(meta.daily, scoreEntry)
+      : await submitScore(boardId(map.id, diff.id, true), scoreEntry);
     game.recorder.recordScoreSubmitResult(ok);
     void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
     if (ok) {
@@ -1432,7 +1450,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
                   onSold={() => setSelectedUid(null)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               ) : (
                 <Shop game={game} placing={placing}
-                  sig={`${Math.floor(game.credits)}|${game.totalKills}`}
+                  sig={`${Math.floor(game.credits)}|${game.totalKills}|${game.isDailyFreeplay ? [...(game.dailyTowerIds ?? [])].join(',') : 'campaign'}`}
                   setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               )}
               <ReceiverPanel game={game} />
@@ -1467,7 +1485,8 @@ function FreeplayBuildPanel({
   const nextRival = rivalForWave(nextWave, fp.daily);
   const meta = game.freeplayMeta();
   const risk = fp.riskOffer;
-  const bankLabel = checkpointState === 'busy' ? 'BANKING...' : checkpointState === 'done' ? 'BANKED' : checkpointState === 'err' ? 'RETRY BANK' : 'BANK FREEPLAY RECORD';
+  const bankTarget = fp.daily ? 'DAILY' : 'FREEPLAY';
+  const bankLabel = checkpointState === 'busy' ? 'BANKING...' : checkpointState === 'done' ? 'BANKED' : checkpointState === 'err' ? 'RETRY BANK' : `BANK ${bankTarget} RECORD`;
   return (
     <div className="freeplay-build-panel">
       <div className="freeplay-panel-head">
@@ -1663,6 +1682,11 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   }, [eligible, game]);
   if (!eligible) return null;
   const board = boardId(map.id, diff.id, game.freeplay);
+  const freeplayMeta = game.freeplay ? game.freeplayMeta() : null;
+  const dailyId = freeplayMeta?.daily ?? '';
+  const leaderboardTitle = dailyId
+    ? `DAILY LEADERBOARD - ${dailyId.toUpperCase()}`
+    : `GLOBAL LEADERBOARD - ${map.name.toUpperCase()} / ${diff.name.toUpperCase()}${game.freeplay ? ' / FREEPLAY' : ''}`;
 
   if (DEMO_MODE) {
     return (
@@ -1678,10 +1702,9 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     progress.playerName = n;
     setState('busy');
     game.recorder.recordScoreSubmitAttempt(game.telemetryState());
-    const meta = game.freeplay ? game.freeplayMeta() : null;
     const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
     game.recorder.recordReplaySubmitResult(replayOk);
-    const ok = await submitScore(board, {
+    const scoreEntry = {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
       kills: game.totalKills,
@@ -1689,14 +1712,17 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       freeplay: game.freeplay,
       ts: Date.now(),
       runId: replayOk ? game.runId : undefined,
-      meta: meta?.summary,
-      daily: meta?.daily || undefined,
+      meta: freeplayMeta?.summary,
+      daily: dailyId || undefined,
       checkpoint: false,
-    });
+    };
+    const ok = dailyId
+      ? await submitDailyScore(dailyId, scoreEntry)
+      : await submitScore(board, scoreEntry);
     game.recorder.recordScoreSubmitResult(ok);
     void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
     if (ok) {
-      setTop(await fetchTop(board));
+      setTop(dailyId ? await fetchDailyTop(dailyId) : await fetchTop(board));
       setState('done');
       sfx.upgrade();
     } else {
@@ -1706,7 +1732,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 
   return (
     <div className="submit-score">
-      <div className="aar-title">GLOBAL LEADERBOARD — {map.name.toUpperCase()} · {diff.name.toUpperCase()}{game.freeplay ? ' · FREEPLAY' : ''}</div>
+      <div className="aar-title">{leaderboardTitle}</div>
       {state !== 'done' && (
         <div className="submit-row">
           <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
@@ -1766,8 +1792,9 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
 }) {
   // lifetime kills (banked at run end) + this run's kills so the bar fills live
   const kills = liveUnlockKills(game);
+  const dailyMode = game.isDailyFreeplay;
   // the next tower the player will unlock, for the BTD-style progress bar
-  const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
+  const next = dailyMode ? undefined : TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
   useEffect(() => { game.recorder.recordShopOpen(); }, [game]);
   return (
@@ -1779,13 +1806,14 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
       <div className="shop-grid" data-testid="shop-grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
           const lockedBy = def.unlockAt - kills;
-          if (lockedBy > 0) {
+          const available = towerAvailable(game, def);
+          if (!available) {
             return (
-              <div key={def.id} className="shop-item shop-locked" data-testid={`tower-${def.id}`} title={`${def.name} — destroy ${lockedBy} more hostiles to unlock`}
+              <div key={def.id} className="shop-item shop-locked" data-testid={`tower-${def.id}`} title={dailyMode ? `${def.name} is not in today's Daily arsenal` : `${def.name} - destroy ${lockedBy} more hostiles to unlock`}
                 onClick={() => { game.recorder.recordTowerShopSelect(def, 'locked'); sfx.error(); }}>
                 <div className="shop-lock-icon">🔒</div>
                 <div className="shop-name">{def.name}</div>
-                <div className="shop-cost">{lockedBy} kills</div>
+                <div className="shop-cost">{dailyMode ? 'daily pool' : `${lockedBy} kills`}</div>
               </div>
             );
           }
@@ -1817,6 +1845,11 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
             <div className="unlock-fill" style={{ width: `${Math.min(100, ((kills - prevThreshold) / (next.unlockAt - prevThreshold)) * 100)}%` }} />
           </div>
           <div className="unlock-label">NEXT: {next.name} · {(next.unlockAt - kills).toLocaleString()} kills</div>
+        </div>
+      )}
+      {dailyMode && (
+        <div className="unlock-track daily-arsenal" title="Daily arsenal is fixed for this seed">
+          <div className="unlock-label">DAILY ARSENAL: {game.dailyTowerIds?.size ?? 0} fixed instruments</div>
         </div>
       )}
       {placing ? (

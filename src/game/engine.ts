@@ -188,20 +188,22 @@ export class Game {
   }
 
   private finishRun(won: boolean, outcome: 'victory' | 'armistice' | 'gameover') {
-    progress.addRun({
-      map: this.map.id,
-      diff: this.diff.id,
-      wave: this.wave,
-      kills: this.totalKills,
-      cash: Math.round(this.runStats.cashEarned),
-      won,
-      freeplay: this.freeplay,
-      date: Date.now(),
-      leaks: this.runStats.leaks,
-      durationS: Math.round(this.time),
-      towers: [...new Set([...this.towers.map((t) => t.def.id), ...Object.keys(this.runStats.dmg)])].join(','),
-    });
-    if (outcome === 'victory') this.recorder.recordCampaignClear(this.telemetryState());
+    if (this.campaignProgressEnabled()) {
+      progress.addRun({
+        map: this.map.id,
+        diff: this.diff.id,
+        wave: this.wave,
+        kills: this.totalKills,
+        cash: Math.round(this.runStats.cashEarned),
+        won,
+        freeplay: this.freeplay,
+        date: Date.now(),
+        leaks: this.runStats.leaks,
+        durationS: Math.round(this.time),
+        towers: [...new Set([...this.towers.map((t) => t.def.id), ...Object.keys(this.runStats.dmg)])].join(','),
+      });
+    }
+    if (outcome === 'victory' && !this.freeplay) this.recorder.recordCampaignClear(this.telemetryState());
     else this.recorder.recordRunEnd(this.telemetryState(), outcome);
   }
 
@@ -221,6 +223,7 @@ export class Game {
   /** set when player chooses to continue past victory */
   freeplay = false;
   freeplayState: FreeplayState = createFreeplayState();
+  dailyTowerIds: Set<string> | null = null;
 
   constructor(map: GameMap, diff: DifficultyDef) {
     this.map = map;
@@ -248,6 +251,18 @@ export class Game {
 
   get runId(): string {
     return this.recorder.runId;
+  }
+
+  get isDailyFreeplay(): boolean {
+    return this.freeplayState.daily !== null;
+  }
+
+  private campaignProgressEnabled(): boolean {
+    return !this.isDailyFreeplay;
+  }
+
+  towerAvailable(def: TowerDef): boolean {
+    return this.dailyTowerIds ? this.dailyTowerIds.has(def.id) : def.unlockAt <= progress.record.kills + this.totalKills;
   }
 
   telemetryState(): RunTelemetryState {
@@ -292,6 +307,8 @@ export class Game {
     this.freeplay = true;
     this.phase = 'build';
     this.freeplayState.daily = daily ?? this.freeplayState.daily;
+    this.dailyTowerIds = this.freeplayState.daily ? dailyTowerSet(this.freeplayState.daily) : null;
+    if (this.dailyTowerIds) this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
     this.freeplayState.contract = contractById(contractId);
     this.freeplayState.lastCheckpointWave = Math.max(this.freeplayState.lastCheckpointWave, this.wave);
     if (this.freeplayState.contract.livesMult && !this.freeplayState.daily) {
@@ -315,11 +332,14 @@ export class Game {
     this.phase = 'build';
     this.wave = this.diff.waves;
     this.freeplayState.daily = seed;
+    this.dailyTowerIds = dailyTowerSet(seed);
+    this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
     this.freeplayState.contract = contractById(seed.contractIds[0] ?? 'standard');
     this.credits = dailyFreeplayStartingCash(this.diff);
     if (this.freeplayState.contract.livesMult) {
       this.lives = Math.max(1, Math.floor(this.diff.lives * this.freeplayState.contract.livesMult));
     }
+    this.recorder.setStartingResources(this.credits, this.lives);
     this.freeplayState.lastCheckpointWave = this.wave;
     this.prepareFreeplayBuild();
     this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_ENTER, {
@@ -331,7 +351,14 @@ export class Game {
       contractId: this.freeplayState.contract.id,
       multiplier: this.freeplayState.contract.multiplier,
     });
-    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_DAILY_START, { dailyId: seed.id, map: seed.mapId, diff: seed.diffId });
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_DAILY_START, {
+      dailyId: seed.id,
+      map: seed.mapId,
+      diff: seed.diffId,
+      towerIds: [...this.dailyTowerIds],
+      startingCash: this.credits,
+      startingLives: this.lives,
+    });
   }
 
   chooseRelic(id: FreeplayRelicId): FreeplayRelic | null {
@@ -479,6 +506,12 @@ export class Game {
 
   placeTower(def: TowerDef, pos: Vec): Tower | null {
     const cost = this.cost(def);
+    if (this.dailyTowerIds && !this.dailyTowerIds.has(def.id)) {
+      this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'daily_pool', cost, pos);
+      this.announce(`${def.name} is not in today's Daily arsenal`);
+      sfx.error();
+      return null;
+    }
     const maxTowers = this.freeplayState.contract?.maxTowers;
     if (maxTowers && this.towers.length >= maxTowers) {
       this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'contract', cost, pos);
@@ -540,6 +573,11 @@ export class Game {
 
   /** Save the current defense layout (positions + tiers) as this map's blueprint. */
   saveBlueprint(): number {
+    if (this.isDailyFreeplay) {
+      this.announce('Daily simulations do not overwrite campaign blueprints');
+      sfx.error();
+      return 0;
+    }
     if (this.freeplay && this.freeplayState.contract?.noBlueprint) {
       this.announce(`${this.freeplayState.contract.short} contract forbids blueprint saving`);
       sfx.error();
@@ -568,10 +606,9 @@ export class Game {
     }
     const bp = progress.blueprint(this.map.id);
     let placed = 0;
-    const unlockedKills = progress.record.kills + this.totalKills;
     for (const e of bp) {
       const def = TOWER_MAP[e.id];
-      if (!def || def.unlockAt > unlockedKills) continue;
+      if (!def || !this.towerAvailable(def)) continue;
       const pos = { x: e.x, y: e.y };
       if (this.credits < this.cost(def) || !this.canPlace(pos)) continue;
       const t = this.placeTower(def, pos);
@@ -722,7 +759,7 @@ export class Game {
 
   /** Available once the wave-50 manifest is recovered. */
   canBuildReceiver(): boolean {
-    return this.diff.id !== 'ngplus' && !this.receiver && this.archive.includes(RECEIVER_FRAGMENT) &&
+    return !this.isDailyFreeplay && this.diff.id !== 'ngplus' && !this.receiver && this.archive.includes(RECEIVER_FRAGMENT) &&
       this.phase !== 'gameover' && this.phase !== 'armistice';
   }
 
@@ -1086,7 +1123,7 @@ export class Game {
       ARCHIVE.forEach((f, i) => {
         if (f.wave <= this.wave && !this.archive.includes(i)) {
           this.archive.push(i);
-          progress.addArchive(i);
+          if (this.campaignProgressEnabled()) progress.addArchive(i);
           this.newArchive = true;
           this.announce(i === RECEIVER_FRAGMENT
             ? '✦ Manifest decoded. There may be another way to end this.'
@@ -1097,21 +1134,25 @@ export class Game {
       });
       if (this.wave >= this.diff.waves && !this.freeplay) {
         this.phase = 'victory';
-        progress.recordWave(this.map.id, this.diff.id, this.wave);
+        if (this.campaignProgressEnabled()) progress.recordWave(this.map.id, this.diff.id, this.wave);
         this.finishRun(true, 'victory');
         sfx.victory();
         playStinger('victory');
         vox('victory');
       } else {
-        progress.recordWave(this.map.id, this.diff.id, this.wave);
-        const beforeKills = this.waveStartTotalKills;
-        progress.addWaves(1);
-        const currentKills = progress.record.kills + this.totalKills;
-        const unlocked = TOWERS.filter((t) => t.unlockAt > beforeKills && t.unlockAt <= currentKills);
-        if (unlocked.length > 0) {
-          for (const tower of unlocked) this.recorder.recordUnlockEarned(tower.id);
-          this.announce('✦ New instrument pattern decrypted — check the Arsenal');
-          vox('unlock');
+        if (this.campaignProgressEnabled()) progress.recordWave(this.map.id, this.diff.id, this.wave);
+        if (this.campaignProgressEnabled()) {
+          const beforeKills = this.waveStartTotalKills;
+          progress.addWaves(1);
+          const currentKills = progress.record.kills + this.totalKills;
+          const unlocked = TOWERS.filter((t) => t.unlockAt > beforeKills && t.unlockAt <= currentKills);
+          if (unlocked.length > 0) {
+            for (const tower of unlocked) this.recorder.recordUnlockEarned(tower.id);
+            this.announce('✦ New instrument pattern decrypted — check the Arsenal');
+            vox('unlock');
+          } else if (this.wave % 5 === 0) {
+            vox('wave-clear');
+          }
         } else if (this.wave % 5 === 0) {
           vox('wave-clear');
         }
@@ -1222,8 +1263,10 @@ export class Game {
         if (e.courier) {
           // the Courier docks. The receipt is signed. The war is over.
           this.phase = 'armistice';
-          progress.markArmistice();
-          progress.recordWave(this.map.id, this.diff.id, this.wave);
+          if (this.campaignProgressEnabled()) {
+            progress.markArmistice();
+            progress.recordWave(this.map.id, this.diff.id, this.wave);
+          }
           this.finishRun(true, 'armistice');
           this.enemies = [];
           this.queue = [];
@@ -1247,7 +1290,7 @@ export class Game {
         if (this.lives <= 0) {
           this.lives = 0;
           this.phase = 'gameover';
-          progress.recordWave(this.map.id, this.diff.id, this.wave);
+          if (this.campaignProgressEnabled()) progress.recordWave(this.map.id, this.diff.id, this.wave);
           this.finishRun(false, 'gameover');
           sfx.gameOver();
           playStinger('defeat');
@@ -1973,6 +2016,12 @@ function sqDist(a: Vec, b: Vec): number {
 
 function dailyFreeplayStartingCash(diff: DifficultyDef): number {
   return Math.round(Math.max(DAILY_FREEPLAY_MIN_CASH, diff.cash + diff.waves * DAILY_FREEPLAY_CASH_PER_WAVE) * diff.costMult / 5) * 5;
+}
+
+function dailyTowerSet(seed: DailyFreeplaySeed): Set<string> {
+  const ids = seed.towerIds.filter((id) => TOWER_MAP[id]);
+  if (!ids.includes('pulse')) ids.unshift('pulse');
+  return new Set(ids);
 }
 
 export function distToSeg(p: Vec, a: Vec, b: Vec): number {

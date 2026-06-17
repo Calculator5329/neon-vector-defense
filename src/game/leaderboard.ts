@@ -19,6 +19,7 @@ import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle } from '
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
+const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const LEADERBOARD_CACHE_TTL_MS = 30_000;
 const topCache = new Map<string, { expires: number; rows: ScoreEntry[] }>();
 const globalTopCache = new Map<string, { expires: number; rows: RankedScoreEntry[] }>();
@@ -54,9 +55,17 @@ export function boardId(mapId: string, diffId: string, freeplay: boolean): strin
   return `${mapId}_${diffId}${freeplay ? '_fp' : ''}`;
 }
 
+export function dailyBoardId(dailyId: string): string {
+  return DAILY_BOARD_RE.test(dailyId) ? dailyId : '';
+}
+
 function validBoard(board: string): boolean {
   const match = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?:_fp)?$/.exec(board);
   return !!match?.groups && VALID_MAPS.has(match.groups.map) && VALID_DIFFS.has(match.groups.diff);
+}
+
+function validDailyBoard(board: string): boolean {
+  return DAILY_BOARD_RE.test(board);
 }
 
 function isValidRunId(id: string): boolean {
@@ -68,6 +77,12 @@ function invalidateBoardCache(board: string): void {
     if (key.startsWith(`${board}:`)) topCache.delete(key);
   }
   globalTopCache.clear();
+}
+
+function invalidateDailyBoardCache(board: string): void {
+  for (const key of topCache.keys()) {
+    if (key.startsWith(`daily:${board}:`)) topCache.delete(key);
+  }
 }
 
 function boardMeta(board: string): Omit<RankedScoreEntry, keyof ScoreEntry> | null {
@@ -84,27 +99,46 @@ function boardMeta(board: string): Omit<RankedScoreEntry, keyof ScoreEntry> | nu
   };
 }
 
+function scorePayload(entry: ScoreEntry): ScoreEntry {
+  const payload: ScoreEntry = {
+    name: entry.name.slice(0, 20),
+    cash: Math.max(0, Math.floor(entry.cash)),
+    kills: Math.max(0, Math.floor(entry.kills)),
+    wave: Math.max(0, Math.floor(entry.wave)),
+    freeplay: entry.freeplay,
+    ts: Math.floor(entry.ts),
+    uid: (entry.uid ?? progress.uid).slice(0, 40),
+  };
+  if (entry.runId && isValidRunId(entry.runId)) payload.runId = entry.runId;
+  if (entry.meta) payload.meta = entry.meta.slice(0, 240);
+  if (entry.daily) payload.daily = entry.daily.slice(0, 80);
+  if (entry.checkpoint !== undefined) payload.checkpoint = !!entry.checkpoint;
+  return payload;
+}
+
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
-  if (!validBoard(board)) return false;
+  if (!validBoard(board) || entry.daily) return false;
   try {
-    const payload: ScoreEntry = {
-      name: entry.name.slice(0, 20),
-      cash: Math.max(0, Math.floor(entry.cash)),
-      kills: Math.max(0, Math.floor(entry.kills)),
-      wave: Math.max(0, Math.floor(entry.wave)),
-      freeplay: entry.freeplay,
-      ts: Math.floor(entry.ts),
-      uid: (entry.uid ?? progress.uid).slice(0, 40),
-    };
-    if (entry.runId && isValidRunId(entry.runId)) payload.runId = entry.runId;
-    if (entry.meta) payload.meta = entry.meta.slice(0, 240);
-    if (entry.daily) payload.daily = entry.daily.slice(0, 80);
-    if (entry.checkpoint !== undefined) payload.checkpoint = !!entry.checkpoint;
+    const payload = scorePayload(entry);
     await addDoc(collection(db, 'boards', board, 'scores'), payload);
     invalidateBoardCache(board);
     return true;
   } catch (error) {
     console.warn('Score submit failed', error);
+    return false;
+  }
+}
+
+export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Promise<boolean> {
+  const board = dailyBoardId(dailyId);
+  if (!validDailyBoard(board)) return false;
+  try {
+    const payload = scorePayload({ ...entry, freeplay: true, daily: board });
+    await addDoc(collection(db, 'dailyBoards', board, 'scores'), payload);
+    invalidateDailyBoardCache(board);
+    return true;
+  } catch (error) {
+    console.warn('Daily score submit failed', error);
     return false;
   }
 }
@@ -542,7 +576,8 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
   if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
   try {
-    const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(limit));
+    const fetchLimit = board.endsWith('_fp') ? Math.min(50, Math.max(limit, limit * 4)) : limit;
+    const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(fetchLimit));
     const snap = await getDocs(q);
     const rows = snap.docs.map((d) => {
       const data = d.data() as Partial<ScoreEntry>;
@@ -557,6 +592,38 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
         runId: data.runId ?? '',
         meta: data.meta ?? '',
         daily: data.daily ?? '',
+        checkpoint: data.checkpoint ?? false,
+      };
+    }).filter((row) => !row.daily).slice(0, limit);
+    topCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows });
+    return cloneScores(rows);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreEntry[]> {
+  const board = dailyBoardId(dailyId);
+  if (!validDailyBoard(board)) return [];
+  const cacheKey = `daily:${board}:${limit}`;
+  const cached = topCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
+  try {
+    const q = query(collection(db, 'dailyBoards', board, 'scores'), orderBy('wave', 'desc'), limitResults(limit));
+    const snap = await getDocs(q);
+    const rows = snap.docs.map((d) => {
+      const data = d.data() as Partial<ScoreEntry>;
+      return {
+        name: data.name ?? '???',
+        cash: Number(data.cash ?? 0),
+        kills: Number(data.kills ?? 0),
+        wave: Number(data.wave ?? 0),
+        freeplay: true,
+        ts: Number(data.ts ?? 0),
+        uid: data.uid ?? '',
+        runId: data.runId ?? '',
+        meta: data.meta ?? '',
+        daily: data.daily ?? board,
         checkpoint: data.checkpoint ?? false,
       };
     });

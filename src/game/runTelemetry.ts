@@ -568,6 +568,15 @@ export class RunRecorder {
     this.funnel.deployClickedAt = this.appAtStart.menu.firstDeployAtS;
   }
 
+  setAvailableTowerIds(ids: string[]): void {
+    this.start.availableTowerIds = [...new Set(ids)].slice(0, 40);
+  }
+
+  setStartingResources(cash: number, lives: number): void {
+    this.start.startingCash = Math.max(0, Math.floor(cash));
+    this.start.startingLives = Math.max(0, Math.floor(lives));
+  }
+
   recordRunStart(state: RunTelemetryState): void {
     this.record('run_start', state, {
       map: this.start.map.id,

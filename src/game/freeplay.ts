@@ -60,6 +60,7 @@ export interface DailyFreeplaySeed {
   diffId: string;
   title: string;
   rules: string[];
+  towerIds: string[];
   contractIds: FreeplayContractId[];
   relicIds: FreeplayRelicId[];
   mutatorBias: FreeplayMutatorId[];
@@ -126,6 +127,12 @@ export const RISK_WAVES: RiskWaveOffer[] = [
   { id: 'bounty', name: 'Bounty Packet', desc: 'Add shielded boss pressure and a healer convoy.', reward: '+18% score multiplier and a large bounty on clear.', mutatorIds: ['shieldedBoss', 'healerConvoy'], scoreMult: 1.18, bonusCredits: 700 },
 ];
 
+const DAILY_CORE_TOWER_IDS = ['pulse', 'flak', 'tesla', 'cryo', 'rail', 'emp', 'missile'];
+const DAILY_ROTATING_TOWER_IDS = [
+  'drone', 'ember', 'cantor', 'cinder', 'sunspear', 'gauss',
+  'prismarr', 'locust', 'requiem', 'watchfire', 'abyss',
+];
+
 export function createFreeplayState(): FreeplayState {
   return {
     contract: null,
@@ -152,6 +159,7 @@ export function dailyFreeplaySeed(now = new Date()): DailyFreeplaySeed {
   const diffPool = DIFFICULTIES.filter((d) => d.id !== 'easy');
   const diff = diffPool[Math.floor(seed / 7) % diffPool.length];
   const contractIds: FreeplayContractId[] = ['ironcore', 'leanGrid', 'volatile'];
+  const towerIds = [...DAILY_CORE_TOWER_IDS, ...pickMany(DAILY_ROTATING_TOWER_IDS, seed + 47, 5)];
   const relicIds = pickMany(FREEPLAY_RELICS.map((r) => r.id), seed + 11, 5);
   const mutatorBias = pickMany(FREEPLAY_MUTATORS.map((m) => m.id), seed + 23, 4);
   const rivalIds = pickMany(FREEPLAY_RIVALS.map((r) => r.id), seed + 37, 3);
@@ -162,10 +170,12 @@ export function dailyFreeplaySeed(now = new Date()): DailyFreeplaySeed {
     diffId: diff.id,
     title: `Daily Endless ${dateKey.slice(5)}: ${map.name}`,
     rules: [
+      'Fixed tower arsenal for all players.',
       'Fixed relic pool, rival order, and mutator bias.',
       'Checkpoint banking is allowed once per new best wave.',
       'Risk waves are worth +25% more score than standard freeplay.',
     ],
+    towerIds,
     contractIds,
     relicIds,
     mutatorBias,

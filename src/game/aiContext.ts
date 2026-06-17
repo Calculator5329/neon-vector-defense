@@ -147,8 +147,11 @@ export function buildAIHelpContext(args: {
   selectedTower?: Tower | null;
 }): AIHelpContext {
   const bankedKills = progress.record.kills + (args.game?.totalKills ?? 0);
-  const unlockedTowers = TOWERS_BY_UNLOCK.filter((t) => t.unlockAt <= bankedKills).map((t) => t.name);
-  const next = TOWERS_BY_UNLOCK.find((t) => t.unlockAt > bankedKills);
+  const dailyGame = args.game?.isDailyFreeplay ? args.game : null;
+  const unlockedTowers = dailyGame
+    ? TOWERS_BY_UNLOCK.filter((t) => dailyGame.towerAvailable(t)).map((t) => t.name)
+    : TOWERS_BY_UNLOCK.filter((t) => t.unlockAt <= bankedKills).map((t) => t.name);
+  const next = dailyGame ? undefined : TOWERS_BY_UNLOCK.find((t) => t.unlockAt > bankedKills);
   const recentRuns = compactRuns(progress.history);
   const live = args.game;
   const currentWaveNumber = live ? Math.max(1, live.wave) : 1;

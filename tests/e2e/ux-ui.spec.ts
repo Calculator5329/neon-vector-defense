@@ -244,6 +244,8 @@ test.describe('run telemetry model', () => {
     }
     expect(rules).toContain('isTelemetrySchema(request.resource.data)');
     expect(rules).toContain('match /runCheckpoints/{runId}');
+    expect(rules).toContain('match /dailyBoards/{daily}/scores/{id}');
+    expect(rules).toContain("!('daily' in request.resource.data)");
     expect(rules).toContain('allow update, delete: if false');
   });
 
@@ -375,26 +377,72 @@ test.describe('run telemetry model', () => {
 
     const daily = await page.evaluate(() => {
       const game = (window as unknown as { game: any }).game;
+      const setup = game.buildRunUploadBundle('DAILYTEST', 'test-build').run.setup;
       return {
         freeplay: game.freeplay,
+        isDaily: game.isDailyFreeplay,
         wave: game.wave,
         credits: game.credits,
         lives: game.lives,
         contractId: game.freeplayState.contract?.id,
         dailyId: game.freeplayState.daily?.id,
+        dailyTowerIds: [...game.dailyTowerIds],
+        setupTowerIds: setup.availableTowerIds,
+        setupCash: setup.startingCash,
         relicOffers: game.freeplayState.nextRelicOffer.length,
         canBank: game.canBankFreeplay(),
       };
     });
 
     expect(daily.freeplay).toBe(true);
+    expect(daily.isDaily).toBe(true);
     expect(daily.wave).toBeGreaterThanOrEqual(50);
     expect(daily.credits).toBeGreaterThanOrEqual(18000);
+    expect(daily.setupCash).toBe(daily.credits);
     expect(daily.lives).toBeGreaterThan(0);
     expect(daily.contractId).toBeTruthy();
     expect(daily.dailyId).toContain('daily-');
+    expect(daily.dailyTowerIds.length).toBeGreaterThanOrEqual(10);
+    expect(daily.setupTowerIds.sort()).toEqual(daily.dailyTowerIds.sort());
     expect(daily.relicOffers).toBeGreaterThan(0);
     expect(daily.canBank).toBe(false);
+  });
+
+  test('daily freeplay does not mutate campaign progress', async ({ page }) => {
+    await seedProgress(page, { runs: 2, kills: 12, totalWaves: 4, archive: [], best: {}, history: [] });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'DAILY FREEPLAY' }).click();
+    await expect(page.getByTestId('game-root')).toBeVisible();
+
+    const daily = await page.evaluate(() => {
+      const game = (window as unknown as { game: any }).game;
+      const before = window.localStorage.getItem('nvd-progress-v1');
+      const dailyIds = [...game.dailyTowerIds];
+      const lockedShop = [...document.querySelectorAll<HTMLElement>('[data-testid^="tower-"]')]
+        .find((el) => !dailyIds.includes(el.dataset.testid?.replace('tower-', '') ?? ''));
+      game.phase = 'wave';
+      game.queue = [];
+      game.enemies = [];
+      game.wave = 50;
+      game.update(0.016);
+      game.finishRun(false, 'gameover');
+      const after = window.localStorage.getItem('nvd-progress-v1');
+      return {
+        progressUnchanged: before === after,
+        progress: after ? JSON.parse(after) : null,
+        lockedText: lockedShop?.querySelector('.shop-cost')?.textContent ?? '',
+        dailyIds,
+      };
+    });
+
+    expect(daily.dailyIds.length).toBeGreaterThanOrEqual(10);
+    expect(daily.lockedText).toBe('daily pool');
+    expect(daily.progressUnchanged).toBe(true);
+    expect(daily.progress.runs).toBe(2);
+    expect(daily.progress.kills).toBe(12);
+    expect(daily.progress.totalWaves).toBe(4);
+    expect(daily.progress.archive).toEqual([]);
+    expect(daily.progress.best).toEqual({});
   });
 });
 
