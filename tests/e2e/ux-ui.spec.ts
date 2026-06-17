@@ -367,6 +367,35 @@ test.describe('run telemetry model', () => {
     expect(freeplay.eventTypes).toContain('freeplay_risk_accept');
     expect(freeplay.eventTypes).toContain('freeplay_checkpoint_submit');
   });
+
+  test('daily freeplay starts with a post-campaign bankroll', async ({ page }) => {
+    await openDemoMenu(page);
+    await page.getByRole('button', { name: 'DAILY FREEPLAY' }).click();
+    await expect(page.getByTestId('game-root')).toBeVisible();
+
+    const daily = await page.evaluate(() => {
+      const game = (window as unknown as { game: any }).game;
+      return {
+        freeplay: game.freeplay,
+        wave: game.wave,
+        credits: game.credits,
+        lives: game.lives,
+        contractId: game.freeplayState.contract?.id,
+        dailyId: game.freeplayState.daily?.id,
+        relicOffers: game.freeplayState.nextRelicOffer.length,
+        canBank: game.canBankFreeplay(),
+      };
+    });
+
+    expect(daily.freeplay).toBe(true);
+    expect(daily.wave).toBeGreaterThanOrEqual(50);
+    expect(daily.credits).toBeGreaterThanOrEqual(18000);
+    expect(daily.lives).toBeGreaterThan(0);
+    expect(daily.contractId).toBeTruthy();
+    expect(daily.dailyId).toContain('daily-');
+    expect(daily.relicOffers).toBeGreaterThan(0);
+    expect(daily.canBank).toBe(false);
+  });
 });
 
 test.describe('browser perf harness', () => {

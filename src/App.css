@@ -1839,7 +1839,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   }
   .freeplay-next-grid,
   .risk-offer { grid-template-columns: 1fr; }
-  .daily-freeplay-card { align-items: stretch; flex-direction: column; }
+  .daily-freeplay-card { align-items: stretch; flex-direction: column; margin-bottom: 96px; }
   .shop-item { min-height: 96px; }
   .side-tabs button { padding: 13px 4px; font-size: 13px; }
   .target-row .tb-btn { min-height: 38px; }

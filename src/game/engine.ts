@@ -116,6 +116,8 @@ export const RECEIVER_FRAGMENT = ARCHIVE.findIndex((f) => f.wave === 50);
 const LONGWATCH_ESCORT_COUNT = 3;
 const LONGWATCH_ESCORT_RANGE = 260;
 const LONGWATCH_ESCORT_SPEED = 82;
+const DAILY_FREEPLAY_MIN_CASH = 18000;
+const DAILY_FREEPLAY_CASH_PER_WAVE = 420;
 
 export class Game {
   map: GameMap;
@@ -314,6 +316,10 @@ export class Game {
     this.wave = this.diff.waves;
     this.freeplayState.daily = seed;
     this.freeplayState.contract = contractById(seed.contractIds[0] ?? 'standard');
+    this.credits = dailyFreeplayStartingCash(this.diff);
+    if (this.freeplayState.contract.livesMult) {
+      this.lives = Math.max(1, Math.floor(this.diff.lives * this.freeplayState.contract.livesMult));
+    }
     this.freeplayState.lastCheckpointWave = this.wave;
     this.prepareFreeplayBuild();
     this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_ENTER, {
@@ -1963,6 +1969,10 @@ function norm(v: Vec): Vec {
 function sqDist(a: Vec, b: Vec): number {
   const dx = a.x - b.x, dy = a.y - b.y;
   return dx * dx + dy * dy;
+}
+
+function dailyFreeplayStartingCash(diff: DifficultyDef): number {
+  return Math.round(Math.max(DAILY_FREEPLAY_MIN_CASH, diff.cash + diff.waves * DAILY_FREEPLAY_CASH_PER_WAVE) * diff.costMult / 5) * 5;
 }
 
 export function distToSeg(p: Vec, a: Vec, b: Vec): number {
