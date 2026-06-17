@@ -32,6 +32,7 @@
     "preview": "vite preview",
     "sim": "tsx scripts/sim.ts",
     "perf": "tsx scripts/perf.ts",
+    "perf:browser": "node scripts/browserPerf.mjs",
     "balance": "tsx scripts/balance.ts"
   },
   "devDependencies": {

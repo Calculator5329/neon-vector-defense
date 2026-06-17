@@ -10,7 +10,7 @@ const bot = new Bot(g, "expert");
 let idle = 0;
 const start = performance.now();
 while (g.wave < 80 && g.phase !== "gameover" && performance.now() - start < 60000) {
-  if (g.phase === "victory") { g.freeplay = true; g.phase = "build"; }
+  if (g.phase === "victory") g.enterFreeplay("standard");
   if (g.phase === "build") { idle += 1/60; bot.act(g.time); if (idle > 1) { idle = 0; g.startWave(); } }
   else bot.act(g.time);
   g.update(1/60);

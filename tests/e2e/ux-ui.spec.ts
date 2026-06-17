@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const progressSeed = {
   archive: [],
@@ -158,35 +160,261 @@ test.describe('run telemetry model', () => {
       const game = (window as unknown as { game: {
         runId: string;
         startWave: () => void;
+        telemetryState: () => unknown;
+        recorder: {
+          recordCustom: (type: string, state: unknown, payload?: Record<string, unknown>) => void;
+        };
         buildRunUploadBundle: (callsign: string, build: string) => {
-          run: { runId: string; events: { type: string }[]; summary: Record<string, unknown> };
+          run: { schemaVersion: number; runId: string; events: { type: string }[]; summary: Record<string, unknown> };
           chunks: unknown[];
         };
         buildRunAnalyticsDoc: (callsign: string, uid: string, build: string) => Record<string, unknown>;
+        buildRunCheckpointDoc: (callsign: string, uid: string, build: string, chunk: number, reason: string) => Record<string, unknown>;
       } }).game;
       game.startWave();
+      game.recorder.recordCustom('freeplay_relic_select', game.telemetryState(), {
+        relicId: 'beaconChoir',
+        extra: 'bounded',
+      });
       const bundle = game.buildRunUploadBundle('PERFTEST', 'test-build');
       const analytics = game.buildRunAnalyticsDoc('PERFTEST', 'w_test123', 'test-build');
+      const checkpoint = game.buildRunCheckpointDoc('PERFTEST', 'w_test123', 'test-build', 3, 'interval');
+      const freeplay = analytics.freeplay as { relicSelections?: Record<string, number> } | undefined;
       return {
         gameRunId: game.runId,
         bundleRunId: bundle.run.runId,
+        schemaVersion: bundle.run.schemaVersion,
         eventTypes: bundle.run.events.map((event) => event.type),
         publicHasUid: 'uid' in bundle.run,
         publicHasAttention: 'attention' in bundle.run,
+        publicHasAssistance: 'assistance' in bundle.run,
         analyticsHasAttention: 'attention' in analytics,
         analyticsHasUid: 'uid' in analytics,
+        analyticsHasMenu: 'menu' in analytics,
+        analyticsHasControls: 'controls' in analytics,
+        analyticsHasCombat: 'combat' in analytics,
+        analyticsHasPlacement: 'placement' in analytics,
+        analyticsHasAssistance: 'assistance' in analytics,
+        analyticsHasFreeplay: 'freeplay' in analytics,
+        freeplayRelicSelections: freeplay?.relicSelections ?? {},
+        checkpointSchema: checkpoint.schemaVersion,
+        checkpointRunId: checkpoint.runId,
+        checkpointChunk: checkpoint.chunk,
+        checkpointReason: checkpoint.reason,
+        checkpointRecentEventCount: Array.isArray(checkpoint.recentEvents) ? checkpoint.recentEvents.length : -1,
+        checkpointHasPerf: typeof checkpoint.performance === 'object',
+        checkpointHasCounters: typeof checkpoint.counters === 'object',
         chunkCount: bundle.chunks.length,
       };
     });
 
     expect(telemetry.gameRunId).toBe(telemetry.bundleRunId);
+    expect(telemetry.schemaVersion).toBe(2);
     expect(telemetry.eventTypes).toContain('run_start');
     expect(telemetry.eventTypes).toContain('wave_start');
+    expect(telemetry.eventTypes).toContain('freeplay_relic_select');
     expect(telemetry.publicHasUid).toBe(false);
     expect(telemetry.publicHasAttention).toBe(false);
+    expect(telemetry.publicHasAssistance).toBe(false);
     expect(telemetry.analyticsHasUid).toBe(true);
     expect(telemetry.analyticsHasAttention).toBe(true);
+    expect(telemetry.analyticsHasMenu).toBe(true);
+    expect(telemetry.analyticsHasControls).toBe(true);
+    expect(telemetry.analyticsHasCombat).toBe(true);
+    expect(telemetry.analyticsHasPlacement).toBe(true);
+    expect(telemetry.analyticsHasAssistance).toBe(true);
+    expect(telemetry.analyticsHasFreeplay).toBe(true);
+    expect(telemetry.freeplayRelicSelections.beaconChoir).toBe(1);
+    expect(telemetry.checkpointSchema).toBe(2);
+    expect(telemetry.checkpointRunId).toBe(telemetry.gameRunId);
+    expect(telemetry.checkpointChunk).toBe(3);
+    expect(telemetry.checkpointReason).toBe('interval');
+    expect(telemetry.checkpointRecentEventCount).toBeGreaterThan(0);
+    expect(telemetry.checkpointRecentEventCount).toBeLessThanOrEqual(24);
+    expect(telemetry.checkpointHasPerf).toBe(true);
+    expect(telemetry.checkpointHasCounters).toBe(true);
     expect(telemetry.chunkCount).toBe(0);
+  });
+
+  test('firestore rules allow schema migration and append-only checkpoints', () => {
+    const rules = readFileSync(join(process.cwd(), 'firestore.rules'), 'utf8');
+
+    for (const key of ['menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay']) {
+      expect(rules).toContain(`'${key}'`);
+    }
+    expect(rules).toContain('isTelemetrySchema(request.resource.data)');
+    expect(rules).toContain('match /runCheckpoints/{runId}');
+    expect(rules).toContain('allow update, delete: if false');
+  });
+
+  test('records representative friction, assistance, and leaderboard counters', async ({ page }) => {
+    await seedProgress(page, { runs: 0, victories: 0, kills: 0, armistice: false });
+    await page.goto('/');
+    await page.getByTestId('diff-card-hard').click();
+    await deployFromMenu(page);
+
+    const metrics = await page.evaluate(() => {
+      const { game, appMetrics } = window as unknown as {
+        game: any;
+        appMetrics: {
+          recordLockedProtocolClick: (diffId: string) => void;
+          recordAIQuestion: (result: 'submit' | 'success' | 'error' | 'quota') => void;
+          recordFeedbackSubmit: (ok: boolean) => void;
+        };
+      };
+      appMetrics.recordLockedProtocolClick('hard');
+      appMetrics.recordAIQuestion('submit');
+      appMetrics.recordAIQuestion('success');
+      appMetrics.recordAIQuestion('error');
+      appMetrics.recordFeedbackSubmit(true);
+      appMetrics.recordFeedbackSubmit(false);
+      game.recorder.recordFailedPlacement(game.telemetryState(), 'laser', 'credits', 999, { x: 24, y: 32 });
+      game.recorder.recordLeaderboardOpen();
+      game.recorder.recordScoreSubmitAttempt(game.telemetryState());
+      game.recorder.recordScoreSubmitResult(false);
+      game.recorder.recordReplaySubmitResult(false);
+      const analytics = game.buildRunAnalyticsDoc('FRICTION', 'w_test123', 'test-build');
+      const bundle = game.buildRunUploadBundle('FRICTION', 'test-build');
+      return {
+        lockedProtocolClicks: analytics.menu.lockedProtocolClicks ?? {},
+        failedPlacementReasons: analytics.placement.failedByReason ?? {},
+        failedPlacementTowers: analytics.placement.failedByTower ?? {},
+        assistance: analytics.assistance,
+        leaderboard: analytics.leaderboard,
+        eventTypes: bundle.run.events.map((event: { type: string }) => event.type),
+      };
+    });
+
+    expect(metrics.lockedProtocolClicks.hard).toBeGreaterThanOrEqual(1);
+    expect(metrics.failedPlacementReasons.credits).toBe(1);
+    expect(metrics.failedPlacementTowers.laser).toBe(1);
+    expect(metrics.assistance.aiQuestions).toBe(1);
+    expect(metrics.assistance.aiSuccesses).toBe(1);
+    expect(metrics.assistance.aiErrors).toBe(1);
+    expect(metrics.assistance.feedbackSubmits).toBe(2);
+    expect(metrics.assistance.feedbackSuccesses).toBe(1);
+    expect(metrics.assistance.feedbackErrors).toBe(1);
+    expect(metrics.leaderboard.openCount).toBe(1);
+    expect(metrics.leaderboard.scoreSubmitAttempts).toBe(1);
+    expect(metrics.leaderboard.scoreSubmitFailures).toBe(1);
+    expect(metrics.leaderboard.replaySubmitAttempts).toBe(1);
+    expect(metrics.leaderboard.replaySubmitFailures).toBe(1);
+    expect(metrics.eventTypes).not.toContain('tower_place_failed');
+  });
+
+  test('records freeplay contracts, relics, risk offers, and checkpoint gates', async ({ page }) => {
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+
+    const freeplay = await page.evaluate(() => {
+      const game = (window as unknown as { game: any }).game;
+      game.phase = 'victory';
+      game.enterFreeplay('leanGrid');
+
+      game.wave = 5;
+      game.prepareFreeplayBuild();
+      const offeredRelics = game.freeplayState.nextRelicOffer.map((r: { id: string }) => r.id);
+      const pickedRelic = offeredRelics[0];
+      game.chooseRelic(pickedRelic);
+      const reofferedSameWave = game.freeplayState.nextRelicOffer.length;
+
+      game.wave = 61;
+      game.prepareFreeplayBuild();
+      const riskId = game.freeplayState.riskOffer?.id ?? null;
+      const riskAccepted = riskId ? game.acceptRisk(riskId) : false;
+      const nextMutators = game.freeplayState.nextMutators.map((m: { id: string }) => m.id);
+
+      game.wave = 65;
+      const canBankBefore = game.canBankFreeplay();
+      game.markFreeplayCheckpoint();
+      const canBankAgain = game.canBankFreeplay();
+      const meta = game.freeplayMeta();
+      const bundle = game.buildRunUploadBundle('FREEPLAYTEST', 'test-build');
+      return {
+        contract: game.freeplayState.contract?.id,
+        freeplay: game.freeplay,
+        offeredRelics,
+        pickedRelic,
+        ownedRelics: game.freeplayState.relics.map((r: { id: string }) => r.id),
+        reofferedSameWave,
+        riskId,
+        riskAccepted,
+        nextMutators,
+        canBankBefore,
+        canBankAgain,
+        lastCheckpointWave: game.freeplayState.lastCheckpointWave,
+        meta,
+        eventTypes: bundle.run.events.map((event: { type: string }) => event.type),
+      };
+    });
+
+    expect(freeplay.freeplay).toBe(true);
+    expect(freeplay.contract).toBe('leanGrid');
+    expect(freeplay.offeredRelics.length).toBeGreaterThan(0);
+    expect(freeplay.ownedRelics).toContain(freeplay.pickedRelic);
+    expect(freeplay.reofferedSameWave).toBe(0);
+    expect(freeplay.riskId).toBeTruthy();
+    expect(freeplay.riskAccepted).toBe(true);
+    expect(freeplay.nextMutators.length).toBeGreaterThan(0);
+    expect(freeplay.canBankBefore).toBe(true);
+    expect(freeplay.canBankAgain).toBe(false);
+    expect(freeplay.lastCheckpointWave).toBe(65);
+    expect(freeplay.meta.contractId).toBe('leanGrid');
+    expect(freeplay.meta.relicIds).toContain(freeplay.pickedRelic);
+    expect(freeplay.eventTypes).toContain('freeplay_enter');
+    expect(freeplay.eventTypes).toContain('freeplay_contract_select');
+    expect(freeplay.eventTypes).toContain('freeplay_relic_select');
+    expect(freeplay.eventTypes).toContain('freeplay_risk_accept');
+    expect(freeplay.eventTypes).toContain('freeplay_checkpoint_submit');
+  });
+});
+
+test.describe('browser perf harness', () => {
+  test('keeps stress counters readable on desktop and mobile perf routes', async ({ page }) => {
+    const firestorePosts: string[] = [];
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      if (request.method() === 'POST' && request.url().includes('firestore.googleapis.com')) {
+        firestorePosts.push(request.url());
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+
+    for (const viewport of [{ width: 1365, height: 768 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/?perf=throat&diff=hard');
+      await page.waitForTimeout(1800);
+      const sample = await page.evaluate(() => {
+        const game = (window as unknown as { game: any }).game;
+        const analytics = game.buildRunAnalyticsDoc('PERFTEST', 'w_test123', 'test-build');
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          dpr: window.devicePixelRatio,
+          wave: game.wave,
+          phase: game.phase,
+          hullCount: game.enemies.length,
+          fxCount: game.particles.length + game.projectiles.length + game.beams.length,
+          fpsAvg: analytics.performance.fpsAvg,
+          longFrames: analytics.performance.longFrames,
+          qualityDowngrades: analytics.performance.qualityDowngrades,
+          qualityRecoveries: analytics.performance.qualityRecoveries,
+        };
+      });
+      expect(sample.viewport).toEqual(viewport);
+      expect(sample.dpr).toBeGreaterThan(0);
+      expect(sample.wave).toBeGreaterThanOrEqual(0);
+      expect(sample.fpsAvg).toBeGreaterThanOrEqual(0);
+      expect(sample.longFrames).toBeGreaterThanOrEqual(0);
+      expect(sample.qualityDowngrades).toBeGreaterThanOrEqual(0);
+      expect(sample.qualityRecoveries).toBeGreaterThanOrEqual(0);
+      expect(sample.hullCount).toBeGreaterThanOrEqual(0);
+      expect(sample.fxCount).toBeGreaterThanOrEqual(0);
+      expect(['build', 'wave', 'victory', 'gameover', 'armistice']).toContain(sample.phase);
+    }
+
+    expect(firestorePosts).toHaveLength(0);
   });
 });
 

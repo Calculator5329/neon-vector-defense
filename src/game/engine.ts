@@ -10,7 +10,37 @@ import { computeStats, sellValue, TOWER_MAP } from './towers';
 import { getWave, waveBonus, incomeMult } from './waves';
 import { sfx, vox, playStinger } from './sound';
 import { TOWERS } from './towers';
-import { RunRecorder, type PrivateRunAnalyticsDoc, type PublicRunDoc, type RunTelemetryState, type RunUploadBundle } from './runTelemetry';
+import {
+  RunRecorder,
+  type PrivateRunAnalyticsDoc,
+  type PublicRunDoc,
+  type RunCheckpointDoc,
+  type RunCheckpointReason,
+  type RunTelemetryState,
+  type RunUploadBundle,
+} from './runTelemetry';
+import { appMetrics, METRIC_EVENTS } from './metrics';
+import {
+  applyMutatorsToWave,
+  contractById,
+  createFreeplayState,
+  dailyFreeplaySeed,
+  freeplayIncomeMult,
+  freeplayScoreMultiplier,
+  freeplaySummary,
+  freeplayWaveBonusMult,
+  nextMutators,
+  relicOffer,
+  rivalForWave,
+  riskById,
+  riskOfferForWave,
+  type DailyFreeplaySeed,
+  type FreeplayContractId,
+  type FreeplayRelic,
+  type FreeplayRelicId,
+  type FreeplayState,
+  type RiskWaveId,
+} from './freeplay';
 
 export const W = 1280;
 export const H = 720;
@@ -188,12 +218,14 @@ export class Game {
   time = 0;
   /** set when player chooses to continue past victory */
   freeplay = false;
+  freeplayState: FreeplayState = createFreeplayState();
 
   constructor(map: GameMap, diff: DifficultyDef) {
     this.map = map;
     this.diff = diff;
     this.credits = diff.cash;
     this.lives = diff.lives;
+    appMetrics.beginRun(map.id, diff.id);
     this.recorder = new RunRecorder({
       map,
       diff,
@@ -241,12 +273,135 @@ export class Game {
     return this.recorder.makePrivateAnalytics(this.telemetryState(), uid, callsign, build);
   }
 
+  buildRunCheckpointDoc(callsign: string, uid: string, build: string, chunk: number, reason: RunCheckpointReason): RunCheckpointDoc {
+    return this.recorder.makeCheckpoint(this.telemetryState(), uid, callsign, build, chunk, reason);
+  }
+
   publicRunSummary(callsign: string, build: string): PublicRunDoc['summary'] {
     return this.buildRunUploadBundle(callsign, build).run.summary;
   }
 
   abandonRun(reason: string) {
     this.recorder.recordAbandoned(this.telemetryState(), reason);
+  }
+
+  enterFreeplay(contractId: FreeplayContractId = 'standard', daily?: DailyFreeplaySeed | null) {
+    if (this.phase !== 'victory' && !this.freeplay) return;
+    this.freeplay = true;
+    this.phase = 'build';
+    this.freeplayState.daily = daily ?? this.freeplayState.daily;
+    this.freeplayState.contract = contractById(contractId);
+    this.freeplayState.lastCheckpointWave = Math.max(this.freeplayState.lastCheckpointWave, this.wave);
+    if (this.freeplayState.contract.livesMult && !this.freeplayState.daily) {
+      this.lives = Math.max(1, Math.floor(this.lives * this.freeplayState.contract.livesMult));
+    }
+    this.prepareFreeplayBuild();
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_ENTER, {
+      contractId,
+      dailyId: this.freeplayState.daily?.id ?? null,
+      wave: this.wave,
+    });
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_CONTRACT_SELECT, {
+      contractId,
+      multiplier: this.freeplayState.contract.multiplier,
+    });
+    this.announce(`${this.freeplayState.contract.name} accepted - endless siege authorized`);
+  }
+
+  startDailyFreeplay(seed = dailyFreeplaySeed()) {
+    this.freeplay = true;
+    this.phase = 'build';
+    this.wave = this.diff.waves;
+    this.freeplayState.daily = seed;
+    this.freeplayState.contract = contractById(seed.contractIds[0] ?? 'standard');
+    this.freeplayState.lastCheckpointWave = this.wave;
+    this.prepareFreeplayBuild();
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_ENTER, {
+      contractId: this.freeplayState.contract.id,
+      dailyId: seed.id,
+      wave: this.wave,
+    });
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_CONTRACT_SELECT, {
+      contractId: this.freeplayState.contract.id,
+      multiplier: this.freeplayState.contract.multiplier,
+    });
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_DAILY_START, { dailyId: seed.id, map: seed.mapId, diff: seed.diffId });
+  }
+
+  chooseRelic(id: FreeplayRelicId): FreeplayRelic | null {
+    const relic = this.freeplayState.nextRelicOffer.find((r) => r.id === id);
+    if (!relic) return null;
+    this.freeplayState.relics.push(relic);
+    this.freeplayState.nextRelicOffer = [];
+    this.freeplayState.lastRelicOfferWave = this.wave;
+    this.prepareFreeplayBuild();
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RELIC_SELECT, { relicId: relic.id, relicName: relic.name, relicCount: this.freeplayState.relics.length });
+    this.announce(`Relic bound: ${relic.name}`);
+    return relic;
+  }
+
+  acceptRisk(id: RiskWaveId): boolean {
+    const offer = this.freeplayState.riskOffer?.id === id ? this.freeplayState.riskOffer : riskById(id);
+    if (!offer || this.phase !== 'build' || !this.freeplay) return false;
+    this.freeplayState.riskAccepted = offer;
+    this.freeplayState.riskOffer = null;
+    this.freeplayState.nextMutators = nextMutators(this.wave + 1, this.freeplayState.relics, this.freeplayState.daily, offer);
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RISK_ACCEPT, { riskId: offer.id, mutators: offer.mutatorIds, scoreMult: offer.scoreMult });
+    this.announce(`Red-alert accepted: ${offer.name}`);
+    return true;
+  }
+
+  declineRisk() {
+    if (!this.freeplayState.riskOffer) return;
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RISK_DECLINE, { riskId: this.freeplayState.riskOffer.id });
+    this.freeplayState.riskOffer = null;
+  }
+
+  canBankFreeplay(): boolean {
+    return this.freeplay && this.phase === 'build' && this.wave > this.freeplayState.lastCheckpointWave;
+  }
+
+  markFreeplayCheckpoint() {
+    this.freeplayState.lastCheckpointWave = Math.max(this.freeplayState.lastCheckpointWave, this.wave);
+    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_CHECKPOINT_SUBMIT, {
+      wave: this.wave,
+      multiplier: freeplayScoreMultiplier(this.freeplayState),
+      summary: freeplaySummary(this.freeplayState),
+    });
+  }
+
+  freeplayMeta() {
+    return {
+      contract: this.freeplayState.contract?.name ?? '',
+      contractId: this.freeplayState.contract?.id ?? '',
+      relics: this.freeplayState.relics.map((r) => r.name).join(', '),
+      relicIds: this.freeplayState.relics.map((r) => r.id).join(','),
+      mutators: this.freeplayState.currentMutators.map((m) => m.name).join(', '),
+      rival: this.freeplayState.rival?.name ?? '',
+      daily: this.freeplayState.daily?.id ?? '',
+      riskCleared: this.freeplayState.riskCleared,
+      scoreMult: freeplayScoreMultiplier(this.freeplayState),
+      summary: freeplaySummary(this.freeplayState),
+    };
+  }
+
+  private recordFreeplayEvent(type: string, payload: Record<string, unknown>) {
+    this.recorder.recordCustom(type, this.telemetryState(), payload);
+  }
+
+  private prepareFreeplayBuild() {
+    if (!this.freeplay) return;
+    if (this.wave > 0 && this.wave % 5 === 0 && this.freeplayState.nextRelicOffer.length === 0 && this.freeplayState.lastRelicOfferWave !== this.wave) {
+      const offer = relicOffer(this.wave, this.freeplayState.relics, this.freeplayState.daily);
+      this.freeplayState.nextRelicOffer = offer;
+      this.freeplayState.lastRelicOfferWave = this.wave;
+      if (offer.length > 0) this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RELIC_OFFER, { relicIds: offer.map((r) => r.id), wave: this.wave });
+    }
+    this.freeplayState.riskOffer = this.freeplayState.riskAccepted ? null : riskOfferForWave(this.wave + 1, this.freeplayState.daily);
+    if (this.freeplayState.riskOffer) {
+      this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RISK_OFFER, { riskId: this.freeplayState.riskOffer.id, wave: this.wave + 1 });
+    }
+    this.freeplayState.nextMutators = nextMutators(this.wave + 1, this.freeplayState.relics, this.freeplayState.daily, this.freeplayState.riskAccepted);
   }
 
   cost(def: TowerDef): number {
@@ -275,7 +430,8 @@ export class Game {
     const tier = this.tierOf(t, track);
     if (tier >= 6) return 0;
     // the two committed bonus tiers cost dramatically more — a real late-game sink
-    const bonusMult = tier === 4 ? 3.2 : tier === 5 ? 6.5 : 1;
+    const freeplaySink = this.freeplay && tier >= 4 ? (tier === 4 ? 1.35 : 1.55) : 1;
+    const bonusMult = (tier === 4 ? 3.2 : tier === 5 ? 6.5 : 1) * freeplaySink;
     return Math.round((t.def.tracks[track].upgrades[tier].cost * this.diff.costMult * bonusMult) / 5) * 5;
   }
 
@@ -284,6 +440,18 @@ export class Game {
   static bonusPower(t: Tower): number {
     const top = Math.max(t.tierA, t.tierB);
     return top >= 6 ? 2.0 : top >= 5 ? 1.45 : 1;
+  }
+
+  freeplayTowerPower(t: Tower): number {
+    if (!this.freeplay) return 1;
+    const top = Math.max(t.tierA, t.tierB);
+    let mult = top >= 6 ? 1.22 : top >= 5 ? 1.1 : 1;
+    const type = t.stats.damageType;
+    if (this.freeplayState.contract?.bonusType === type) mult *= 1.15;
+    if (this.freeplayState.contract?.penaltyType === type) mult *= 0.88;
+    if (this.freeplayState.relics.some((r) => r.id === 'siegeDoctrine') && (t.def.style === 'missile' || t.def.style === 'rail' || t.def.style === 'beam')) mult *= 1.18;
+    if (this.freeplayState.relics.some((r) => r.id === 'stormCapacitors') && (type === 'energy' || t.def.style === 'arc')) mult *= 1.12;
+    return mult;
   }
 
   // ---------- placement ----------
@@ -305,6 +473,13 @@ export class Game {
 
   placeTower(def: TowerDef, pos: Vec): Tower | null {
     const cost = this.cost(def);
+    const maxTowers = this.freeplayState.contract?.maxTowers;
+    if (maxTowers && this.towers.length >= maxTowers) {
+      this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'contract', cost, pos);
+      this.announce(`${this.freeplayState.contract?.short} contract: tower cap reached`);
+      sfx.error();
+      return null;
+    }
     if (this.credits < cost || !this.canPlace(pos)) {
       this.recorder.recordFailedPlacement(this.telemetryState(), def.id, this.credits < cost ? 'credits' : 'space', cost, pos);
       sfx.error();
@@ -359,6 +534,11 @@ export class Game {
 
   /** Save the current defense layout (positions + tiers) as this map's blueprint. */
   saveBlueprint(): number {
+    if (this.freeplay && this.freeplayState.contract?.noBlueprint) {
+      this.announce(`${this.freeplayState.contract.short} contract forbids blueprint saving`);
+      sfx.error();
+      return 0;
+    }
     const bp = this.towers.map((t) => ({
       id: t.def.id,
       x: Math.round(t.pos.x),
@@ -375,6 +555,11 @@ export class Game {
 
   /** Rebuild the saved blueprint, placing and upgrading as far as credits allow. */
   applyBlueprint(): number {
+    if (this.freeplay && this.freeplayState.contract?.noBlueprint) {
+      this.announce(`${this.freeplayState.contract.short} contract forbids blueprint redeploy`);
+      sfx.error();
+      return 0;
+    }
     const bp = progress.blueprint(this.map.id);
     let placed = 0;
     const unlockedKills = progress.record.kills + this.totalKills;
@@ -402,6 +587,11 @@ export class Game {
   }
 
   sellTower(t: Tower) {
+    if (this.freeplay && this.freeplayState.contract?.noSell) {
+      this.announce(`${this.freeplayState.contract.short} contract forbids selling`);
+      sfx.error();
+      return;
+    }
     const refund = sellValue(t.invested);
     this.credits += refund;
     this.recorder.recordTowerSell(this.telemetryState(), t, refund);
@@ -417,7 +607,23 @@ export class Game {
     this.waveStartTotalKills = progress.record.kills + this.totalKills;
     this.wave++;
     this.phase = 'wave';
-    const def = getWave(this.wave);
+    let def = getWave(this.wave);
+    if (this.freeplay) {
+      const mutators = this.freeplayState.nextMutators.length > 0
+        ? this.freeplayState.nextMutators
+        : nextMutators(this.wave, this.freeplayState.relics, this.freeplayState.daily, this.freeplayState.riskAccepted);
+      const rival = rivalForWave(this.wave, this.freeplayState.daily);
+      this.freeplayState.currentMutators = mutators;
+      this.freeplayState.rival = rival;
+      this.freeplayState.rivalLevel = rival ? this.freeplayState.rivalLevel + 1 : this.freeplayState.rivalLevel;
+      def = applyMutatorsToWave(this.wave, def, mutators, rival, this.freeplayState.riskAccepted);
+      this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_MUTATOR_WAVE_START, {
+        wave: this.wave,
+        mutators: mutators.map((m) => m.id),
+        riskId: this.freeplayState.riskAccepted?.id ?? null,
+      });
+      if (rival) this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN, { rivalId: rival.id, rivalName: rival.name, level: this.freeplayState.rivalLevel });
+    }
     // Recruit protocol: the Combine never deploys phase-cloaks against a green Warden
     const allowCloak = this.diff.id !== 'easy';
     this.queue = def.map((group) => ({
@@ -437,10 +643,13 @@ export class Game {
       this.deployLongWatchEscorts();
     }
     sfx.waveStart();
+    if (this.freeplay && this.freeplayState.currentMutators.length > 0) {
+      this.announce(`FREEPLAY MUTATORS: ${this.freeplayState.currentMutators.map((m) => m.name).join(' + ')}`);
+    }
     // threat advisories
-    if (def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
-    else if (def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
-    else if (allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
+    if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
+    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
+    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
     for (const a of this.abilities) {
       if (a.def.unlockWave === this.wave) this.announce(`✦ Commander ability online: ${a.def.name}`);
     }
@@ -462,7 +671,11 @@ export class Game {
     const late = 1 + Math.max(0, this.wave - 25) * this.diff.lateScale;
     // beyond the designed campaign (freeplay) the siege steepens hard.
     const fp = 1 + Math.max(0, this.wave - this.diff.waves) * 0.18;
-    const hp = Math.ceil(def.hp * diffMult * late * fp);
+    const mutatorHp =
+      this.freeplay && def.boss && this.freeplayState.currentMutators.some((m) => m.id === 'shieldedBoss') ? 1.35 :
+        this.freeplay && (def.armored || typeId === 'juggernaut' || typeId === 'aegis') && this.freeplayState.currentMutators.some((m) => m.id === 'armoredSwarm') ? 1.22 : 1;
+    const rivalHp = this.freeplay && def.boss && this.freeplayState.rival ? 1 + this.freeplayState.rivalLevel * 0.12 : 1;
+    const hp = Math.ceil(def.hp * diffMult * late * fp * mutatorHp * rivalHp);
     return {
       uid: uidCounter++,
       def,
@@ -594,7 +807,9 @@ export class Game {
     if (e.def.armored && type === 'kinetic' && !shred) return 0;
     if (e.def.immuneExplosive && type === 'explosive') return 0;
     if (dmg <= 0) return 0;
-    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src);
+    if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src) * this.freeplayTowerPower(src);
+    if (this.freeplay && type === 'explosive' && this.freeplayState.relics.some((r) => r.id === 'emberDoctrine')) dmg *= 1.12;
+    if (this.freeplay && e.def.boss && this.freeplayState.currentMutators.some((m) => m.id === 'shieldedBoss')) dmg *= 0.82;
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
     this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + dmg;
@@ -629,7 +844,8 @@ export class Game {
   private killEnemy(e: Enemy) {
     if (e.dead) return;
     e.dead = true;
-    this.earn(Math.max(1, Math.round(e.def.reward * incomeMult(this.wave))));
+    this.earn(Math.max(1, Math.round(e.def.reward * incomeMult(this.wave) *
+      (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1))));
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
     this.spawnChildren(e);
@@ -790,7 +1006,7 @@ export class Game {
     // pickups expire in real time too — clicking them is a human reflex, and the
     // window shouldn't shrink at 2x/4x game speed
     for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
-    this.pickups = this.pickups.filter((p) => p.life > 0);
+    compact(this.pickups, (p) => p.life > 0);
     // fixed substeps: at 4x speed a frame can cover 0.2s of game time — stepped
     // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s, and
     // cap the count so a render stutter can't cascade into a death spiral of ticks.
@@ -814,7 +1030,8 @@ export class Game {
     this.frenzyTimer = Math.max(0, this.frenzyTimer - dt);
     this.shake = Math.max(0, this.shake - dt * 2.2);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.6);
-    for (const a of this.abilities) a.cd = Math.max(0, a.cd - dt);
+    const abilityHaste = this.freeplay && this.freeplayState.relics.some((r) => r.id === 'chronoMarket') ? 1.35 : 1;
+    for (const a of this.abilities) a.cd = Math.max(0, a.cd - dt * abilityHaste);
 
     this.updateSpawns(dt);
     this.updateEnemies(dt);
@@ -832,9 +1049,33 @@ export class Game {
 
     // wave completion
     if (this.phase === 'wave' && this.queue.length === 0 && this.enemies.length === 0) {
-      const bonus = waveBonus(this.wave);
+      const bonus = Math.round(waveBonus(this.wave) * (this.freeplay ? freeplayWaveBonusMult(this.wave) : 1));
       this.earn(bonus);
       this.recorder.recordWaveEnd(this.telemetryState(), bonus);
+      if (this.freeplay) {
+        if (this.freeplayState.rival) {
+          const bounty = Math.round((this.freeplayState.rival.id === 'redSaint' ? 900 : 500) * (1 + this.freeplayState.rivalLevel * 0.12));
+          this.earn(bounty);
+          this.freeplayState.scoreMult *= this.freeplayState.rival.scoreMult;
+          this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RIVAL_DEFEAT, {
+            rivalId: this.freeplayState.rival.id,
+            bounty,
+            scoreMult: freeplayScoreMultiplier(this.freeplayState),
+          });
+        }
+        if (this.freeplayState.riskAccepted) {
+          const reward = Math.round(this.freeplayState.riskAccepted.bonusCredits * (this.freeplayState.daily ? 1.25 : 1));
+          this.earn(reward);
+          this.freeplayState.scoreMult *= this.freeplayState.riskAccepted.scoreMult * (this.freeplayState.daily ? 1.25 : 1);
+          this.freeplayState.riskCleared++;
+          this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RISK_CLEAR, {
+            riskId: this.freeplayState.riskAccepted.id,
+            reward,
+            scoreMult: freeplayScoreMultiplier(this.freeplayState),
+          });
+          this.freeplayState.riskAccepted = null;
+        }
+      }
       // archive fragments unlock by wave
       ARCHIVE.forEach((f, i) => {
         if (f.wave <= this.wave && !this.archive.includes(i)) {
@@ -879,6 +1120,7 @@ export class Game {
           this.dmgWindow = {};
         }
         this.phase = 'build';
+        this.prepareFreeplayBuild();
         sfx.waveClear();
         if (this.autoNext) this.startWave();
       }
@@ -897,7 +1139,7 @@ export class Game {
       }
       if (entry.spawned < entry.group.count) blocked = true;
     }
-    this.queue = this.queue.filter((e) => e.spawned < e.group.count);
+    compact(this.queue, (e) => e.spawned < e.group.count);
   }
 
   private updateEnemies(dt: number) {
@@ -987,7 +1229,12 @@ export class Game {
         const coresLost = rbe(e.def.id);
         this.lives -= coresLost;
         this.runStats.leaks += coresLost;
-        this.recorder.recordLeak(this.telemetryState(), e.def.id, coresLost);
+        this.recorder.recordLeak(this.telemetryState(), e.def.id, coresLost, {
+          cloaked: e.cloaked,
+          revealed: e.revealed,
+          armored: e.def.armored,
+          boss: e.def.boss,
+        });
         this.hurtFlash = Math.min(1, this.hurtFlash + 0.55);
         this.shake = Math.min(1, this.shake + (e.def.boss ? 0.8 : 0.25));
         sfx.leak();
@@ -1016,11 +1263,12 @@ export class Game {
     for (const s of this.towers) {
       if (s.def.style !== 'support') continue;
       const st = s.stats;
+      const supportAmp = this.freeplay && this.freeplayState.relics.some((r) => r.id === 'beaconChoir') ? 1.25 : 1;
       for (const t of this.towers) {
         if (t === s || t.def.style === 'support') continue;
         if (Math.hypot(t.pos.x - s.pos.x, t.pos.y - s.pos.y) <= st.range) {
-          t.rateBuff = Math.max(t.rateBuff, 1 + st.buffRate);
-          t.rangeBuff = Math.max(t.rangeBuff, 1 + st.buffRange);
+          t.rateBuff = Math.max(t.rateBuff, 1 + st.buffRate * supportAmp);
+          t.rangeBuff = Math.max(t.rangeBuff, 1 + st.buffRange * supportAmp);
         }
       }
       // aura effects on enemies: slow (Ion Storm) and sear (Razor Static)
@@ -1041,7 +1289,14 @@ export class Game {
 
   /** Does any tower or support give detection coverage at this enemy's position? */
   private visibleTo(t: Tower, e: Enemy): boolean {
-    return !e.cloaked || t.stats.detection || !!e.revealed;
+    if (!e.cloaked) return true;
+    if (e.revealed) return true;
+    if (!t.stats.detection) return false;
+    if (this.freeplay && this.freeplayState.currentMutators.some((m) => m.id === 'sensorBlackout') &&
+        !this.freeplayState.relics.some((r) => r.id === 'sensorCrown')) {
+      return Game.rankOf(t) >= 3;
+    }
+    return true;
   }
 
   /** Once per tick: flag each cloaked hull covered by a detector spire's aura.
@@ -1052,10 +1307,13 @@ export class Game {
       if (e.cloaked) { e.revealed = false; anyCloaked = true; }
     }
     if (!anyCloaked) return;
+    const blackout = this.freeplay && this.freeplayState.currentMutators.some((m) => m.id === 'sensorBlackout');
+    const blackoutCountered = this.freeplayState.relics.some((r) => r.id === 'sensorCrown' || r.id === 'beaconChoir');
     for (const s of this.towers) {
       if (s.def.style === 'support' && s.stats.detection) {
-        this.grid.forEachInRadius(s.pos.x, s.pos.y, s.stats.range, (e) => {
-          if (e.cloaked && Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= s.stats.range) e.revealed = true;
+        const range = s.stats.range * (blackout && !blackoutCountered ? 0.62 : 1);
+        this.grid.forEachInRadius(s.pos.x, s.pos.y, range, (e) => {
+          if (e.cloaked && Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= range) e.revealed = true;
         });
       }
     }
@@ -1227,9 +1485,14 @@ export class Game {
         const centers: Enemy[] = [first];
         const gates = Math.max(1, st.count);
         for (let i = 1; i < gates; i++) {
-          const next = this.enemies.find((e) => !e.dead && !e.finished && !e.courier && !centers.includes(e) &&
-            this.visibleTo(t, e) && Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius &&
-            centers.every((c) => Math.hypot(e.pos.x - c.pos.x, e.pos.y - c.pos.y) > st.splash * 1.2));
+          let next: Enemy | null = null;
+          this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
+            if (next || e.dead || e.finished || e.courier || centers.includes(e)) return;
+            if (!this.visibleTo(t, e)) return;
+            if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+            if (!centers.every((c) => Math.hypot(e.pos.x - c.pos.x, e.pos.y - c.pos.y) > st.splash * 1.2)) return;
+            next = e;
+          });
           if (next) centers.push(next);
         }
         const hit = new Set<number>();
@@ -1315,8 +1578,13 @@ export class Game {
         // hitscan along the line through the target; oracle variants also execute
         const shots: Enemy[] = [target];
         for (let i = 1; i < st.count; i++) {
-          const next = this.enemies.find((e) => !e.dead && !e.finished && !e.courier && !shots.includes(e) &&
-            this.visibleTo(t, e) && Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius);
+          let next: Enemy | null = null;
+          this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
+            if (next || e.dead || e.finished || e.courier || shots.includes(e)) return;
+            if (!this.visibleTo(t, e)) return;
+            if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+            next = e;
+          });
           if (next) shots.push(next);
         }
         for (const tgt of shots) {
@@ -1325,12 +1593,14 @@ export class Game {
           this.addBeam(t.pos, end, t.def.glow, 3, 0.15);
           let hits = 0;
           // collect only enemies near the firing line, then sort that short list
-          const onLine = this.enemies.filter((e) =>
-            !e.dead && !e.finished && !e.courier && this.visibleTo(t, e) &&
-            distToSeg(e.pos, t.pos, end) <= e.def.radius + 4);
+          const onLine: { enemy: Enemy; d2: number }[] = [];
+          this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 32, (e) => {
+            if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) return;
+            if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 4) onLine.push({ enemy: e, d2: sqDist(t.pos, e.pos) });
+          });
           onLine.sort((a, b) =>
-            Math.hypot(a.pos.x - t.pos.x, a.pos.y - t.pos.y) - Math.hypot(b.pos.x - t.pos.x, b.pos.y - t.pos.y));
-          for (const e of onLine) {
+            a.d2 - b.d2);
+          for (const { enemy: e } of onLine) {
             {
               if (st.execute > 0 && !e.def.boss && e.hp / e.maxHp <= st.execute) {
                 this.burstFx(e.pos, '#ffffff', 10);
@@ -1582,7 +1852,7 @@ export class Game {
         }
       });
     }
-    this.novas = this.novas.filter((n) => n.r < n.maxR);
+    compact(this.novas, (n) => n.r < n.maxR);
   }
 
   private explode(p: Projectile) {
@@ -1688,6 +1958,11 @@ export class Game {
 function norm(v: Vec): Vec {
   const d = Math.hypot(v.x, v.y) || 1;
   return { x: v.x / d, y: v.y / d };
+}
+
+function sqDist(a: Vec, b: Vec): number {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return dx * dx + dy * dy;
 }
 
 export function distToSeg(p: Vec, a: Vec, b: Vec): number {

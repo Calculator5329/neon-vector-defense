@@ -15,10 +15,13 @@ import {
 import { db } from './firebaseClient';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
-import type { PrivateRunAnalyticsDoc, RunUploadBundle } from './runTelemetry';
+import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle } from './runTelemetry';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
+const LEADERBOARD_CACHE_TTL_MS = 30_000;
+const topCache = new Map<string, { expires: number; rows: ScoreEntry[] }>();
+const globalTopCache = new Map<string, { expires: number; rows: RankedScoreEntry[] }>();
 
 export interface ScoreEntry {
   name: string;
@@ -29,6 +32,9 @@ export interface ScoreEntry {
   ts: number;
   uid?: string;
   runId?: string;
+  meta?: string;
+  daily?: string;
+  checkpoint?: boolean;
 }
 
 export interface RankedScoreEntry extends ScoreEntry {
@@ -37,6 +43,10 @@ export interface RankedScoreEntry extends ScoreEntry {
   diff: string;
   mapName: string;
   diffName: string;
+}
+
+function cloneScores<T extends ScoreEntry>(rows: T[]): T[] {
+  return rows.map((row) => ({ ...row }));
 }
 
 /** board id for a mode: mapId_diffId, with _fp for freeplay runs */
@@ -51,6 +61,13 @@ function validBoard(board: string): boolean {
 
 function isValidRunId(id: string): boolean {
   return /^r_[A-Za-z0-9_-]{8,80}$/.test(id);
+}
+
+function invalidateBoardCache(board: string): void {
+  for (const key of topCache.keys()) {
+    if (key.startsWith(`${board}:`)) topCache.delete(key);
+  }
+  globalTopCache.clear();
 }
 
 function boardMeta(board: string): Omit<RankedScoreEntry, keyof ScoreEntry> | null {
@@ -80,7 +97,11 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
       uid: (entry.uid ?? progress.uid).slice(0, 40),
     };
     if (entry.runId && isValidRunId(entry.runId)) payload.runId = entry.runId;
+    if (entry.meta) payload.meta = entry.meta.slice(0, 240);
+    if (entry.daily) payload.daily = entry.daily.slice(0, 80);
+    if (entry.checkpoint !== undefined) payload.checkpoint = !!entry.checkpoint;
     await addDoc(collection(db, 'boards', board, 'scores'), payload);
+    invalidateBoardCache(board);
     return true;
   } catch (error) {
     console.warn('Score submit failed', error);
@@ -239,6 +260,18 @@ export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<b
   }
 }
 
+export async function submitRunCheckpoint(doc: RunCheckpointDoc): Promise<boolean> {
+  if (!isValidRunId(doc.runId)) return false;
+  try {
+    const chunkId = `c${String(Math.max(0, Math.floor(doc.chunk))).padStart(6, '0')}`;
+    await setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), doc);
+    return true;
+  } catch (error) {
+    console.warn('Run checkpoint submit failed', error);
+    return false;
+  }
+}
+
 export interface TelemetryRow extends TelemetryEvent {
   uid: string;
   ts: number;
@@ -248,6 +281,216 @@ type TelemetryData = TelemetryRow;
 
 export interface RunAnalyticsRow extends PrivateRunAnalyticsDoc {
   id: string;
+}
+
+function normalizeRunAnalytics(id: string, data: Partial<PrivateRunAnalyticsDoc>): RunAnalyticsRow {
+  const summary = {
+    callsign: '',
+    map: '',
+    mapName: '',
+    diff: '',
+    diffName: '',
+    freeplay: false,
+    outcome: 'abandoned' as const,
+    phase: '',
+    wave: 0,
+    kills: 0,
+    credits: 0,
+    cashEarned: 0,
+    leaks: 0,
+    coresLeft: 0,
+    durationS: 0,
+    ...(data.summary ?? {}),
+  };
+  const appMenu = (data.menu ?? {}) as Partial<PrivateRunAnalyticsDoc['menu']>;
+  const appControls = (data.controls ?? {}) as Partial<PrivateRunAnalyticsDoc['controls']>;
+  const assistance = (data.assistance ?? {}) as Partial<PrivateRunAnalyticsDoc['assistance']>;
+  const freeplay = (data.freeplay ?? {}) as Partial<PrivateRunAnalyticsDoc['freeplay']>;
+  const performance = (data.performance ?? {}) as Partial<PrivateRunAnalyticsDoc['performance']>;
+  return {
+    id,
+    schemaVersion: Number(data.schemaVersion ?? 1),
+    runId: data.runId ?? id,
+    uid: data.uid ?? '',
+    createdAt: Number(data.createdAt ?? 0),
+    endedAt: Number(data.endedAt ?? data.createdAt ?? 0),
+    build: data.build ?? '',
+    summary,
+    onboarding: data.onboarding ?? {},
+    abandonment: data.abandonment ?? {},
+    difficulty: data.difficulty ?? {},
+    economy: data.economy ?? {},
+    menu: {
+      pageAgeAtDeployS: Number(appMenu.pageAgeAtDeployS ?? 0),
+      deployAttempts: Number(appMenu.deployAttempts ?? 0),
+      deployBlocked: Number(appMenu.deployBlocked ?? 0),
+      firstDeployAtS: Number(appMenu.firstDeployAtS ?? 0),
+      tabSwitches: Number(appMenu.tabSwitches ?? 0),
+      deployTabOpens: Number(appMenu.deployTabOpens ?? 0),
+      leaderboardTabOpens: Number(appMenu.leaderboardTabOpens ?? 0),
+      selectedMap: appMenu.selectedMap ?? null,
+      selectedDiff: appMenu.selectedDiff ?? null,
+      mapSelections: appMenu.mapSelections ?? {},
+      protocolSelections: appMenu.protocolSelections ?? {},
+      lockedMapClicks: appMenu.lockedMapClicks ?? {},
+      lockedProtocolClicks: appMenu.lockedProtocolClicks ?? {},
+    },
+    controls: {
+      keyboardInputs: Number(appControls.keyboardInputs ?? 0),
+      pointerInputs: Number(appControls.pointerInputs ?? 0),
+      touchInputs: Number(appControls.touchInputs ?? 0),
+      soundToggles: Number(appControls.soundToggles ?? 0),
+      musicToggles: Number(appControls.musicToggles ?? 0),
+      pauseToggles: Number(appControls.pauseToggles ?? 0),
+      firstPauseAt: Number(appControls.firstPauseAt ?? 0),
+      speedChanges: Number(appControls.speedChanges ?? 0),
+      speed1Clicks: Number(appControls.speed1Clicks ?? 0),
+      speed2Clicks: Number(appControls.speed2Clicks ?? 0),
+      speed4Clicks: Number(appControls.speed4Clicks ?? 0),
+      autoToggles: Number(appControls.autoToggles ?? 0),
+      sidePanelCollapses: Number(appControls.sidePanelCollapses ?? 0),
+      sidePanelExpands: Number(appControls.sidePanelExpands ?? 0),
+      abortArmed: Number(appControls.abortArmed ?? 0),
+      abortConfirmed: Number(appControls.abortConfirmed ?? 0),
+      placementCancels: Number(appControls.placementCancels ?? 0),
+      abilityAimCancels: Number(appControls.abilityAimCancels ?? 0),
+      waveLaunchClicks: Number(appControls.waveLaunchClicks ?? 0),
+      waveLaunchKeys: Number(appControls.waveLaunchKeys ?? 0),
+      cloakTipViews: Number(appControls.cloakTipViews ?? 0),
+      tutorialViews: Number(appControls.tutorialViews ?? 0),
+      briefingViews: Number(appControls.briefingViews ?? 0),
+    },
+    combat: {
+      firstLeakWave: Number(data.combat?.firstLeakWave ?? 0),
+      biggestLeakWave: Number(data.combat?.biggestLeakWave ?? 0),
+      biggestLeakCores: Number(data.combat?.biggestLeakCores ?? 0),
+      leaksByEnemy: data.combat?.leaksByEnemy ?? {},
+      cloakedLeakCores: Number(data.combat?.cloakedLeakCores ?? 0),
+      revealedLeakCores: Number(data.combat?.revealedLeakCores ?? 0),
+      armoredLeakCores: Number(data.combat?.armoredLeakCores ?? 0),
+      bossLeakCores: Number(data.combat?.bossLeakCores ?? 0),
+      peakEnemies: Number(data.combat?.peakEnemies ?? 0),
+      waveStarts: Number(data.combat?.waveStarts ?? 0),
+      waveEnds: Number(data.combat?.waveEnds ?? 0),
+      avgWaveDurationS: Number(data.combat?.avgWaveDurationS ?? 0),
+      longestWaveDurationS: Number(data.combat?.longestWaveDurationS ?? 0),
+      enemiesAtEnd: Number(data.combat?.enemiesAtEnd ?? 0),
+      abilityCasts: data.combat?.abilityCasts ?? {},
+      pickupCollects: data.combat?.pickupCollects ?? {},
+    },
+    placement: {
+      firstTowerId: data.placement?.firstTowerId ?? null,
+      buildOrder: data.placement?.buildOrder ?? [],
+      upgradeOrder: data.placement?.upgradeOrder ?? [],
+      placedByTower: data.placement?.placedByTower ?? {},
+      soldByTower: data.placement?.soldByTower ?? {},
+      failedByReason: data.placement?.failedByReason ?? {},
+      failedByTower: data.placement?.failedByTower ?? {},
+      failedUpgradeByReason: data.placement?.failedUpgradeByReason ?? {},
+      placementCells: data.placement?.placementCells ?? {},
+      failedPlacementCells: data.placement?.failedPlacementCells ?? {},
+      sellCells: data.placement?.sellCells ?? {},
+      beaconZonePlacements: Number(data.placement?.beaconZonePlacements ?? 0),
+      darkZonePlacements: Number(data.placement?.darkZonePlacements ?? 0),
+      blueprintSaves: Number(data.placement?.blueprintSaves ?? 0),
+      blueprintApplies: Number(data.placement?.blueprintApplies ?? 0),
+      blueprintApplyPlaced: Number(data.placement?.blueprintApplyPlaced ?? 0),
+      targetModeChanges: Number(data.placement?.targetModeChanges ?? 0),
+      quickSellbacks: Number(data.placement?.quickSellbacks ?? 0),
+    },
+    assistance: {
+      aiMenuOpens: Number(assistance.aiMenuOpens ?? 0),
+      aiGameOpens: Number(assistance.aiGameOpens ?? 0),
+      aiQuestions: Number(assistance.aiQuestions ?? 0),
+      aiSuccesses: Number(assistance.aiSuccesses ?? 0),
+      aiErrors: Number(assistance.aiErrors ?? 0),
+      aiQuotaErrors: Number(assistance.aiQuotaErrors ?? 0),
+      feedbackMenuOpens: Number(assistance.feedbackMenuOpens ?? 0),
+      feedbackGameOpens: Number(assistance.feedbackGameOpens ?? 0),
+      feedbackSubmits: Number(assistance.feedbackSubmits ?? 0),
+      feedbackSuccesses: Number(assistance.feedbackSuccesses ?? 0),
+      feedbackErrors: Number(assistance.feedbackErrors ?? 0),
+      feedbackRepliesViewed: Number(assistance.feedbackRepliesViewed ?? 0),
+      widgetPauseS: Number(assistance.widgetPauseS ?? 0),
+    },
+    freeplay: {
+      entered: Boolean(freeplay.entered ?? summary.freeplay),
+      contractId: freeplay.contractId ?? null,
+      dailyId: freeplay.dailyId ?? null,
+      scoreMultiplierEnd: Number(freeplay.scoreMultiplierEnd ?? 1),
+      contractSelections: freeplay.contractSelections ?? {},
+      relicOffers: Number(freeplay.relicOffers ?? 0),
+      relicSelections: freeplay.relicSelections ?? {},
+      riskOffers: freeplay.riskOffers ?? {},
+      riskAccepted: freeplay.riskAccepted ?? {},
+      riskDeclined: freeplay.riskDeclined ?? {},
+      riskCleared: freeplay.riskCleared ?? {},
+      checkpointSubmits: Number(freeplay.checkpointSubmits ?? 0),
+      mutatorWaves: freeplay.mutatorWaves ?? {},
+      rivalSpawns: freeplay.rivalSpawns ?? {},
+      rivalDefeats: freeplay.rivalDefeats ?? {},
+    },
+    towerInterest: {
+      shopOpens: Number(data.towerInterest?.shopOpens ?? 0),
+      shopSelections: data.towerInterest?.shopSelections ?? {},
+      lockedTowerClicks: data.towerInterest?.lockedTowerClicks ?? {},
+      unaffordableTowerClicks: data.towerInterest?.unaffordableTowerClicks ?? {},
+      failedPlacements: Number(data.towerInterest?.failedPlacements ?? 0),
+      upgradePanelOpens: Number(data.towerInterest?.upgradePanelOpens ?? 0),
+      upgradePanelByTower: data.towerInterest?.upgradePanelByTower ?? {},
+      failedUpgrades: Number(data.towerInterest?.failedUpgrades ?? 0),
+      quickSellbacks: Number(data.towerInterest?.quickSellbacks ?? 0),
+      targetModeChanges: Number(data.towerInterest?.targetModeChanges ?? 0),
+      abilityUses: data.towerInterest?.abilityUses ?? {},
+      pickupCollects: data.towerInterest?.pickupCollects ?? {},
+    },
+    progression: {
+      lifetimeKillsAtStart: Number(data.progression?.lifetimeKillsAtStart ?? 0),
+      runsBeforeStart: Number(data.progression?.runsBeforeStart ?? 0),
+      victoriesBeforeStart: Number(data.progression?.victoriesBeforeStart ?? 0),
+      firstSeenAt: Number(data.progression?.firstSeenAt ?? 0),
+      lastSeenAt: Number(data.progression?.lastSeenAt ?? 0),
+      sessions: Number(data.progression?.sessions ?? 0),
+      sessionsToday: Number(data.progression?.sessionsToday ?? 0),
+      daysSinceFirstSeen: Number(data.progression?.daysSinceFirstSeen ?? 0),
+      daysSinceLastSeen: Number(data.progression?.daysSinceLastSeen ?? 0),
+      unlocksEarned: data.progression?.unlocksEarned ?? [],
+      unlocksViewed: data.progression?.unlocksViewed ?? [],
+      unlockedTowerIdsUsed: data.progression?.unlockedTowerIdsUsed ?? [],
+    },
+    leaderboard: data.leaderboard ?? {},
+    attention: {
+      activeS: Number(data.attention?.activeS ?? 0),
+      hiddenS: Number(data.attention?.hiddenS ?? 0),
+      idleS: Number(data.attention?.idleS ?? 0),
+      pausedS: Number(data.attention?.pausedS ?? 0),
+      focusLosses: Number(data.attention?.focusLosses ?? 0),
+      sessionS: Number(data.attention?.sessionS ?? 0),
+      sidePanelS: Number(data.attention?.sidePanelS ?? 0),
+      shopPanelS: Number(data.attention?.shopPanelS ?? 0),
+      upgradePanelS: Number(data.attention?.upgradePanelS ?? 0),
+      overlayS: Number(data.attention?.overlayS ?? 0),
+      widgetOpenS: Number(data.attention?.widgetOpenS ?? 0),
+      speed1S: Number(data.attention?.speed1S ?? 0),
+      speed2S: Number(data.attention?.speed2S ?? 0),
+      speed4S: Number(data.attention?.speed4S ?? 0),
+    },
+    performance: {
+      viewportW: Number(performance.viewportW ?? 0),
+      viewportH: Number(performance.viewportH ?? 0),
+      devicePixelRatio: Number(performance.devicePixelRatio ?? 1),
+      fpsMin: Number(performance.fpsMin ?? 0),
+      fpsAvg: Number(performance.fpsAvg ?? 0),
+      fpsSamples: Number(performance.fpsSamples ?? 0),
+      longFrames: Number(performance.longFrames ?? 0),
+      qualityDowngrades: Number(performance.qualityDowngrades ?? 0),
+      qualityRecoveries: Number(performance.qualityRecoveries ?? 0),
+      displayStandalone: Boolean(performance.displayStandalone ?? false),
+      installPromptSeen: Number(performance.installPromptSeen ?? 0),
+      installed: Number(performance.installed ?? 0),
+      userAgent: performance.userAgent ?? '',
+    },
+  };
 }
 
 /** Admin-only: read recent telemetry events for the dashboard. */
@@ -286,7 +529,7 @@ export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]
   try {
     const q = query(collection(db, 'runAnalytics'), orderBy('endedAt', 'desc'), limitResults(limit));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as PrivateRunAnalyticsDoc) }));
+    return snap.docs.map((d) => normalizeRunAnalytics(d.id, d.data() as Partial<PrivateRunAnalyticsDoc>));
   } catch {
     return [];
   }
@@ -294,11 +537,14 @@ export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]
 
 export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {
   if (!validBoard(board)) return [];
+  const cacheKey = `${board}:${limit}`;
+  const cached = topCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
   try {
     const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(limit));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => {
+    const rows = snap.docs.map((d) => {
       const data = d.data() as Partial<ScoreEntry>;
       return {
         name: data.name ?? '???',
@@ -309,14 +555,22 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
         ts: Number(data.ts ?? 0),
         uid: data.uid ?? '',
         runId: data.runId ?? '',
+        meta: data.meta ?? '',
+        daily: data.daily ?? '',
+        checkpoint: data.checkpoint ?? false,
       };
     });
+    topCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows });
+    return cloneScores(rows);
   } catch {
     return [];
   }
 }
 
 export async function fetchGlobalTop(freeplay: boolean, limit = 20): Promise<RankedScoreEntry[]> {
+  const cacheKey = `${freeplay ? 'fp' : 'campaign'}:${limit}`;
+  const cached = globalTopCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   const boards = ALL_MAPS.flatMap((map) =>
     DIFFICULTIES.map((diff) => boardId(map.id, diff.id, freeplay)));
   const perBoardLimit = Math.max(3, Math.min(10, limit));
@@ -327,8 +581,11 @@ export async function fetchGlobalTop(freeplay: boolean, limit = 20): Promise<Ran
     return scores.map((score) => ({ ...score, ...meta }));
   }));
   const sortField: keyof ScoreEntry = freeplay ? 'wave' : 'cash';
-  return rows
+  const sorted = rows
     .flat()
     .sort((a, b) => (Number(b[sortField]) - Number(a[sortField])) || b.kills - a.kills || b.ts - a.ts)
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((row) => ({ ...row }));
+  globalTopCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows: sorted });
+  return cloneScores(sorted);
 }

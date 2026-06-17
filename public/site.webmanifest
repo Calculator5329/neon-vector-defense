@@ -6,10 +6,19 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#05070f",
   "theme_color": "#070a14",
   "categories": ["games", "strategy"],
+  "shortcuts": [
+    {
+      "name": "Deploy",
+      "short_name": "Deploy",
+      "description": "Open Neon Vector Defense at the sector deployment console.",
+      "url": "/"
+    }
+  ],
   "icons": [
     {
       "src": "/favicon.svg",

@@ -18,11 +18,15 @@ service cloud.firestore {
       return runId.matches('^r_[A-Za-z0-9_-]{8,80}$');
     }
 
+    function isTelemetrySchema(data) {
+      return data.schemaVersion in [1, 2];
+    }
+
     // public leaderboards: anyone can read; players may append validated scores
     match /boards/{board}/scores/{id} {
       allow read: if true;
       allow create: if isValidBoard(board)
-        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid', 'runId'])
+        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid', 'runId', 'meta', 'daily', 'checkpoint'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
         && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
@@ -32,7 +36,10 @@ service cloud.firestore {
         && request.resource.data.freeplay == board.matches('.*_fp$')
         && request.resource.data.ts is int && request.resource.data.ts > 0
         && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40))
-        && (!('runId' in request.resource.data) || (request.resource.data.runId is string && isValidRunId(request.resource.data.runId)));
+        && (!('runId' in request.resource.data) || (request.resource.data.runId is string && isValidRunId(request.resource.data.runId)))
+        && (!('meta' in request.resource.data) || (request.resource.data.meta is string && request.resource.data.meta.size() <= 240))
+        && (!('daily' in request.resource.data) || (request.resource.data.daily is string && request.resource.data.daily.size() <= 80))
+        && (!('checkpoint' in request.resource.data) || request.resource.data.checkpoint is bool);
       allow update, delete: if false;
     }
 
@@ -44,7 +51,7 @@ service cloud.firestore {
       allow create, update: if isValidRunId(runId)
         && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
-        && request.resource.data.schemaVersion == 1
+        && isTelemetrySchema(request.resource.data)
         && request.resource.data.runId == runId
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
         && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
@@ -65,7 +72,7 @@ service cloud.firestore {
           && chunkId.matches('^c[0-9]{1,4}$')
           && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'chunk', 'events'])
           && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'chunk', 'events'])
-          && request.resource.data.schemaVersion == 1
+          && isTelemetrySchema(request.resource.data)
           && request.resource.data.runId == runId
           && request.resource.data.chunk is int && request.resource.data.chunk >= 0 && request.resource.data.chunk <= 9999
           && request.resource.data.events is list && request.resource.data.events.size() <= 650;
@@ -77,9 +84,19 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow delete: if false;
       allow create, update: if isValidRunId(runId)
-        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
-        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
-        && request.resource.data.schemaVersion == 1
+        && isTelemetrySchema(request.resource.data)
+        && (
+          (
+            request.resource.data.schemaVersion == 1
+            && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+            && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+          )
+          || (
+            request.resource.data.schemaVersion == 2
+            && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+            && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+          )
+        )
         && request.resource.data.runId == runId
         && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
@@ -90,11 +107,45 @@ service cloud.firestore {
         && request.resource.data.abandonment is map
         && request.resource.data.difficulty is map
         && request.resource.data.economy is map
+        && (!('menu' in request.resource.data) || request.resource.data.menu is map)
+        && (!('controls' in request.resource.data) || request.resource.data.controls is map)
+        && (!('combat' in request.resource.data) || request.resource.data.combat is map)
+        && (!('placement' in request.resource.data) || request.resource.data.placement is map)
+        && (!('assistance' in request.resource.data) || request.resource.data.assistance is map)
+        && (!('freeplay' in request.resource.data) || request.resource.data.freeplay is map)
         && request.resource.data.towerInterest is map
         && request.resource.data.progression is map
         && request.resource.data.leaderboard is map
         && request.resource.data.attention is map
         && request.resource.data.performance is map;
+    }
+
+    // live private run checkpoints: compact, append-only chunks for admin dashboards.
+    match /runCheckpoints/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
+
+      match /chunks/{chunkId} {
+        allow read: if isAdmin();
+        allow update, delete: if false;
+        allow create: if isValidRunId(runId)
+          && chunkId.matches('^c[0-9]{1,6}$')
+          && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
+          && isTelemetrySchema(request.resource.data)
+          && request.resource.data.runId == runId
+          && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
+          && request.resource.data.chunk is int && request.resource.data.chunk >= 0 && request.resource.data.chunk <= 999999
+          && request.resource.data.reason is string && request.resource.data.reason.size() <= 30
+          && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+          && request.resource.data.build is string && request.resource.data.build.size() <= 30
+          && request.resource.data.summary is map
+          && request.resource.data.performance is map
+          && request.resource.data.attention is map
+          && request.resource.data.counters is map
+          && request.resource.data.recentEvents is list && request.resource.data.recentEvents.size() <= 32
+          && (request.resource.data.latestSnapshot == null || request.resource.data.latestSnapshot is map);
+      }
     }
 
     // player feedback: write-only from clients, admin-readable/repliable after Google sign-in

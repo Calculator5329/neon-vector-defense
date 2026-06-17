@@ -1188,6 +1188,20 @@ function TelemetryError() {
 const num = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
 const str = (v: unknown): string => typeof v === 'string' ? v : '';
 const avgOf = <T,>(xs: T[], f: (x: T) => number): number => xs.length ? xs.reduce((s, x) => s + f(x), 0) / xs.length : 0;
+const rec = (v: unknown): Record<string, number> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, number> : {};
+
+function mergedRecordBars<T>(rows: T[], get: (row: T) => unknown, color = '#54a0ff', label = (id: string) => id) {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    for (const [id, value] of Object.entries(rec(get(row)))) {
+      totals.set(id, (totals.get(id) ?? 0) + num(value));
+    }
+  }
+  return [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([id, value]) => ({ label: label(id), value, color }));
+}
 
 function useRunAnalytics(limit = 1500) {
   const [rows, setRows] = useState<RunAnalyticsRow[] | null>(null);
@@ -1286,6 +1300,12 @@ function RunIntelligenceTab() {
   const avgHidden = avgOf(data, (r) => r.attention.hiddenS);
   const avgCashFloat = avgOf(data, (r) => num(r.economy.cashFloatedEnd));
   const avgIdleCash = avgOf(data, (r) => num(r.economy.idleWithCashS));
+  const avgFirstLeak = avgOf(data.filter((r) => num(r.combat?.firstLeakWave) > 0), (r) => num(r.combat?.firstLeakWave));
+  const lostWhileRich = data.filter((r) => ['gameover', 'abandoned'].includes(r.summary.outcome) && num(r.economy.cashFloatedEnd) >= 1200).length;
+  const avgLongFrames = avgOf(data, (r) => num(r.performance.longFrames));
+  const avgQualityDrops = avgOf(data, (r) => num(r.performance.qualityDowngrades));
+  const standaloneRuns = data.filter((r) => r.performance.displayStandalone).length;
+  const installEvents = data.reduce((sum, r) => sum + num(r.performance.installed), 0);
   const mostCommonEnd = [...data].sort((a, b) => b.summary.wave - a.summary.wave)[0];
   const leakEnemies = new Map<string, number>();
   const failedByMap = new Map<string, number>();
@@ -1298,6 +1318,22 @@ function RunIntelligenceTab() {
     .map(([label, value]) => ({ label, value, color: '#ff6b6b' }));
   const failMapBars = [...failedByMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
     .map(([id, value]) => ({ label: mapName(id), value, color: '#ff9f43' }));
+  const failReasonBars = mergedRecordBars(data, (r) => r.placement?.failedByReason, '#feca57');
+  const placementCells = mergedRecordBars(data, (r) => r.placement?.placementCells, '#54a0ff');
+  const firstTowerBars = (() => {
+    const counts = new Map<string, number>();
+    for (const r of data) {
+      const id = r.placement?.firstTowerId;
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
+      .map(([id, value]) => ({ label: TOWER_MAP[id]?.name ?? id, value, color: towerGlow(id) }));
+  })();
+  const leakTraitBars = [
+    { label: 'cloaked cores', value: data.reduce((sum, r) => sum + num(r.combat?.cloakedLeakCores), 0), color: '#ff6ec7' },
+    { label: 'armored cores', value: data.reduce((sum, r) => sum + num(r.combat?.armoredLeakCores), 0), color: '#feca57' },
+    { label: 'boss cores', value: data.reduce((sum, r) => sum + num(r.combat?.bossLeakCores), 0), color: '#ff4757' },
+  ].filter((d) => d.value > 0);
 
   return (
     <div className="adm-content">
@@ -1310,6 +1346,7 @@ function RunIntelligenceTab() {
         <Stat label="hidden per run" value={`${Math.round(avgHidden)}s`} />
         <Stat label="cash floated end" value={`⌬${Math.round(avgCashFloat).toLocaleString()}`} />
         <Stat label="freeplay share" value={pct(freeplay.length / data.length)} />
+        <Stat label="lost while rich" value={pct(lostWhileRich / data.length)} />
       </div>
       <div className="adm-two">
         <div className="adm-card">
@@ -1339,6 +1376,26 @@ function RunIntelligenceTab() {
           {failMapBars.length ? <HBars data={failMapBars} /> : <div className="adm-empty">No gameover data in analytics yet.</div>}
         </div>
       </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Placement learning</h3><span className="adm-hint">top binned build cells</span></div>
+          {placementCells.length ? <HBars data={placementCells} /> : <div className="adm-empty">No placement buckets yet.</div>}
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>First tower choices</h3><span className="adm-hint">opening habit by run</span></div>
+          {firstTowerBars.length ? <HBars data={firstTowerBars} /> : <div className="adm-empty">No tower placement data yet.</div>}
+        </div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Placement friction</h3><span className="adm-hint">failed placement reasons</span></div>
+          {failReasonBars.length ? <HBars data={failReasonBars} /> : <div className="adm-empty">No failed placements yet.</div>}
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Leak traits</h3><span className="adm-hint">cores lost by threat class</span></div>
+          {leakTraitBars.length ? <HBars data={leakTraitBars} /> : <div className="adm-empty">No trait-specific leaks yet.</div>}
+        </div>
+      </div>
       <div className="adm-card">
         <div className="adm-card-head"><h3>Economy interpretation</h3><span className="adm-hint">what to tune first</span></div>
         <div className="adm-insight-grid">
@@ -1346,6 +1403,8 @@ function RunIntelligenceTab() {
           <div className="adm-insight"><b>Deepest run</b><span>{mostCommonEnd ? `${mostCommonEnd.summary.callsign} reached w${mostCommonEnd.summary.wave} on ${mapName(mostCommonEnd.summary.map)}` : 'No runs'}</span></div>
           <div className="adm-insight"><b>Purchase friction</b><span>{Math.round(avgOf(data, (r) => num(r.economy.failedPurchaseAttempts)) * 10) / 10} failed tower buys/run</span><span>{Math.round(avgOf(data, (r) => num(r.economy.failedUpgradeAttempts)) * 10) / 10} failed upgrades/run</span></div>
           <div className="adm-insight"><b>Attention</b><span>{Math.round(avgOf(data, (r) => r.attention.focusLosses) * 10) / 10} focus losses/run</span><span>{Math.round(avgOf(data, (r) => r.attention.pausedS))}s paused/run</span></div>
+          <div className="adm-insight"><b>Combat pressure</b><span>First leak avg: {avgFirstLeak ? `w${avgFirstLeak.toFixed(1)}` : 'n/a'}</span><span>Peak enemies avg: {avgOf(data, (r) => num(r.combat?.peakEnemies)).toFixed(1)}</span></div>
+          <div className="adm-insight"><b>Performance</b><span>{Math.round(avgLongFrames)} long frames/run</span><span>{avgQualityDrops.toFixed(1)} quality drops/run</span><span>{pct(standaloneRuns / data.length)} standalone / {installEvents} installs</span></div>
         </div>
       </div>
     </div>
@@ -1399,6 +1458,20 @@ function EngagementTab() {
     { label: 'overlay', value: Math.round(avgOf(data, (r) => r.attention.overlayS)), color: '#ff9f43' },
     { label: 'widget', value: Math.round(avgOf(data, (r) => r.attention.widgetOpenS)), color: '#a55eea' },
   ];
+  const assistanceBars = [
+    { label: 'AI opens', value: data.reduce((sum, r) => sum + num(r.assistance?.aiMenuOpens) + num(r.assistance?.aiGameOpens), 0), color: '#a55eea' },
+    { label: 'AI questions', value: data.reduce((sum, r) => sum + num(r.assistance?.aiQuestions), 0), color: '#54a0ff' },
+    { label: 'AI errors', value: data.reduce((sum, r) => sum + num(r.assistance?.aiErrors), 0), color: '#ff9f43' },
+    { label: 'feedback sends', value: data.reduce((sum, r) => sum + num(r.assistance?.feedbackSubmits), 0), color: '#2ed573' },
+    { label: 'replies viewed', value: data.reduce((sum, r) => sum + num(r.assistance?.feedbackRepliesViewed), 0), color: '#ffd32a' },
+  ].filter((d) => d.value > 0);
+  const controlBars = [
+    { label: 'pause toggles', value: data.reduce((sum, r) => sum + num(r.controls?.pauseToggles), 0), color: '#54a0ff' },
+    { label: 'speed changes', value: data.reduce((sum, r) => sum + num(r.controls?.speedChanges), 0), color: '#7bed9f' },
+    { label: 'panel collapses', value: data.reduce((sum, r) => sum + num(r.controls?.sidePanelCollapses), 0), color: '#feca57' },
+    { label: 'abort armed', value: data.reduce((sum, r) => sum + num(r.controls?.abortArmed), 0), color: '#ff4757' },
+    { label: 'wave key launches', value: data.reduce((sum, r) => sum + num(r.controls?.waveLaunchKeys), 0), color: '#a55eea' },
+  ].filter((d) => d.value > 0);
   const unlockUse = new Map<string, { earned: number; viewed: number; used: number }>();
   for (const r of data) {
     for (const id of r.progression.unlocksEarned) (unlockUse.get(id) ?? unlockUse.set(id, { earned: 0, viewed: 0, used: 0 }).get(id)!).earned++;
@@ -1438,6 +1511,16 @@ function EngagementTab() {
         <div className="adm-card">
           <div className="adm-card-head"><h3>Panel dwell</h3><span className="adm-hint">avg seconds per run</span></div>
           <HBars data={panelBars} />
+        </div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Help and feedback loop</h3><span className="adm-hint">privacy-safe counters only</span></div>
+          {assistanceBars.length ? <HBars data={assistanceBars} /> : <div className="adm-empty">No AI/help activity yet.</div>}
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Control habits</h3><span className="adm-hint">run-level action counters</span></div>
+          {controlBars.length ? <HBars data={controlBars} /> : <div className="adm-empty">No control counters yet.</div>}
         </div>
       </div>
       <div className="adm-card">
@@ -1481,6 +1564,14 @@ function FreeplayLabTab() {
   const bestWave = freeplay.length ? Math.max(...freeplay.map((r) => r.summary.wave)) : 0;
   const avgFloat = avgOf(freeplay, (r) => num(r.economy.cashFloatedEnd));
   const avgDuration = avgOf(freeplay, (r) => r.summary.durationS);
+  const dailyShare = freeplay.length ? freeplay.filter((r) => !!r.freeplay?.dailyId).length / freeplay.length : 0;
+  const contractBars = mergedRecordBars(freeplay, (r) => r.freeplay?.contractSelections, '#54a0ff');
+  const relicBars = mergedRecordBars(freeplay, (r) => r.freeplay?.relicSelections, '#ffd32a');
+  const riskAcceptedBars = mergedRecordBars(freeplay, (r) => r.freeplay?.riskAccepted, '#2ed573');
+  const riskDeclinedBars = mergedRecordBars(freeplay, (r) => r.freeplay?.riskDeclined, '#ff9f43');
+  const mutatorBars = mergedRecordBars(freeplay, (r) => r.freeplay?.mutatorWaves, '#a55eea');
+  const rivalBars = mergedRecordBars(freeplay, (r) => r.freeplay?.rivalDefeats, '#ff6b6b');
+  const checkpointSubmits = freeplay.reduce((sum, r) => sum + num(r.freeplay?.checkpointSubmits), 0);
   const ideas = [
     ['Relic Drafts', 'Every 5 freeplay waves, offer 1 of 3 run-warping relics: double support aura but bosses gain shields, missiles home harder but reload slower, burn zones merge into firestorms.'],
     ['Elite Mutators', 'Let the armada roll escalating modifiers: armored swarm, cloak surge, healer convoy, boss escort, credit drought, overdrive storm. Show the next modifier before launch.'],
@@ -1506,6 +1597,7 @@ function FreeplayLabTab() {
         <Stat label="best wave" value={bestWave ? `w${bestWave}` : 'n/a'} />
         <Stat label="avg run length" value={avgDuration ? `${Math.round(avgDuration / 60)}m` : 'n/a'} />
         <Stat label="avg cash float" value={avgFloat ? `⌬${Math.round(avgFloat).toLocaleString()}` : 'n/a'} />
+        <Stat label="daily share" value={pct(dailyShare)} />
       </div>
       <div className="adm-two">
         <div className="adm-card">
@@ -1521,6 +1613,44 @@ function FreeplayLabTab() {
             <span className="adm-dev">Give players permanent reasons to attempt one more deep run tomorrow.</span>
           </div>
         </div>
+      </div>
+      <div className="adm-card">
+        <div className="adm-card-head"><h3>Freeplay decision funnel</h3><span className="adm-hint">contracts, relics, risks, checkpoints</span></div>
+        <div className="adm-insight-grid">
+          <div className="adm-insight"><b>Checkpoint banking</b><span>{checkpointSubmits.toLocaleString()} submissions</span><span>Avg multiplier {avgOf(freeplay, (r) => num(r.freeplay?.scoreMultiplierEnd) || 1).toFixed(2)}x</span></div>
+          <div className="adm-insight"><b>Relic offers</b><span>{freeplay.reduce((sum, r) => sum + num(r.freeplay?.relicOffers), 0).toLocaleString()} offers shown</span><span>{relicBars.reduce((sum, r) => sum + r.value, 0).toLocaleString()} relics selected</span></div>
+          <div className="adm-insight"><b>Risk choices</b><span>{riskAcceptedBars.reduce((sum, r) => sum + r.value, 0).toLocaleString()} accepted</span><span>{riskDeclinedBars.reduce((sum, r) => sum + r.value, 0).toLocaleString()} declined</span></div>
+          <div className="adm-insight"><b>Daily endless</b><span>{pct(dailyShare)} of freeplay analytics</span><span>{freeplay.filter((r) => !!r.freeplay?.dailyId).length} daily runs</span></div>
+        </div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Contract choices</h3><span className="adm-hint">prestige entry picks</span></div>
+          {contractBars.length ? <HBars data={contractBars} /> : <div className="adm-empty">No contract selections yet.</div>}
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Relic picks</h3><span className="adm-hint">what players choose</span></div>
+          {relicBars.length ? <HBars data={relicBars} /> : <div className="adm-empty">No relic selections yet.</div>}
+        </div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Risk decisions</h3><span className="adm-hint">accepted and declined packets</span></div>
+          {riskAcceptedBars.length || riskDeclinedBars.length ? (
+            <>
+              {riskAcceptedBars.length ? <HBars data={riskAcceptedBars.map((d) => ({ ...d, label: `${d.label} accepted` }))} /> : null}
+              {riskDeclinedBars.length ? <HBars data={riskDeclinedBars.map((d) => ({ ...d, label: `${d.label} declined` }))} /> : null}
+            </>
+          ) : <div className="adm-empty">No risk decisions yet.</div>}
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Mutator exposure</h3><span className="adm-hint">waves played under each modifier</span></div>
+          {mutatorBars.length ? <HBars data={mutatorBars} /> : <div className="adm-empty">No mutator wave data yet.</div>}
+        </div>
+      </div>
+      <div className="adm-card">
+        <div className="adm-card-head"><h3>Rival defeats</h3><span className="adm-hint">named boss clears</span></div>
+        {rivalBars.length ? <HBars data={rivalBars} /> : <div className="adm-empty">No rival defeats yet.</div>}
       </div>
       <div className="adm-card">
         <div className="adm-card-head"><h3>Freeplay upgrade backlog</h3><span className="adm-hint">ranked ideas to make endless mode less solved</span></div>

@@ -17,6 +17,7 @@ import {
   fetchGlobalTop,
   submitRunReplay,
   submitRunAnalytics,
+  submitRunCheckpoint,
   submitFeedback,
   fetchFeedbackReplies,
   logTelemetry,
@@ -25,8 +26,19 @@ import {
   type ScoreEntry,
   type RankedScoreEntry,
 } from './game/leaderboard';
+import type { RunCheckpointReason } from './game/runTelemetry';
 import { askAIHelp } from './game/aiHelp';
 import { buildAIHelpContext, type AIHelpContext } from './game/aiContext';
+import { appMetrics, METRIC_EVENTS } from './game/metrics';
+import {
+  FREEPLAY_CONTRACTS,
+  dailyFreeplaySeed,
+  rivalForWave,
+  type DailyFreeplaySeed,
+  type FreeplayContractId,
+  type FreeplayRelicId,
+  type RiskWaveId,
+} from './game/freeplay';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
@@ -73,14 +85,41 @@ function Main() {
   const [diff, setDiff] = useState<DifficultyDef>(
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
+  const [dailySeed] = useState(() => dailyFreeplaySeed());
+  const [dailyMode, setDailyMode] = useState(false);
   useEffect(() => { progress.markSession(); }, []);
+  useEffect(() => {
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || Boolean((navigator as unknown as { standalone?: boolean }).standalone);
+    appMetrics.recordDisplayMode(standalone);
+    const onInstallPrompt = () => appMetrics.recordInstallPromptSeen();
+    const onInstalled = () => appMetrics.recordInstalled();
+    window.addEventListener('beforeinstallprompt', onInstallPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onInstallPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+  const startCampaign = () => {
+    setDailyMode(false);
+    sfx.click();
+    setScreen('game');
+  };
+  const startDaily = () => {
+    appMetrics.recordDeployAttempt(dailySeed.mapId, dailySeed.diffId, true);
+    setMap(ALL_MAPS.find((m) => m.id === dailySeed.mapId) ?? MAPS[0]);
+    setDiff(DIFFICULTIES.find((d) => d.id === dailySeed.diffId) ?? DIFFICULTIES[1]);
+    setDailyMode(true);
+    sfx.click();
+    setScreen('game');
+  };
 
   return (
     <>
       {screen === 'menu'
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
-            onStart={() => { sfx.click(); setScreen('game'); }} />
-        : <GameScreen map={map} diff={diff} onExit={() => setScreen('menu')} />}
+            dailySeed={dailySeed} onStart={startCampaign} onStartDaily={startDaily} />
+        : <GameScreen map={map} diff={diff} dailySeed={dailyMode ? dailySeed : null} onExit={() => { setDailyMode(false); setScreen('menu'); }} />}
       {AI_HELP_ENABLED && screen === 'menu' && (
         <AIHelpWidget getContext={() => buildAIHelpContext({ screen: 'menu', map, diff })} />
       )}
@@ -120,14 +159,17 @@ function AIHelpWidget({
     setText('');
     setState('busy');
     setMessages((m) => [...m, { role: 'user', content: q }]);
+    appMetrics.recordAIQuestion('submit');
     try {
       const res = await askAIHelp(q, conversationId, getContext(), messages);
       setConversationId(res.conversationId);
       setTurnsRemaining(res.turnsRemaining);
       setConversationsRemaining(res.conversationsRemaining);
       setMessages((m) => [...m, { role: 'assistant', content: res.reply }]);
+      appMetrics.recordAIQuestion('success');
       sfx.click();
     } catch (error) {
+      appMetrics.recordAIQuestion(error instanceof Error && /quota|limit|turns|chats/i.test(error.message) ? 'quota' : 'error');
       setMessages((m) => [...m, {
         role: 'assistant',
         content: error instanceof Error ? error.message : 'AI uplink is unavailable.',
@@ -148,12 +190,13 @@ function AIHelpWidget({
   }, [blocked, open]);
   useEffect(() => {
     document.body.classList.toggle('ai-open', open);
+    appMetrics.recordAIWidget(open, placement);
     window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'ai', open } }));
     return () => {
       document.body.classList.remove('ai-open');
       window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'ai', open: false } }));
     };
-  }, [open]);
+  }, [open, placement]);
 
   return (
     <div
@@ -260,14 +303,21 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
     setCheckingReplies(false);
   }, []);
   useEffect(() => {
-    void refreshReplies();
-    const id = window.setInterval(refreshReplies, 15000);
+    if (PERF_MAP !== null) return;
+    const intervalMs = open ? 15000 : 60000;
+    if (open || !document.body.classList.contains('game-active')) void refreshReplies();
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      if (!open && document.body.classList.contains('game-active')) return;
+      void refreshReplies();
+    }, intervalMs);
     return () => window.clearInterval(id);
-  }, [refreshReplies]);
+  }, [open, refreshReplies]);
   useEffect(() => {
     if (!open || replies.length === 0) return;
     const newest = Math.max(...replies.map((r) => r.replyTs));
     if (newest > readAt) {
+      appMetrics.recordFeedbackReplyViewed(replies.filter((r) => r.replyTs > readAt).length);
       markFeedbackRead(newest);
       setReadAt(newest);
     }
@@ -277,12 +327,13 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
   }, [blocked, open]);
   useEffect(() => {
     document.body.classList.toggle('fb-open', open);
+    appMetrics.recordFeedbackWidget(open, ctx);
     window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'feedback', open } }));
     return () => {
       document.body.classList.remove('fb-open');
       window.dispatchEvent(new CustomEvent(WIDGET_OPEN_EVENT, { detail: { kind: 'feedback', open: false } }));
     };
-  }, [open]);
+  }, [ctx, open]);
   if (PERF_MAP !== null) return null; // not during perf runs
   const send = async () => {
     const t = text.trim();
@@ -290,10 +341,12 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
     setState('busy');
     const id = await submitFeedback(t, ctx);
     if (!id) {
+      appMetrics.recordFeedbackSubmit(false);
       setState('err');
       sfx.error();
       return;
     }
+    appMetrics.recordFeedbackSubmit(true);
     saveFeedbackId(id);
     setState('done');
     setText('');
@@ -408,7 +461,9 @@ function mapUnlocked(idx: number): boolean {
 function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
+  dailySeed: DailyFreeplaySeed;
   onStart: () => void;
+  onStartDaily: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
   const apexLocked = !DEMO_MODE && progress.record.runs < 1;
@@ -426,8 +481,8 @@ function MainMenu(props: {
           <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
         </div>
         <nav className="menu-tabs">
-          <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { setTab('deploy'); sfx.click(); }}>DEPLOY</button>
-          <button className={tab === 'board' ? 'on' : ''} onClick={() => { setTab('board'); sfx.click(); }}>LEADERBOARD</button>
+          <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
+          <button className={tab === 'board' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
         </nav>
       </header>
 
@@ -458,7 +513,8 @@ function MainMenu(props: {
                   if (!unlocked) {
                     const prior = ALL_MAPS[Math.max(0, i - 1)];
                     return (
-                      <div key={m.id} className="map-card map-card-locked" data-testid={`map-card-${m.id}`} title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}>
+                      <div key={m.id} className="map-card map-card-locked" data-testid={`map-card-${m.id}`} title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}
+                        onClick={() => appMetrics.recordLockedMapClick(m.id)}>
                         <div className="map-lock">🔒</div>
                         <div className="map-card-name">CLASSIFIED</div>
                         <div className="map-card-desc">Clear {prior.name} or reach W20.</div>
@@ -471,7 +527,7 @@ function MainMenu(props: {
                       key={m.id}
                       className={`map-card ${active ? 'active' : ''}`}
                       data-testid={`map-card-${m.id}`}
-                      onClick={() => { sfx.click(); props.setMap(m); }}
+                      onClick={() => { appMetrics.recordMapSelect(m.id); sfx.click(); props.setMap(m); }}
                       title={m.desc}
                     >
                       {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
@@ -504,7 +560,8 @@ function MainMenu(props: {
                         ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
                         : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
                     return (
-                      <div key={d.id} className="diff-card diff-locked" data-testid={`diff-card-${d.id}`} title={reason.title}>
+                      <div key={d.id} className="diff-card diff-locked" data-testid={`diff-card-${d.id}`} title={reason.title}
+                        onClick={() => appMetrics.recordLockedProtocolClick(d.id)}>
                         <div className="diff-name">{reason.label}</div>
                         <div className="diff-desc">{reason.desc}</div>
                       </div>
@@ -516,7 +573,7 @@ function MainMenu(props: {
                       key={d.id}
                       className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
                       data-testid={`diff-card-${d.id}`}
-                      onClick={() => { sfx.click(); props.setDiff(d); }}
+                      onClick={() => { appMetrics.recordProtocolSelect(d.id); sfx.click(); props.setDiff(d); }}
                     >
                       {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
                       <div className="diff-name">{d.name}</div>
@@ -524,6 +581,16 @@ function MainMenu(props: {
                     </button>
                   );
                 })}
+              </div>
+              <div className="daily-freeplay-card">
+                <div>
+                  <div className="daily-freeplay-kicker">DAILY ENDLESS SEED</div>
+                  <div className="daily-freeplay-title">{props.dailySeed.title}</div>
+                  <div className="daily-freeplay-rules">
+                    {props.dailySeed.rules.slice(0, 2).join('  /  ')}
+                  </div>
+                </div>
+                <button className="tb-btn on" onClick={props.onStartDaily}>DAILY FREEPLAY</button>
               </div>
             </div>
           </>
@@ -540,7 +607,8 @@ function MainMenu(props: {
           <span className="dbar-dot">·</span>
           <span className="dbar-diff">{props.diff.name}</span>
         </div>
-        <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked} onClick={props.onStart}>▶ DEPLOY</button>
+        <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked}
+          onClick={() => { appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked); props.onStart(); }}>▶ DEPLOY</button>
       </div>
     </div>
   );
@@ -567,8 +635,8 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
       <div className="board-head">
         <div className="board-title">GLOBAL LEADERBOARD <span>{fp ? 'FREEPLAY' : 'CAMPAIGN'}</span></div>
         <div className="board-modes">
-          <button className={!fp ? 'on' : ''} onClick={() => { setFp(false); sfx.click(); }}>CAMPAIGN</button>
-          <button className={fp ? 'on' : ''} onClick={() => { setFp(true); sfx.click(); }}>FREEPLAY</button>
+          <button className={!fp ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(false); setFp(false); sfx.click(); }}>CAMPAIGN</button>
+          <button className={fp ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(true); setFp(true); sfx.click(); }}>FREEPLAY</button>
         </div>
       </div>
       <div className={`board-list board-global ${fp ? 'fp' : ''}`}>
@@ -589,7 +657,16 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           globalRows.map((r, i) => (
             <div key={`${r.board}-${i}`} className="board-row">
               <span className="board-rank">{i + 1}</span>
-              <span className="board-name">{r.name}</span>
+              <span className="board-name">
+                <span>{r.name}</span>
+                {fp && (r.meta || r.daily || r.checkpoint) && (
+                  <span className="board-meta-tags">
+                    {r.checkpoint && <b>CHECKPOINT</b>}
+                    {r.daily && <b>DAILY</b>}
+                    {r.meta && <em>{r.meta}</em>}
+                  </span>
+                )}
+              </span>
               <span className="board-context">{r.mapName}</span>
               <span className="board-context">{r.diffName}</span>
               {fp && <span className="board-wave">{r.wave}</span>}
@@ -618,7 +695,16 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           localRows.map((r, i) => (
             <div key={i} className="board-row">
               <span className="board-rank">{i + 1}</span>
-              <span className="board-name">{r.name}</span>
+              <span className="board-name">
+                <span>{r.name}</span>
+                {fp && (r.meta || r.daily || r.checkpoint) && (
+                  <span className="board-meta-tags">
+                    {r.checkpoint && <b>CHECKPOINT</b>}
+                    {r.daily && <b>DAILY</b>}
+                    {r.meta && <em>{r.meta}</em>}
+                  </span>
+                )}
+              </span>
               {fp && <span className="board-wave">{r.wave}</span>}
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
             </div>
@@ -654,17 +740,23 @@ function MapThumb({ map }: { map: GameMap }) {
 
 // ---------------- Game screen ----------------
 
-function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; onExit: () => void }) {
+function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: DifficultyDef; dailySeed?: DailyFreeplaySeed | null; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [run, setRun] = useState(0); // bump to restart the sector
   const gameRef = useRef<Game | null>(null);
   const runRef = useRef(-1);
   if (!gameRef.current || runRef.current !== run) {
-    gameRef.current = new Game(map, diff);
+    const nextGame = new Game(map, diff);
+    if (dailySeed) nextGame.startDailyFreeplay(dailySeed);
+    gameRef.current = nextGame;
     runRef.current = run;
   }
   const game = gameRef.current;
-  if (import.meta.env.DEV) (window as unknown as { game: Game }).game = game;
+  if (import.meta.env.DEV) {
+    const devWindow = window as unknown as { game: Game; appMetrics: typeof appMetrics };
+    devWindow.game = game;
+    devWindow.appMetrics = appMetrics;
+  }
 
   const [, setTick] = useState(0);
   const [placing, setPlacing] = useState<TowerDef | null>(null);
@@ -672,7 +764,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [muted, setMutedState] = useState(isMuted());
   const [aiming, setAiming] = useState(false);
   const [tutorial, setTutorial] = useState(PERF_MAP === null && !DEMO_MODE && !progress.tutorialSeen);
-  const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE);
+  const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE || !!dailySeed);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   // adaptive render quality: smoothed fps + a hysteresis flag (see render.setRenderQuality)
@@ -682,6 +774,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   const [unlockModal, setUnlockModal] = useState<TowerDef | null>(null);
   const [sideOpen, setSideOpen] = useState(true);
   const [abortConfirm, setAbortConfirm] = useState(false);
+  const [contractOpen, setContractOpen] = useState(false);
+  const [checkpointState, setCheckpointState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
   const selectedRef = useRef<Tower | null>(null);
@@ -691,13 +785,24 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   aimingRef.current = aiming;
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
   // unlock modals must never stack on the briefing / tutorial overlays
-  overlayRef.current = tutorial || !briefed;
-  const blockingOverlay = tutorial || !briefed || cloakTip || unlockModal !== null ||
+  const relicOfferOpen = game.phase === 'build' && game.freeplayState.nextRelicOffer.length > 0;
+  overlayRef.current = tutorial || !briefed || contractOpen || relicOfferOpen;
+  const blockingOverlay = tutorial || !briefed || cloakTip || unlockModal !== null || contractOpen || relicOfferOpen ||
     game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice';
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
   sideOpenRef.current = sideOpen;
   blockingOverlayRef.current = blockingOverlay;
+
+  useEffect(() => {
+    if (tutorial) game.recorder.recordControl(METRIC_EVENTS.TUTORIAL_VIEW);
+  }, [game, tutorial]);
+  useEffect(() => {
+    if (!tutorial && !briefed) game.recorder.recordControl(METRIC_EVENTS.BRIEFING_VIEW);
+  }, [briefed, game, tutorial]);
+  useEffect(() => {
+    if (cloakTip) game.recorder.recordControl(METRIC_EVENTS.CLOAK_TIP_VIEW);
+  }, [cloakTip, game]);
 
   // returning players already earned earlier towers — mark them seen silently so
   // the unlock modal only celebrates genuinely new unlocks during this run.
@@ -710,20 +815,24 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   }, [game]);
 
   useEffect(() => {
-    const noteInput = () => game.recorder.noteInput();
+    const notePointer = () => game.recorder.noteInput('pointer');
+    const noteKey = () => game.recorder.noteInput('keyboard');
+    const noteTouch = () => game.recorder.noteInput('touch');
     const noteVisibility = () => game.recorder.noteVisibility(document.hidden);
-    window.addEventListener('pointerdown', noteInput);
-    window.addEventListener('keydown', noteInput);
-    window.addEventListener('touchstart', noteInput);
+    window.addEventListener('pointerdown', notePointer);
+    window.addEventListener('keydown', noteKey);
+    window.addEventListener('touchstart', noteTouch);
     document.addEventListener('visibilitychange', noteVisibility);
     noteVisibility();
     return () => {
-      window.removeEventListener('pointerdown', noteInput);
-      window.removeEventListener('keydown', noteInput);
-      window.removeEventListener('touchstart', noteInput);
+      window.removeEventListener('pointerdown', notePointer);
+      window.removeEventListener('keydown', noteKey);
+      window.removeEventListener('touchstart', noteTouch);
       document.removeEventListener('visibilitychange', noteVisibility);
     };
   }, [game]);
+
+  useEffect(() => () => appMetrics.endRun(), [game]);
 
   // sector ambience while deployed
   useEffect(() => {
@@ -734,6 +843,43 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   // anonymous run-end telemetry (one event per run, terminal phases only)
   const loggedRunRef = useRef(false);
   useEffect(() => { loggedRunRef.current = false; }, [run]);
+  const checkpointSeqRef = useRef(0);
+  const checkpointBusyRef = useRef(false);
+  const checkpointLastAtRef = useRef(0);
+  const checkpointWaveRef = useRef(game.wave);
+  useEffect(() => {
+    checkpointSeqRef.current = 0;
+    checkpointBusyRef.current = false;
+    checkpointLastAtRef.current = Date.now();
+    checkpointWaveRef.current = game.wave;
+  }, [game, run]);
+
+  const submitCheckpointNow = useCallback(async (reason: RunCheckpointReason) => {
+    if (PERF_MAP !== null || DEMO_MODE) return false;
+    const callsign = (progress.playerName.trim() || 'WARDEN').slice(0, 20);
+    const doc = game.buildRunCheckpointDoc(callsign, progress.uid, TELEMETRY_BUILD, checkpointSeqRef.current++, reason);
+    checkpointLastAtRef.current = Date.now();
+    return submitRunCheckpoint(doc);
+  }, [game]);
+
+  const flushRunCheckpoint = useCallback((reason: RunCheckpointReason) => {
+    if (checkpointBusyRef.current) return;
+    checkpointBusyRef.current = true;
+    void submitCheckpointNow(reason).finally(() => { checkpointBusyRef.current = false; });
+  }, [submitCheckpointNow]);
+
+  useEffect(() => {
+    const flushHidden = () => {
+      if (document.hidden) flushRunCheckpoint('visibility');
+    };
+    const flushPageHide = () => flushRunCheckpoint('visibility');
+    document.addEventListener('visibilitychange', flushHidden);
+    window.addEventListener('pagehide', flushPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', flushHidden);
+      window.removeEventListener('pagehide', flushPageHide);
+    };
+  }, [flushRunCheckpoint]);
 
   // main loop
   useEffect(() => {
@@ -753,8 +899,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       if (dt > 0 && dt < 0.5) {
         const q = qualRef.current;
         q.fps = q.fps * 0.9 + (1 / dt) * 0.1;
-        if (!q.lite && q.fps < 45) { q.lite = true; setRenderQuality(true); }
-        else if (q.lite && q.fps > 55) { q.lite = false; setRenderQuality(false); }
+        if (!q.lite && q.fps < 45) { q.lite = true; appMetrics.recordQualityChange(true); setRenderQuality(true); }
+        else if (q.lite && q.fps > 55) { q.lite = false; appMetrics.recordQualityChange(false); setRenderQuality(false); }
       }
       game.recorder.observeAttention(dt, {
         hidden: document.hidden,
@@ -764,6 +910,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         overlay: blockingOverlayRef.current,
         widgetOpen: utilityWidgetOpen(),
         fps: qualRef.current.fps,
+        enemyCount: game.enemies.length,
         viewportW: window.innerWidth,
         viewportH: window.innerHeight,
         devicePixelRatio: window.devicePixelRatio,
@@ -771,7 +918,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
       });
       if (botRef.current) {
         botRef.current.act(game.time);
-        if (game.phase === 'victory') { game.freeplay = true; game.phase = 'build'; }
+        if (game.phase === 'victory') game.enterFreeplay('standard');
         // auto-launch: give the bot ~1.5s real-time to build, then start the wave
         if (game.phase === 'build') {
           perfIdleRef.current += dt;
@@ -783,10 +930,20 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
         if (now - f.t > 1000) { f.fps = f.frames; f.frames = 0; f.t = now; }
       }
       game.update(dt);
+      if (PERF_MAP === null && !DEMO_MODE && (game.phase === 'build' || game.phase === 'wave')) {
+        const nowMs = Date.now();
+        if (game.wave > checkpointWaveRef.current && game.phase === 'build') {
+          checkpointWaveRef.current = game.wave;
+          flushRunCheckpoint('wave');
+        } else if (nowMs - checkpointLastAtRef.current >= 30000) {
+          flushRunCheckpoint('interval');
+        }
+      }
       // fire one anonymous telemetry event when a run ends (skip perf bot runs)
       if (PERF_MAP === null && !DEMO_MODE && !loggedRunRef.current &&
           (game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice')) {
         loggedRunRef.current = true;
+        void submitCheckpointNow('terminal');
         logTelemetry({
           kind: game.phase, map: game.map.id, diff: game.diff.id,
           wave: game.wave, kills: game.totalKills, cash: Math.round(game.runStats.cashEarned),
@@ -849,7 +1006,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [game]);
+  }, [game, flushRunCheckpoint, submitCheckpointNow]);
 
   const toCanvas = useCallback((ev: { clientX: number; clientY: number }): Vec => {
     const c = canvasRef.current!;
@@ -892,6 +1049,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   };
   const onContext = (ev: React.MouseEvent) => {
     ev.preventDefault();
+    if (placing) game.recorder.recordControl(METRIC_EVENTS.PLACEMENT_CANCEL);
+    if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
     setPlacing(null);
     setSelectedUid(null);
     setAiming(false);
@@ -901,6 +1060,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     const a = ABILITIES.find((x) => x.id === id)!;
     if (!game.abilityReady(id)) { sfx.error(); return; }
     if (a.targeted) {
+      if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
       setAiming((v) => !v);
       setPlacing(null);
       setSelectedUid(null);
@@ -939,12 +1099,21 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
-      if (utilityWidgetOpen() || isTypingTarget(ev.target)) return;
-      if (ev.key === 'Escape') { setPlacing(null); setSelectedUid(null); setAiming(false); }
+      if (utilityWidgetOpen() || isTypingTarget(ev.target) || blockingOverlayRef.current) return;
+      if (ev.key === 'Escape') {
+        if (placingRef.current) game.recorder.recordControl(METRIC_EVENTS.PLACEMENT_CANCEL);
+        if (aimingRef.current) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
+        setPlacing(null); setSelectedUid(null); setAiming(false);
+      }
       if (ev.key === ' ') {
         ev.preventDefault();
-        if (game.phase === 'build') game.startWave();
-        else game.paused = !game.paused;
+        if (game.phase === 'build') {
+          game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_KEY);
+          game.startWave();
+        } else {
+          game.paused = !game.paused;
+          game.recorder.recordControl(METRIC_EVENTS.FIRST_PAUSE, game.time);
+        }
       }
       const ab = { q: 'strike', w: 'chrono', e: 'overdrive', r: 'salvage', t: 'cascade', y: 'mirror' } as const;
       const k = ev.key.toLowerCase() as keyof typeof ab;
@@ -975,15 +1144,88 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
     if (abortRisk && !abortConfirm) {
       setAbortConfirm(true);
       game.paused = true;
+      game.recorder.recordControl(METRIC_EVENTS.ABORT_ARMED);
       game.announce('Abort armed - press CONFIRM to leave this run.');
       sfx.error();
       return;
     }
+    if (abortRisk) game.recorder.recordControl(METRIC_EVENTS.ABORT_CONFIRMED);
     if (abortRisk && game.phase !== 'gameover' && game.phase !== 'victory' && game.phase !== 'armistice') {
       game.abandonRun('abort');
-      void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
+      if (PERF_MAP === null && !DEMO_MODE) {
+        void submitCheckpointNow('abort');
+        void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
+      }
     }
     onExit();
+  };
+
+  useEffect(() => {
+    if (checkpointState !== 'busy') setCheckpointState('idle');
+  }, [game.wave]);
+
+  const chooseContract = (id: FreeplayContractId) => {
+    loggedRunRef.current = false;
+    game.enterFreeplay(id);
+    game.paused = false;
+    setContractOpen(false);
+    setTick((t) => t + 1);
+    sfx.click();
+  };
+
+  const chooseRelic = (id: FreeplayRelicId) => {
+    game.chooseRelic(id);
+    setTick((t) => t + 1);
+    sfx.upgrade();
+  };
+
+  const acceptRisk = (id: RiskWaveId) => {
+    if (game.acceptRisk(id)) {
+      setTick((t) => t + 1);
+      sfx.upgrade();
+    }
+  };
+
+  const declineRisk = () => {
+    game.declineRisk();
+    setTick((t) => t + 1);
+    sfx.click();
+  };
+
+  const bankFreeplayCheckpoint = async () => {
+    if (!game.canBankFreeplay() || checkpointState === 'busy' || DEMO_MODE) return;
+    const n = (progress.playerName.trim() || 'WARDEN').slice(0, 20);
+    const prevCheckpoint = game.freeplayState.lastCheckpointWave;
+    setCheckpointState('busy');
+    game.markFreeplayCheckpoint();
+    await submitCheckpointNow('bank');
+    game.recorder.recordScoreSubmitAttempt(game.telemetryState());
+    const meta = game.freeplayMeta();
+    const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
+    game.recorder.recordReplaySubmitResult(replayOk);
+    const ok = await submitScore(boardId(map.id, diff.id, true), {
+      name: n,
+      cash: Math.round(game.runStats.cashEarned),
+      kills: game.totalKills,
+      wave: game.wave,
+      freeplay: true,
+      ts: Date.now(),
+      runId: replayOk ? game.runId : undefined,
+      meta: meta.summary,
+      daily: meta.daily || undefined,
+      checkpoint: true,
+    });
+    game.recorder.recordScoreSubmitResult(ok);
+    void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
+    if (ok) {
+      setCheckpointState('done');
+      sfx.upgrade();
+    } else {
+      game.freeplayState.lastCheckpointWave = prevCheckpoint;
+      setCheckpointState('err');
+      sfx.error();
+    }
+    setTick((t) => t + 1);
   };
 
   return (
@@ -1027,23 +1269,23 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           className={`tb-btn ${game.autoNext ? 'on' : ''}`}
           title="Auto-start next wave"
           aria-label="Toggle auto-start next wave"
-          onClick={() => { game.autoNext = !game.autoNext; sfx.click(); }}
+          onClick={() => { game.autoNext = !game.autoNext; game.recorder.recordControl(METRIC_EVENTS.AUTO_TOGGLE, game.autoNext); sfx.click(); }}
         >AUTO</button>
         {[1, 2, 4].map((s) => (
           <button key={s} className={`tb-btn ${game.speed === s ? 'on' : ''}`}
             title={`Set game speed to ${s}x`}
             aria-label={`Set game speed to ${s}x`}
-            onClick={() => { game.speed = s; sfx.click(); }}>{s}×</button>
+            onClick={() => { game.speed = s; game.recorder.recordControl(METRIC_EVENTS.SPEED_CHANGE, s); sfx.click(); }}>{s}×</button>
         ))}
         <button className={`tb-btn ${game.paused ? 'on' : ''}`}
           title={game.paused ? 'Resume game' : 'Pause game'}
           aria-label={game.paused ? 'Resume game' : 'Pause game'}
-          onClick={() => { game.paused = !game.paused; sfx.click(); }}>
+          onClick={() => { game.paused = !game.paused; game.recorder.recordControl(METRIC_EVENTS.FIRST_PAUSE, game.time); sfx.click(); }}>
           {game.paused ? '▶' : '⏸'}
         </button>
         <MusicButton />
         <button className={`tb-btn ${muted ? '' : 'on'}`} title="Sound effects & voice on/off" aria-label="Toggle sound effects and voice"
-          onClick={() => { const m = !muted; setMuted(m); setMutedState(m); sfx.click(); }}>
+          onClick={() => { const m = !muted; setMuted(m); setMutedState(m); appMetrics.recordSoundToggle('sound'); sfx.click(); }}>
           {muted ? '🔇' : '🔊'}
         </button>
       </div>
@@ -1089,8 +1331,18 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
           {/* threat advisories */}
           {game.noticeTimer > 0 && <div className="notice">{game.notice}</div>}
 
+          {game.freeplay && game.phase === 'build' && (
+            <FreeplayBuildPanel
+              game={game}
+              checkpointState={checkpointState}
+              onAcceptRisk={acceptRisk}
+              onDeclineRisk={declineRisk}
+              onBank={bankFreeplayCheckpoint}
+            />
+          )}
+
           {game.phase === 'build' && (
-            <button className="wave-btn" data-testid="launch-wave" onClick={() => { game.startWave(); setTick((t) => t + 1); }}>
+            <button className="wave-btn" data-testid="launch-wave" disabled={relicOfferOpen} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
               ▶ LAUNCH WAVE {game.wave + 1}
             </button>
           )}
@@ -1152,6 +1404,8 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               </div>
             </div>
           )}
+          {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
+          {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'armistice' && (
             <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={ARMISTICE_LINES}
@@ -1162,7 +1416,7 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
             <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
-                { label: '∞ FREEPLAY', fn: () => { loggedRunRef.current = false; game.freeplay = true; game.phase = 'build'; sfx.click(); } },
+                { label: '∞ FREEPLAY', fn: () => { game.paused = true; setContractOpen(true); sfx.click(); } },
                 { label: 'MAIN MENU', fn: onExit },
               ]}
             />
@@ -1175,20 +1429,128 @@ function GameScreen({ map, diff, onExit }: { map: GameMap; diff: DifficultyDef; 
               {selected ? (
                 <UpgradePanel game={game} tower={selected}
                   sig={`${Math.floor(game.credits)}|${selected.tierA}|${selected.tierB}|${selected.committed}|${selected.invested}|${selected.kills}|${selected.target}|${selected.rateBuff.toFixed(2)}|${selected.rangeBuff.toFixed(2)}`}
-                  onSold={() => setSelectedUid(null)} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
+                  onSold={() => setSelectedUid(null)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               ) : (
                 <Shop game={game} placing={placing}
                   sig={`${Math.floor(game.credits)}|${game.totalKills}`}
-                  setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { setSideOpen(false); sfx.click(); }} />
+                  setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               )}
               <ReceiverPanel game={game} />
             </div>
           ) : (
-            <button className="side-rail" title="Expand panel" aria-label="Expand arsenal panel" onClick={() => { setSideOpen(true); sfx.click(); }}>
+            <button className="side-rail" title="Expand panel" aria-label="Expand arsenal panel" onClick={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_EXPAND); setSideOpen(true); sfx.click(); }}>
               <span className="side-rail-arrow">⟨</span>
               <span className="side-rail-label">ARSENAL</span>
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FreeplayBuildPanel({
+  game,
+  checkpointState,
+  onAcceptRisk,
+  onDeclineRisk,
+  onBank,
+}: {
+  game: Game;
+  checkpointState: 'idle' | 'busy' | 'done' | 'err';
+  onAcceptRisk: (id: RiskWaveId) => void;
+  onDeclineRisk: () => void;
+  onBank: () => void;
+}) {
+  const fp = game.freeplayState;
+  const nextWave = game.wave + 1;
+  const nextRival = rivalForWave(nextWave, fp.daily);
+  const meta = game.freeplayMeta();
+  const risk = fp.riskOffer;
+  const bankLabel = checkpointState === 'busy' ? 'BANKING...' : checkpointState === 'done' ? 'BANKED' : checkpointState === 'err' ? 'RETRY BANK' : 'BANK FREEPLAY RECORD';
+  return (
+    <div className="freeplay-build-panel">
+      <div className="freeplay-panel-head">
+        <span>FREEPLAY COMMAND</span>
+        <b>{meta.scoreMult.toFixed(2)}x</b>
+      </div>
+      <div className="freeplay-chip-row">
+        <span className="freeplay-chip contract">{fp.contract?.short ?? 'OPEN'}</span>
+        {fp.daily && <span className="freeplay-chip daily">DAILY</span>}
+        {fp.relics.slice(-3).map((r) => <span key={r.id} className="freeplay-chip">{r.name}</span>)}
+      </div>
+      <div className="freeplay-next-grid">
+        <div>
+          <span>Next Mutators</span>
+          <b>{fp.nextMutators.length ? fp.nextMutators.map((m) => m.name).join(' + ') : 'Standard pressure'}</b>
+        </div>
+        <div>
+          <span>Rival</span>
+          <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? 'Signal forming' : 'None'}</b>
+        </div>
+      </div>
+      {risk && (
+        <div className="risk-offer">
+          <div>
+            <span>RED ALERT OFFER</span>
+            <b>{risk.name}</b>
+            <p>{risk.desc} {risk.reward}</p>
+          </div>
+          <div className="risk-actions">
+            <button className="tb-btn on" onClick={() => onAcceptRisk(risk.id)}>ACCEPT</button>
+            <button className="tb-btn" onClick={onDeclineRisk}>SKIP</button>
+          </div>
+        </div>
+      )}
+      <button className="freeplay-bank-btn" disabled={!game.canBankFreeplay() || checkpointState === 'busy' || DEMO_MODE} onClick={onBank}>
+        {bankLabel}
+      </button>
+      <div className="freeplay-bank-note">
+        {game.canBankFreeplay()
+          ? `Bank wave ${game.wave} and keep playing.`
+          : `Next bank unlocks after wave ${fp.lastCheckpointWave}.`}
+      </div>
+    </div>
+  );
+}
+
+function FreeplayContractModal({ onSelect, onCancel }: { onSelect: (id: FreeplayContractId) => void; onCancel: () => void }) {
+  return (
+    <div className="cutscene-overlay" onClick={onCancel}>
+      <div className="cutscene-box freeplay-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cutscene-title">PRESTIGE CONTRACT</div>
+        <p className="tip-text">Choose how the endless siege scores you. Higher multipliers add real constraints for the whole freeplay run.</p>
+        <div className="contract-grid">
+          {FREEPLAY_CONTRACTS.map((c) => (
+            <button key={c.id} className="contract-card" onClick={() => onSelect(c.id)}>
+              <span className="contract-mult">{c.multiplier.toFixed(2)}x</span>
+              <b>{c.name}</b>
+              <p>{c.desc}</p>
+            </button>
+          ))}
+        </div>
+        <button className="tb-btn" onClick={onCancel}>BACK</button>
+      </div>
+    </div>
+  );
+}
+
+function FreeplayRelicModal({ game, onSelect }: { game: Game; onSelect: (id: FreeplayRelicId) => void }) {
+  const offer = game.freeplayState.nextRelicOffer;
+  return (
+    <div className="cutscene-overlay">
+      <div className="cutscene-box freeplay-modal">
+        <div className="cutscene-title">RELIC DRAFT</div>
+        <p className="tip-text">Pick one run modifier. Relics are permanent, powerful, and a little dangerous.</p>
+        <div className="relic-grid">
+          {offer.map((r) => (
+            <button key={r.id} className="relic-card" onClick={() => onSelect(r.id)}>
+              <span className="contract-mult">{r.scoreMult.toFixed(2)}x</span>
+              <b>{r.name}</b>
+              <p>{r.desc}</p>
+              <em>{r.downside}</em>
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -1250,7 +1612,7 @@ function MusicButton() {
   const [on, setOn] = useState(isMusicOn());
   return (
     <button className={`tb-btn ${on ? 'on' : ''}`} title="Music on/off" aria-label="Toggle music"
-      onClick={() => { const v = !on; setMusic(v); setOn(v); }}>♪</button>
+      onClick={() => { const v = !on; setMusic(v); setOn(v); appMetrics.recordSoundToggle('music'); }}>♪</button>
   );
 }
 
@@ -1316,7 +1678,9 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     progress.playerName = n;
     setState('busy');
     game.recorder.recordScoreSubmitAttempt(game.telemetryState());
+    const meta = game.freeplay ? game.freeplayMeta() : null;
     const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
+    game.recorder.recordReplaySubmitResult(replayOk);
     const ok = await submitScore(board, {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
@@ -1325,6 +1689,9 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       freeplay: game.freeplay,
       ts: Date.now(),
       runId: replayOk ? game.runId : undefined,
+      meta: meta?.summary,
+      daily: meta?.daily || undefined,
+      checkpoint: false,
     });
     game.recorder.recordScoreSubmitResult(ok);
     void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));

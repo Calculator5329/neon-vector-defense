@@ -281,6 +281,36 @@
 .diff-card.diff-extinction.active { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), 0 0 10px rgba(255, 71, 87, 0.25); }
 .diff-card.diff-extinction .diff-name { color: var(--danger); }
 
+.daily-freeplay-card {
+  width: min(720px, 92vw);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  background: rgba(6, 10, 24, 0.72);
+  border: 1px solid rgba(255, 211, 42, 0.34);
+  border-radius: 8px;
+}
+.daily-freeplay-kicker {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--gold);
+}
+.daily-freeplay-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 3px;
+}
+.daily-freeplay-rules {
+  margin-top: 3px;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 /* ===== Leaderboard tab ===== */
 .board-tab { width: 100%; max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .board-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -319,6 +349,36 @@
 .board-row-head { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--dim); background: rgba(0, 0, 0, 0.25); }
 .board-rank { color: var(--dim); font-family: 'Orbitron', sans-serif; }
 .board-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-row:not(.board-row-head) .board-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.board-name > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.board-meta-tags {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--dim);
+  font-size: 9px;
+  line-height: 1.1;
+}
+.board-meta-tags b {
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.board-meta-tags em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
 .board-context { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-wave { color: var(--accent); font-variant-numeric: tabular-nums; }
 .board-kills { color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -469,6 +529,111 @@
   animation: pulse-btn 1.6s ease-in-out infinite;
 }
 .wave-btn:hover { transform: translateX(-50%) scale(1.05); }
+.wave-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: translateX(-50%); }
+
+.freeplay-build-panel {
+  position: absolute;
+  left: 18px;
+  bottom: 92px;
+  z-index: 7;
+  width: min(420px, calc(100% - 36px));
+  padding: 12px 14px;
+  background: rgba(5, 8, 18, 0.86);
+  border: 1px solid rgba(75, 207, 250, 0.34);
+  border-radius: 8px;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+}
+.freeplay-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+.freeplay-panel-head b { color: var(--gold); font-size: 13px; }
+.freeplay-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.freeplay-chip {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border: 1px solid rgba(120, 150, 255, 0.28);
+  border-radius: 4px;
+  color: var(--dim);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.freeplay-chip.contract { color: var(--gold); border-color: rgba(255, 211, 42, 0.38); }
+.freeplay-chip.daily { color: #7efff5; border-color: rgba(126, 255, 245, 0.38); }
+.freeplay-next-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.freeplay-next-grid div,
+.risk-offer {
+  background: rgba(12, 18, 36, 0.72);
+  border: 1px solid rgba(120, 150, 255, 0.18);
+  border-radius: 7px;
+  padding: 8px 9px;
+}
+.freeplay-next-grid span,
+.risk-offer span {
+  display: block;
+  margin-bottom: 4px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 1.4px;
+  color: var(--dim);
+}
+.freeplay-next-grid b,
+.risk-offer b {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+.risk-offer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-top: 9px;
+  border-color: rgba(255, 71, 87, 0.34);
+}
+.risk-offer p {
+  margin: 5px 0 0;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.risk-actions { display: flex; flex-direction: column; gap: 6px; align-self: center; }
+.risk-actions .tb-btn { min-width: 76px; padding: 6px 8px; font-size: 9px; }
+.freeplay-bank-btn {
+  width: 100%;
+  margin-top: 9px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 211, 42, 0.5);
+  background: rgba(255, 211, 42, 0.08);
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+.freeplay-bank-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.freeplay-bank-note { margin-top: 6px; color: var(--dim); font-size: 10px; text-align: center; }
 @keyframes pulse-btn {
   0%, 100% { box-shadow: 0 0 18px rgba(46, 213, 115, 0.4); }
   50% { box-shadow: 0 0 34px rgba(46, 213, 115, 0.8); }
@@ -1497,6 +1662,72 @@ body.game-blocking-overlay .fb-root.on-game {
 }
 .tip-text { font-size: 15px; line-height: 1.55; color: var(--text); text-align: left; margin: 8px 0; }
 
+.freeplay-modal {
+  max-width: 920px;
+  cursor: default;
+  background: rgba(5, 8, 18, 0.96);
+  border: 1px solid rgba(75, 207, 250, 0.38);
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 0 48px rgba(75, 207, 250, 0.12), 0 0 80px rgba(0, 0, 0, 0.75);
+}
+.contract-grid,
+.relic-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.contract-card,
+.relic-card {
+  position: relative;
+  min-height: 150px;
+  text-align: left;
+  padding: 14px 12px 12px;
+  background:
+    linear-gradient(160deg, rgba(75, 207, 250, 0.08), transparent 45%),
+    rgba(12, 18, 36, 0.86);
+  border: 1px solid rgba(120, 150, 255, 0.26);
+  border-radius: 8px;
+  color: var(--text);
+}
+.contract-card:hover,
+.relic-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(255, 211, 42, 0.18);
+  transform: translateY(-1px);
+}
+.contract-card b,
+.relic-card b {
+  display: block;
+  padding-right: 54px;
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  line-height: 1.25;
+}
+.contract-card p,
+.relic-card p,
+.relic-card em {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.35;
+  font-style: normal;
+}
+.relic-card em { color: #ffb8b8; }
+.contract-mult {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
 .submit-score { margin-top: 8px; }
 .demo-score-disabled {
   max-width: 560px;
@@ -1599,6 +1830,16 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .ability-btn { width: 58px; height: 58px; }
   .ability-btn .ability-icon { font-size: 24px; }
   .wave-btn { font-size: 14px; padding: 12px 22px; bottom: 12px; }
+  .freeplay-build-panel {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    width: calc(100% - 18px);
+    margin: 8px auto 72px;
+  }
+  .freeplay-next-grid,
+  .risk-offer { grid-template-columns: 1fr; }
+  .daily-freeplay-card { align-items: stretch; flex-direction: column; }
   .shop-item { min-height: 96px; }
   .side-tabs button { padding: 13px 4px; font-size: 13px; }
   .target-row .tb-btn { min-height: 38px; }

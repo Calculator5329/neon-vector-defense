@@ -8,8 +8,9 @@ import type {
   TowerDef,
   Vec,
 } from './types';
+import { appMetrics, METRIC_EVENTS, type AppMetricSnapshot, type InputKind, type MetricEventName } from './metrics';
 
-export const RUN_TELEMETRY_SCHEMA = 1;
+export const RUN_TELEMETRY_SCHEMA = 2;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const IDLE_AFTER_S = 25;
 const QUICK_SELL_S = 30;
@@ -155,6 +156,131 @@ export interface RunEventChunkDoc {
   events: RunEvent[];
 }
 
+export type RunCheckpointReason = 'interval' | 'wave' | 'terminal' | 'visibility' | 'abort' | 'score' | 'bank';
+
+export interface RunCheckpointDoc {
+  schemaVersion: number;
+  runId: string;
+  uid: string;
+  chunk: number;
+  reason: RunCheckpointReason;
+  createdAt: number;
+  build: string;
+  summary: PublicRunDoc['summary'];
+  performance: {
+    fpsMin: number;
+    fpsAvg: number;
+    fpsSamples: number;
+    longFrames: number;
+    viewportW: number;
+    viewportH: number;
+    devicePixelRatio: number;
+    qualityDowngrades: number;
+    qualityRecoveries: number;
+  };
+  attention: {
+    activeS: number;
+    hiddenS: number;
+    idleS: number;
+    pausedS: number;
+  };
+  counters: {
+    events: number;
+    snapshots: number;
+    towers: number;
+    enemies: number;
+    waves: number;
+    leaks: number;
+    scoreSubmitAttempts: number;
+    checkpointSubmits: number;
+  };
+  recentEvents: RunEvent[];
+  latestSnapshot: RunWaveSnapshot | null;
+}
+
+export type ControlsAnalytics = AppMetricSnapshot['controls'] & {
+  pauseToggles: number;
+  firstPauseAt: number;
+  speedChanges: number;
+  speed1Clicks: number;
+  speed2Clicks: number;
+  speed4Clicks: number;
+  autoToggles: number;
+  sidePanelCollapses: number;
+  sidePanelExpands: number;
+  abortArmed: number;
+  abortConfirmed: number;
+  placementCancels: number;
+  abilityAimCancels: number;
+  waveLaunchClicks: number;
+  waveLaunchKeys: number;
+  cloakTipViews: number;
+  tutorialViews: number;
+  briefingViews: number;
+};
+
+export interface CombatAnalytics {
+  firstLeakWave: number;
+  biggestLeakWave: number;
+  biggestLeakCores: number;
+  leaksByEnemy: Record<string, number>;
+  cloakedLeakCores: number;
+  revealedLeakCores: number;
+  armoredLeakCores: number;
+  bossLeakCores: number;
+  peakEnemies: number;
+  waveStarts: number;
+  waveEnds: number;
+  avgWaveDurationS: number;
+  longestWaveDurationS: number;
+  enemiesAtEnd: number;
+  abilityCasts: Record<string, number>;
+  pickupCollects: Record<string, number>;
+}
+
+export interface PlacementAnalytics {
+  firstTowerId: string | null;
+  buildOrder: string[];
+  upgradeOrder: string[];
+  placedByTower: Record<string, number>;
+  soldByTower: Record<string, number>;
+  failedByReason: Record<string, number>;
+  failedByTower: Record<string, number>;
+  failedUpgradeByReason: Record<string, number>;
+  placementCells: Record<string, number>;
+  failedPlacementCells: Record<string, number>;
+  sellCells: Record<string, number>;
+  beaconZonePlacements: number;
+  darkZonePlacements: number;
+  blueprintSaves: number;
+  blueprintApplies: number;
+  blueprintApplyPlaced: number;
+  targetModeChanges: number;
+  quickSellbacks: number;
+}
+
+export type AssistanceAnalytics = AppMetricSnapshot['assistance'] & {
+  widgetPauseS: number;
+};
+
+export interface FreeplayAnalytics {
+  entered: boolean;
+  contractId: string | null;
+  dailyId: string | null;
+  scoreMultiplierEnd: number;
+  contractSelections: Record<string, number>;
+  relicOffers: number;
+  relicSelections: Record<string, number>;
+  riskOffers: Record<string, number>;
+  riskAccepted: Record<string, number>;
+  riskDeclined: Record<string, number>;
+  riskCleared: Record<string, number>;
+  checkpointSubmits: number;
+  mutatorWaves: Record<string, number>;
+  rivalSpawns: Record<string, number>;
+  rivalDefeats: Record<string, number>;
+}
+
 export interface PrivateRunAnalyticsDoc {
   schemaVersion: number;
   runId: string;
@@ -167,6 +293,12 @@ export interface PrivateRunAnalyticsDoc {
   abandonment: Record<string, number | boolean | string | null>;
   difficulty: Record<string, number | string | null>;
   economy: Record<string, number | string | null>;
+  menu: AppMetricSnapshot['menu'];
+  controls: ControlsAnalytics;
+  combat: CombatAnalytics;
+  placement: PlacementAnalytics;
+  assistance: AssistanceAnalytics;
+  freeplay: FreeplayAnalytics;
   towerInterest: {
     shopOpens: number;
     shopSelections: Record<string, number>;
@@ -219,6 +351,12 @@ export interface PrivateRunAnalyticsDoc {
     fpsMin: number;
     fpsAvg: number;
     fpsSamples: number;
+    longFrames: number;
+    qualityDowngrades: number;
+    qualityRecoveries: number;
+    displayStandalone: boolean;
+    installPromptSeen: number;
+    installed: number;
     userAgent: string;
   };
 }
@@ -240,11 +378,28 @@ interface AttentionSample {
   overlay: boolean;
   widgetOpen: boolean;
   fps?: number;
+  enemyCount?: number;
   viewportW?: number;
   viewportH?: number;
   devicePixelRatio?: number;
   userAgent?: string;
 }
+
+const PUBLIC_CUSTOM_EVENTS = new Set<string>([
+  METRIC_EVENTS.FREEPLAY_ENTER,
+  METRIC_EVENTS.FREEPLAY_CONTRACT_SELECT,
+  METRIC_EVENTS.FREEPLAY_DAILY_START,
+  METRIC_EVENTS.FREEPLAY_RELIC_OFFER,
+  METRIC_EVENTS.FREEPLAY_RELIC_SELECT,
+  METRIC_EVENTS.FREEPLAY_RISK_OFFER,
+  METRIC_EVENTS.FREEPLAY_RISK_ACCEPT,
+  METRIC_EVENTS.FREEPLAY_RISK_DECLINE,
+  METRIC_EVENTS.FREEPLAY_RISK_CLEAR,
+  METRIC_EVENTS.FREEPLAY_CHECKPOINT_SUBMIT,
+  METRIC_EVENTS.FREEPLAY_MUTATOR_WAVE_START,
+  METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN,
+  METRIC_EVENTS.FREEPLAY_RIVAL_DEFEAT,
+]);
 
 export class RunRecorder {
   readonly runId = makeRunId();
@@ -267,7 +422,9 @@ export class RunRecorder {
   private fpsTotal = 0;
   private fpsSamples = 0;
   private fpsMin = 999;
+  private longFrames = 0;
   private perf = { viewportW: 0, viewportH: 0, devicePixelRatio: 1, userAgent: '' };
+  private appAtStart: AppMetricSnapshot;
 
   private funnel: Record<string, number | boolean | string | null> = {
     firstMapSelected: null,
@@ -305,6 +462,9 @@ export class RunRecorder {
     scoreSubmitAttempts: 0,
     scoreSubmitFailures: 0,
     scoreSubmitted: false,
+    replaySubmitAttempts: 0,
+    replaySubmitFailures: 0,
+    replaySubmitted: false,
     lastSubmitAtS: 0,
     rowClicks: 0,
     replayOpens: 0,
@@ -327,10 +487,85 @@ export class RunRecorder {
     speed4S: 0,
   };
 
+  private controls = {
+    pauseToggles: 0,
+    firstPauseAt: 0,
+    speedChanges: 0,
+    speed1Clicks: 0,
+    speed2Clicks: 0,
+    speed4Clicks: 0,
+    autoToggles: 0,
+    sidePanelCollapses: 0,
+    sidePanelExpands: 0,
+    abortArmed: 0,
+    abortConfirmed: 0,
+    placementCancels: 0,
+    abilityAimCancels: 0,
+    waveLaunchClicks: 0,
+    waveLaunchKeys: 0,
+    cloakTipViews: 0,
+    tutorialViews: 0,
+    briefingViews: 0,
+  };
+
+  private combat = {
+    firstLeakWave: 0,
+    biggestLeakWave: 0,
+    biggestLeakCores: 0,
+    cloakedLeakCores: 0,
+    revealedLeakCores: 0,
+    armoredLeakCores: 0,
+    bossLeakCores: 0,
+    peakEnemies: 0,
+    waveStarts: 0,
+    waveEnds: 0,
+    waveDurations: [] as number[],
+    currentWaveStartedAt: 0,
+  };
+
+  private placement = {
+    firstTowerId: null as string | null,
+    buildOrder: [] as string[],
+    upgradeOrder: [] as string[],
+    placedByTower: {} as Record<string, number>,
+    soldByTower: {} as Record<string, number>,
+    failedByReason: {} as Record<string, number>,
+    failedByTower: {} as Record<string, number>,
+    failedUpgradeByReason: {} as Record<string, number>,
+    placementCells: {} as Record<string, number>,
+    failedPlacementCells: {} as Record<string, number>,
+    sellCells: {} as Record<string, number>,
+    beaconZonePlacements: 0,
+    darkZonePlacements: 0,
+    blueprintSaves: 0,
+    blueprintApplies: 0,
+    blueprintApplyPlaced: 0,
+  };
+
+  private freeplay = {
+    entered: false,
+    contractId: null as string | null,
+    dailyId: null as string | null,
+    scoreMultiplierEnd: 1,
+    contractSelections: {} as Record<string, number>,
+    relicOffers: 0,
+    relicSelections: {} as Record<string, number>,
+    riskOffers: {} as Record<string, number>,
+    riskAccepted: {} as Record<string, number>,
+    riskDeclined: {} as Record<string, number>,
+    riskCleared: {} as Record<string, number>,
+    checkpointSubmits: 0,
+    mutatorWaves: {} as Record<string, number>,
+    rivalSpawns: {} as Record<string, number>,
+    rivalDefeats: {} as Record<string, number>,
+  };
+
   constructor(start: RunRecorderStart) {
     this.start = start;
+    this.appAtStart = appMetrics.snapshot();
     this.funnel.firstMapSelected = start.map.id;
     this.funnel.firstDifficultySelected = start.diff.id;
+    this.funnel.deployClickedAt = this.appAtStart.menu.firstDeployAtS;
   }
 
   recordRunStart(state: RunTelemetryState): void {
@@ -345,11 +580,17 @@ export class RunRecorder {
   }
 
   recordWaveStart(state: RunTelemetryState, groups: { type: string; count: number; cloaked: boolean }[]): void {
+    this.combat.waveStarts++;
+    this.combat.currentWaveStartedAt = state.time;
     this.record('wave_start', state, { groups, towerCount: state.towers.length });
     this.snapshot('wave_start', state);
   }
 
   recordWaveEnd(state: RunTelemetryState, waveBonusCredits: number): void {
+    this.combat.waveEnds++;
+    if (this.combat.currentWaveStartedAt > 0) {
+      this.combat.waveDurations.push(roundS(state.time - this.combat.currentWaveStartedAt));
+    }
     this.record('wave_end', state, {
       waveBonus: waveBonusCredits,
       kills: state.totalKills,
@@ -370,6 +611,18 @@ export class RunRecorder {
     this.cashSpent += cost;
     this.lastPurchaseAtS = state.time;
     if (!this.funnel.firstTowerPlacedAt) this.funnel.firstTowerPlacedAt = roundS(state.time);
+    if (!this.placement.firstTowerId) this.placement.firstTowerId = tower.def.id;
+    this.placement.buildOrder.push(tower.def.id);
+    if (this.placement.buildOrder.length > 40) this.placement.buildOrder.shift();
+    bump(this.placement.placedByTower, tower.def.id);
+    bump(this.placement.placementCells, cellKey(tower.pos));
+    if (this.start.map.zones) {
+      if (this.start.map.zones.some((z) => Math.hypot(tower.pos.x - z.x, tower.pos.y - z.y) <= z.r)) {
+        this.placement.beaconZonePlacements++;
+      } else {
+        this.placement.darkZonePlacements++;
+      }
+    }
     if (!this.progression.unlockedTowerIdsUsed.includes(tower.def.id)) {
       this.progression.unlockedTowerIdsUsed.push(tower.def.id);
     }
@@ -412,6 +665,8 @@ export class RunRecorder {
     entry.committed = tower.committed;
     entry.invested = Math.round(tower.invested);
     entry.upgrades.push({ t: roundS(state.time), track, tier, name: upgradeName, cost });
+    this.placement.upgradeOrder.push(`${tower.def.id}:${track}:${tier}`);
+    if (this.placement.upgradeOrder.length > 60) this.placement.upgradeOrder.shift();
     this.record('tower_upgrade', state, {
       towerUid: tower.uid,
       towerId: tower.def.id,
@@ -436,6 +691,8 @@ export class RunRecorder {
     entry.kills = tower.kills;
     entry.damage = Math.round(state.runStats.dmgByTowerUid[tower.uid] ?? entry.damage ?? 0);
     if (state.time - entry.placedAtS <= QUICK_SELL_S) this.towerInterest.quickSellbacks++;
+    bump(this.placement.soldByTower, tower.def.id);
+    bump(this.placement.sellCells, cellKey(tower.pos));
     this.record('tower_sell', state, {
       towerUid: tower.uid,
       towerId: tower.def.id,
@@ -482,11 +739,37 @@ export class RunRecorder {
   }
 
   recordBlueprint(state: RunTelemetryState, action: 'save' | 'apply', count: number): void {
+    if (action === 'save') this.placement.blueprintSaves++;
+    else {
+      this.placement.blueprintApplies++;
+      this.placement.blueprintApplyPlaced += Math.max(0, Math.round(count));
+    }
     this.record(`blueprint_${action}`, state, { count });
   }
 
-  recordLeak(state: RunTelemetryState, enemyId: string, coresLost: number): void {
+  recordCustom(type: MetricEventName | string, state: RunTelemetryState, payload: Record<string, unknown> = {}): void {
+    const cleanType = sanitizeEventType(type);
+    const cleanPayload = sanitizePayload(payload);
+    this.applyCustomSummary(cleanType, cleanPayload);
+    if (PUBLIC_CUSTOM_EVENTS.has(cleanType)) this.record(cleanType, state, cleanPayload);
+  }
+
+  recordLeak(
+    state: RunTelemetryState,
+    enemyId: string,
+    coresLost: number,
+    traits: { cloaked?: boolean; revealed?: boolean; armored?: boolean; boss?: boolean } = {},
+  ): void {
     this.leaksByEnemy[enemyId] = (this.leaksByEnemy[enemyId] ?? 0) + coresLost;
+    if (!this.combat.firstLeakWave) this.combat.firstLeakWave = state.wave;
+    if (coresLost > this.combat.biggestLeakCores) {
+      this.combat.biggestLeakCores = coresLost;
+      this.combat.biggestLeakWave = state.wave;
+    }
+    if (traits.cloaked) this.combat.cloakedLeakCores += coresLost;
+    if (traits.revealed) this.combat.revealedLeakCores += coresLost;
+    if (traits.armored) this.combat.armoredLeakCores += coresLost;
+    if (traits.boss) this.combat.bossLeakCores += coresLost;
     this.record('leak', state, { enemyId, coresLost, coresLeft: state.lives });
   }
 
@@ -513,6 +796,9 @@ export class RunRecorder {
   recordFailedPlacement(state: RunTelemetryState, towerId: string, reason: string, cost: number, pos?: Vec): void {
     this.failedPlacements++;
     if (reason === 'credits') bump(this.towerInterest.unaffordableTowerClicks, towerId);
+    bump(this.placement.failedByReason, reason);
+    bump(this.placement.failedByTower, towerId);
+    if (pos) bump(this.placement.failedPlacementCells, cellKey(pos));
     this.privateEvent('tower_place_failed', state, {
       towerId,
       reason,
@@ -524,6 +810,7 @@ export class RunRecorder {
 
   recordFailedUpgrade(state: RunTelemetryState, tower: Tower, track: 0 | 1, reason: string, cost: number): void {
     this.failedUpgrades++;
+    bump(this.placement.failedUpgradeByReason, reason);
     this.privateEvent('tower_upgrade_failed', state, { towerUid: tower.uid, towerId: tower.def.id, track, reason, cost });
   }
 
@@ -573,8 +860,15 @@ export class RunRecorder {
     if (!ok) this.leaderboard.scoreSubmitFailures++;
   }
 
-  noteInput(): void {
+  recordReplaySubmitResult(ok: boolean): void {
+    this.leaderboard.replaySubmitAttempts++;
+    this.leaderboard.replaySubmitted = this.leaderboard.replaySubmitted || ok;
+    if (!ok) this.leaderboard.replaySubmitFailures++;
+  }
+
+  noteInput(kind?: InputKind): void {
     this.lastInputAtMs = nowMs();
+    if (kind) appMetrics.recordInput(kind);
   }
 
   noteVisibility(hidden: boolean): void {
@@ -584,6 +878,8 @@ export class RunRecorder {
 
   observeAttention(dt: number, sample: AttentionSample): void {
     if (dt <= 0 || dt > 2) return;
+    if (dt >= 0.1) this.longFrames++;
+    if (sample.enemyCount !== undefined) this.combat.peakEnemies = Math.max(this.combat.peakEnemies, Math.round(sample.enemyCount));
     this.noteVisibility(sample.hidden);
     this.attention.sessionS += dt;
     if (sample.hidden) this.attention.hiddenS += dt;
@@ -607,6 +903,60 @@ export class RunRecorder {
     if (sample.viewportH) this.perf.viewportH = sample.viewportH;
     if (sample.devicePixelRatio) this.perf.devicePixelRatio = sample.devicePixelRatio;
     if (sample.userAgent) this.perf.userAgent = sample.userAgent.slice(0, 220);
+  }
+
+  recordControl(event: MetricEventName | string, value?: string | number | boolean): void {
+    switch (event) {
+      case METRIC_EVENTS.FIRST_PAUSE:
+        this.controls.pauseToggles++;
+        if (!this.controls.firstPauseAt && typeof value === 'number') this.controls.firstPauseAt = roundS(value);
+        break;
+      case METRIC_EVENTS.SPEED_CHANGE:
+        this.controls.speedChanges++;
+        if (value === 1) this.controls.speed1Clicks++;
+        else if (value === 2) this.controls.speed2Clicks++;
+        else if (value === 4) this.controls.speed4Clicks++;
+        break;
+      case METRIC_EVENTS.AUTO_TOGGLE:
+        this.controls.autoToggles++;
+        break;
+      case METRIC_EVENTS.SIDE_PANEL_COLLAPSE:
+        this.controls.sidePanelCollapses++;
+        break;
+      case METRIC_EVENTS.SIDE_PANEL_EXPAND:
+        this.controls.sidePanelExpands++;
+        break;
+      case METRIC_EVENTS.ABORT_ARMED:
+        this.controls.abortArmed++;
+        break;
+      case METRIC_EVENTS.ABORT_CONFIRMED:
+        this.controls.abortConfirmed++;
+        break;
+      case METRIC_EVENTS.PLACEMENT_CANCEL:
+        this.controls.placementCancels++;
+        break;
+      case METRIC_EVENTS.ABILITY_AIM_CANCEL:
+        this.controls.abilityAimCancels++;
+        break;
+      case METRIC_EVENTS.WAVE_LAUNCH_CLICK:
+        this.controls.waveLaunchClicks++;
+        break;
+      case METRIC_EVENTS.WAVE_LAUNCH_KEY:
+        this.controls.waveLaunchKeys++;
+        break;
+      case METRIC_EVENTS.CLOAK_TIP_VIEW:
+        this.controls.cloakTipViews++;
+        break;
+      case METRIC_EVENTS.TUTORIAL_VIEW:
+        this.controls.tutorialViews++;
+        break;
+      case METRIC_EVENTS.BRIEFING_VIEW:
+        this.controls.briefingViews++;
+        break;
+      default:
+        void value;
+        break;
+    }
   }
 
   makePublicRun(state: RunTelemetryState, callsign: string, build: string): RunUploadBundle {
@@ -657,6 +1007,11 @@ export class RunRecorder {
 
   makePrivateAnalytics(state: RunTelemetryState, uid: string, callsign: string, build: string): PrivateRunAnalyticsDoc {
     const summary = this.summary(state, callsign);
+    const app = appMetrics.snapshot();
+    const waveDurations = this.combat.waveDurations;
+    const avgWaveDurationS = waveDurations.length
+      ? Math.round((waveDurations.reduce((sum, value) => sum + value, 0) / waveDurations.length) * 10) / 10
+      : 0;
     return {
       schemaVersion: RUN_TELEMETRY_SCHEMA,
       runId: this.runId,
@@ -695,6 +1050,70 @@ export class RunRecorder {
         failedUpgradeAttempts: this.failedUpgrades,
         sellCount: [...this.ledger.values()].filter((t) => t.soldAtS !== undefined).length,
         idleWithCashS: Math.max(0, Math.round(state.time - this.lastPurchaseAtS)),
+      },
+      menu: { ...this.appAtStart.menu, ...app.menu },
+      controls: {
+        ...app.controls,
+        ...this.controls,
+      },
+      combat: {
+        firstLeakWave: this.combat.firstLeakWave,
+        biggestLeakWave: this.combat.biggestLeakWave,
+        biggestLeakCores: this.combat.biggestLeakCores,
+        leaksByEnemy: intRecord(this.leaksByEnemy),
+        cloakedLeakCores: Math.round(this.combat.cloakedLeakCores),
+        revealedLeakCores: Math.round(this.combat.revealedLeakCores),
+        armoredLeakCores: Math.round(this.combat.armoredLeakCores),
+        bossLeakCores: Math.round(this.combat.bossLeakCores),
+        peakEnemies: Math.round(this.combat.peakEnemies),
+        waveStarts: this.combat.waveStarts,
+        waveEnds: this.combat.waveEnds,
+        avgWaveDurationS,
+        longestWaveDurationS: Math.max(0, ...waveDurations),
+        enemiesAtEnd: state.enemyCount,
+        abilityCasts: intRecord(this.towerInterest.abilityUses),
+        pickupCollects: intRecord(this.towerInterest.pickupCollects),
+      },
+      placement: {
+        firstTowerId: this.placement.firstTowerId,
+        buildOrder: [...this.placement.buildOrder],
+        upgradeOrder: [...this.placement.upgradeOrder],
+        placedByTower: intRecord(this.placement.placedByTower),
+        soldByTower: intRecord(this.placement.soldByTower),
+        failedByReason: intRecord(this.placement.failedByReason),
+        failedByTower: intRecord(this.placement.failedByTower),
+        failedUpgradeByReason: intRecord(this.placement.failedUpgradeByReason),
+        placementCells: intRecord(this.placement.placementCells),
+        failedPlacementCells: intRecord(this.placement.failedPlacementCells),
+        sellCells: intRecord(this.placement.sellCells),
+        beaconZonePlacements: this.placement.beaconZonePlacements,
+        darkZonePlacements: this.placement.darkZonePlacements,
+        blueprintSaves: this.placement.blueprintSaves,
+        blueprintApplies: this.placement.blueprintApplies,
+        blueprintApplyPlaced: this.placement.blueprintApplyPlaced,
+        targetModeChanges: this.towerInterest.targetModeChanges,
+        quickSellbacks: this.towerInterest.quickSellbacks,
+      },
+      assistance: {
+        ...app.assistance,
+        widgetPauseS: roundS(this.attention.widgetOpenS),
+      },
+      freeplay: {
+        entered: this.freeplay.entered || state.freeplay,
+        contractId: this.freeplay.contractId,
+        dailyId: this.freeplay.dailyId,
+        scoreMultiplierEnd: this.freeplay.scoreMultiplierEnd,
+        contractSelections: intRecord(this.freeplay.contractSelections),
+        relicOffers: this.freeplay.relicOffers,
+        relicSelections: intRecord(this.freeplay.relicSelections),
+        riskOffers: intRecord(this.freeplay.riskOffers),
+        riskAccepted: intRecord(this.freeplay.riskAccepted),
+        riskDeclined: intRecord(this.freeplay.riskDeclined),
+        riskCleared: intRecord(this.freeplay.riskCleared),
+        checkpointSubmits: this.freeplay.checkpointSubmits,
+        mutatorWaves: intRecord(this.freeplay.mutatorWaves),
+        rivalSpawns: intRecord(this.freeplay.rivalSpawns),
+        rivalDefeats: intRecord(this.freeplay.rivalDefeats),
       },
       towerInterest: {
         ...this.towerInterest,
@@ -739,9 +1158,136 @@ export class RunRecorder {
         fpsMin: this.fpsSamples ? Math.round(this.fpsMin) : 0,
         fpsAvg: this.fpsSamples ? Math.round(this.fpsTotal / this.fpsSamples) : 0,
         fpsSamples: this.fpsSamples,
+        longFrames: this.longFrames,
+        qualityDowngrades: app.performance.qualityDowngrades,
+        qualityRecoveries: app.performance.qualityRecoveries,
+        displayStandalone: app.performance.displayStandalone,
+        installPromptSeen: app.performance.installPromptSeen,
+        installed: app.performance.installed,
         userAgent: this.perf.userAgent,
       },
     };
+  }
+
+  makeCheckpoint(
+    state: RunTelemetryState,
+    uid: string,
+    callsign: string,
+    build: string,
+    chunk: number,
+    reason: RunCheckpointReason,
+  ): RunCheckpointDoc {
+    const analytics = this.makePrivateAnalytics(state, uid, callsign, build);
+    return {
+      schemaVersion: RUN_TELEMETRY_SCHEMA,
+      runId: this.runId,
+      uid: uid.slice(0, 40),
+      chunk: Math.max(0, Math.floor(chunk)),
+      reason,
+      createdAt: Date.now(),
+      build,
+      summary: analytics.summary,
+      performance: {
+        fpsMin: analytics.performance.fpsMin,
+        fpsAvg: analytics.performance.fpsAvg,
+        fpsSamples: analytics.performance.fpsSamples,
+        longFrames: analytics.performance.longFrames,
+        viewportW: analytics.performance.viewportW,
+        viewportH: analytics.performance.viewportH,
+        devicePixelRatio: analytics.performance.devicePixelRatio,
+        qualityDowngrades: analytics.performance.qualityDowngrades,
+        qualityRecoveries: analytics.performance.qualityRecoveries,
+      },
+      attention: {
+        activeS: analytics.attention.activeS,
+        hiddenS: analytics.attention.hiddenS,
+        idleS: analytics.attention.idleS,
+        pausedS: analytics.attention.pausedS,
+      },
+      counters: {
+        events: this.events.length,
+        snapshots: this.snapshots.length,
+        towers: state.towers.length,
+        enemies: state.enemyCount,
+        waves: state.wave,
+        leaks: Math.round(state.runStats.leaks),
+        scoreSubmitAttempts: Math.round(Number(analytics.leaderboard.scoreSubmitAttempts ?? 0)),
+        checkpointSubmits: this.freeplay.checkpointSubmits,
+      },
+      recentEvents: this.events.slice(-24),
+      latestSnapshot: this.snapshots.at(-1) ?? null,
+    };
+  }
+
+  private applyCustomSummary(type: string, payload: Record<string, unknown>): void {
+    switch (type) {
+      case METRIC_EVENTS.FREEPLAY_ENTER:
+        this.freeplay.entered = true;
+        this.freeplay.contractId = getString(payload, 'contractId') ?? this.freeplay.contractId;
+        this.freeplay.dailyId = getString(payload, 'dailyId') ?? this.freeplay.dailyId;
+        break;
+      case METRIC_EVENTS.FREEPLAY_CONTRACT_SELECT: {
+        const id = getString(payload, 'contractId');
+        if (id) {
+          this.freeplay.contractId = id;
+          bump(this.freeplay.contractSelections, id);
+        }
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_DAILY_START:
+        this.freeplay.entered = true;
+        this.freeplay.dailyId = getString(payload, 'dailyId') ?? this.freeplay.dailyId;
+        break;
+      case METRIC_EVENTS.FREEPLAY_RELIC_OFFER:
+        this.freeplay.relicOffers++;
+        break;
+      case METRIC_EVENTS.FREEPLAY_RELIC_SELECT: {
+        const id = getString(payload, 'relicId');
+        if (id) bump(this.freeplay.relicSelections, id);
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_RISK_OFFER: {
+        const id = getString(payload, 'riskId');
+        if (id) bump(this.freeplay.riskOffers, id);
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_RISK_ACCEPT: {
+        const id = getString(payload, 'riskId');
+        if (id) bump(this.freeplay.riskAccepted, id);
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_RISK_DECLINE: {
+        const id = getString(payload, 'riskId');
+        if (id) bump(this.freeplay.riskDeclined, id);
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_RISK_CLEAR: {
+        const id = getString(payload, 'riskId');
+        if (id) bump(this.freeplay.riskCleared, id);
+        this.freeplay.scoreMultiplierEnd = getNumber(payload, 'scoreMult') ?? this.freeplay.scoreMultiplierEnd;
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_CHECKPOINT_SUBMIT:
+        this.freeplay.checkpointSubmits++;
+        this.freeplay.scoreMultiplierEnd = getNumber(payload, 'multiplier') ?? this.freeplay.scoreMultiplierEnd;
+        break;
+      case METRIC_EVENTS.FREEPLAY_MUTATOR_WAVE_START:
+        for (const id of getStringArray(payload, 'mutators')) bump(this.freeplay.mutatorWaves, id);
+        break;
+      case METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN: {
+        const id = getString(payload, 'rivalId');
+        if (id) bump(this.freeplay.rivalSpawns, id);
+        break;
+      }
+      case METRIC_EVENTS.FREEPLAY_RIVAL_DEFEAT: {
+        const id = getString(payload, 'rivalId');
+        if (id) bump(this.freeplay.rivalDefeats, id);
+        this.freeplay.scoreMultiplierEnd = getNumber(payload, 'scoreMult') ?? this.freeplay.scoreMultiplierEnd;
+        break;
+      }
+      default:
+        break;
+    }
   }
 
   private record(type: string, state: RunTelemetryState, payload: Record<string, unknown> = {}): void {
@@ -905,6 +1451,50 @@ function topKey(input: Record<string, number>): string | null {
     }
   }
   return best;
+}
+
+function cellKey(pos: Vec): string {
+  const cx = Math.max(0, Math.min(15, Math.floor(pos.x / 80)));
+  const cy = Math.max(0, Math.min(8, Math.floor(pos.y / 80)));
+  return `${cx},${cy}`;
+}
+
+function sanitizeEventType(type: string): string {
+  return type.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+}
+
+function sanitizePayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload).slice(0, 12)) {
+    const cleanKey = sanitizeEventType(key);
+    if (!cleanKey) continue;
+    if (typeof value === 'string') out[cleanKey] = value.slice(0, 80);
+    else if (typeof value === 'number' && Number.isFinite(value)) out[cleanKey] = Math.round(value * 100) / 100;
+    else if (typeof value === 'boolean' || value === null) out[cleanKey] = value;
+    else if (Array.isArray(value)) {
+      out[cleanKey] = value.slice(0, 12).map((entry) => {
+        if (typeof entry === 'number' && Number.isFinite(entry)) return Math.round(entry * 100) / 100;
+        if (typeof entry === 'boolean') return entry;
+        return String(entry).slice(0, 60);
+      });
+    }
+  }
+  return out;
+}
+
+function getString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === 'string' && value ? value.slice(0, 80) : null;
+}
+
+function getNumber(payload: Record<string, unknown>, key: string): number | null {
+  const value = payload[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function getStringArray(payload: Record<string, unknown>, key: string): string[] {
+  const value = payload[key];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, 12) : [];
 }
 
 function hashMap(map: GameMap): string {

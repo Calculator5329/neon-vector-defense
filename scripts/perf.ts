@@ -32,7 +32,7 @@ for (const map of maps) {
   const wallStart = performance.now();
 
   while (g.wave < WAVE_CAP && g.phase !== 'gameover' && performance.now() - wallStart < WALL_BUDGET_MS) {
-    if (g.phase === 'victory') { g.freeplay = true; g.phase = 'build'; }
+    if (g.phase === 'victory') g.enterFreeplay('standard');
     if (g.phase === 'build') {
       idle += FRAME_DT;
       bot.act(g.time);
