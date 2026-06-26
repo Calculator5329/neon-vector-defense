@@ -5,6 +5,14 @@ export interface AIHelpResponse {
   conversationsRemaining: number;
 }
 
+// crypto.randomUUID() is only defined in a secure context (HTTPS); calling it on an
+// http/insecure embed throws. Fall back to a plain random id so AI help never crashes.
+function safeId(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+  return `id-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
 function plainTextReply(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, (block) => block.replace(/```/g, ''))
@@ -52,7 +60,7 @@ export async function askAIHelp(
     throw new Error('AI uplink returned an incomplete response. Refresh the game and try again.');
   }
   return {
-    conversationId: typeof data.conversationId === 'string' ? data.conversationId : conversationId ?? crypto.randomUUID(),
+    conversationId: typeof data.conversationId === 'string' ? data.conversationId : conversationId ?? safeId(),
     reply: plainTextReply(reply),
     turnsRemaining: Number.isFinite(Number(data.turnsRemaining)) ? Number(data.turnsRemaining) : 0,
     conversationsRemaining: Number.isFinite(Number(data.conversationsRemaining)) ? Number(data.conversationsRemaining) : 0,

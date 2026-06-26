@@ -100,6 +100,12 @@ export const progress = {
   },
   get playerName(): string { return cache.playerName; },
   set playerName(n: string) { cache.playerName = n.slice(0, 20); save(); },
+  // audio prefs persist through the already-throw-safe storage wrapper, so a player's
+  // mute/music choice sticks across reloads (common preference on portals).
+  get audioMuted(): boolean { return (cache as unknown as { mutedPref?: boolean }).mutedPref ?? false; },
+  set audioMuted(v: boolean) { (cache as unknown as { mutedPref?: boolean }).mutedPref = v; save(); },
+  get musicOff(): boolean { return (cache as unknown as { musicOff?: boolean }).musicOff ?? false; },
+  set musicOff(v: boolean) { (cache as unknown as { musicOff?: boolean }).musicOff = v; save(); },
   mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
   get apexCleared(): boolean { return (cache as unknown as { apexW?: boolean }).apexW ?? false; },
   /** lifetime freeplay service record */

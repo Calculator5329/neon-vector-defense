@@ -188,7 +188,11 @@ export class Game {
   }
 
   private finishRun(won: boolean, outcome: 'victory' | 'armistice' | 'gameover') {
-    if (this.campaignProgressEnabled()) {
+    // A win→freeplay→death session calls finishRun twice on the SAME Game instance.
+    // Persist the lifetime record only once, or runs/kills/history double-count and
+    // tower unlocks (gated on lifetime kills) advance faster than designed.
+    if (this.campaignProgressEnabled() && !this.finishedPersisted) {
+      this.finishedPersisted = true;
       progress.addRun({
         map: this.map.id,
         diff: this.diff.id,
@@ -219,6 +223,8 @@ export class Game {
   private segLengths: number[] = [];
   totalKills = 0;
   private waveStartTotalKills = 0;
+  /** guard so a win→freeplay→death session persists its lifetime record only once */
+  private finishedPersisted = false;
   time = 0;
   /** set when player chooses to continue past victory */
   freeplay = false;

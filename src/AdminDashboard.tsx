@@ -37,7 +37,7 @@ import {
   watchAdminAuth,
   watchFeedback,
   type FeedbackMessage,
-} from './game/firebaseClient';
+} from './game/adminAuth';
 
 // ---- report shape (mirrors scripts/balance.ts) ----
 

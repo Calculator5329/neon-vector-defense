@@ -24,6 +24,18 @@ const LEADERBOARD_CACHE_TTL_MS = 30_000;
 const topCache = new Map<string, { expires: number; rows: ScoreEntry[] }>();
 const globalTopCache = new Map<string, { expires: number; rows: RankedScoreEntry[] }>();
 
+// Firestore web writes/reads resolve only on server ack and DO NOT reject when the
+// network is blocked (a common portal-iframe CSP config) or offline — the promise
+// just hangs forever, freezing any UI that awaits it. Race every network call
+// against a timeout so callers always settle into their existing catch/empty path.
+const NET_TIMEOUT_MS = 8000;
+function withTimeout<T>(p: Promise<T>, ms = NET_TIMEOUT_MS): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('network-timeout')), ms)),
+  ]);
+}
+
 export interface ScoreEntry {
   name: string;
   cash: number;
@@ -120,7 +132,7 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
   if (!validBoard(board) || entry.daily) return false;
   try {
     const payload = scorePayload(entry);
-    await addDoc(collection(db, 'boards', board, 'scores'), payload);
+    await withTimeout(addDoc(collection(db, 'boards', board, 'scores'), payload));
     invalidateBoardCache(board);
     return true;
   } catch (error) {
@@ -134,7 +146,7 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
   if (!validDailyBoard(board)) return false;
   try {
     const payload = scorePayload({ ...entry, freeplay: true, daily: board });
-    await addDoc(collection(db, 'dailyBoards', board, 'scores'), payload);
+    await withTimeout(addDoc(collection(db, 'dailyBoards', board, 'scores'), payload));
     invalidateDailyBoardCache(board);
     return true;
   } catch (error) {
@@ -146,13 +158,13 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
 /** player feedback -> feedback collection. A local per-device id correlates replies without login. */
 export async function submitFeedback(text: string, ctx: string): Promise<string | null> {
   try {
-    const ref = await addDoc(collection(db, 'feedback'), {
+    const ref = await withTimeout(addDoc(collection(db, 'feedback'), {
       uid: progress.uid,
       text: text.slice(0, 1000),
       ts: Date.now(),
       ctx: ctx.slice(0, 200),
       status: 'open',
-    });
+    }));
     return ref.id;
   } catch (error) {
     console.warn('Feedback submit failed', error);
@@ -188,7 +200,7 @@ export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply
   try {
     const snaps = await Promise.all(clean.map(async (id) => {
       try {
-        return await getDoc(firestoreDoc(db, 'feedback', id));
+        return await withTimeout(getDoc(firestoreDoc(db, 'feedback', id)));
       } catch {
         return null;
       }
@@ -273,9 +285,9 @@ export function logTelemetry(e: TelemetryEvent): void {
 export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean> {
   if (!isValidRunId(bundle.run.runId)) return false;
   try {
-    await setDoc(firestoreDoc(db, 'runs', bundle.run.runId), bundle.run);
-    await Promise.all(bundle.chunks.map((chunk) =>
-      setDoc(firestoreDoc(db, 'runs', bundle.run.runId, 'chunks', `c${chunk.chunk}`), chunk)));
+    await withTimeout(setDoc(firestoreDoc(db, 'runs', bundle.run.runId), bundle.run));
+    await withTimeout(Promise.all(bundle.chunks.map((chunk) =>
+      setDoc(firestoreDoc(db, 'runs', bundle.run.runId, 'chunks', `c${chunk.chunk}`), chunk))));
     return true;
   } catch (error) {
     console.warn('Run replay submit failed', error);
@@ -286,7 +298,7 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean>
 export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<boolean> {
   if (!isValidRunId(doc.runId)) return false;
   try {
-    await setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc, { merge: true });
+    await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc, { merge: true }));
     return true;
   } catch (error) {
     console.warn('Run analytics submit failed', error);
@@ -298,7 +310,7 @@ export async function submitRunCheckpoint(doc: RunCheckpointDoc): Promise<boolea
   if (!isValidRunId(doc.runId)) return false;
   try {
     const chunkId = `c${String(Math.max(0, Math.floor(doc.chunk))).padStart(6, '0')}`;
-    await setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), doc);
+    await withTimeout(setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), doc));
     return true;
   } catch (error) {
     console.warn('Run checkpoint submit failed', error);
@@ -531,7 +543,7 @@ function normalizeRunAnalytics(id: string, data: Partial<PrivateRunAnalyticsDoc>
 export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
   try {
     const q = query(collection(db, 'telemetry'), orderBy('ts', 'desc'), limitResults(limit));
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
     return snap.docs.map((d) => {
       const data = d.data() as Partial<TelemetryData>;
       return {
@@ -562,7 +574,7 @@ export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
 export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]> {
   try {
     const q = query(collection(db, 'runAnalytics'), orderBy('endedAt', 'desc'), limitResults(limit));
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
     return snap.docs.map((d) => normalizeRunAnalytics(d.id, d.data() as Partial<PrivateRunAnalyticsDoc>));
   } catch {
     return [];
@@ -578,7 +590,7 @@ export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]>
   try {
     const fetchLimit = board.endsWith('_fp') ? Math.min(50, Math.max(limit, limit * 4)) : limit;
     const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(fetchLimit));
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
     const rows = snap.docs.map((d) => {
       const data = d.data() as Partial<ScoreEntry>;
       return {
@@ -610,7 +622,7 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
   if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   try {
     const q = query(collection(db, 'dailyBoards', board, 'scores'), orderBy('wave', 'desc'), limitResults(limit));
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
     const rows = snap.docs.map((d) => {
       const data = d.data() as Partial<ScoreEntry>;
       return {

@@ -1,18 +1,28 @@
 // Procedural audio engine — layered synth SFX + generative ambient score.
 // No assets: everything is synthesized in WebAudio at runtime.
 
+import { progress } from './storage';
+
+// Resolve the constructor with the legacy WebKit fallback so audio works on older
+// iOS Safari (which exposed only webkitAudioContext before 14.5).
+const AudioCtx: typeof AudioContext | undefined =
+  typeof AudioContext !== 'undefined' ? AudioContext
+    : (typeof window !== 'undefined'
+      ? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      : undefined);
+
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let sfxBus: GainNode | null = null;
 let musicBus: GainNode | null = null;
 let delaySend: GainNode | null = null;
-let musicOn = true;
+let musicOn = !progress.musicOff;
 let musicStarted = false;
 
 function ensure(): AudioContext | null {
-  if (typeof AudioContext === 'undefined') return null;
+  if (!AudioCtx) return null;
   if (!ctx) {
-    ctx = new AudioContext();
+    ctx = new AudioCtx();
     master = ctx.createGain();
     master.gain.value = 0.75;
     const comp = ctx.createDynamicsCompressor();
@@ -76,8 +86,8 @@ export function audioDebug() {
 }
 
 // ---- separate SFX / music controls ----
-let sfxOn = true;
-export function setSfx(on: boolean) { sfxOn = on; }
+let sfxOn = !progress.audioMuted;
+export function setSfx(on: boolean) { sfxOn = on; progress.audioMuted = !on; }
 export function isSfxOn() { return sfxOn; }
 // legacy aliases (muted == sfx off)
 export function setMuted(m: boolean) { setSfx(!m); }
@@ -115,6 +125,7 @@ function playNextTrack() {
 
 export function setMusic(on: boolean) {
   musicOn = on;
+  progress.musicOff = !on;
   if (!on) {
     musicEl?.pause();
     if (musicBus) musicBus.gain.value = 0;

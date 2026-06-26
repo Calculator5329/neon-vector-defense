@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import './App.css';
 import { Game, W, H } from './game/engine';
 import { render, drawTowerBody, setRenderQuality } from './game/render';
@@ -45,7 +45,9 @@ import {
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 import { isAdmin } from './game/admin';
-import AdminDashboard from './AdminDashboard';
+// Lazy: the 2,900-line dashboard + admin auth SDK are code-split off the player path,
+// loaded only on the /admin route.
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
 
 type Screen = 'menu' | 'game';
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
@@ -88,7 +90,7 @@ function towerLockText(game: Game, def: TowerDef): string {
 }
 
 export default function App() {
-  if (ADMIN) return <AdminDashboard />;
+  if (ADMIN) return <Suspense fallback={null}><AdminDashboard /></Suspense>;
   return <Main />;
 }
 
