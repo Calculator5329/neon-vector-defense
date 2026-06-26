@@ -1,6 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  DEFAULT_ANALYTICS_FILTERS,
+  METRIC_DEFINITIONS,
+  aggregateMetric,
+  buildAnalyticsDataset,
+  filterAnalyticsRows,
+  metricById,
+  metricCsv,
+  topRecord,
+} from '../../src/adminAnalytics';
+import type { RunAnalyticsRow } from '../../src/game/leaderboard';
 
 const progressSeed = {
   archive: [],
@@ -69,6 +80,272 @@ async function widgetMetrics(page: Page) {
     };
   });
 }
+
+function analyticsRow(patch: Partial<RunAnalyticsRow> = {}): RunAnalyticsRow {
+  const base: RunAnalyticsRow = {
+    id: 'r_test',
+    schemaVersion: 2,
+    runId: 'r_test',
+    uid: 'w_test',
+    createdAt: Date.now() - 1000,
+    endedAt: Date.now(),
+    build: 'test-build',
+    summary: {
+      callsign: 'TEST',
+      map: 'orbital',
+      mapName: 'Orbital Debris Ring',
+      diff: 'easy',
+      diffName: 'Easy',
+      freeplay: false,
+      outcome: 'gameover',
+      phase: 'gameover',
+      wave: 3,
+      kills: 40,
+      credits: 1500,
+      cashEarned: 2400,
+      leaks: 8,
+      coresLeft: 0,
+      durationS: 210,
+    },
+    onboarding: { deployClickedAt: 1, firstTowerPlacedAt: 12, firstUpgradeBoughtAt: 0, firstWaveSurvivedAt: 0, firstWinAt: 0 },
+    abandonment: {},
+    difficulty: { cashAtDeath: 1500, topLeakEnemy: 'stinger' },
+    economy: { cashFloatedEnd: 1500, idleWithCashS: 95, failedPurchaseAttempts: 2, failedUpgradeAttempts: 1 },
+    menu: {
+      pageAgeAtDeployS: 4,
+      deployAttempts: 1,
+      deployBlocked: 0,
+      firstDeployAtS: 4,
+      tabSwitches: 1,
+      deployTabOpens: 1,
+      leaderboardTabOpens: 0,
+      selectedMap: 'orbital',
+      selectedDiff: 'easy',
+      mapSelections: { orbital: 1 },
+      protocolSelections: { easy: 1 },
+      lockedMapClicks: {},
+      lockedProtocolClicks: { hard: 1 },
+    },
+    controls: {
+      keyboardInputs: 4,
+      pointerInputs: 8,
+      touchInputs: 0,
+      soundToggles: 0,
+      musicToggles: 0,
+      pauseToggles: 1,
+      firstPauseAt: 80,
+      speedChanges: 2,
+      speed1Clicks: 1,
+      speed2Clicks: 1,
+      speed4Clicks: 0,
+      autoToggles: 0,
+      sidePanelCollapses: 1,
+      sidePanelExpands: 1,
+      abortArmed: 1,
+      abortConfirmed: 0,
+      placementCancels: 1,
+      abilityAimCancels: 0,
+      waveLaunchClicks: 2,
+      waveLaunchKeys: 1,
+      cloakTipViews: 0,
+      tutorialViews: 1,
+      briefingViews: 1,
+    },
+    combat: {
+      firstLeakWave: 2,
+      biggestLeakWave: 3,
+      biggestLeakCores: 5,
+      leaksByEnemy: { stinger: 8 },
+      cloakedLeakCores: 4,
+      revealedLeakCores: 0,
+      armoredLeakCores: 2,
+      bossLeakCores: 0,
+      peakEnemies: 22,
+      waveStarts: 3,
+      waveEnds: 2,
+      avgWaveDurationS: 44,
+      longestWaveDurationS: 65,
+      enemiesAtEnd: 4,
+      abilityCasts: { strike: 2 },
+      pickupCollects: { credits: 1 },
+    },
+    placement: {
+      firstTowerId: 'pulse',
+      buildOrder: ['pulse', 'tesla'],
+      upgradeOrder: ['pulse:a1'],
+      placedByTower: { pulse: 2, tesla: 1 },
+      soldByTower: {},
+      failedByReason: { credits: 2 },
+      failedByTower: { laser: 2 },
+      failedUpgradeByReason: { credits: 1 },
+      placementCells: { '1,1': 2 },
+      failedPlacementCells: { '2,2': 1 },
+      sellCells: {},
+      beaconZonePlacements: 0,
+      darkZonePlacements: 0,
+      blueprintSaves: 1,
+      blueprintApplies: 1,
+      blueprintApplyPlaced: 2,
+      targetModeChanges: 1,
+      quickSellbacks: 0,
+    },
+    assistance: {
+      aiMenuOpens: 0,
+      aiGameOpens: 1,
+      aiQuestions: 2,
+      aiSuccesses: 1,
+      aiErrors: 1,
+      aiQuotaErrors: 0,
+      feedbackMenuOpens: 0,
+      feedbackGameOpens: 1,
+      feedbackSubmits: 1,
+      feedbackSuccesses: 1,
+      feedbackErrors: 0,
+      feedbackRepliesViewed: 0,
+      widgetPauseS: 12,
+    },
+    freeplay: {
+      entered: false,
+      contractId: null,
+      dailyId: null,
+      scoreMultiplierEnd: 1,
+      contractSelections: {},
+      relicOffers: 0,
+      relicSelections: {},
+      riskOffers: {},
+      riskAccepted: {},
+      riskDeclined: {},
+      riskCleared: {},
+      checkpointSubmits: 0,
+      mutatorWaves: {},
+      rivalSpawns: {},
+      rivalDefeats: {},
+    },
+    towerInterest: {
+      shopOpens: 2,
+      shopSelections: { pulse: 2 },
+      lockedTowerClicks: { tesla: 1 },
+      unaffordableTowerClicks: { laser: 2 },
+      failedPlacements: 2,
+      upgradePanelOpens: 1,
+      upgradePanelByTower: { pulse: 1 },
+      failedUpgrades: 1,
+      quickSellbacks: 0,
+      targetModeChanges: 1,
+      abilityUses: { strike: 2 },
+      pickupCollects: { credits: 1 },
+    },
+    progression: {
+      lifetimeKillsAtStart: 0,
+      runsBeforeStart: 0,
+      victoriesBeforeStart: 0,
+      firstSeenAt: 1,
+      lastSeenAt: 1,
+      sessions: 1,
+      sessionsToday: 1,
+      daysSinceFirstSeen: 0,
+      daysSinceLastSeen: 0,
+      unlocksEarned: ['tesla'],
+      unlocksViewed: ['tesla'],
+      unlockedTowerIdsUsed: [],
+    },
+    leaderboard: {
+      opened: true,
+      openCount: 1,
+      scoreSubmitAttempts: 1,
+      scoreSubmitFailures: 0,
+      replaySubmitAttempts: 1,
+      replaySubmitFailures: 0,
+      rowClicks: 0,
+      replayOpens: 0,
+      nextRunAfterLeaderboard: false,
+    },
+    attention: {
+      activeS: 200,
+      hiddenS: 10,
+      idleS: 45,
+      pausedS: 15,
+      focusLosses: 1,
+      sessionS: 220,
+      sidePanelS: 100,
+      shopPanelS: 70,
+      upgradePanelS: 35,
+      overlayS: 12,
+      widgetOpenS: 12,
+      speed1S: 120,
+      speed2S: 60,
+      speed4S: 20,
+    },
+    performance: {
+      viewportW: 390,
+      viewportH: 844,
+      devicePixelRatio: 2,
+      fpsMin: 24,
+      fpsAvg: 40,
+      fpsSamples: 20,
+      longFrames: 3,
+      qualityDowngrades: 2,
+      qualityRecoveries: 1,
+      displayStandalone: false,
+      installPromptSeen: 1,
+      installed: 0,
+      userAgent: 'test',
+    },
+  };
+  return { ...base, ...patch, summary: { ...base.summary, ...patch.summary } };
+}
+
+test.describe('admin analytics model', () => {
+  test('catalog covers every private analytics domain', () => {
+    const domains = new Set(METRIC_DEFINITIONS.map((metric) => metric.domain));
+    for (const domain of ['run', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towers', 'progression', 'leaderboard', 'attention', 'performance']) {
+      expect([...domains]).toContain(domain);
+    }
+  });
+
+  test('filters, aggregates, records, insights, and csv exports are stable', () => {
+    const rows = [
+      analyticsRow(),
+      analyticsRow({
+        id: 'r_win',
+        runId: 'r_win',
+        uid: 'w_return',
+        summary: { outcome: 'victory', phase: 'victory', wave: 50, coresLeft: 120, credits: 400, leaks: 1 },
+        progression: { ...analyticsRow().progression, runsBeforeStart: 4, victoriesBeforeStart: 1 },
+        economy: { cashFloatedEnd: 400, idleWithCashS: 10, failedPurchaseAttempts: 0, failedUpgradeAttempts: 0 },
+        towerInterest: { ...analyticsRow().towerInterest, failedPlacements: 0, failedUpgrades: 0 },
+      }),
+      analyticsRow({
+        id: 'r_fp',
+        runId: 'r_fp',
+        uid: 'w_return_fp',
+        schemaVersion: 1,
+        build: 'older-build',
+        summary: { map: 'reactor', diff: 'hard', freeplay: true, outcome: 'abandoned', phase: 'build', wave: 76, durationS: 900 },
+        freeplay: { ...analyticsRow().freeplay, entered: true, contractSelections: { leanGrid: 1 }, relicSelections: { beaconChoir: 1 }, riskAccepted: { cloakSurge: 1 }, checkpointSubmits: 1 },
+        placement: { ...analyticsRow().placement, placementCells: { '5,4': 3 }, failedPlacementCells: {} },
+      }),
+    ];
+
+    const filtered = filterAnalyticsRows(rows, { ...DEFAULT_ANALYTICS_FILTERS, mode: 'freeplay', waveBucket: 'w76-80', uid: 'return' });
+    expect(filtered.map((row) => row.runId)).toEqual(['r_fp']);
+
+    const failedPlacementAgg = aggregateMetric(rows, metricById('towers.failedPlacements'));
+    expect(failedPlacementAgg.sum).toBe(4);
+
+    const cells = topRecord(rows, metricById('placement.placementCells'));
+    expect(cells[0]).toEqual({ label: '1,1', value: 4 });
+
+    const dataset = buildAnalyticsDataset(rows);
+    expect(dataset.insights.map((insight) => insight.signal)).toContain('Lost while rich');
+    expect(dataset.insights.map((insight) => insight.signal)).toContain('AI help reliability');
+
+    const csv = metricCsv(rows, [metricById('assistance.aiQuestions'), metricById('placement.placementCells')]);
+    expect(csv).toContain('assistance.aiQuestions');
+    expect(csv).toContain('placement.placementCells');
+    expect(csv).not.toMatch(/prompt|transcript|email/i);
+  });
+});
 
 test.describe('desktop UX layout', () => {
   test.skip(({ isMobile }) => isMobile, 'desktop-only layout expectations');

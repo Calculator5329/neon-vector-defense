@@ -11,6 +11,25 @@ import { clearAdmin } from './game/admin';
 import { fetchRunAnalytics, fetchTelemetry, type RunAnalyticsRow, type TelemetryRow } from './game/leaderboard';
 import { analyzeDifficulty, DIFFICULTY_TARGETS, type WaveDifficulty } from './game/difficulty';
 import {
+  DEFAULT_ANALYTICS_FILTERS,
+  METRIC_DOMAINS,
+  aggregateMetric,
+  availableWaveBuckets,
+  buildAnalyticsDataset,
+  formatMetricValue,
+  metricById,
+  metricCsv,
+  metricsForDomain,
+  readMetric,
+  survivalBuckets,
+  topRecord,
+  viewportBucket,
+  type AnalyticsFilters,
+  type DerivedInsight,
+  type MetricDefinition,
+  type MetricDomain,
+} from './adminAnalytics';
+import {
   replyToFeedback,
   setFeedbackStatus,
   signInAdmin,
@@ -1289,11 +1308,473 @@ function FrictionRadar({ rows }: { rows: RunAnalyticsRow[] }) {
   );
 }
 
+function InsightDeck({ insights, domain, title = 'Generated readouts' }: { insights: DerivedInsight[]; domain?: MetricDomain; title?: string }) {
+  const shown = insights.filter((insight) => !domain || insight.domain === domain).slice(0, 6);
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head"><h3>{title}</h3><span className="adm-hint">threshold based, sample-size aware</span></div>
+      {shown.length ? (
+        <div className="adm-insight-card-grid">
+          {shown.map((insight) => <InsightCard key={`${insight.domain}-${insight.signal}`} insight={insight} />)}
+        </div>
+      ) : <div className="adm-empty">No strong signals yet. Widen filters or collect more run analytics.</div>}
+    </div>
+  );
+}
+
+function InsightCard({ insight }: { insight: DerivedInsight }) {
+  return (
+    <article className={`adm-insight-card severity-${insight.severity}`}>
+      <div><span>{insight.domain}</span><b>{insight.value}</b></div>
+      <h4>{insight.signal}</h4>
+      <p>{insight.meaning}</p>
+      <em>{insight.followup}</em>
+    </article>
+  );
+}
+
+function SurvivalCurve({ buckets }: { buckets: ReturnType<typeof survivalBuckets> }) {
+  const max = Math.max(1, ...buckets.map((bucket) => bucket.runs));
+  if (buckets.length === 0) return <div className="adm-empty">No survival data for this slice.</div>;
+  return (
+    <div className="adm-histo">
+      {buckets.map((bucket) => (
+        <div key={bucket.label} className="adm-histo-col" title={`${bucket.label}: ${bucket.runs} runs, ${bucket.losses} losses, ${bucket.wins} wins`}>
+          <div className="adm-histo-stack" style={{ height: `${Math.max(4, (bucket.runs / max) * 100)}%` }}>
+            <div style={{ flex: bucket.losses, background: '#ff4757' }} />
+            <div style={{ flex: bucket.wins, background: '#2ed573' }} />
+            <div style={{ flex: Math.max(0, bucket.runs - bucket.losses - bucket.wins), background: '#54a0ff' }} />
+          </div>
+          <span className="adm-histo-label">{bucket.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HeatmapGrid({ cells, title }: { cells: Record<string, number>; title: string }) {
+  const max = Math.max(1, ...Object.values(cells));
+  return (
+    <div className="adm-heatmap-wrap" aria-label={title}>
+      {Array.from({ length: 9 }, (_, y) => (
+        <div key={y} className="adm-heatmap-row">
+          {Array.from({ length: 16 }, (_, x) => {
+            const value = cells[`${x},${y}`] ?? 0;
+            return (
+              <span
+                key={`${x},${y}`}
+                className="adm-heatmap-cell"
+                title={`${title} ${x},${y}: ${value}`}
+                style={{ opacity: value ? 0.18 + (value / max) * 0.82 : 0.08 }}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetricBars({ data, color = '#54a0ff' }: { data: Array<{ label: string; value: number }>; color?: string }) {
+  return data.length
+    ? <HBars data={data.map((item) => ({ ...item, color }))} />
+    : <div className="adm-empty">No values yet.</div>;
+}
+
+function readExplorerFilters(): AnalyticsFilters {
+  if (typeof location === 'undefined') return DEFAULT_ANALYTICS_FILTERS;
+  const params = new URLSearchParams(location.search);
+  return {
+    ...DEFAULT_ANALYTICS_FILTERS,
+    range: safeFilter(params.get('range'), ['all', '24h', '7d', '30d'], DEFAULT_ANALYTICS_FILTERS.range),
+    build: params.get('build') || 'all',
+    map: params.get('map') || 'all',
+    diff: params.get('diff') || 'all',
+    mode: safeFilter(params.get('mode'), ['all', 'campaign', 'freeplay'], DEFAULT_ANALYTICS_FILTERS.mode),
+    outcome: params.get('outcome') || 'all',
+    waveBucket: params.get('wave') || 'all',
+    uid: params.get('uid') || '',
+    schema: params.get('schema') || 'all',
+    cohort: safeFilter(params.get('cohort'), ['all', 'first', 'returning'], DEFAULT_ANALYTICS_FILTERS.cohort),
+  };
+}
+
+function safeFilter<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? value as T : fallback;
+}
+
+function syncExplorerUrl(filters: AnalyticsFilters, domain: 'all' | MetricDomain, metricId: string): void {
+  try {
+    const url = new URL(location.href);
+    url.searchParams.set('tab', 'explore');
+    for (const [key, value] of Object.entries(filters)) {
+      if (value && value !== (DEFAULT_ANALYTICS_FILTERS as unknown as Record<string, string>)[key]) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
+    }
+    url.searchParams.set('domain', domain);
+    url.searchParams.set('metric', metricId);
+    history.replaceState(null, '', url);
+  } catch {
+    // URL persistence is convenience only.
+  }
+}
+
+function metricSortValue(row: RunAnalyticsRow, metric: MetricDefinition): number | string {
+  const value = readMetric(row, metric);
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (Array.isArray(value)) return value.length;
+  if (value && typeof value === 'object') return Object.values(value as Record<string, unknown>).reduce<number>((sum, v) => sum + num(v), 0);
+  return String(value ?? '');
+}
+
+function MetricExplorerTab() {
+  const { rows, err, refresh } = useRunAnalytics();
+  const state = AnalyticsState({ rows, err });
+  const [filters, setFilters] = useState<AnalyticsFilters>(() => readExplorerFilters());
+  const [domain, setDomain] = useState<'all' | MetricDomain>(() => {
+    const value = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('domain') : null;
+    return METRIC_DOMAINS.some((item) => item.id === value) ? value as 'all' | MetricDomain : 'all';
+  });
+  const [metricId, setMetricId] = useState(() => typeof location !== 'undefined' ? new URLSearchParams(location.search).get('metric') || 'run.wave' : 'run.wave');
+  const [sort, setSort] = useState<'metric' | 'wave' | 'duration' | 'date'>('metric');
+  const [selected, setSelected] = useState<RunAnalyticsRow | null>(null);
+  if (state) return <div className="adm-content">{state}</div>;
+  const data = rows!;
+  const dataset = buildAnalyticsDataset(data, filters);
+  const metricOptions = metricsForDomain(domain);
+  const metric = metricOptions.find((item) => item.id === metricId) ?? metricById(metricOptions[0]?.id ?? 'run.wave');
+  const aggregate = aggregateMetric(dataset.filtered, metric);
+  const top = metric.kind === 'record' || metric.kind === 'array' || metric.kind === 'string' || metric.kind === 'boolean'
+    ? topRecord(dataset.filtered, metric)
+    : aggregate.topValues;
+  const builds = [...new Set(data.map((row) => row.build).filter(Boolean))].sort();
+  const schemas = [...new Set(data.map((row) => String(row.schemaVersion)))].sort();
+  const waveBuckets = availableWaveBuckets(data);
+  const sorted = [...dataset.filtered].sort((a, b) => {
+    if (sort === 'wave') return b.summary.wave - a.summary.wave;
+    if (sort === 'duration') return b.summary.durationS - a.summary.durationS;
+    if (sort === 'date') return (b.endedAt || b.createdAt) - (a.endedAt || a.createdAt);
+    const av = metricSortValue(a, metric);
+    const bv = metricSortValue(b, metric);
+    return typeof av === 'number' && typeof bv === 'number' ? bv - av : String(bv).localeCompare(String(av));
+  }).slice(0, 80);
+  const updateFilters = (patch: Partial<AnalyticsFilters>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    syncExplorerUrl(next, domain, metric.id);
+  };
+  const updateDomain = (next: 'all' | MetricDomain) => {
+    const nextMetric = metricsForDomain(next)[0]?.id ?? 'run.wave';
+    setDomain(next);
+    setMetricId(nextMetric);
+    syncExplorerUrl(filters, next, nextMetric);
+  };
+  const updateMetric = (next: string) => {
+    setMetricId(next);
+    syncExplorerUrl(filters, domain, next);
+  };
+  const exportCsv = () => {
+    const csv = metricCsv(dataset.filtered, [metric]);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `run-analytics-${metric.id}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="adm-content">
+      <div className="adm-filterbar adm-explorer-filters">
+        <select value={filters.range} onChange={(e) => updateFilters({ range: e.target.value as AnalyticsFilters['range'] })}>
+          <option value="all">all time</option><option value="30d">last 30d</option><option value="7d">last 7d</option><option value="24h">last 24h</option>
+        </select>
+        <select value={filters.map} onChange={(e) => updateFilters({ map: e.target.value })}>
+          <option value="all">all sectors</option>{ALL_MAPS.map((map) => <option key={map.id} value={map.id}>{map.name}</option>)}
+        </select>
+        <select value={filters.diff} onChange={(e) => updateFilters({ diff: e.target.value })}>
+          <option value="all">all protocols</option>{DIFFICULTIES.map((diff) => <option key={diff.id} value={diff.id}>{diff.name}</option>)}
+        </select>
+        <select value={filters.mode} onChange={(e) => updateFilters({ mode: e.target.value as AnalyticsFilters['mode'] })}>
+          <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
+        </select>
+        <select value={filters.outcome} onChange={(e) => updateFilters({ outcome: e.target.value })}>
+          <option value="all">all outcomes</option><option value="victory">victory</option><option value="armistice">armistice</option><option value="gameover">gameover</option><option value="abandoned">abandoned</option>
+        </select>
+        <select value={filters.waveBucket} onChange={(e) => updateFilters({ waveBucket: e.target.value })}>
+          <option value="all">all waves</option>{waveBuckets.map((bucket) => <option key={bucket} value={bucket}>{bucket}</option>)}
+        </select>
+        <select value={filters.cohort} onChange={(e) => updateFilters({ cohort: e.target.value as AnalyticsFilters['cohort'] })}>
+          <option value="all">all cohorts</option><option value="first">first run</option><option value="returning">returning</option>
+        </select>
+        <select value={filters.schema} onChange={(e) => updateFilters({ schema: e.target.value })}>
+          <option value="all">all schemas</option>{schemas.map((schema) => <option key={schema} value={schema}>schema {schema}</option>)}
+        </select>
+        <select value={filters.build} onChange={(e) => updateFilters({ build: e.target.value })}>
+          <option value="all">all builds</option>{builds.map((build) => <option key={build} value={build}>{build}</option>)}
+        </select>
+        <input value={filters.uid} onChange={(e) => updateFilters({ uid: e.target.value })} placeholder="uid or run id" />
+        <button className="adm-mini" onClick={refresh}>refresh</button>
+        <button className="adm-mini" onClick={exportCsv}>CSV</button>
+      </div>
+      <div className="adm-filterbar adm-explorer-filters">
+        <select value={domain} onChange={(e) => updateDomain(e.target.value as 'all' | MetricDomain)}>
+          {METRIC_DOMAINS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+        <select value={metric.id} onChange={(e) => updateMetric(e.target.value)}>
+          {metricOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+        <span className="adm-filter-count">{dataset.filtered.length.toLocaleString()} / {data.length.toLocaleString()} runs</span>
+        <span className="adm-hint">{metric.description}</span>
+      </div>
+      <div className="adm-stat-row">
+        <Stat label="populated" value={`${aggregate.populated}/${aggregate.count}`} />
+        <Stat label={metric.kind === 'boolean' ? 'true rate' : 'average'} value={metric.kind === 'boolean' ? pct(aggregate.trueCount / Math.max(1, aggregate.count)) : `${Math.round(aggregate.avg * 10) / 10}${metric.unit ?? ''}`} />
+        <Stat label="median / p95" value={`${Math.round(aggregate.median * 10) / 10} / ${Math.round(aggregate.p95 * 10) / 10}`} />
+        <Stat label="sum / max" value={`${Math.round(aggregate.sum).toLocaleString()} / ${Math.round(aggregate.max).toLocaleString()}`} />
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Top values</h3><span className="adm-hint">{metric.aggregation}</span></div>
+          <MetricBars data={top} color={metric.domain === 'performance' ? '#ff9f43' : '#54a0ff'} />
+        </div>
+        <InsightDeck insights={dataset.insights} domain={metric.domain} title="Related insight cards" />
+      </div>
+      <div className="adm-card">
+        <div className="adm-card-head">
+          <h3>Run detail table</h3>
+          <div className="adm-selects">
+            {(['metric', 'wave', 'duration', 'date'] as const).map((key) => (
+              <button key={key} className={sort === key ? 'on' : ''} onClick={() => setSort(key)}>{key.toUpperCase()}</button>
+            ))}
+          </div>
+        </div>
+        <table className="adm-table adm-explorer-table">
+          <thead><tr><th>run</th><th>uid</th><th>slice</th><th>outcome</th><th>wave</th><th>duration</th><th>{metric.label}</th><th /></tr></thead>
+          <tbody>
+            {sorted.map((row) => (
+              <tr key={row.runId}>
+                <td>{row.runId.slice(0, 12)}</td>
+                <td>{row.uid.slice(0, 10)}</td>
+                <td>{mapName(row.summary.map)} / {diffName(row.summary.diff)}</td>
+                <td>{row.summary.outcome}</td>
+                <td>w{row.summary.wave}</td>
+                <td>{Math.round(row.summary.durationS / 60)}m</td>
+                <td>{formatMetricValue(readMetric(row, metric), metric)}</td>
+                <td><button className="adm-mini" onClick={() => setSelected(row)}>open</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {sorted.length === 0 && <div className="adm-empty">No runs match these filters.</div>}
+      </div>
+      {selected && <RunDetailDrawer row={selected} metric={metric} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+function RunDetailDrawer({ row, metric, onClose }: { row: RunAnalyticsRow; metric: MetricDefinition; onClose: () => void }) {
+  const sections = ['summary', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'] as const;
+  return (
+    <div className="adm-drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="adm-drawer" role="dialog" aria-label="Run analytics detail" onClick={(e) => e.stopPropagation()}>
+        <div className="adm-card-head">
+          <h3>{row.runId}</h3>
+          <button className="adm-mini" onClick={onClose}>close</button>
+        </div>
+        <div className="adm-insight-grid">
+          <div className="adm-insight"><b>Slice</b><span>{mapName(row.summary.map)} / {diffName(row.summary.diff)}</span><span>{row.summary.freeplay ? 'freeplay' : 'campaign'} / {row.summary.outcome}</span></div>
+          <div className="adm-insight"><b>Selected metric</b><span>{metric.label}</span><span>{formatMetricValue(readMetric(row, metric), metric)}</span></div>
+          <div className="adm-insight"><b>Run</b><span>w{row.summary.wave}, {row.summary.kills.toLocaleString()} kills</span><span>{Math.round(row.summary.durationS / 60)}m / build {row.build || 'unknown'}</span></div>
+        </div>
+        {sections.map((section) => (
+          <details key={section} className="adm-json-section">
+            <summary>{section}</summary>
+            <pre>{JSON.stringify((row as unknown as Record<string, unknown>)[section], null, 2)}</pre>
+          </details>
+        ))}
+      </aside>
+    </div>
+  );
+}
+
+function CombatStoryTab() {
+  const { rows, err, refresh } = useRunAnalytics();
+  const state = AnalyticsState({ rows, err });
+  if (state) return <div className="adm-content">{state}</div>;
+  const data = rows!;
+  const dataset = buildAnalyticsDataset(data);
+  const leaks = topRecord(data, metricById('combat.leaksByEnemy'));
+  const ability = topRecord(data, metricById('combat.abilityCasts'));
+  const pickups = topRecord(data, metricById('combat.pickupCollects'));
+  const traitBars = [
+    { label: 'cloaked', value: data.reduce((sum, row) => sum + row.combat.cloakedLeakCores, 0), color: '#ff6ec7' },
+    { label: 'armored', value: data.reduce((sum, row) => sum + row.combat.armoredLeakCores, 0), color: '#feca57' },
+    { label: 'boss', value: data.reduce((sum, row) => sum + row.combat.bossLeakCores, 0), color: '#ff4757' },
+  ].filter((item) => item.value > 0);
+  const wavePressure = [
+    { label: 'first leak', value: avgOf(data.filter((row) => row.combat.firstLeakWave > 0), (row) => row.combat.firstLeakWave), color: '#ff9f43' },
+    { label: 'peak enemies', value: avgOf(data, (row) => row.combat.peakEnemies), color: '#54a0ff' },
+    { label: 'avg wave sec', value: avgOf(data, (row) => row.combat.avgWaveDurationS), color: '#7bed9f' },
+    { label: 'longest wave sec', value: avgOf(data, (row) => row.combat.longestWaveDurationS), color: '#ffd32a' },
+  ].filter((item) => item.value > 0);
+  return (
+    <div className="adm-content">
+      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} combat analytics docs</span><button className="adm-mini" onClick={refresh}>refresh</button></div>
+      <div className="adm-stat-row">
+        <Stat label="avg first leak" value={wavePressure[0]?.value ? `w${wavePressure[0].value.toFixed(1)}` : 'n/a'} />
+        <Stat label="avg peak enemies" value={avgOf(data, (row) => row.combat.peakEnemies).toFixed(1)} />
+        <Stat label="avg wave length" value={`${Math.round(avgOf(data, (row) => row.combat.avgWaveDurationS))}s`} />
+        <Stat label="special leak share" value={pct((traitBars.reduce((sum, item) => sum + item.value, 0)) / Math.max(1, data.reduce((sum, row) => sum + row.summary.leaks, 0)))} />
+      </div>
+      <InsightDeck insights={dataset.insights} domain="combat" title="Combat readouts" />
+      <div className="adm-card"><div className="adm-card-head"><h3>Survival curve</h3><span className="adm-hint">wins/losses by ending wave</span></div><SurvivalCurve buckets={survivalBuckets(data)} /></div>
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>Leak suspects</h3><span className="adm-hint">enemy ids causing cores lost</span></div><MetricBars data={leaks} color="#ff6b6b" /></div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Leak traits</h3><span className="adm-hint">threat class pressure</span></div>{traitBars.length ? <HBars data={traitBars} /> : <div className="adm-empty">No trait leaks recorded.</div>}</div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>Ability usage</h3><span className="adm-hint">casts by ability id</span></div><MetricBars data={ability} color="#a55eea" /></div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Pickup collection</h3><span className="adm-hint">pickup interaction by type</span></div><MetricBars data={pickups} color="#2ed573" /></div>
+      </div>
+      <div className="adm-card"><div className="adm-card-head"><h3>Wave pressure markers</h3><span className="adm-hint">averages per run</span></div><HBars data={wavePressure} /></div>
+    </div>
+  );
+}
+
+function SystemsStoryTab() {
+  const { rows, err, refresh } = useRunAnalytics();
+  const state = AnalyticsState({ rows, err });
+  if (state) return <div className="adm-content">{state}</div>;
+  const data = rows!;
+  const dataset = buildAnalyticsDataset(data);
+  const placed = topRecord(data, metricById('placement.placedByTower')).map((item) => ({ ...item, label: TOWER_MAP[item.label]?.name ?? item.label }));
+  const sold = topRecord(data, metricById('placement.soldByTower')).map((item) => ({ ...item, label: TOWER_MAP[item.label]?.name ?? item.label }));
+  const first = topRecord(data, metricById('placement.firstTowerId')).map((item) => ({ ...item, label: TOWER_MAP[item.label]?.name ?? item.label }));
+  const failedReasons = topRecord(data, metricById('placement.failedByReason'));
+  const upgradeReasons = topRecord(data, metricById('placement.failedUpgradeByReason'));
+  const placementCells = mergeCells(data, (row) => row.placement.placementCells);
+  const failedCells = mergeCells(data, (row) => row.placement.failedPlacementCells);
+  const cashBars = [
+    { label: 'cash float end', value: avgOf(data, (row) => num(row.economy.cashFloatedEnd)), color: '#ffd32a' },
+    { label: 'cash at death', value: avgOf(data, (row) => num(row.difficulty.cashAtDeath)), color: '#ff4757' },
+    { label: 'idle cash sec', value: avgOf(data, (row) => num(row.economy.idleWithCashS)), color: '#ff9f43' },
+    { label: 'failed buys', value: avgOf(data, (row) => num(row.economy.failedPurchaseAttempts)), color: '#54a0ff' },
+    { label: 'failed upgrades', value: avgOf(data, (row) => num(row.economy.failedUpgradeAttempts)), color: '#a55eea' },
+  ];
+  const blueprintBars = [
+    { label: 'saves', value: data.reduce((sum, row) => sum + row.placement.blueprintSaves, 0), color: '#54a0ff' },
+    { label: 'applies', value: data.reduce((sum, row) => sum + row.placement.blueprintApplies, 0), color: '#2ed573' },
+    { label: 'placed from apply', value: data.reduce((sum, row) => sum + row.placement.blueprintApplyPlaced, 0), color: '#ffd32a' },
+  ].filter((item) => item.value > 0);
+  return (
+    <div className="adm-content">
+      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} system analytics docs</span><button className="adm-mini" onClick={refresh}>refresh</button></div>
+      <div className="adm-stat-row">
+        <Stat label="cash float end" value={`cash ${Math.round(avgOf(data, (row) => num(row.economy.cashFloatedEnd))).toLocaleString()}`} />
+        <Stat label="lost while rich" value={pct(data.filter((row) => ['gameover', 'abandoned'].includes(row.summary.outcome) && num(row.economy.cashFloatedEnd) >= 1200).length / Math.max(1, data.length))} />
+        <Stat label="quick sellbacks" value={data.reduce((sum, row) => sum + row.placement.quickSellbacks, 0).toLocaleString()} />
+        <Stat label="target changes" value={data.reduce((sum, row) => sum + row.placement.targetModeChanges, 0).toLocaleString()} />
+      </div>
+      <InsightDeck insights={dataset.insights.filter((item) => item.domain === 'towers' || item.domain === 'placement')} title="Systems readouts" />
+      <div className="adm-card"><div className="adm-card-head"><h3>Economy friction</h3><span className="adm-hint">averages per run</span></div><HBars data={cashBars} /></div>
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>First tower choices</h3><span className="adm-hint">opening habits</span></div><MetricBars data={first} /></div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Tower pick rate</h3><span className="adm-hint">placements by tower</span></div><MetricBars data={placed} color="#2ed573" /></div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>Sold towers</h3><span className="adm-hint">sell behavior</span></div><MetricBars data={sold} color="#ff9f43" /></div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Failed reasons</h3><span className="adm-hint">placement and upgrade blocks</span></div><MetricBars data={[...failedReasons, ...upgradeReasons.map((item) => ({ ...item, label: `upgrade ${item.label}` }))]} color="#feca57" /></div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>Placement heatmap</h3><span className="adm-hint">16x9 binned cells</span></div><HeatmapGrid title="placements" cells={placementCells} /></div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Failed placement heatmap</h3><span className="adm-hint">where players try invalid builds</span></div><HeatmapGrid title="failed placements" cells={failedCells} /></div>
+      </div>
+      <div className="adm-card"><div className="adm-card-head"><h3>Blueprint usage</h3><span className="adm-hint">save/apply follow-through</span></div>{blueprintBars.length ? <HBars data={blueprintBars} /> : <div className="adm-empty">Blueprint counters will appear after save/apply events.</div>}</div>
+    </div>
+  );
+}
+
+function UxPerfStoryTab() {
+  const { rows, err, refresh } = useRunAnalytics();
+  const state = AnalyticsState({ rows, err });
+  if (state) return <div className="adm-content">{state}</div>;
+  const data = rows!;
+  const dataset = buildAnalyticsDataset(data);
+  const inputBars = [
+    { label: 'keyboard', value: data.reduce((sum, row) => sum + row.controls.keyboardInputs, 0), color: '#54a0ff' },
+    { label: 'pointer', value: data.reduce((sum, row) => sum + row.controls.pointerInputs, 0), color: '#2ed573' },
+    { label: 'touch', value: data.reduce((sum, row) => sum + row.controls.touchInputs, 0), color: '#ffd32a' },
+  ].filter((item) => item.value > 0);
+  const controlBars = [
+    { label: 'pause toggles', value: data.reduce((sum, row) => sum + row.controls.pauseToggles, 0), color: '#54a0ff' },
+    { label: 'speed changes', value: data.reduce((sum, row) => sum + row.controls.speedChanges, 0), color: '#7bed9f' },
+    { label: 'abort armed', value: data.reduce((sum, row) => sum + row.controls.abortArmed, 0), color: '#ff4757' },
+    { label: 'placement cancels', value: data.reduce((sum, row) => sum + row.controls.placementCancels, 0), color: '#feca57' },
+    { label: 'ability aim cancels', value: data.reduce((sum, row) => sum + row.controls.abilityAimCancels, 0), color: '#a55eea' },
+  ].filter((item) => item.value > 0);
+  const assistBars = [
+    { label: 'AI opens', value: data.reduce((sum, row) => sum + row.assistance.aiMenuOpens + row.assistance.aiGameOpens, 0), color: '#a55eea' },
+    { label: 'AI questions', value: data.reduce((sum, row) => sum + row.assistance.aiQuestions, 0), color: '#54a0ff' },
+    { label: 'AI successes', value: data.reduce((sum, row) => sum + row.assistance.aiSuccesses, 0), color: '#2ed573' },
+    { label: 'AI errors', value: data.reduce((sum, row) => sum + row.assistance.aiErrors, 0), color: '#ff4757' },
+    { label: 'feedback submits', value: data.reduce((sum, row) => sum + row.assistance.feedbackSubmits, 0), color: '#ffd32a' },
+    { label: 'replies viewed', value: data.reduce((sum, row) => sum + row.assistance.feedbackRepliesViewed, 0), color: '#7bed9f' },
+  ].filter((item) => item.value > 0);
+  const viewportCounts = new Map<string, number>();
+  const viewportFps = new Map<string, { fps: number; n: number; drops: number }>();
+  for (const row of data) {
+    const bucket = viewportBucket(row);
+    viewportCounts.set(bucket, (viewportCounts.get(bucket) ?? 0) + 1);
+    const e = viewportFps.get(bucket) ?? { fps: 0, n: 0, drops: 0 };
+    if (row.performance.fpsAvg > 0) { e.fps += row.performance.fpsAvg; e.n++; }
+    e.drops += row.performance.qualityDowngrades;
+    viewportFps.set(bucket, e);
+  }
+  const viewportBars = [...viewportCounts.entries()].map(([label, value]) => ({ label, value, color: '#54a0ff', sub: `${Math.round((viewportFps.get(label)?.fps ?? 0) / Math.max(1, viewportFps.get(label)?.n ?? 0))} fps / ${viewportFps.get(label)?.drops ?? 0} drops` }));
+  const leaderboardBars = [
+    { label: 'opens', value: data.reduce((sum, row) => sum + num(row.leaderboard.openCount), 0), color: '#54a0ff' },
+    { label: 'score submits', value: data.reduce((sum, row) => sum + num(row.leaderboard.scoreSubmitAttempts), 0), color: '#2ed573' },
+    { label: 'score failures', value: data.reduce((sum, row) => sum + num(row.leaderboard.scoreSubmitFailures), 0), color: '#ff4757' },
+    { label: 'replay opens', value: data.reduce((sum, row) => sum + num(row.leaderboard.replayOpens), 0), color: '#ffd32a' },
+  ].filter((item) => item.value > 0);
+  return (
+    <div className="adm-content">
+      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} UX/perf analytics docs</span><button className="adm-mini" onClick={refresh}>refresh</button></div>
+      <div className="adm-stat-row">
+        <Stat label="avg fps" value={Math.round(avgOf(data.filter((row) => row.performance.fpsAvg > 0), (row) => row.performance.fpsAvg)).toString()} />
+        <Stat label="long frames/run" value={avgOf(data, (row) => row.performance.longFrames).toFixed(1)} />
+        <Stat label="widget pause/run" value={`${Math.round(avgOf(data, (row) => row.assistance.widgetPauseS))}s`} />
+        <Stat label="standalone share" value={pct(data.filter((row) => row.performance.displayStandalone).length / Math.max(1, data.length))} />
+      </div>
+      <InsightDeck insights={dataset.insights.filter((item) => item.domain === 'performance' || item.domain === 'assistance')} title="UX and performance readouts" />
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>Input modality</h3><span className="adm-hint">interaction counts</span></div>{inputBars.length ? <HBars data={inputBars} /> : <div className="adm-empty">No input counters yet.</div>}</div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Control habits</h3><span className="adm-hint">friction and command usage</span></div>{controlBars.length ? <HBars data={controlBars} /> : <div className="adm-empty">No control counters yet.</div>}</div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card"><div className="adm-card-head"><h3>Help and feedback</h3><span className="adm-hint">privacy-safe outcomes only</span></div>{assistBars.length ? <HBars data={assistBars} /> : <div className="adm-empty">No help activity yet.</div>}</div>
+        <div className="adm-card"><div className="adm-card-head"><h3>Viewport performance</h3><span className="adm-hint">device bucket, avg FPS, quality drops</span></div>{viewportBars.length ? <HBars data={viewportBars} /> : <div className="adm-empty">No viewport samples yet.</div>}</div>
+      </div>
+      <div className="adm-card"><div className="adm-card-head"><h3>Leaderboard loop</h3><span className="adm-hint">submission and replay behavior</span></div>{leaderboardBars.length ? <HBars data={leaderboardBars} /> : <div className="adm-empty">No leaderboard activity yet.</div>}</div>
+    </div>
+  );
+}
+
+function mergeCells(rows: RunAnalyticsRow[], get: (row: RunAnalyticsRow) => Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(get(row))) out[key] = (out[key] ?? 0) + value;
+  }
+  return out;
+}
+
 function RunIntelligenceTab() {
   const { rows, err, refresh } = useRunAnalytics();
   const state = AnalyticsState({ rows, err });
   if (state) return <div className="adm-content">{state}</div>;
   const data = rows!;
+  const dataset = buildAnalyticsDataset(data);
   const freeplay = data.filter((r) => r.summary.freeplay);
   const days = analyticsByDay(data);
   const avgActive = avgOf(data, (r) => r.attention.activeS);
@@ -1341,6 +1822,7 @@ function RunIntelligenceTab() {
         <span className="adm-filter-count">{data.length.toLocaleString()} replay analytics docs</span>
         <button className="adm-mini" onClick={refresh}>refresh</button>
       </div>
+      <InsightDeck insights={dataset.insights} title="Overview readouts" />
       <div className="adm-stat-row">
         <Stat label="avg active time" value={`${Math.round(avgActive / 60)}m`} />
         <Stat label="hidden per run" value={`${Math.round(avgHidden)}s`} />
@@ -1818,10 +2300,11 @@ function InboxTab({ user }: { user: User }) {
 }
 
 export default function AdminDashboard() {
-  type AdminTab = 'inbox' | 'balance' | 'telemetry' | 'runs' | 'engagement' | 'freeplay';
+  type AdminTab = 'inbox' | 'balance' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf';
   const [tab, setTabState] = useState<AdminTab>(() => {
     const t = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('tab') : null;
-    return t === 'balance' || t === 'telemetry' || t === 'runs' || t === 'engagement' || t === 'freeplay' ? t : 'inbox';
+    return t === 'balance' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
+      || t === 'combat' || t === 'systems' || t === 'freeplay' || t === 'uxperf' ? t : 'inbox';
   });
   const setTab = (t: AdminTab) => {
     setTabState(t);
@@ -1873,9 +2356,13 @@ export default function AdminDashboard() {
           <button className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
           <button className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
           <button className={tab === 'telemetry' ? 'on' : ''} onClick={() => setTab('telemetry')}>TELEMETRY</button>
-          <button className={tab === 'runs' ? 'on' : ''} onClick={() => setTab('runs')}>RUNS</button>
-          <button className={tab === 'engagement' ? 'on' : ''} onClick={() => setTab('engagement')}>ENGAGE</button>
+          <button className={tab === 'explore' ? 'on' : ''} onClick={() => setTab('explore')}>EXPLORE</button>
+          <button className={tab === 'overview' ? 'on' : ''} onClick={() => setTab('overview')}>OVERVIEW</button>
+          <button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')}>JOURNEY</button>
+          <button className={tab === 'combat' ? 'on' : ''} onClick={() => setTab('combat')}>COMBAT</button>
+          <button className={tab === 'systems' ? 'on' : ''} onClick={() => setTab('systems')}>SYSTEMS</button>
           <button className={tab === 'freeplay' ? 'on' : ''} onClick={() => setTab('freeplay')}>FREEPLAY</button>
+          <button className={tab === 'uxperf' ? 'on' : ''} onClick={() => setTab('uxperf')}>UX/PERF</button>
         </nav>
         <div className="adm-actions">
           <span className="adm-readonly">{user.email}</span>
@@ -1893,9 +2380,13 @@ export default function AdminDashboard() {
               </div></div></div>
             : <BalanceTab report={report} />
       ) : tab === 'telemetry' ? <TelemetryTab report={report} />
-        : tab === 'runs' ? <RunIntelligenceTab />
-          : tab === 'engagement' ? <EngagementTab />
-            : <FreeplayLabTab />}
+        : tab === 'explore' ? <MetricExplorerTab />
+          : tab === 'overview' ? <RunIntelligenceTab />
+            : tab === 'journey' ? <EngagementTab />
+              : tab === 'combat' ? <CombatStoryTab />
+                : tab === 'systems' ? <SystemsStoryTab />
+                  : tab === 'freeplay' ? <FreeplayLabTab />
+                    : <UxPerfStoryTab />}
     </div>
   );
 }
