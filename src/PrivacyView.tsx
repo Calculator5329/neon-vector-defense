@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { consentState, setSell, gpcActive, resetConsent } from './game/consent';
+import { progress } from './game/storage';
+import { requestDataDeletion } from './game/leaderboard';
 import { sfx } from './game/sound';
 
 /** /privacy route check, mirroring the admin pathname fork. */
@@ -42,6 +44,8 @@ export default function PrivacyView() {
   const [state, setState] = useState(consentState());
   const gpc = gpcActive();
   const [cleared, setCleared] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const sold = state.sell === 'optout' || gpc;
 
   const toggleSell = () => {
@@ -50,9 +54,14 @@ export default function PrivacyView() {
     setState(consentState());
   };
 
-  const doDelete = () => {
-    if (!confirm('Delete all data this game stored on this device (progress, settings, privacy choices)? This cannot be undone.')) return;
+  const doDelete = async () => {
+    if (!confirm('Delete all data this game stored — on this device AND on our servers (progress, scores, telemetry)? This cannot be undone.')) return;
     sfx.click();
+    setBusy(true); setFailed(false);
+    const uid = progress.uid; // capture before clearing so a retry can still reach the server
+    const serverOk = await requestDataDeletion(uid);
+    setBusy(false);
+    if (!serverOk) { setFailed(true); return; } // keep local data + uid so the user can retry
     clearLocalData();
     resetConsent();
     setCleared(true);
@@ -131,12 +140,14 @@ export default function PrivacyView() {
                 <div className="privacy-control-name">Delete my data</div>
                 <div className="privacy-control-sub">
                   {cleared
-                    ? 'Done — local data cleared. Anonymous server records carry no identity and auto-expire.'
-                    : 'Erase all local game data. Anonymous server telemetry has no identity and expires automatically.'}
+                    ? 'Done — your local data and server records for this device have been deleted.'
+                    : failed
+                      ? "Couldn't reach the server — nothing was deleted. Your data is intact; please try again."
+                      : 'Erase all data tied to this device, locally and on our servers.'}
                 </div>
               </div>
-              <button className="privacy-toggle danger" disabled={cleared} onClick={doDelete}>
-                {cleared ? 'CLEARED' : 'DELETE'}
+              <button className="privacy-toggle danger" disabled={cleared || busy} onClick={doDelete}>
+                {cleared ? 'DELETED' : busy ? 'DELETING…' : failed ? 'RETRY' : 'DELETE'}
               </button>
             </div>
           </div>

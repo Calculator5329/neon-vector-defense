@@ -12,7 +12,8 @@ import {
   query,
   setDoc,
 } from 'firebase/firestore';
-import { db } from './firebaseClient';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app, db } from './firebaseClient';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
 import { canSubmitScore, canWriteAnalytics } from './consent';
@@ -130,12 +131,41 @@ function scorePayload(entry: ScoreEntry): ScoreEntry {
   return payload;
 }
 
+// Scores are written SERVER-SIDE by the submitScore/submitDailyScore Cloud Functions
+// (us-central1): they require a matching runs/{runId} replay, sanity-bound the claim,
+// and rate-limit per uid. Clients can no longer write boards directly (firestore.rules).
+const functions = getFunctions(app, 'us-central1');
+
+interface SubmitScoreResult {
+  accepted: boolean;
+  reason?: string;
+  claimed?: { cash: number; kills: number; wave: number };
+  accepted_values?: { cash: number; kills: number; wave: number };
+}
+interface DeleteDataResult {
+  ok: boolean;
+  uid: string;
+  deleted?: Record<string, number>;
+  errors?: string[];
+}
+
+const callSubmitScore =
+  httpsCallable<{ board: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitScore');
+const callSubmitDailyScore =
+  httpsCallable<{ dailyId: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitDailyScore');
+const callDeleteMyData =
+  httpsCallable<{ uid: string }, DeleteDataResult>(functions, 'deleteMyData');
+
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!canSubmitScore()) return false; // under-13 / pre-gate may play, never post
   if (!validBoard(board) || entry.daily) return false;
   try {
     const payload = scorePayload(entry);
-    await withTimeout(addDoc(collection(db, 'boards', board, 'scores'), payload));
+    const res = await withTimeout(callSubmitScore({ board, entry: payload }));
+    if (!res.data?.accepted) {
+      console.warn('Score rejected by server', res.data?.reason);
+      return false;
+    }
     invalidateBoardCache(board);
     return true;
   } catch (error) {
@@ -150,11 +180,26 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
   if (!validDailyBoard(board)) return false;
   try {
     const payload = scorePayload({ ...entry, freeplay: true, daily: board });
-    await withTimeout(addDoc(collection(db, 'dailyBoards', board, 'scores'), payload));
+    const res = await withTimeout(callSubmitDailyScore({ dailyId: board, entry: payload }));
+    if (!res.data?.accepted) {
+      console.warn('Daily score rejected by server', res.data?.reason);
+      return false;
+    }
     invalidateDailyBoardCache(board);
     return true;
   } catch (error) {
     console.warn('Daily score submit failed', error);
+    return false;
+  }
+}
+
+/** Cascade-delete all server data for an anonymous uid (CCPA right to delete). */
+export async function requestDataDeletion(uid: string): Promise<boolean> {
+  try {
+    const res = await withTimeout(callDeleteMyData({ uid }), 20000);
+    return res.data?.ok === true;
+  } catch (error) {
+    console.warn('Data deletion request failed', error);
     return false;
   }
 }
