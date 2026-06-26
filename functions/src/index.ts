@@ -301,9 +301,19 @@ async function deleteRunArtifacts(uid: string): Promise<{ runCheckpoints: number
   return { runCheckpoints, runs };
 }
 
+// Admins (the operator) only — NOT public. uids appear in public leaderboard reads,
+// so a public delete-by-uid endpoint would let anyone grief-delete other players'
+// data. Players' own PII lives in localStorage and is cleared client-side; server
+// records are anonymous + TTL-expiring. Server deletion-on-request is operator-run.
+const ADMIN_EMAILS = new Set(['5329548871.eg@gmail.com', '5329548871,eg@gmail.com']);
+
 export const deleteMyData = onCall(
   { region: 'us-central1', cors: true, maxInstances: 5, timeoutSeconds: 300 },
   async (req: CallableRequest): Promise<DeleteResult> => {
+    const email = String(req.auth?.token?.email ?? '').toLowerCase();
+    if (!req.auth || req.auth.token?.email_verified !== true || !ADMIN_EMAILS.has(email)) {
+      throw new HttpsError('permission-denied', 'admin-only');
+    }
     const uid = String((req.data as Record<string, unknown> | undefined)?.uid ?? '');
     if (!UID_RE.test(uid)) throw new HttpsError('invalid-argument', 'bad-uid');
 

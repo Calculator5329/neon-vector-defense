@@ -26,46 +26,20 @@ service cloud.firestore {
       return data.schemaVersion in [1, 2];
     }
 
-    // public leaderboards: anyone can read; players may append validated scores
+    // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore
+    // Cloud Function (Admin SDK, which bypasses rules); direct client writes are blocked.
+    // This is the leaderboard-integrity lockdown — scores are validated against a replay
+    // and rate-limited server-side before they land here.
     match /boards/{board}/scores/{id} {
       allow read: if true;
-      allow create: if isValidBoard(board)
-        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid', 'runId', 'meta', 'daily', 'checkpoint'])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
-        && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
-        && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
-        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
-        && request.resource.data.freeplay is bool
-        && request.resource.data.freeplay == board.matches('.*_fp$')
-        && request.resource.data.ts is int && request.resource.data.ts > 0
-        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40))
-        && (!('runId' in request.resource.data) || (request.resource.data.runId is string && isValidRunId(request.resource.data.runId)))
-        && (!('meta' in request.resource.data) || (request.resource.data.meta is string && request.resource.data.meta.size() <= 240))
-        && !('daily' in request.resource.data)
-        && (!('checkpoint' in request.resource.data) || request.resource.data.checkpoint is bool);
-      allow update, delete: if false;
+      allow create, update, delete: if false;
     }
 
-    // daily freeplay leaderboards: same-day sandbox, separate from global boards
+    // daily freeplay leaderboards: anyone can read. Writes are SERVER-ONLY via the
+    // submitDailyScore Cloud Function (Admin SDK).
     match /dailyBoards/{daily}/scores/{id} {
       allow read: if true;
-      allow create: if isValidDailyBoard(daily)
-        && request.resource.data.keys().hasOnly(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'uid', 'runId', 'meta', 'daily', 'checkpoint'])
-        && request.resource.data.keys().hasAll(['name', 'cash', 'kills', 'wave', 'freeplay', 'ts', 'daily'])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
-        && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
-        && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
-        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
-        && request.resource.data.freeplay == true
-        && request.resource.data.ts is int && request.resource.data.ts > 0
-        && request.resource.data.daily == daily
-        && (!('uid' in request.resource.data) || (request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40))
-        && (!('runId' in request.resource.data) || (request.resource.data.runId is string && isValidRunId(request.resource.data.runId)))
-        && (!('meta' in request.resource.data) || (request.resource.data.meta is string && request.resource.data.meta.size() <= 240))
-        && (!('checkpoint' in request.resource.data) || request.resource.data.checkpoint is bool);
-      allow update, delete: if false;
+      allow create, update, delete: if false;
     }
 
     // public sanitized run replays: anyone may fetch by id; listing is admin-only.
