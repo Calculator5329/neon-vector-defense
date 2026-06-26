@@ -500,6 +500,7 @@ function MainMenu(props: {
   onStartDaily: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
+  const [help, setHelp] = useState(false);
   // Apex unlocks on a COMPLETED campaign (a win), matching its "survive one campaign"
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
@@ -519,8 +520,11 @@ function MainMenu(props: {
         <nav className="menu-tabs">
           <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
           <button className={tab === 'board' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
+          <button className="menu-tab-help" title="How to play" onClick={() => { setHelp(true); sfx.click(); }}>?</button>
         </nav>
       </header>
+
+      {help && <HowToPlay onDone={() => { setHelp(false); sfx.click(); }} />}
 
       {DEMO_MODE && (
         <div className="menu-demo-banner">
@@ -549,12 +553,14 @@ function MainMenu(props: {
                   if (!unlocked) {
                     const prior = ALL_MAPS[Math.max(0, i - 1)];
                     return (
-                      <div key={m.id} className="map-card map-card-locked" data-testid={`map-card-${m.id}`} title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}
+                      <button key={m.id} type="button" className="map-card map-card-locked" data-testid={`map-card-${m.id}`}
+                        aria-disabled="true" aria-label={`Locked sector. Clear ${prior.name} or reach wave 20 to unlock.`}
+                        title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}
                         onClick={() => appMetrics.recordLockedMapClick(m.id)}>
                         <div className="map-lock">🔒</div>
                         <div className="map-card-name">CLASSIFIED</div>
                         <div className="map-card-desc">Clear {prior.name} or reach W20.</div>
-                      </div>
+                      </button>
                     );
                   }
                   const active = props.map.id === m.id;
@@ -597,11 +603,12 @@ function MainMenu(props: {
                         ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
                         : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
                     return (
-                      <div key={d.id} className="diff-card diff-locked" data-testid={`diff-card-${d.id}`} title={reason.title}
+                      <button key={d.id} type="button" className="diff-card diff-locked" data-testid={`diff-card-${d.id}`}
+                        aria-disabled="true" aria-label={`Locked protocol. ${reason.desc}`} title={reason.title}
                         onClick={() => appMetrics.recordLockedProtocolClick(d.id)}>
                         <div className="diff-name">{reason.label}</div>
                         <div className="diff-desc">{reason.desc}</div>
-                      </div>
+                      </button>
                     );
                   }
                   const active = props.diff.id === d.id;

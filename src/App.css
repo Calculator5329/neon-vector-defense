@@ -76,6 +76,7 @@
 }
 .menu-tabs button:hover { color: var(--text); }
 .menu-tabs button.on { color: var(--accent); border-color: rgba(75, 207, 250, 0.45); background: var(--panel2); }
+.menu-tab-help { padding-left: 0; padding-right: 0; width: 40px; font-size: 14px; }
 
 .hero-stats {
   display: flex;
