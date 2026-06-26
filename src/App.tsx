@@ -10,6 +10,8 @@ import { BRIEFING, LONGWATCH_BRIEFING, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LI
 import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
+import { isMilestoneWave } from './game/writePolicy';
+import { needsAgeGate } from './game/consent';
 import {
   boardId,
   submitScore,
@@ -45,9 +47,11 @@ import {
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 import { isAdmin } from './game/admin';
+import AgeGate from './AgeGate';
 // Lazy: the 2,900-line dashboard + admin auth SDK are code-split off the player path,
-// loaded only on the /admin route.
+// loaded only on the /admin route. PrivacyView is lazy too (rare /privacy route).
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
+const PrivacyView = lazy(() => import('./PrivacyView'));
 
 type Screen = 'menu' | 'game';
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
@@ -89,8 +93,23 @@ function towerLockText(game: Game, def: TowerDef): string {
   return `${def.name} locked - destroy ${lockedBy.toLocaleString()} more hostiles`;
 }
 
+function isPrivacyRoute(): boolean {
+  return typeof location !== 'undefined' && location.pathname.replace(/\/+$/, '') === '/privacy';
+}
+
 export default function App() {
   if (ADMIN) return <Suspense fallback={null}><AdminDashboard /></Suspense>;
+  if (isPrivacyRoute()) return <Suspense fallback={null}><PrivacyView /></Suspense>;
+  return <Gate />;
+}
+
+// Neutral age gate blocks first paint until answered (COPPA). perf/demo bypass it —
+// they never post player-attributed data, and the consent module defaults them to
+// the restricted tier anyway. A child component so the hook isn't conditional on ADMIN.
+function Gate() {
+  const bypassGate = PERF_MAP !== null || DEMO_MODE;
+  const [gated, setGated] = useState(!bypassGate && needsAgeGate());
+  if (gated) return <AgeGate onDone={() => setGated(false)} />;
   return <Main />;
 }
 
@@ -620,6 +639,10 @@ function MainMenu(props: {
         )}
       </div>
 
+      <div className="menu-legal">
+        <a href="/privacy">Privacy &amp; Data Choices</a>
+      </div>
+
       {/* sticky launch bar — always visible, reflects the current selection */}
       <div className="deploy-bar">
         <div className="deploy-bar-sel">
@@ -867,12 +890,10 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   useEffect(() => { loggedRunRef.current = false; }, [run]);
   const checkpointSeqRef = useRef(0);
   const checkpointBusyRef = useRef(false);
-  const checkpointLastAtRef = useRef(0);
   const checkpointWaveRef = useRef(game.wave);
   useEffect(() => {
     checkpointSeqRef.current = 0;
     checkpointBusyRef.current = false;
-    checkpointLastAtRef.current = Date.now();
     checkpointWaveRef.current = game.wave;
   }, [game, run]);
 
@@ -880,7 +901,6 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     if (PERF_MAP !== null || DEMO_MODE) return false;
     const callsign = (progress.playerName.trim() || 'WARDEN').slice(0, 20);
     const doc = game.buildRunCheckpointDoc(callsign, progress.uid, TELEMETRY_BUILD, checkpointSeqRef.current++, reason);
-    checkpointLastAtRef.current = Date.now();
     return submitRunCheckpoint(doc);
   }, [game]);
 
@@ -952,14 +972,12 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         if (now - f.t > 1000) { f.fps = f.frames; f.frames = 0; f.t = now; }
       }
       game.update(dt);
-      if (PERF_MAP === null && !DEMO_MODE && (game.phase === 'build' || game.phase === 'wave')) {
-        const nowMs = Date.now();
-        if (game.wave > checkpointWaveRef.current && game.phase === 'build') {
-          checkpointWaveRef.current = game.wave;
-          flushRunCheckpoint('wave');
-        } else if (nowMs - checkpointLastAtRef.current >= 30000) {
-          flushRunCheckpoint('interval');
-        }
+      // Checkpoint only on MILESTONE build phases (opener + every 10th wave), not every
+      // wave + every 30s — that was ~60-90 Firestore writes/run. submitRunCheckpoint
+      // additionally self-gates on consent + per-run sampling, so most runs write none.
+      if (PERF_MAP === null && !DEMO_MODE && game.phase === 'build' && game.wave > checkpointWaveRef.current) {
+        checkpointWaveRef.current = game.wave;
+        if (isMilestoneWave(game.wave)) flushRunCheckpoint('wave');
       }
       // fire one anonymous telemetry event when a run ends (skip perf bot runs)
       if (PERF_MAP === null && !DEMO_MODE && !loggedRunRef.current &&

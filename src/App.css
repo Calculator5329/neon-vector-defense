@@ -2493,3 +2493,62 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .adm-tabs button { padding: 7px 10px; font-size: 9px; }
   .adm-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
+
+/* ===== Age gate (neutral entry compliance) ===== */
+.age-gate { z-index: 300; }
+.age-gate-box { max-width: 460px; text-align: center; }
+.age-gate-eyebrow {
+  font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 5px;
+  color: var(--accent); opacity: 0.7; margin-bottom: 10px;
+}
+.age-gate-box h2 { font-family: 'Orbitron', sans-serif; font-size: 22px; letter-spacing: 2px; margin: 0 0 12px; }
+.age-gate-copy { color: var(--text); opacity: 0.85; line-height: 1.5; margin: 0 0 16px; }
+.age-gate-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.age-gate-select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--edge);
+  border-radius: 8px; padding: 11px 14px; font-size: 15px; font-family: inherit; min-width: 150px;
+}
+.age-gate-fine { font-size: 11.5px; color: var(--dim); line-height: 1.5; margin: 16px 0 0; }
+.age-gate-fine a, .privacy-box a, .menu-legal a { color: var(--accent); }
+
+/* ===== Privacy policy / data choices ===== */
+.privacy-root {
+  position: fixed; inset: 0; overflow-y: auto;
+  background: var(--bg); color: var(--text);
+  padding: clamp(20px, 5vw, 60px) 16px;
+}
+.privacy-box { max-width: 720px; margin: 0 auto; line-height: 1.6; }
+.privacy-back {
+  background: var(--panel2); border: 1px solid var(--edge); color: var(--accent);
+  border-radius: 8px; padding: 8px 16px; font-family: 'Orbitron', sans-serif;
+  font-size: 11px; letter-spacing: 2px; cursor: pointer; margin-bottom: 22px;
+}
+.privacy-back:hover { border-color: var(--accent); }
+.privacy-title { font-family: 'Orbitron', sans-serif; font-size: 30px; letter-spacing: 4px; margin: 0 0 4px; color: #eaf1ff; }
+.privacy-meta { color: var(--dim); font-size: 12px; letter-spacing: 1px; margin: 0 0 28px; }
+.privacy-box section { margin-bottom: 26px; }
+.privacy-box h2 { font-family: 'Orbitron', sans-serif; font-size: 15px; letter-spacing: 2px; color: var(--accent); margin: 0 0 8px; }
+.privacy-box p { color: var(--text); opacity: 0.86; margin: 0 0 8px; }
+.privacy-box ul { margin: 0 0 8px; padding-left: 20px; color: var(--text); opacity: 0.86; }
+.privacy-box li { margin: 4px 0; }
+.privacy-box code { background: var(--panel2); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+.privacy-controls { display: flex; flex-direction: column; gap: 10px; }
+.privacy-control {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px;
+}
+.privacy-control-name { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1px; }
+.privacy-control-sub { font-size: 12.5px; color: var(--dim); margin-top: 4px; line-height: 1.45; }
+.privacy-toggle {
+  flex: 0 0 auto; background: var(--panel2); border: 1px solid var(--edge); color: var(--text);
+  border-radius: 8px; padding: 9px 16px; font-family: 'Orbitron', sans-serif; font-size: 11px;
+  letter-spacing: 1.5px; cursor: pointer; transition: all 0.12s;
+}
+.privacy-toggle:hover { border-color: var(--accent); }
+.privacy-toggle.on { color: var(--good); border-color: rgba(46, 213, 115, 0.5); }
+.privacy-toggle.danger:hover { border-color: var(--danger); color: var(--danger); }
+.privacy-toggle:disabled { opacity: 0.55; cursor: default; }
+
+.menu-legal { text-align: center; margin-top: 10px; flex: 0 0 auto; }
+.menu-legal a { font-size: 11px; letter-spacing: 1px; opacity: 0.7; text-decoration: none; }
+.menu-legal a:hover { opacity: 1; }

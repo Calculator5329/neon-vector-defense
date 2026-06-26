@@ -32,6 +32,9 @@ const progressSeed = {
 async function seedProgress(page: Page, overrides: Record<string, unknown> = {}) {
   await page.addInitScript(([base, patch]) => {
     window.localStorage.setItem('nvd-progress-v1', JSON.stringify({ ...base, ...patch }));
+    // Seed adult consent so the age gate never blocks tests and consent-gated writes
+    // behave like a normal adult player. (?demo=1 also bypasses the gate.)
+    window.localStorage.setItem('nvd-consent-v1', JSON.stringify({ ageBand: 'adult', sell: 'ok', gpc: false, ts: 1 }));
   }, [progressSeed, overrides]);
 }
 

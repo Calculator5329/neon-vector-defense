@@ -15,6 +15,8 @@ import {
 import { db } from './firebaseClient';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
+import { canSubmitScore, canWriteAnalytics } from './consent';
+import { isSampledRun } from './writePolicy';
 import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle } from './runTelemetry';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
@@ -129,6 +131,7 @@ function scorePayload(entry: ScoreEntry): ScoreEntry {
 }
 
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
+  if (!canSubmitScore()) return false; // under-13 / pre-gate may play, never post
   if (!validBoard(board) || entry.daily) return false;
   try {
     const payload = scorePayload(entry);
@@ -142,6 +145,7 @@ export async function submitScore(board: string, entry: ScoreEntry): Promise<boo
 }
 
 export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Promise<boolean> {
+  if (!canSubmitScore()) return false;
   const board = dailyBoardId(dailyId);
   if (!validDailyBoard(board)) return false;
   try {
@@ -254,6 +258,7 @@ export interface TelemetryEvent {
 
 /** anonymous gameplay telemetry -> telemetry collection (write-only for players). */
 export function logTelemetry(e: TelemetryEvent): void {
+  if (!canWriteAnalytics()) return; // restricted tier (under-13 / opted-out / GPC) writes nothing
   void (async () => {
     try {
       await addDoc(collection(db, 'telemetry'), {
@@ -283,6 +288,9 @@ export function logTelemetry(e: TelemetryEvent): void {
 }
 
 export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean> {
+  // Replay backs leaderboard verification, so it is SCORE-tier (every adult who posts),
+  // not analytics-tier — a privacy-conscious adult must still produce a verifiable replay.
+  if (!canSubmitScore()) return false;
   if (!isValidRunId(bundle.run.runId)) return false;
   try {
     await withTimeout(setDoc(firestoreDoc(db, 'runs', bundle.run.runId), bundle.run));
@@ -296,6 +304,7 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean>
 }
 
 export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<boolean> {
+  if (!canWriteAnalytics() || !isSampledRun(progress.uid, doc.runId)) return false;
   if (!isValidRunId(doc.runId)) return false;
   try {
     await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc, { merge: true }));
@@ -307,6 +316,7 @@ export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<b
 }
 
 export async function submitRunCheckpoint(doc: RunCheckpointDoc): Promise<boolean> {
+  if (!canWriteAnalytics() || !isSampledRun(progress.uid, doc.runId)) return false;
   if (!isValidRunId(doc.runId)) return false;
   try {
     const chunkId = `c${String(Math.max(0, Math.floor(doc.chunk))).padStart(6, '0')}`;
