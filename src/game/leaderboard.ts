@@ -159,13 +159,20 @@ const callDeleteMyData =
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!canSubmitScore()) return false; // under-13 / pre-gate may play, never post
   if (!validBoard(board) || entry.daily) return false;
+  const payload = scorePayload(entry);
   try {
-    const payload = scorePayload(entry);
     const res = await withTimeout(callSubmitScore({ board, entry: payload }));
-    if (!res.data?.accepted) {
-      console.warn('Score rejected by server', res.data?.reason);
-      return false;
-    }
+    if (res.data?.accepted) { invalidateBoardCache(board); return true; }
+    // A definitive server REJECTION (with a reason) must NOT fall back to a direct
+    // write — that would bypass validation. Only an unreachable CF falls through.
+    if (res.data?.reason) { console.warn('Score rejected by server', res.data.reason); return false; }
+  } catch (error) {
+    console.warn('Score CF unavailable; trying direct write', error);
+  }
+  // Fallback path for before the CF is deployed (clients can still write until the
+  // rules lockdown). Once rules lock, this fails closed and the CF is the only writer.
+  try {
+    await withTimeout(addDoc(collection(db, 'boards', board, 'scores'), payload));
     invalidateBoardCache(board);
     return true;
   } catch (error) {
@@ -178,13 +185,16 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
   if (!canSubmitScore()) return false;
   const board = dailyBoardId(dailyId);
   if (!validDailyBoard(board)) return false;
+  const payload = scorePayload({ ...entry, freeplay: true, daily: board });
   try {
-    const payload = scorePayload({ ...entry, freeplay: true, daily: board });
     const res = await withTimeout(callSubmitDailyScore({ dailyId: board, entry: payload }));
-    if (!res.data?.accepted) {
-      console.warn('Daily score rejected by server', res.data?.reason);
-      return false;
-    }
+    if (res.data?.accepted) { invalidateDailyBoardCache(board); return true; }
+    if (res.data?.reason) { console.warn('Daily score rejected by server', res.data.reason); return false; }
+  } catch (error) {
+    console.warn('Daily score CF unavailable; trying direct write', error);
+  }
+  try {
+    await withTimeout(addDoc(collection(db, 'dailyBoards', board, 'scores'), payload));
     invalidateDailyBoardCache(board);
     return true;
   } catch (error) {
