@@ -156,7 +156,10 @@ export function dailyFreeplaySeed(now = new Date()): DailyFreeplaySeed {
   const dateKey = now.toISOString().slice(0, 10);
   const seed = hash(dateKey);
   const map = ALL_MAPS[seed % ALL_MAPS.length];
-  const diffPool = DIFFICULTIES.filter((d) => d.id !== 'easy');
+  // Exclude Recruit (too soft for endless) and Long Watch/ngplus: it is armistice-gated
+  // (daily would leak it out of order) and starts at wave 50, below the mutator/risk/rival
+  // content floors (60/62/70), producing flat content-less early waves.
+  const diffPool = DIFFICULTIES.filter((d) => d.id !== 'easy' && d.id !== 'ngplus');
   const diff = diffPool[Math.floor(seed / 7) % diffPool.length];
   const contractIds: FreeplayContractId[] = ['ironcore', 'leanGrid', 'volatile'];
   const towerIds = [...DAILY_CORE_TOWER_IDS, ...pickMany(DAILY_ROTATING_TOWER_IDS, seed + 47, 5)];

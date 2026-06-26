@@ -481,7 +481,9 @@ function MainMenu(props: {
   onStartDaily: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
-  const apexLocked = !DEMO_MODE && progress.record.runs < 1;
+  // Apex unlocks on a COMPLETED campaign (a win), matching its "survive one campaign"
+  // copy — not on any run end (an instant wave-1 loss used to unlock it).
+  const apexLocked = !DEMO_MODE && progress.record.victories < 1;
   const ngLocked = !DEMO_MODE && !progress.armisticeSeen;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
@@ -555,6 +557,7 @@ function MainMenu(props: {
                         <span className="map-card-name">{m.name}</span>
                         <span className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</span>
                       </div>
+                      <div className="map-card-desc">{m.desc}</div>
                       {best > 0 && <div className="map-card-best">BEST · W{best}</div>}
                     </button>
                   );
@@ -760,6 +763,7 @@ function MapThumb({ map }: { map: GameMap }) {
 
 function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: DifficultyDef; dailySeed?: DailyFreeplaySeed | null; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [run, setRun] = useState(0); // bump to restart the sector
   const gameRef = useRef<Game | null>(null);
   const runRef = useRef(-1);
@@ -979,7 +983,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         });
         void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
       }
-      const ctx = canvasRef.current?.getContext('2d');
+      const ctx = ctxRef.current ?? (ctxRef.current = canvasRef.current?.getContext('2d') ?? null);
       if (ctx) {
         const hover = hoverRef.current;
         const pl = placingRef.current;
@@ -1008,8 +1012,11 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           game.paused = true;
           setCloakTip(true);
         }
-        // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed
-        if (PERF_MAP === null && !DEMO_MODE && !game.isDailyFreeplay && !game.paused && !overlayRef.current && (game.phase === 'build' || game.phase === 'wave')) {
+        // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed.
+        // Only during BUILD — a kill threshold is almost always crossed mid-combat, and a
+        // full-screen pause-modal yanking the player out of an active wave is jarring; it
+        // pops at the next build phase instead.
+        if (PERF_MAP === null && !DEMO_MODE && !game.isDailyFreeplay && !game.paused && !overlayRef.current && game.phase === 'build') {
           const k = progress.record.kills + game.totalKills;
           const just = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > 0 && d.unlockAt <= k && !progress.unlockSeen(d.id));
           if (just) {
@@ -1117,7 +1124,14 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
-      if (utilityWidgetOpen() || isTypingTarget(ev.target) || blockingOverlayRef.current) return;
+      if (isTypingTarget(ev.target)) return;
+      // 'm' mutes from anywhere — even behind a pausing modal (unlock/cloak/relic), so a
+      // player can always kill unexpected audio without dismissing the overlay first.
+      if (ev.key.toLowerCase() === 'm' && !utilityWidgetOpen()) {
+        const m = !muted; setMuted(m); setMutedState(m); appMetrics.recordSoundToggle('sound');
+        return;
+      }
+      if (utilityWidgetOpen() || blockingOverlayRef.current) return;
       if (ev.key === 'Escape') {
         if (placingRef.current) game.recorder.recordControl(METRIC_EVENTS.PLACEMENT_CANCEL);
         if (aimingRef.current) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
@@ -1860,7 +1874,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
           <p>{placing.desc}</p>
         </div>
       ) : (
-        <p className="hint-dim pad">1–9, 0 select · click map to build · Space launches</p>
+        <p className="hint-dim pad">1–0 select first ten · click map to build · Space launches</p>
       )}
     </div>
   );
