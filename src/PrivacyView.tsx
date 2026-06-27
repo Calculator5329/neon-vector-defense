@@ -11,6 +11,7 @@ const LOCAL_KEYS = [
   'nvd-progress-v1',
   'nvd-consent-v1',
   'nvd-feedback-ids-v1',
+  'nvd-feedback-receipts-v2',
   'nvd-feedback-read-v1',
   'nvd-feedback-dismissed-v1',
 ];
@@ -90,7 +91,8 @@ export default function PrivacyView() {
               can tune balance.</li>
             <li>For a small <b>sample of runs</b>, more detailed private analytics, which we keep to
               study and improve game balance.</li>
-            <li>Any <b>feedback</b> you send us, with that random id so we can reply.</li>
+            <li>Any <b>feedback</b> you send us. Your browser keeps a private reply receipt so
+              only this browser can fetch the admin reply without exposing your message publicly.</li>
           </ul>
           <p>We use Google Firebase (Firestore) to store this. There are no third-party advertising
             cookies and no cross-site tracking.</p>
@@ -133,7 +135,7 @@ export default function PrivacyView() {
                 <div className="privacy-control-sub">
                   {cleared
                     ? 'Done — all local data for this device has been erased.'
-                    : 'Erase all local game data. Anonymous server records carry no identity; to request deletion of those too, message us via feedback.'}
+                    : 'Erase all local game data, including private feedback reply receipts. Anonymous server records carry no identity; to request deletion of those too, message us via feedback.'}
                 </div>
               </div>
               <button className="privacy-toggle danger" disabled={cleared} onClick={doDelete}>

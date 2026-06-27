@@ -1,0 +1,83 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        type: choice
+        options:
+          - hosting-rules
+          - functions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production-${{ github.event.inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run ci
+      - run: npm --prefix functions ci
+      - run: npm --prefix functions run build
+
+  deploy-hosting-rules:
+    if: ${{ github.event.inputs.target == 'hosting-rules' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Authenticate Firebase
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - run: npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
+
+  deploy-functions:
+    if: ${{ github.event.inputs.target == 'functions' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix functions ci
+      - run: npm --prefix functions run build
+      - name: Authenticate Firebase
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - run: npx firebase-tools deploy --project neon-vector-defense-7 --only functions --non-interactive

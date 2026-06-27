@@ -133,12 +133,24 @@ describe('leaderboard and telemetry write rules', () => {
 });
 
 describe('feedback and config rules', () => {
-  test('allow feedback create, deny list, and expose replied docs only by id', async () => {
+  test('deny public feedback create/list/read and keep admin moderation working', async () => {
     const db = anonDb();
     const ref = doc(db, 'feedback', 'f1');
-    await assertSucceeds(setDoc(ref, { uid: 'w_rules1', text: 'hello', ts: 1, ctx: 'menu', status: 'open' }));
+    await assertFails(setDoc(ref, { uid: 'w_rules1', text: 'hello', ts: 1, ctx: 'menu', status: 'open', replyTokenHash: 'abc' }));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'feedback', 'f1'), {
+        uid: 'w_rules1',
+        text: 'hello',
+        ts: 1,
+        ctx: 'menu',
+        status: 'open',
+        replyTokenHash: 'abc',
+        serverTs: 1,
+      });
+    });
     await assertFails(getDocs(collection(db, 'feedback')));
     await assertFails(getDoc(ref));
+    await assertSucceeds(getDocs(collection(adminDb(), 'feedback')));
 
     await assertSucceeds(updateDoc(doc(adminDb(), 'feedback', 'f1'), {
       status: 'replied',
@@ -146,7 +158,8 @@ describe('feedback and config rules', () => {
       replyTs: 2,
       repliedBy: 'admin',
     }));
-    await assertSucceeds(getDoc(ref));
+    await assertFails(getDoc(ref));
+    await assertSucceeds(getDoc(doc(adminDb(), 'feedback', 'f1')));
   });
 
   test('allow public balance reads and admin-only writes', async () => {

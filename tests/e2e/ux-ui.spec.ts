@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -430,6 +430,77 @@ test.describe('desktop UX layout', () => {
     await expect(aiToggle).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByLabel('Resume game')).toBeVisible();
     await expect(page.getByTestId('launch-wave')).toBeVisible();
+  });
+});
+
+test.describe('feedback privacy flow', () => {
+  test('stores private receipts and renders callable replies without public feedback reads', async ({ page }) => {
+    const receipt = { id: 'feedback_123456', token: 'ABCDEFGHIJKLMNOP' };
+    const callableNames: string[] = [];
+    const fulfillCallable = async (route: Route, result: unknown) => {
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'access-control-allow-origin': '*',
+            'access-control-allow-headers': '*',
+            'access-control-allow-methods': 'POST, OPTIONS',
+          },
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify({ result }),
+      });
+    };
+
+    await page.route('**/submitFeedback', async (route) => {
+      if (route.request().method() === 'OPTIONS') {
+        await fulfillCallable(route, {});
+        return;
+      }
+      callableNames.push('submitFeedback');
+      const body = route.request().postDataJSON() as { data?: { text?: string; ctx?: string } };
+      expect(body.data?.text).toBe('hello privately');
+      expect(body.data?.ctx).toBe('menu');
+      await fulfillCallable(route, { accepted: true, ...receipt });
+    });
+    await page.route('**/fetchFeedbackReplies', async (route) => {
+      if (route.request().method() === 'OPTIONS') {
+        await fulfillCallable(route, {});
+        return;
+      }
+      callableNames.push('fetchFeedbackReplies');
+      const body = route.request().postDataJSON() as { data?: { receipts?: { id: string; token: string }[] } };
+      const match = body.data?.receipts?.some((row) => row.id === receipt.id && row.token === receipt.token);
+      await fulfillCallable(route, {
+        replies: match ? [{
+          id: receipt.id,
+          ctx: 'menu',
+          ts: 1,
+          reply: 'Private reply received.',
+          replyTs: 2,
+          status: 'replied',
+        }] : [],
+      });
+    });
+
+    await openDemoMenu(page);
+    await page.getByRole('button', { name: 'Messages' }).click();
+    await page.getByLabel('Message to the developer').fill('hello privately');
+    await page.getByRole('button', { name: 'Send message to developer' }).click();
+
+    await expect(page.getByText('Private reply received.')).toBeVisible();
+    await expect(page.getByText('You: hello privately')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const rows = JSON.parse(localStorage.getItem('nvd-feedback-receipts-v2') ?? '[]') as unknown[];
+      return rows.length;
+    })).toBe(1);
+    expect(callableNames).toContain('submitFeedback');
+    expect(callableNames).toContain('fetchFeedbackReplies');
   });
 });
 

@@ -52,7 +52,7 @@ import BotGhostHud from './BotGhostHud';
 import OperationsBoard from './OperationsBoard';
 import Bestiary from './Bestiary';
 import { UpgradeIcon, upgradeIconKey } from './UpgradeIcon';
-import { meta, type RunMetaReward } from './game/meta';
+import { meta, rankBandKey, type RunMetaReward } from './game/meta';
 import { buildGhostCurves, ghostCurveFor, judgeRun, type GhostCurve } from './game/ghostCurve';
 import { GHOST_CURVES_RAW } from './game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from './game/dossier';
@@ -614,6 +614,7 @@ function MainMenu(props: {
             const rank = meta.rank; const streak = meta.streak;
             return (
               <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
+                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.png`} alt="" draggable={false} />
                 <span className="menu-rank-title">{rank.title}</span>
                 <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
                 <span className="menu-rank-meta"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
@@ -1696,9 +1697,12 @@ function FreeplayBuildPanel({
           <span>Next Mutators</span>
           <b>{fp.nextMutators.length ? fp.nextMutators.map((m) => m.name).join(' + ') : 'Standard pressure'}</b>
         </div>
-        <div>
-          <span>Rival</span>
-          <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? 'Signal forming' : 'None'}</b>
+        <div className="freeplay-rival-cell">
+          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.png`} alt="" draggable={false} title={nextRival.desc} />}
+          <div>
+            <span>Rival</span>
+            <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? 'Signal forming' : 'None'}</b>
+          </div>
         </div>
       </div>
       {risk && (

@@ -258,6 +258,26 @@ anonymous limits can still be reset by deleting cookies. Add Worker KV/D1,
 Turnstile, or another persistent edge store later if stronger abuse control is
 needed.
 
+## App Check Setup
+
+The browser initializes Firebase App Check only when this build-time value is
+present:
+
+```bash
+VITE_FIREBASE_APPCHECK_SITE_KEY=your-recaptcha-enterprise-site-key
+```
+
+For local Vite dev only, you may also set:
+
+```bash
+VITE_FIREBASE_APPCHECK_DEBUG_TOKEN=your-debug-token
+```
+
+Rollout is staged: first deploy the client token plumbing, confirm score,
+replay, feedback, telemetry, and admin flows, then set the Functions runtime
+environment variable `ENFORCE_APP_CHECK=true` and enable Firestore App Check
+enforcement in the Firebase console.
+
 ## Deployment
 
 ```bash
@@ -266,3 +286,8 @@ firebase deploy --only hosting,firestore:rules,functions
 ```
 
 Configured Firebase project: `neon-vector-defense-7`
+
+GitHub Actions also includes manual production deploy workflows for
+`hosting-rules` and `functions`. Configure a protected `production` environment
+and a `FIREBASE_SERVICE_ACCOUNT` secret containing the service account JSON
+before using them.

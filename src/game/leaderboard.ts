@@ -148,6 +148,29 @@ interface DeleteDataResult {
   deleted?: Record<string, number>;
   errors?: string[];
 }
+export interface FeedbackReceipt {
+  id: string;
+  token: string;
+  text?: string;
+  ctx?: string;
+  ts?: number;
+}
+interface SubmitFeedbackResult {
+  accepted: boolean;
+  reason?: string;
+  id?: string;
+  token?: string;
+}
+interface FeedbackRepliesResult {
+  replies?: {
+    id: string;
+    ctx?: string;
+    ts?: number;
+    reply?: string;
+    replyTs?: number;
+    status?: string;
+  }[];
+}
 
 const callSubmitScore =
   httpsCallable<{ board: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitScore');
@@ -155,6 +178,10 @@ const callSubmitDailyScore =
   httpsCallable<{ dailyId: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitDailyScore');
 const callDeleteMyData =
   httpsCallable<{ uid: string }, DeleteDataResult>(functions, 'deleteMyData');
+const callSubmitFeedback =
+  httpsCallable<{ uid: string; text: string; ctx: string }, SubmitFeedbackResult>(functions, 'submitFeedback');
+const callFetchFeedbackReplies =
+  httpsCallable<{ receipts: { id: string; token: string }[] }, FeedbackRepliesResult>(functions, 'fetchFeedbackReplies');
 
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!canSubmitScore()) return false; // under-13 / pre-gate may play, never post
@@ -198,17 +225,16 @@ export async function requestDataDeletion(uid: string): Promise<boolean> {
   }
 }
 
-/** player feedback -> feedback collection. A local per-device id correlates replies without login. */
-export async function submitFeedback(text: string, ctx: string): Promise<string | null> {
+/** player feedback -> callable. A local private token correlates replies without login. */
+export async function submitFeedback(text: string, ctx: string): Promise<FeedbackReceipt | null> {
   try {
-    const ref = await withTimeout(addDoc(collection(db, 'feedback'), {
+    const res = await withTimeout(callSubmitFeedback({
       uid: progress.uid,
       text: text.slice(0, 1000),
-      ts: Date.now(),
       ctx: ctx.slice(0, 200),
-      status: 'open',
     }));
-    return ref.id;
+    if (!res.data?.accepted || !res.data.id || !res.data.token) return null;
+    return { id: res.data.id, token: res.data.token };
   } catch (error) {
     console.warn('Feedback submit failed', error);
     return null;
@@ -225,38 +251,26 @@ export interface FeedbackReply {
   status: string;
 }
 
-type FeedbackData = {
-  text?: string;
-  ctx?: string;
-  ts?: number;
-  reply?: string;
-  replyTs?: number;
-  status?: string;
-};
-
-/** Fetch only feedback documents this browser created, so replies can show without player login. */
-export async function fetchFeedbackReplies(ids: string[]): Promise<FeedbackReply[]> {
-  const clean = [...new Set(ids)]
-    .filter((id) => /^[A-Za-z0-9_-]{8,80}$/.test(id))
+/** Fetch only feedback replies this browser has a private receipt for. */
+export async function fetchFeedbackReplies(receipts: FeedbackReceipt[]): Promise<FeedbackReply[]> {
+  const local = new Map(receipts.map((receipt) => [receipt.id, receipt]));
+  const clean = receipts
+    .filter((receipt) => /^[A-Za-z0-9_-]{8,80}$/.test(receipt.id) && /^[A-Za-z0-9_-]{16,128}$/.test(receipt.token))
+    .filter((receipt, index, rows) => rows.findIndex((row) => row.id === receipt.id) === index)
     .slice(-20);
   if (clean.length === 0) return [];
   try {
-    const snaps = await Promise.all(clean.map(async (id) => {
-      try {
-        return await withTimeout(getDoc(firestoreDoc(db, 'feedback', id)));
-      } catch {
-        return null;
-      }
+    const res = await withTimeout(callFetchFeedbackReplies({
+      receipts: clean.map(({ id, token }) => ({ id, token })),
     }));
-    return snaps
-      .filter((snap): snap is NonNullable<typeof snap> => snap !== null && snap.exists())
-      .map((snap) => {
-        const data = snap.data() as FeedbackData;
+    return (res.data?.replies ?? [])
+      .map((data) => {
+        const receipt = local.get(data.id);
         return {
-          id: snap.id,
-          text: data.text ?? '',
-          ctx: data.ctx ?? '',
-          ts: Number(data.ts ?? 0),
+          id: data.id,
+          text: receipt?.text ?? '',
+          ctx: data.ctx ?? receipt?.ctx ?? '',
+          ts: Number(data.ts ?? receipt?.ts ?? 0),
           reply: data.reply ?? '',
           replyTs: Number(data.replyTs ?? 0),
           status: data.status ?? 'open',

@@ -19,6 +19,9 @@ Firebase project: `neon-vector-defense-7`
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `VITE_AI_HELP_URL` | Build-time (Vite) | Cloudflare Worker endpoint for in-game AI assistant. Omit to hide the widget. |
+| `VITE_FIREBASE_APPCHECK_SITE_KEY` | Build-time (Vite) | Optional reCAPTCHA Enterprise site key. When present, the browser sends Firebase App Check tokens. |
+| `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` | Local dev only | Optional App Check debug token; honored only by Vite dev builds. |
+| `ENFORCE_APP_CHECK` | Cloud Functions runtime | Set to `true` after App Check tokens are confirmed in production to make callable Functions reject missing/invalid tokens. |
 | `OPENROUTER_API_KEY` | `.env.local` / Worker secret | Image, audio, voice generation scripts only — never in `VITE_*` |
 | `VITE_*` | Build-time | All exposed to the browser; no secrets |
 
@@ -71,7 +74,7 @@ Private per-run analytics (consent-gated writes, admin-only reads).
 
 ### `feedback/{id}`
 
-Anonymous player feedback. Append-only for clients; admin can read and attach replies.
+Anonymous player feedback. Created only by the `submitFeedback` Cloud Function; admin can read and attach replies. Players fetch replies through a private local receipt token via `fetchFeedbackReplies`, so replied documents are not public by id.
 
 ### `telemetry/{id}`
 
@@ -101,6 +104,8 @@ Region: `us-central1`
 | --- | --- |
 | `submitScore` | Validate replay exists, sanity-bound claimed stats, rate-limit per uid, write board entry |
 | `submitDailyScore` | Same for daily freeplay boards |
+| `submitFeedback` | Rate-limit feedback, write server-only feedback doc, return private reply receipt token |
+| `fetchFeedbackReplies` | Return admin replies only when the browser presents the matching private receipt token |
 | `deleteMyData` | Cascade-delete all docs keyed by anonymous uid |
 
 **Trust model:** Anonymous uid in payload is for rate-limit bucketing only, not authenticated identity. A hand-crafted fake replay can still pass — accepted MVP posture. Full re-simulation is deferred (see roadmap).
@@ -114,8 +119,9 @@ firebase deploy --only functions
 ## Security rules summary
 
 - Leaderboards: public read, **no client writes**
-- Runs: authenticated append for replay upload; public read
-- Feedback / telemetry / analytics: append-only for authenticated clients; admin read
+- Runs: append-only public replay upload; public get, admin list
+- Feedback: server-only create/read helpers; admin read/update
+- Telemetry / analytics: bounded client append or merge; admin read
 - Admin gate: verified Google email in allowlist (sync `firestore.rules` ↔ `src/game/firebaseClient.ts`)
 - Updates and deletes denied except admin feedback replies and `deleteMyData`
 
@@ -132,6 +138,7 @@ firebase deploy --only firestore:rules
 | `nvd-progress-v1` | `storage.ts` | Progression, settings, blueprints, session days |
 | `nvd-meta-v2` | `meta.ts` | Rank XP, Salvage, quests, streak, cosmetics |
 | `nvd-consent-v1` | `consent.ts` | Age band, analytics consent, GPC |
+| `nvd-feedback-receipts-v2` | `App.tsx` | Private feedback reply receipts and local submitted-message quotes |
 
 Demo mode (`?demo=1`) skips meta and progression writes.
 

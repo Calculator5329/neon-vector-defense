@@ -1,0 +1,7 @@
+title = "Neon Vector Defense Gitleaks config"
+
+[allowlist]
+description = "Intentional public Firebase web config; access is controlled by Firebase rules and App Check."
+regexes = [
+  '''AIzaSyAxKfk-rZAFLS7OeqCqIFEzNYKlv3tdrhs''',
+]

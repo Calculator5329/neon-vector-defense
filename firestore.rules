@@ -147,30 +147,22 @@ service cloud.firestore {
       }
     }
 
-    // player feedback: write-only from clients, admin-readable/repliable after Google sign-in
+    // player feedback: SERVER-ONLY creates via submitFeedback. Admins can read/reply
+    // after Google sign-in; players fetch replies through a private token callable.
     match /feedback/{id} {
-      // The browser that created a message stores its random doc id and may read
-      // it only once an admin reply exists. Listing remains admin-only.
-      allow get: if isAdmin()
-        || ('reply' in resource.data);
+      allow get: if isAdmin();
       allow list: if isAdmin();
       allow delete: if false;
-      allow create: if request.resource.data.keys().hasAll(['uid', 'text', 'ts', 'ctx', 'status'])
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status'])
-        && request.resource.data.uid is string
-        && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
-        && request.resource.data.text is string
-        && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 1000
-        && request.resource.data.ts is int && request.resource.data.ts > 0
-        && request.resource.data.ctx is string && request.resource.data.ctx.size() <= 200
-        && (!('status' in request.resource.data) || request.resource.data.status == 'open');
+      allow create: if false;
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reply', 'replyTs', 'repliedBy'])
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status', 'reply', 'replyTs', 'repliedBy'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status', 'replyTokenHash', 'serverTs', 'reply', 'replyTs', 'repliedBy'])
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.text == resource.data.text
         && request.resource.data.ts == resource.data.ts
         && request.resource.data.ctx == resource.data.ctx
+        && (!('replyTokenHash' in resource.data) || request.resource.data.replyTokenHash == resource.data.replyTokenHash)
+        && (!('serverTs' in resource.data) || request.resource.data.serverTs == resource.data.serverTs)
         && (!('status' in request.resource.data) || request.resource.data.status in ['open', 'replied', 'archived'])
         && (!('reply' in request.resource.data) || (request.resource.data.reply is string && request.resource.data.reply.size() <= 2000))
         && (!('replyTs' in request.resource.data) || request.resource.data.replyTs is int)

@@ -20,6 +20,14 @@ import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firesto
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { validDeletedRunIds } from './deleteHelpers.js';
+import {
+  feedbackTokenHash,
+  newFeedbackToken,
+  rateLimitOk,
+  sanitizeFeedbackReceipts,
+  validUid,
+  type RateLimitStore,
+} from './securityHelpers.js';
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1', maxInstances: 10 });
@@ -45,8 +53,17 @@ const WAVE_SLACK = 2;
 const MIN_RUN_DURATION_S = 3;
 const MAX_RUN_DURATION_S = 86_400;
 
-const RATE_WINDOW_MS = 60_000;
-const RATE_MAX_IN_WINDOW = 8;
+const APP_CHECK_ENFORCED = process.env.ENFORCE_APP_CHECK === 'true';
+
+function callableOptions(maxInstances: number, timeoutSeconds?: number) {
+  return {
+    region: 'us-central1' as const,
+    cors: true,
+    maxInstances,
+    enforceAppCheck: APP_CHECK_ENFORCED,
+    ...(timeoutSeconds ? { timeoutSeconds } : {}),
+  };
+}
 
 interface ClaimedScore {
   name: string;
@@ -158,38 +175,13 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   return null;
 }
 
-/** Windowed per-uid rate limit via a counter doc, in a transaction. Fails OPEN on infra error. */
-async function rateLimitOk(uid: string): Promise<boolean> {
-  const ref = db.doc(`rateLimits/${uid}`);
-  try {
-    return await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      const now = Date.now();
-      const data = snap.exists ? (snap.data() as { windowStart?: number; count?: number }) : null;
-      const windowStart = n(data?.windowStart, 0);
-      const count = n(data?.count, 0);
-      // expiresAt drives a Firestore TTL policy so these counters don't accumulate forever.
-      const expiresAt = new Date(now + 24 * 60 * 60 * 1000);
-      if (!data || now - windowStart >= RATE_WINDOW_MS) {
-        tx.set(ref, { windowStart: now, count: 1, updatedAt: now, expiresAt });
-        return true;
-      }
-      if (count >= RATE_MAX_IN_WINDOW) return false;
-      tx.update(ref, { count: count + 1, updatedAt: now, expiresAt });
-      return true;
-    });
-  } catch {
-    return true;
-  }
-}
-
 async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolean): Promise<SubmitResult> {
   const claimed = { cash: claim.cash, kills: claim.kills, wave: claim.wave };
 
   const replayReason = await checkReplay(claim, board, isDaily);
   if (replayReason) return { accepted: false, reason: replayReason, claimed };
 
-  if (!(await rateLimitOk(claim.uid))) {
+  if (!(await rateLimitOk(db as unknown as RateLimitStore, claim.uid))) {
     return { accepted: false, reason: 'rate-limited', claimed };
   }
 
@@ -218,8 +210,96 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
   };
 }
 
+interface FeedbackSubmitResult {
+  accepted: boolean;
+  reason?: string;
+  id?: string;
+  token?: string;
+}
+
+interface FeedbackReplyRow {
+  id: string;
+  ctx: string;
+  ts: number;
+  reply: string;
+  replyTs: number;
+  status: string;
+}
+
+interface FeedbackRepliesResult {
+  replies: FeedbackReplyRow[];
+}
+
+function readFeedbackPayload(raw: unknown): { uid: string; text: string; ctx: string } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const d = raw as Record<string, unknown>;
+  const uid = String(d.uid ?? '');
+  if (!validUid(uid)) return null;
+  const text = String(d.text ?? '').trim();
+  const ctx = String(d.ctx ?? '').slice(0, 200);
+  if (text.length < 1) return null;
+  return { uid, text: text.slice(0, 1000), ctx };
+}
+
+function millis(v: unknown): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (v && typeof v === 'object' && 'toMillis' in v && typeof v.toMillis === 'function') {
+    return Number(v.toMillis());
+  }
+  return 0;
+}
+
+export const submitFeedback = onCall(
+  callableOptions(10),
+  async (req: CallableRequest): Promise<FeedbackSubmitResult> => {
+    const feedback = readFeedbackPayload(req.data);
+    if (!feedback) throw new HttpsError('invalid-argument', 'bad-feedback');
+    if (!(await rateLimitOk(db as unknown as RateLimitStore, `feedback_${feedback.uid}`))) {
+      return { accepted: false, reason: 'rate-limited' };
+    }
+
+    const token = newFeedbackToken();
+    const ref = db.collection('feedback').doc();
+    await ref.set({
+      uid: feedback.uid,
+      text: feedback.text,
+      ts: Date.now(),
+      ctx: feedback.ctx,
+      status: 'open',
+      replyTokenHash: feedbackTokenHash(token),
+      serverTs: FieldValue.serverTimestamp(),
+    });
+    return { accepted: true, id: ref.id, token };
+  },
+);
+
+export const fetchFeedbackReplies = onCall(
+  callableOptions(10),
+  async (req: CallableRequest): Promise<FeedbackRepliesResult> => {
+    const receipts = sanitizeFeedbackReceipts((req.data as Record<string, unknown> | undefined)?.receipts);
+    if (receipts.length === 0) return { replies: [] };
+    const rows = await Promise.all(receipts.map(async ({ id, token }) => {
+      const snap = await db.doc(`feedback/${id}`).get();
+      if (!snap.exists) return null;
+      const data = snap.data() as Record<string, unknown>;
+      if (data.replyTokenHash !== feedbackTokenHash(token)) return null;
+      const reply = typeof data.reply === 'string' ? data.reply : '';
+      if (!reply) return null;
+      return {
+        id,
+        ctx: typeof data.ctx === 'string' ? data.ctx : '',
+        ts: millis(data.ts),
+        reply,
+        replyTs: millis(data.replyTs),
+        status: typeof data.status === 'string' ? data.status : 'open',
+      };
+    }));
+    return { replies: rows.filter((row): row is FeedbackReplyRow => row !== null) };
+  },
+);
+
 export const submitScore = onCall(
-  { region: 'us-central1', cors: true, maxInstances: 10 },
+  callableOptions(10),
   async (req: CallableRequest): Promise<SubmitResult> => {
     const board = String((req.data as Record<string, unknown> | undefined)?.board ?? '');
     if (!validBoard(board)) throw new HttpsError('invalid-argument', 'bad-board');
@@ -231,7 +311,7 @@ export const submitScore = onCall(
 );
 
 export const submitDailyScore = onCall(
-  { region: 'us-central1', cors: true, maxInstances: 10 },
+  callableOptions(10),
   async (req: CallableRequest): Promise<SubmitResult> => {
     const dailyId = String((req.data as Record<string, unknown> | undefined)?.dailyId ?? '');
     if (!DAILY_BOARD_RE.test(dailyId)) throw new HttpsError('invalid-argument', 'bad-daily');
@@ -314,7 +394,7 @@ async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = [
 const ADMIN_EMAILS = new Set(['5329548871.eg@gmail.com', '5329548871,eg@gmail.com']);
 
 export const deleteMyData = onCall(
-  { region: 'us-central1', cors: true, maxInstances: 5, timeoutSeconds: 300 },
+  callableOptions(5, 300),
   async (req: CallableRequest): Promise<DeleteResult> => {
     const email = String(req.auth?.token?.email ?? '').toLowerCase();
     if (!req.auth || req.auth.token?.email_verified !== true || !ADMIN_EMAILS.has(email)) {
@@ -342,8 +422,10 @@ export const deleteMyData = onCall(
     await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.runs = r.runs; });
     await phase('runAnalytics', async () => { deleted.runAnalytics = await deleteByQuery(() => db.collection('runAnalytics').where('uid', '==', uid)); });
     await phase('rateLimits', async () => {
-      const rl = db.doc(`rateLimits/${uid}`);
-      if ((await rl.get()).exists) { await rl.delete(); deleted.rateLimits = 1; }
+      for (const key of [uid, `feedback_${uid}`]) {
+        const rl = db.doc(`rateLimits/${key}`);
+        if ((await rl.get()).exists) { await rl.delete(); deleted.rateLimits++; }
+      }
     });
 
     return errors.length ? { ok: false, uid, deleted, errors } : { ok: true, uid, deleted };
