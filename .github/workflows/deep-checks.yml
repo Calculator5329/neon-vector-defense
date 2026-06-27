@@ -13,19 +13,24 @@ on:
           - browser-perf
           - all
         default: quick-balance
+  schedule:
+    # Cheap balance drift smoke. Full balance simulation remains manual-only.
+    - cron: '24 9 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.suite }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'schedule' && 'quick-balance' || inputs.suite }}
   cancel-in-progress: true
 
 jobs:
   deep:
-    name: ${{ inputs.suite }}
+    name: ${{ github.event_name == 'schedule' && 'quick-balance' || inputs.suite }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      DEEP_SUITE: ${{ github.event_name == 'schedule' && 'quick-balance' || inputs.suite }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -42,22 +47,22 @@ jobs:
       - name: Install Dependencies
         run: npm ci
       - name: Install Browser
-        if: ${{ inputs.suite == 'browser-perf' || inputs.suite == 'all' }}
+        if: ${{ env.DEEP_SUITE == 'browser-perf' || env.DEEP_SUITE == 'all' }}
         run: npx playwright install --with-deps chromium
       - name: Quick Balance Simulation
-        if: ${{ inputs.suite == 'quick-balance' || inputs.suite == 'all' }}
+        if: ${{ env.DEEP_SUITE == 'quick-balance' || env.DEEP_SUITE == 'all' }}
         run: npm run sim -- quick
       - name: Full Balance Simulation
-        if: ${{ inputs.suite == 'full-balance' || inputs.suite == 'all' }}
+        if: ${{ env.DEEP_SUITE == 'full-balance' || env.DEEP_SUITE == 'all' }}
         run: npm run sim
       - name: Browser Performance Harness
-        if: ${{ inputs.suite == 'browser-perf' || inputs.suite == 'all' }}
+        if: ${{ env.DEEP_SUITE == 'browser-perf' || env.DEEP_SUITE == 'all' }}
         run: npm run build && npm run perf:browser
       - name: Upload deep-check artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: deep-check-artifacts-${{ inputs.suite }}
+          name: deep-check-artifacts-${{ env.DEEP_SUITE }}
           path: |
             playwright-report/
             test-results/
