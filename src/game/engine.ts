@@ -757,12 +757,6 @@ export class Game {
 
   private spawnEnemy(typeId: string, cloaked: boolean) {
     const e = this.makeEnemy(typeId, cloaked);
-    // Smart fast-forward: a capital hull entering at 2×/4× is where runs are lost — ease
-    // back to 1× so the player can react. Skipped during bot/auto runs (this.autoNext).
-    if (e.def.boss && this.speed > 1 && !this.autoNext) {
-      this.speed = 1;
-      this.announce('⚠ Capital hull inbound — speed eased to 1×');
-    }
     if (cloaked && !this.cloakTipShown && !progress.cloakTipSeen) {
       this.cloakTipShown = true;
       this.cloakTipPending = true;

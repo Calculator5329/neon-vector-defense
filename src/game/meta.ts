@@ -10,7 +10,7 @@
 
 import { progress } from './storage';
 
-const META_KEY = 'nvd-meta-v1';
+const META_KEY = 'nvd-meta-v2'; // v2: re-seed (v1 over-credited lifetime kills → absurd ranks)
 const DEMO_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1';
 const CREDITED_CAP = 60; // ring-buffer of recent runIds for idempotency
 
@@ -70,7 +70,9 @@ function save() {
 function ensureSeeded() {
   if (cache.seeded) return;
   const r = progress.record;
-  cache.xp = Math.round(progress.totalWaves * 8 + r.kills * 0.5 + r.victories * 200);
+  // SUBLINEAR in kills (sqrt) so a veteran's millions of lifetime hulls can't explode XP into
+  // an absurd rank. Lands a hardcore ~10M-kill/1500-wave player near Ascendant, with headroom.
+  cache.xp = Math.round(progress.totalWaves * 5 + Math.sqrt(Math.max(0, r.kills)) * 5 + r.victories * 150);
   cache.seeded = true;
   save();
 }
@@ -79,6 +81,7 @@ function ensureSeeded() {
 export interface RankInfo { rank: number; title: string; xpIntoRank: number; xpForRank: number; totalXp: number; pct: number; }
 const RANK_BANDS = ['Recruit', 'Sentinel', 'Warden', 'Vanguard', 'Architect', 'Luminary', 'Ascendant'];
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+const MAX_RANK = RANK_BANDS.length * ROMAN.length; // 35 = "Ascendant V" ceiling — rank can never overflow
 
 /** Cumulative XP required to REACH rank n (rank 1 = 0). Quadratic-ish, slows over time. */
 export function xpForRank(n: number): number {
@@ -86,18 +89,19 @@ export function xpForRank(n: number): number {
   return Math.round(120 * Math.pow(n - 1, 1.55));
 }
 export function rankTitle(rank: number): string {
-  const band = Math.floor((rank - 1) / 5);
-  const sub = (rank - 1) % 5;
-  if (band < RANK_BANDS.length) return `${RANK_BANDS[band]} ${ROMAN[sub]}`;
-  return `${RANK_BANDS[RANK_BANDS.length - 1]} ${rank - (RANK_BANDS.length - 1) * 5}`;
+  const r = Math.max(1, Math.min(MAX_RANK, rank));
+  const band = Math.min(RANK_BANDS.length - 1, Math.floor((r - 1) / ROMAN.length));
+  const sub = Math.min(ROMAN.length - 1, (r - 1) % ROMAN.length);
+  return `${RANK_BANDS[band]} ${ROMAN[sub]}`;
 }
 export function rankFromXp(xp: number): RankInfo {
   let rank = 1;
-  while (xpForRank(rank + 1) <= xp) rank++;
+  while (rank < MAX_RANK && xpForRank(rank + 1) <= xp) rank++;
+  const capped = rank >= MAX_RANK;
   const base = xpForRank(rank), next = xpForRank(rank + 1);
   const span = Math.max(1, next - base);
   const into = xp - base;
-  return { rank, title: rankTitle(rank), xpIntoRank: into, xpForRank: span, totalXp: xp, pct: Math.min(1, into / span) };
+  return { rank, title: rankTitle(rank), xpIntoRank: into, xpForRank: span, totalXp: xp, pct: capped ? 1 : Math.min(1, into / span) };
 }
 
 // ---- run reward derivation (pure; reads only engine-computed values) ----

@@ -587,39 +587,42 @@ function MainMenu(props: {
         </div>
       )}
 
-      {progress.record.runs > 0 && (
-        <div className="hero-stats">
-          <span><b>{progress.record.victories}</b> lanterns held</span>
-          <span><b>{progress.record.kills.toLocaleString()}</b> hulls destroyed</span>
-          <span><b>{progress.totalWaves}</b> waves cleared</span>
-          {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
-        </div>
-      )}
-
-      {!DEMO_MODE && progress.record.runs > 0 && (() => {
-        const rank = meta.rank; const streak = meta.streak;
-        return (
-          <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
-            <span className="menu-rank-title">{rank.title}</span>
-            <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
-            <span className="menu-rank-meta">◆ {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
-          </button>
-        );
-      })()}
-
-      {!DEMO_MODE && (() => {
-        const k = progress.record.kills;
-        const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > k);
-        if (!next) return null;
-        const prev = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= k).reduce((m, d) => Math.max(m, d.unlockAt), 0);
-        const pct = Math.min(100, ((k - prev) / (next.unlockAt - prev)) * 100);
-        return (
-          <div className="menu-next-unlock" title={`${k.toLocaleString()} / ${next.unlockAt.toLocaleString()} hulls`}>
-            <div className="unlock-bar"><div className="unlock-fill" style={{ width: `${pct}%` }} /></div>
-            <div className="unlock-label">NEXT ARSENAL: {next.name} · {k.toLocaleString()} / {next.unlockAt.toLocaleString()} hulls destroyed</div>
+      {/* one unified Commander Dossier (returning players) replaces the 3 ragged strips */}
+      {progress.record.runs > 0 ? (
+        <div className="commander-dossier">
+          <div className="hero-stats">
+            <span><b>{progress.record.victories}</b> lanterns held</span>
+            <span><b>{progress.record.kills.toLocaleString()}</b> hulls destroyed</span>
+            <span><b>{progress.totalWaves}</b> waves cleared</span>
+            {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
           </div>
-        );
-      })()}
+          {!DEMO_MODE && (() => {
+            const rank = meta.rank; const streak = meta.streak;
+            return (
+              <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
+                <span className="menu-rank-title">{rank.title}</span>
+                <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
+                <span className="menu-rank-meta"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
+              </button>
+            );
+          })()}
+          {!DEMO_MODE && (() => {
+            const k = progress.record.kills;
+            const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > k);
+            if (!next) return null;
+            const prev = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= k).reduce((m, d) => Math.max(m, d.unlockAt), 0);
+            const pct = Math.min(100, ((k - prev) / (next.unlockAt - prev)) * 100);
+            return (
+              <div className="menu-next-unlock" title={`${k.toLocaleString()} / ${next.unlockAt.toLocaleString()} hulls`}>
+                <div className="unlock-label">NEXT: {next.name}</div>
+                <div className="unlock-bar"><div className="unlock-fill" style={{ width: `${pct}%` }} /></div>
+              </div>
+            );
+          })()}
+        </div>
+      ) : (!DEMO_MODE && (
+        <div className="menu-firsttime-note">COMMANDER INITIALIZED · CLEAR A SECTOR TO EARN YOUR WARDEN RANK</div>
+      ))}
 
       <div className="menu-content">
         {tab === 'deploy' ? (
@@ -1840,7 +1843,7 @@ function MetaReward({ reward }: { reward: RunMetaReward | null }) {
     <div className="meta-reward" data-testid="meta-reward">
       <div className="meta-reward-head">
         <span className="meta-reward-xp">+{reward.xp.toLocaleString()} XP</span>
-        <span className="meta-reward-salvage">+◆{reward.salvage.toLocaleString()} SALVAGE</span>
+        <span className="meta-reward-salvage">+<i className="ico-diamond" aria-hidden="true" />{reward.salvage.toLocaleString()} SALVAGE</span>
       </div>
       <div className="meta-reward-rank">
         <span>{rank.title}</span>

@@ -33,7 +33,7 @@ export default function OperationsBoard() {
         </div>
         <div className="ops-chips">
           <div className="ops-chip salvage" title="Salvage — earned per run (cosmetics coming soon)">
-            <span className="ops-chip-val">◆ {meta.salvage.toLocaleString()}</span>
+            <span className="ops-chip-val"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}</span>
             <span className="ops-chip-label">SALVAGE</span>
           </div>
           <div className={`ops-chip streak ${streak.activeToday ? 'active' : ''}`} title={`Best streak: ${streak.best} days`}>
@@ -62,7 +62,7 @@ function QuestColumn({ label, quests, onClaim }: { label: string; quests: QuestW
           <div key={q.id} className={`quest-card ${q.claimed ? 'claimed' : q.complete ? 'complete' : ''}`} data-testid={`quest-card-${q.id}`}>
             <div className="quest-top">
               <span className="quest-title">{q.title}</span>
-              <span className="quest-reward">+{q.rewardXp} XP · ◆{q.rewardSalvage}</span>
+              <span className="quest-reward">+{q.rewardXp} XP · <i className="ico-diamond" aria-hidden="true" />{q.rewardSalvage}</span>
             </div>
             <div className="quest-bar"><div className="quest-fill" style={{ width: `${pct}%` }} /></div>
             <div className="quest-bot">
