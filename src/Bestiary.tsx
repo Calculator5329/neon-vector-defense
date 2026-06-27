@@ -50,7 +50,7 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
             );
           })}
         </div>
-        <div className="bestiary-foot">The Vex Combine — a self-replicating machine collective. Destroy a hull to add it to the codex.</div>
+        <div className="bestiary-foot">The Vex Combine — a self-replicating machine collective. Encounter a hull to add it to the codex.</div>
       </div>
     </div>
   );
