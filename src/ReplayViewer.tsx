@@ -3,13 +3,15 @@ import { W, H } from './game/engine';
 import { buildBackground, drawTowerBody, drawMarkers, drawBlockers } from './game/render';
 import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
+import { getWave } from './game/waves';
+import { ENEMIES } from './game/enemies';
 import { fetchRunReplay } from './game/leaderboard';
 import { appMetrics } from './game/metrics';
 import { sfx } from './game/sound';
 import DossierShare from './DossierShare';
 import { buildDossierInputFromRun } from './game/dossier';
 import type { PublicRunDoc, RunWaveSnapshot, RunOutcome } from './game/runTelemetry';
-import type { TowerDef } from './game/types';
+import type { TowerDef, EnemyDef } from './game/types';
 
 // ── Reconstruction model ────────────────────────────────────────────────────
 // A Battle Plan is a *reconstruction*, not a re-sim: the engine's update() loop
@@ -99,6 +101,118 @@ const OUTCOME_COLOR: Record<RunOutcome, string> = {
   victory: '#3ad6ff', armistice: '#8e7bef', gameover: '#ff5a6e', abandoned: '#9aa6c8',
 };
 
+// ── path geometry + enemy re-enactment ──────────────────────────────────────
+// The run doc records no per-frame enemy positions, so we COSMETICALLY re-enact the
+// armada: each wave's authored composition (getWave) streams down the recorded path at
+// each enemy type's speed, driven purely off scrub time. Not a true sim — a reconstruction
+// that makes the battle read as alive (enemies, tower fire, wave callouts).
+interface PathGeom { pts: { x: number; y: number }[]; cum: number[]; len: number; }
+function buildGeom(path: { x: number; y: number }[]): PathGeom {
+  const cum = [0];
+  for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y));
+  return { pts: path, cum, len: cum[cum.length - 1] || 1 };
+}
+function posAtDist(geom: PathGeom, d: number): { x: number; y: number; angle: number } {
+  const { pts, cum } = geom;
+  const dist = Math.max(0, Math.min(geom.len, d));
+  for (let i = 1; i < pts.length; i++) {
+    if (cum[i] >= dist) {
+      const seg = cum[i] - cum[i - 1] || 1;
+      const f = (dist - cum[i - 1]) / seg;
+      const a = pts[i - 1], b = pts[i];
+      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, angle: Math.atan2(b.y - a.y, b.x - a.x) };
+    }
+  }
+  const last = pts[pts.length - 1];
+  return { x: last.x, y: last.y, angle: 0 };
+}
+
+interface Ghost { x: number; y: number; angle: number; def: EnemyDef; cloaked: boolean; }
+
+/** The current wave + its start time, from the recorded wave_start snapshots. */
+function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT: number } {
+  let best: { wave: number; startT: number } | null = null;
+  for (const s of run.snapshots) {
+    if (s.t <= t && s.label === 'wave_start') best = { wave: s.wave, startT: s.t };
+    else if (s.t > t) break;
+  }
+  if (best) return best;
+  const f = run.snapshots[0];
+  return { wave: f?.wave ?? run.summary.wave, startT: f?.t ?? 0 };
+}
+
+function reenactEnemies(geom: PathGeom, wave: number, startT: number, t: number, cap = 240): Ghost[] {
+  const out: Ghost[] = [];
+  let groups; try { groups = getWave(wave); } catch { return out; }
+  for (const grp of groups) {
+    const def = ENEMIES[grp.type];
+    if (!def) continue;
+    for (let i = 0; i < grp.count; i++) {
+      const spawnT = startT + (grp.delay ?? 0) + i * grp.gap;
+      const age = t - spawnT;
+      if (age <= 0) continue;
+      const dist = def.speed * age;
+      if (dist >= geom.len) continue; // exited the lane
+      const p = posAtDist(geom, dist);
+      out.push({ x: p.x, y: p.y, angle: p.angle, def, cloaked: grp.cloaked ?? false });
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
+/** Draw one re-enacted hull as its shape, colored by type. */
+function drawGhost(ctx: CanvasRenderingContext2D, gh: Ghost) {
+  const r = gh.def.radius;
+  ctx.save();
+  ctx.translate(gh.x, gh.y);
+  ctx.globalAlpha = gh.cloaked ? 0.4 : 1;
+  ctx.rotate(gh.angle);
+  ctx.fillStyle = gh.def.color;
+  ctx.strokeStyle = gh.def.glow;
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = gh.def.glow;
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  const shape = gh.def.shape;
+  if (shape === 'tri' || shape === 'ship') {
+    ctx.moveTo(r, 0); ctx.lineTo(-r * 0.8, r * 0.7); ctx.lineTo(-r * 0.8, -r * 0.7); ctx.closePath();
+  } else if (shape === 'diamond') {
+    ctx.moveTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.lineTo(0, -r); ctx.closePath();
+  } else { // hex / pent / capital → regular polygon
+    const sides = shape === 'pent' ? 5 : shape === 'capital' ? 8 : 6;
+    const rr = shape === 'capital' ? r * 1.3 : r;
+    for (let i = 0; i < sides; i++) { const a = (i / sides) * Math.PI * 2; const fn = i ? 'lineTo' : 'moveTo'; ctx[fn](Math.cos(a) * rr, Math.sin(a) * rr); }
+    ctx.closePath();
+  }
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function isBossWave(wave: number): boolean {
+  try { return getWave(wave).some((g) => ENEMIES[g.type]?.boss); } catch { return false; }
+}
+
+/** Floating "WAVE N" / boss callout that fades over the first ~1.8 wall-clock s of each wave. */
+function drawCallout(ctx: CanvasRenderingContext2D, win: { wave: number; startT: number }, time: number, span: number) {
+  const age = time - win.startT;
+  const showGame = (span / PLAY_SECONDS) * 1.8; // ~1.8s of wall-clock at 1×, in game-seconds
+  if (age < 0 || age > showGame) return;
+  const k = 1 - age / showGame;
+  const boss = isBossWave(win.wave);
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, k * 1.6);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = "700 34px 'Orbitron', sans-serif";
+  ctx.fillStyle = boss ? '#ff5a6e' : '#4bcffa';
+  ctx.shadowColor = ctx.fillStyle;
+  ctx.shadowBlur = 18;
+  ctx.fillText(boss ? `⚠ CAPITAL HULL · WAVE ${win.wave}` : `WAVE ${win.wave}`, W / 2, 92);
+  ctx.restore();
+}
+
 type Phase = 'loading' | 'notfound' | 'ready';
 
 export default function ReplayViewer({ runId, onExit }: { runId: string; onExit: () => void }) {
@@ -169,6 +283,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
 
   const gameMap = useMemo(() => ALL_MAPS.find((m) => m.id === run.setup.map) ?? null, [run.setup.map]);
   const bg = useMemo(() => (gameMap ? buildBackground(gameMap) : null), [gameMap]);
+  const geom = useMemo(() => (gameMap ? buildGeom(gameMap.path) : null), [gameMap]);
   const dossierInput = useMemo(() => buildDossierInputFromRun(run), [run]);
 
   // Snapshot tick marks (positions along the [t0,tEnd] timeline).
@@ -194,18 +309,20 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
       ctx.fillRect(0, 0, W, H);
     }
 
+    // re-enact the armada streaming down the lane for the active wave
+    const win = waveWindow(run, time);
+    const ghosts = geom ? reenactEnemies(geom, win.wave, win.startT, time) : [];
+
     // coverage + heat per tower (lighter blend so overlaps glow)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const tw of frame.towers) {
       const intensity = Math.min(1, tw.damage / frame.maxDamage);
-      // faint coverage footprint
       ctx.strokeStyle = rgba(tw.def.glow, 0.06 + intensity * 0.12);
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(tw.x, tw.y, tw.def.base.range, 0, Math.PI * 2);
       ctx.stroke();
-      // damage heat glow
       if (intensity > 0.02) {
         const r = 24 + intensity * 40;
         const g = ctx.createRadialGradient(tw.x, tw.y, 2, tw.x, tw.y, r);
@@ -219,13 +336,47 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
     }
     ctx.restore();
 
-    // towers — fade in over FADE_S after placement, gentle idle sway
+    // enemies (over the heat glow)
+    for (const gh of ghosts) drawGhost(ctx, gh);
+
+    // towers — aim at the nearest in-range hull and fire; fade in by placedAtS
+    const beams: { x: number; y: number; tx: number; ty: number; color: string }[] = [];
     for (const tw of frame.towers) {
       const alpha = Math.max(0, Math.min(1, (time - tw.placedAtS) / fade));
       if (alpha <= 0) continue;
-      const angle = -Math.PI / 2 + Math.sin(time * 0.6 + tw.uid) * 0.06;
-      drawTowerBody(ctx, { x: tw.x, y: tw.y }, tw.def, angle, tw.tierA, tw.tierB, alpha, 0, time, 0);
+      let target: Ghost | null = null;
+      let bestD = tw.def.base.range * tw.def.base.range;
+      for (const gh of ghosts) {
+        const dx = gh.x - tw.x, dy = gh.y - tw.y, d2 = dx * dx + dy * dy;
+        if (d2 < bestD) { bestD = d2; target = gh; }
+      }
+      let angle = -Math.PI / 2 + Math.sin(time * 0.6 + tw.uid) * 0.06;
+      let flash = 0;
+      if (target) {
+        angle = Math.atan2(target.y - tw.y, target.x - tw.x);
+        const rate = Math.max(0.4, tw.def.base.fireRate || 1);
+        const cyc = (time * rate + tw.uid * 0.37) % 1; // deterministic firing cadence
+        if (cyc < 0.5) { flash = 1 - cyc * 2; beams.push({ x: tw.x, y: tw.y, tx: target.x, ty: target.y, color: tw.def.glow }); }
+      }
+      drawTowerBody(ctx, { x: tw.x, y: tw.y }, tw.def, angle, tw.tierA, tw.tierB, alpha, flash, time, 0);
     }
+
+    // weapon fire (over towers, additive)
+    if (beams.length) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const b of beams) {
+        ctx.strokeStyle = rgba(b.color, 0.45);
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.tx, b.ty); ctx.stroke();
+        ctx.fillStyle = rgba(b.color, 0.85);
+        ctx.beginPath(); ctx.arc(b.tx, b.ty, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // wave / boss callout (events narration)
+    drawCallout(ctx, win, time, span);
   };
 
   // ── animation / scrub loop ──

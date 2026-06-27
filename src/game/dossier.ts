@@ -104,9 +104,12 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   }
   ctx.globalAlpha = 1;
 
-  // mini lane render — bottom-right panel
-  const panel = { x: 648, y: 320, w: 520, h: 278 };
+  // mini "battle map" — top-right, balancing the big outcome word on the left
+  const panel = { x: 700, y: 96, w: 456, h: 212 };
   drawMiniLane(ctx, input, th, panel);
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#9fb2dd'; ctx.font = "13px 'Orbitron', sans-serif";
+  ctx.fillText('BATTLE MAP', panel.x + 2, panel.y - 8);
 
   // neon frame
   ctx.strokeStyle = '#4bcffa'; ctx.lineWidth = 4; ctx.strokeRect(14, 14, CARD_W - 28, CARD_H - 28);
@@ -151,11 +154,11 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
     sx += Math.max(w + 44, 110);
   }
 
-  // top-3 carrying towers (left column)
+  // top-3 carrying towers — full-width bars (the map now lives top-right)
   ctx.fillStyle = '#9fb2dd'; ctx.font = "14px 'Orbitron', sans-serif";
-  ctx.fillText('TOP INSTRUMENTS', 48, 326);
-  let ty = 348;
-  const rowW = 540;
+  ctx.fillText('TOP INSTRUMENTS', 48, 344);
+  let ty = 364;
+  const rowW = CARD_W - 48;
   if (input.topTowers.length === 0) {
     ctx.fillStyle = '#566089'; ctx.font = "16px sans-serif";
     ctx.fillText('No shots fired.', 60, ty + 30);
@@ -177,14 +180,18 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
     roundRect(ctx, barX, barY, Math.max(8, barW * tw.pct), barH, 6); ctx.fill();
     ctx.fillStyle = '#cfe0ff'; ctx.font = "13px 'Orbitron', sans-serif";
     ctx.fillText(`${Math.round(tw.damage).toLocaleString()} dmg`, barX, barY + 30);
-    ty += 78;
+    ty += 72;
   }
 
-  // footer brand + link hint
-  ctx.fillStyle = 'rgba(75,207,250,0.9)'; ctx.font = "700 18px 'Orbitron', sans-serif";
-  ctx.fillText('NEON VECTOR DEFENSE', 48, CARD_H - 36);
-  ctx.fillStyle = '#7f93c2'; ctx.font = "14px 'Orbitron', sans-serif";
-  ctx.fillText('Hold the last lighthouse.', 48, CARD_H - 16);
+  // footer — single line, clear of the border (brand left, lore tagline right)
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(75,207,250,0.95)'; ctx.font = "700 18px 'Orbitron', sans-serif";
+  ctx.fillText('NEON VECTOR DEFENSE', 48, CARD_H - 30);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#8295bd'; ctx.font = "15px system-ui, -apple-system, sans-serif";
+  ctx.fillText('Hold the last lighthouse.', CARD_W - 48, CARD_H - 30);
+  ctx.textAlign = 'left';
 
   return cv;
 }
