@@ -95,6 +95,39 @@ describe('storage normalization', () => {
   });
 });
 
+describe('freeplay correctness guards', () => {
+  test('risk packets cannot be accepted unless they were actually offered', () => {
+    const game = makeGame();
+    game.phase = 'victory';
+    game.wave = game.diff.waves;
+    game.enterFreeplay('standard');
+
+    assert.equal(game.freeplay, true);
+    assert.equal(game.freeplayState.riskOffer, null);
+    assert.equal(game.acceptRisk('bounty'), false);
+    assert.equal(game.freeplayState.riskAccepted, null);
+    assert.deepEqual(game.freeplayState.nextMutators, []);
+  });
+
+  test('checkpoint banking only succeeds once per new freeplay build wave', () => {
+    const game = makeGame();
+    game.phase = 'victory';
+    game.wave = game.diff.waves;
+    game.enterFreeplay('standard');
+
+    assert.equal(game.canBankFreeplay(), false);
+    assert.equal(game.markFreeplayCheckpoint(), false);
+    assert.equal(game.freeplayState.lastCheckpointWave, game.diff.waves);
+
+    game.wave = game.diff.waves + 5;
+    assert.equal(game.canBankFreeplay(), true);
+    assert.equal(game.markFreeplayCheckpoint(), true);
+    assert.equal(game.freeplayState.lastCheckpointWave, game.diff.waves + 5);
+    assert.equal(game.canBankFreeplay(), false);
+    assert.equal(game.markFreeplayCheckpoint(), false);
+  });
+});
+
 describe('server deletion helpers', () => {
   test('keeps unique valid run ids from leaderboard score rows', () => {
     assert.deepEqual(validDeletedRunIds(['r_abcdefgh', 'bad', 'r_abcdefgh', null, 'r_ijklmnop']), ['r_abcdefgh', 'r_ijklmnop']);

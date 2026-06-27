@@ -33,7 +33,6 @@ import {
   nextMutators,
   relicOffer,
   rivalForWave,
-  riskById,
   riskOfferForWave,
   type DailyFreeplaySeed,
   type FreeplayContractId,
@@ -412,7 +411,7 @@ export class Game {
   }
 
   acceptRisk(id: RiskWaveId): boolean {
-    const offer = this.freeplayState.riskOffer?.id === id ? this.freeplayState.riskOffer : riskById(id);
+    const offer = this.freeplayState.riskOffer?.id === id ? this.freeplayState.riskOffer : null;
     if (!offer || this.phase !== 'build' || !this.freeplay) return false;
     this.freeplayState.riskAccepted = offer;
     this.freeplayState.riskOffer = null;
@@ -432,13 +431,15 @@ export class Game {
     return this.freeplay && this.phase === 'build' && this.wave > this.freeplayState.lastCheckpointWave;
   }
 
-  markFreeplayCheckpoint() {
+  markFreeplayCheckpoint(): boolean {
+    if (!this.canBankFreeplay()) return false;
     this.freeplayState.lastCheckpointWave = Math.max(this.freeplayState.lastCheckpointWave, this.wave);
     this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_CHECKPOINT_SUBMIT, {
       wave: this.wave,
       multiplier: freeplayScoreMultiplier(this.freeplayState),
       summary: freeplaySummary(this.freeplayState),
     });
+    return true;
   }
 
   freeplayMeta() {
