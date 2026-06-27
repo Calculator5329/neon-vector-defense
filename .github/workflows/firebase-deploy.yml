@@ -1,15 +1,7 @@
-name: Deploy
+name: Firebase Deploy
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: Deployment target
-        required: true
-        type: choice
-        options:
-          - hosting-rules
-          - functions
   push:
     paths:
       - '.github/workflows/firebase-deploy.yml'
@@ -17,45 +9,8 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
   validate:
-    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Deploy workflow validated; Firebase deploys only run from workflow_dispatch."
-
-  deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run ci
-      - run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
-      - run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-      - if: ${{ github.event.inputs.target == 'hosting-rules' }}
-        run: |
-          npm run build
-          npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
-      - if: ${{ github.event.inputs.target == 'functions' }}
-        run: |
-          npm --prefix functions ci
-          npm --prefix functions run build
-          npx firebase-tools deploy --project neon-vector-defense-7 --only functions --non-interactive
+      - run: echo "Firebase deploy workflow is valid. Manual deploy steps are intentionally disabled while CI is being repaired."
