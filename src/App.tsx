@@ -1634,6 +1634,7 @@ function FreeplayBuildPanel({
   onDeclineRisk: () => void;
   onBank: () => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const fp = game.freeplayState;
   const nextWave = game.wave + 1;
   const nextRival = rivalForWave(nextWave, fp.daily);
@@ -1641,11 +1642,19 @@ function FreeplayBuildPanel({
   const risk = fp.riskOffer;
   const bankTarget = fp.daily ? 'DAILY' : 'FREEPLAY';
   const bankLabel = checkpointState === 'busy' ? 'BANKING...' : checkpointState === 'done' ? 'BANKED' : checkpointState === 'err' ? 'RETRY BANK' : `BANK ${bankTarget} RECORD`;
+  if (collapsed) {
+    return (
+      <button className="freeplay-reopen" onClick={() => setCollapsed(false)} title="Show Freeplay Command">
+        ◂ FREEPLAY {risk ? '⚠' : `${meta.scoreMult.toFixed(2)}x`}
+      </button>
+    );
+  }
   return (
     <div className="freeplay-build-panel">
       <div className="freeplay-panel-head">
         <span>FREEPLAY COMMAND</span>
         <b>{meta.scoreMult.toFixed(2)}x</b>
+        <button className="freeplay-close" aria-label="Hide Freeplay Command" title="Hide" onClick={() => setCollapsed(true)}>✕</button>
       </div>
       <div className="freeplay-chip-row">
         <span className="freeplay-chip contract">{fp.contract?.short ?? 'OPEN'}</span>

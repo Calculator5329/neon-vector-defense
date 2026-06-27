@@ -10,7 +10,7 @@ import { appMetrics } from './game/metrics';
 import { sfx } from './game/sound';
 import DossierShare from './DossierShare';
 import { buildDossierInputFromRun } from './game/dossier';
-import type { PublicRunDoc, RunWaveSnapshot, RunOutcome } from './game/runTelemetry';
+import type { PublicRunDoc, RunWaveSnapshot, RunOutcome, RunEvent } from './game/runTelemetry';
 import type { TowerDef, EnemyDef } from './game/types';
 
 // ── Reconstruction model ────────────────────────────────────────────────────
@@ -194,6 +194,34 @@ function isBossWave(wave: number): boolean {
   try { return getWave(wave).some((g) => ENEMIES[g.type]?.boss); } catch { return false; }
 }
 
+function prettyAbility(id: string): string {
+  return (id || 'Ability').replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+/** Human-readable label for a replay event, or null to ignore (leaks/target-changes are noise). */
+function eventLabel(e: RunEvent): string | null {
+  const tid = e.towerId as string | undefined;
+  switch (e.type) {
+    case 'tower_place': return `✚ Deployed ${(e.name as string) ?? TOWER_MAP[tid ?? '']?.name ?? 'tower'}`;
+    case 'tower_upgrade': return `⬆ ${TOWER_MAP[tid ?? '']?.short ?? ''} ${(e.upgradeName as string) ?? 'upgrade'}`.trim();
+    case 'tower_sell': return `✖ Sold ${TOWER_MAP[tid ?? '']?.name ?? 'tower'}`;
+    case 'ability_cast': return `✦ ${prettyAbility(e.abilityId as string)}`;
+    case 'receiver_build': return '◈ Receiver online';
+    default: return null;
+  }
+}
+/** The few most recent events at scrub time t (newest first), for the floating feed. */
+function recentEvents(events: RunEvent[], t: number, windowS: number, max = 4): { label: string; age: number }[] {
+  const out: { label: string; age: number }[] = [];
+  for (let i = events.length - 1; i >= 0 && out.length < max; i--) {
+    const e = events[i];
+    if (e.t > t) continue;
+    if (t - e.t > windowS) break; // events are time-ordered ascending
+    const label = eventLabel(e);
+    if (label) out.push({ label, age: t - e.t });
+  }
+  return out;
+}
+
 /** Floating "WAVE N" / boss callout that fades over the first ~1.8 wall-clock s of each wave. */
 function drawCallout(ctx: CanvasRenderingContext2D, win: { wave: number; startT: number }, time: number, span: number) {
   const age = time - win.startT;
@@ -263,7 +291,13 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   // window [t0, tEnd] instead of [0, durationS] so there's no dead lead-in.
   const { t0, tEnd, span, fade } = useMemo(() => {
     const snaps = run.snapshots.length ? run.snapshots : [reconstructAt(run, 0).snap];
-    const a = snaps[0].t;
+    let a = snaps[0].t;
+    // Freeplay (incl. Daily) opens deep into the run (~wave 50); skip the warmup so the
+    // replay starts at the first "real" round (~wave 60) instead of the trivial opener.
+    if (run.summary.freeplay && snaps.length > 1) {
+      const skip = snaps.find((s) => s.wave >= snaps[0].wave + 10);
+      if (skip) a = skip.t;
+    }
     const b = Math.max(snaps[snaps.length - 1].t, a + 1);
     const sp = b - a;
     // fade window in game-seconds, sized so a placement reads as ~0.4s of wall-clock at 1×
@@ -377,6 +411,26 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
 
     // wave / boss callout (events narration)
     drawCallout(ctx, win, time, span);
+
+    // floating event feed — placements / upgrades / abilities as they happen
+    const evWindow = (span / PLAY_SECONDS) * 3.2; // ~3.2s of wall-clock at 1×
+    const feed = recentEvents(run.events, time, evWindow);
+    if (feed.length) {
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = "14px 'Orbitron', sans-serif";
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur = 4;
+      let ey = H - 130;
+      for (const ev of feed) {
+        ctx.globalAlpha = Math.min(1, (1 - ev.age / evWindow) * 1.5);
+        ctx.fillStyle = ev.label[0] === '✦' ? '#ffd34d' : '#cfe0ff';
+        ctx.fillText(ev.label, 28, ey);
+        ey -= 26;
+      }
+      ctx.restore();
+    }
   };
 
   // ── animation / scrub loop ──
