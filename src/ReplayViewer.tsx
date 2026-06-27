@@ -280,6 +280,13 @@ export default function ReplayViewer({ runId, onExit }: { runId: string; onExit:
   return <ReplayStage run={run} onExit={onExit} />;
 }
 
+function isReplayShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) return true;
+  return Boolean(target.closest('button, a, [role="button"], [role="link"]'));
+}
+
 function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -503,6 +510,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   // keyboard: space = play/pause, ←/→ = step, Esc = exit
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (isReplayShortcutTarget(e.target)) return;
       if (e.key === ' ') { e.preventDefault(); togglePlay(); }
       else if (e.key === 'ArrowRight') stepSnap(1);
       else if (e.key === 'ArrowLeft') stepSnap(-1);
