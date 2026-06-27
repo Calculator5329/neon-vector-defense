@@ -3,6 +3,7 @@ const fs = require('node:fs');
 describe('CI/CD guardrails', () => {
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   const ciWorkflow = fs.readFileSync('.github/workflows/ci.yml', 'utf8');
+  const deepWorkflow = fs.readFileSync('.github/workflows/deep-checks.yml', 'utf8');
   const codeqlWorkflow = fs.readFileSync('.github/workflows/codeql.yml', 'utf8');
   const deployWorkflow = fs.readFileSync('.github/workflows/firebase-deploy.yml', 'utf8');
 
@@ -11,8 +12,12 @@ describe('CI/CD guardrails', () => {
     expect(packageJson.scripts['perf:quick']).toBe('npm run perf -- quick');
     expect(packageJson.scripts.ci).toContain('npm run test:jest');
     expect(packageJson.scripts.ci).toContain('npm run perf:quick');
+    expect(packageJson.scripts.ci).not.toContain('npm run sim -- quick');
     expect(ciWorkflow).toContain('npm run test:jest');
     expect(ciWorkflow).toContain('npm run perf:quick');
+    expect(ciWorkflow).not.toContain('npm run sim -- quick');
+    expect(deepWorkflow).toContain('npm run sim -- quick');
+    expect(deepWorkflow).toContain('npm run sim');
   });
 
   test('cost-sensitive workflows keep explicit gates', () => {
