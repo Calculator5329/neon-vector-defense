@@ -1,5 +1,6 @@
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MAX_MESSAGE_CHARS = 900;
+const MAX_REQUEST_BYTES = 32_000;
 const MAX_TURNS_PER_CONVERSATION = 5;
 const MAX_CONVERSATIONS_PER_VISITOR = 5;
 
@@ -42,11 +43,15 @@ function json(body, status = 200, headers = {}) {
   });
 }
 
-function corsHeaders(request, env) {
+function isAllowedOrigin(request, env) {
   const origin = request.headers.get('Origin') || '';
   const appUrl = env.APP_URL || 'https://neon-vector-defense-7.web.app';
-  const allowed = origin === appUrl || /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
-  return allowed ? {
+  return origin === appUrl || /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+}
+
+function corsHeaders(request, env) {
+  const origin = request.headers.get('Origin') || '';
+  return isAllowedOrigin(request, env) ? {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -131,8 +136,13 @@ function sanitizeHistory(messages) {
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
-    if (request.method === 'OPTIONS') return new Response('', { status: 204, headers: cors });
+    if (request.method === 'OPTIONS') return new Response('', { status: isAllowedOrigin(request, env) ? 204 : 403, headers: cors });
+    if (!isAllowedOrigin(request, env)) return json({ error: 'origin_not_allowed' }, 403, cors);
     if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, cors);
+    const contentLength = Number(request.headers.get('Content-Length') || 0);
+    if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+      return json({ error: 'request_too_large' }, 413, cors);
+    }
     if (!env.OPENROUTER_API_KEY || !env.AI_COOKIE_SECRET) {
       return json({ error: 'ai_not_configured', message: 'AI uplink is not configured yet.' }, 503, cors);
     }

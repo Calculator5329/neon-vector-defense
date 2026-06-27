@@ -84,11 +84,12 @@ export default function PrivacyView() {
           <h2>What we collect (anonymous)</h2>
           <p>Tied only to that random per-device id — never to your identity:</p>
           <ul>
-            <li><b>Leaderboard scores</b> you choose to submit (callsign, cash, kills, wave).</li>
+            <li><b>Leaderboard scores</b> you choose to submit (callsign, cash, kills, wave)
+              plus a public replay bundle used to verify and display that score.</li>
             <li><b>Anonymous gameplay telemetry</b> (map, difficulty, wave reached, outcome) so we
               can tune balance.</li>
-            <li>For a small <b>sample of runs</b>, more detailed anonymous analytics + a replay,
-              which we keep to study and improve game balance.</li>
+            <li>For a small <b>sample of runs</b>, more detailed private analytics, which we keep to
+              study and improve game balance.</li>
             <li>Any <b>feedback</b> you send us, with that random id so we can reply.</li>
           </ul>
           <p>We use Google Firebase (Firestore) to store this. There are no third-party advertising

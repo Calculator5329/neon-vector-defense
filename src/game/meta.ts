@@ -101,7 +101,7 @@ export function rankFromXp(xp: number): RankInfo {
   const base = xpForRank(rank), next = xpForRank(rank + 1);
   const span = Math.max(1, next - base);
   const into = xp - base;
-  return { rank, title: rankTitle(rank), xpIntoRank: into, xpForRank: span, totalXp: xp, pct: capped ? 1 : Math.min(1, into / span) };
+  return { rank, title: rankTitle(rank), xpIntoRank: into, xpForRank: span, totalXp: xp, pct: capped ? 0.999 : Math.min(0.999, into / span) };
 }
 
 // ---- run reward derivation (pure; reads only engine-computed values) ----

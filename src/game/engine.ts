@@ -61,6 +61,14 @@ function compact<T>(arr: T[], keep: (v: T) => boolean): void {
   arr.length = w;
 }
 
+function distToSegment(p: Vec, a: Vec, b: Vec): number {
+  const vx = b.x - a.x, vy = b.y - a.y;
+  const len2 = vx * vx + vy * vy;
+  if (len2 <= 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2));
+  return Math.hypot(p.x - (a.x + vx * t), p.y - (a.y + vy * t));
+}
+
 interface SpawnEntry {
   group: WaveGroup;
   spawned: number;
@@ -167,6 +175,11 @@ export class Game {
   cloakTipPending = false;
   private cloakTipShown = false;
 
+  /** queue of enemy types appearing for the first time ever — drained by the UI for the
+   *  Combine Bestiary "NEW HOSTILE IDENTIFIED" reveal */
+  newHostiles: EnemyDef[] = [];
+  private flaggedHostiles = new Set<string>();
+
   /** the Diplomat's Gambit: antique receiver built this run */
   receiver = false;
   private courierActive = false;
@@ -194,9 +207,8 @@ export class Game {
     // A win→freeplay→death session calls finishRun twice on the SAME Game instance.
     // Persist the lifetime record only once, or runs/kills/history double-count and
     // tower unlocks (gated on lifetime kills) advance faster than designed.
-    if (this.campaignProgressEnabled() && !this.finishedPersisted) {
-      this.finishedPersisted = true;
-      progress.addRun({
+    if (this.campaignProgressEnabled()) {
+      const rec = {
         map: this.map.id,
         diff: this.diff.id,
         wave: this.wave,
@@ -208,7 +220,14 @@ export class Game {
         leaks: this.runStats.leaks,
         durationS: Math.round(this.time),
         towers: [...new Set([...this.towers.map((t) => t.def.id), ...Object.keys(this.runStats.dmg)])].join(','),
-      });
+      };
+      if (!this.finishedPersisted) {
+        this.finishedPersisted = true;
+        progress.addRun(rec);
+      } else if (this.freeplay && !this.freeplayPersisted) {
+        this.freeplayPersisted = true;
+        progress.addFreeplayRun({ ...rec, freeplay: true, won: false });
+      }
     }
     if (outcome === 'victory' && !this.freeplay) this.recorder.recordCampaignClear(this.telemetryState());
     else this.recorder.recordRunEnd(this.telemetryState(), outcome);
@@ -228,6 +247,7 @@ export class Game {
   private waveStartTotalKills = 0;
   /** guard so a win→freeplay→death session persists its lifetime record only once */
   private finishedPersisted = false;
+  private freeplayPersisted = false;
   time = 0;
   /** set when player chooses to continue past victory */
   freeplay = false;
@@ -717,6 +737,11 @@ export class Game {
 
   private makeEnemy(typeId: string, cloaked: boolean): Enemy {
     const def = ENEMIES[typeId];
+    // first-ever sighting of this hull → queue a Bestiary reveal (UI drains + records it)
+    if (!this.flaggedHostiles.has(typeId) && !progress.enemiesSeen.includes(typeId)) {
+      this.flaggedHostiles.add(typeId);
+      this.newHostiles.push(def);
+    }
     // difficulty hp scaling ramps in over the first 25 waves so the early game
     // stays fair while the late game bites
     // remote balance overrides (identity 1× by default) multiply the static diff values
@@ -863,7 +888,8 @@ export class Game {
   damageEnemy(e: Enemy, dmg: number, type: Projectile['damageType'], shred: boolean, src?: Tower): number {
     if (e.dead || e.finished || e.courier) return 0;
     if (e.def.armored && type === 'kinetic' && !shred) return 0;
-    if (e.def.immuneExplosive && type === 'explosive') return 0;
+    if (e.def.immuneExplosive && type === 'explosive' && !shred) return 0;
+    if (e.def.immuneCryo && type === 'cryo' && !shred) return 0;
     if (dmg <= 0) return 0;
     if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src) * this.freeplayTowerPower(src);
     if (this.freeplay && type === 'explosive' && this.freeplayState.relics.some((r) => r.id === 'emberDoctrine')) dmg *= 1.12;
@@ -1153,6 +1179,7 @@ export class Game {
       if (this.wave >= this.diff.waves && !this.freeplay) {
         this.phase = 'victory';
         if (this.campaignProgressEnabled()) progress.recordWave(this.map.id, this.diff.id, this.wave);
+        if (this.campaignProgressEnabled()) progress.addWaves(1);
         this.finishRun(true, 'victory');
         sfx.victory();
         playStinger('victory');
@@ -1624,7 +1651,7 @@ export class Game {
           this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
           let from = e;
           for (let j = 0; j < st.chain; j++) {
-            const next = this.nearestEnemy(from.pos, 90, targets.concat([from]));
+            const next = this.nearestEnemy(from.pos, 90, targets.concat([from]), st.detection);
             if (!next) break;
             this.addBeam(from.pos, next.pos, t.def.glow, 1.5, 0.1);
             this.damageEnemy(next, st.damage, st.damageType, st.shred, t);
@@ -1756,13 +1783,14 @@ export class Game {
     }
   }
 
-  private nearestEnemy(pos: Vec, maxDist: number, exclude: Enemy[]): Enemy | null {
+  private nearestEnemy(pos: Vec, maxDist: number, exclude: Enemy[], detection = false): Enemy | null {
     let best: Enemy | null = null;
     let bd = maxDist;
     // cap the search radius so a 9999 "anywhere" query still uses the grid
     const r = Math.min(maxDist, W + H);
     this.grid.forEachInRadius(pos.x, pos.y, r, (e) => {
-      if (e.dead || e.finished || exclude.includes(e)) return;
+      if (e.dead || e.finished || e.courier || exclude.includes(e)) return;
+      if (e.cloaked && !detection) return;
       const d = Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y);
       if (d < bd) { bd = d; best = e; }
     });
@@ -1776,7 +1804,7 @@ export class Game {
 
       if (p.kind === 'missile') {
         const cand = p.targetUid !== null ? this.grid.byId.get(p.targetUid) : undefined;
-        const target = cand && !cand.dead && !cand.finished ? cand : undefined;
+        const target = cand && !cand.dead && !cand.finished && !cand.courier && (!cand.cloaked || p.detection) ? cand : undefined;
         if (target) {
           const dir = norm({ x: target.pos.x - p.pos.x, y: target.pos.y - p.pos.y });
           // steer toward target
@@ -1785,7 +1813,7 @@ export class Game {
           const v = norm(p.vel);
           p.vel = { x: v.x * p.speed, y: v.y * p.speed };
         } else if (this.enemies.length > 0) {
-          const next = this.nearestEnemy(p.pos, 9999, []);
+          const next = this.nearestEnemy(p.pos, 9999, [], p.detection);
           if (next) p.targetUid = next.uid;
         }
         // exhaust trail
@@ -1794,6 +1822,7 @@ export class Game {
         }
       }
 
+      const prevPos = { ...p.pos };
       p.pos.x += p.vel.x * dt;
       p.pos.y += p.vel.y * dt;
       if (p.pos.x < -30 || p.pos.x > W + 30 || p.pos.y < -30 || p.pos.y > H + 30) {
@@ -1808,7 +1837,7 @@ export class Game {
         if (e.dead || e.finished || p.hit.has(e.uid)) return;
         if (e.cloaked && !p.detection) return;
         const hitR = e.def.radius + (p.kind === 'missile' ? 6 : 4);
-        if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= hitR) {
+        if (distToSegment(e.pos, prevPos, p.pos) <= hitR) {
           if (p.kind === 'missile') {
             this.explode(p);
             p.life = 0;
@@ -1946,7 +1975,8 @@ export class Game {
       this.ring(p.pos, p.color, p.burnZoneRadius);
     }
     this.grid.forEachInRadius(p.pos.x, p.pos.y, p.splash + 16, (e) => {
-      if (e.dead || e.finished) return;
+      if (e.dead || e.finished || e.courier) return;
+      if (e.cloaked && !p.detection) return;
       if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= p.splash + e.def.radius) {
         const dealt = this.damageEnemy(e, p.damage, p.damageType, p.shred, p.src);
         if (dealt > 0 && p.burnDps > 0) {

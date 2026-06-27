@@ -19,6 +19,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
+import { validDeletedRunIds } from './deleteHelpers.js';
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1', maxInstances: 10 });
@@ -273,8 +274,13 @@ async function deleteByQuery(build: () => FirebaseFirestore.Query): Promise<numb
   return total;
 }
 
-async function deleteRunArtifacts(uid: string): Promise<{ runCheckpoints: number; runs: number }> {
-  const runIds = new Set<string>();
+async function collectLeaderboardRunIds(uid: string): Promise<string[]> {
+  const snap = await db.collectionGroup('scores').where('uid', '==', uid).get();
+  return validDeletedRunIds(snap.docs.map((d) => d.get('runId')));
+}
+
+async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = []): Promise<{ runCheckpoints: number; runs: number }> {
+  const runIds = new Set<string>(validDeletedRunIds([...knownRunIds]));
 
   const ra = await db.collection('runAnalytics').where('uid', '==', uid).get();
   ra.docs.forEach((d) => runIds.add(d.id));
@@ -328,10 +334,12 @@ export const deleteMyData = onCall(
       try { await fn(); } catch (e) { errors.push(`${name}: ${String((e as Error)?.message ?? e)}`); }
     };
 
+    let leaderboardRunIds: string[] = [];
+    await phase('leaderboardRunIds', async () => { leaderboardRunIds = await collectLeaderboardRunIds(uid); });
     await phase('telemetry', async () => { deleted.telemetry = await deleteByQuery(() => db.collection('telemetry').where('uid', '==', uid)); });
     await phase('feedback', async () => { deleted.feedback = await deleteByQuery(() => db.collection('feedback').where('uid', '==', uid)); });
     await phase('boardScores', async () => { deleted.boardScores = await deleteByQuery(() => db.collectionGroup('scores').where('uid', '==', uid)); });
-    await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid); deleted.runCheckpoints = r.runCheckpoints; deleted.runs = r.runs; });
+    await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.runs = r.runs; });
     await phase('runAnalytics', async () => { deleted.runAnalytics = await deleteByQuery(() => db.collection('runAnalytics').where('uid', '==', uid)); });
     await phase('rateLimits', async () => {
       const rl = db.doc(`rateLimits/${uid}`);

@@ -47,7 +47,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdmin();
       allow delete: if false;
-      allow create, update: if isValidRunId(runId)
+      allow create: if isValidRunId(runId)
         && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && isTelemetrySchema(request.resource.data)
@@ -67,7 +67,7 @@ service cloud.firestore {
         allow get: if true;
         allow list: if isAdmin();
         allow delete: if false;
-        allow create, update: if isValidRunId(runId)
+        allow create: if isValidRunId(runId)
           && chunkId.matches('^c[0-9]{1,4}$')
           && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'chunk', 'events'])
           && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'chunk', 'events'])

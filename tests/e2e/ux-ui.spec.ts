@@ -84,7 +84,9 @@ async function widgetMetrics(page: Page) {
   });
 }
 
-function analyticsRow(patch: Partial<RunAnalyticsRow> = {}): RunAnalyticsRow {
+type AnalyticsRowPatch = Partial<Omit<RunAnalyticsRow, 'summary'>> & { summary?: Partial<RunAnalyticsRow['summary']> };
+
+function analyticsRow(patch: AnalyticsRowPatch = {}): RunAnalyticsRow {
   const base: RunAnalyticsRow = {
     id: 'r_test',
     schemaVersion: 2,
@@ -525,14 +527,14 @@ test.describe('run telemetry model', () => {
     expect(rules).toContain('isTelemetrySchema(request.resource.data)');
     expect(rules).toContain('match /runCheckpoints/{runId}');
     expect(rules).toContain('match /dailyBoards/{daily}/scores/{id}');
-    expect(rules).toContain("!('daily' in request.resource.data)");
+    expect(rules).toContain('allow create: if isValidRunId(runId)');
     expect(rules).toContain('allow update, delete: if false');
   });
 
   test('records representative friction, assistance, and leaderboard counters', async ({ page }) => {
     await seedProgress(page, { runs: 0, victories: 0, kills: 0, armistice: false });
     await page.goto('/');
-    await page.getByTestId('diff-card-hard').click();
+    await expect(page.getByTestId('diff-card-hard')).toHaveAttribute('aria-disabled', 'true');
     await deployFromMenu(page);
 
     const metrics = await page.evaluate(() => {
@@ -724,6 +726,33 @@ test.describe('run telemetry model', () => {
     expect(daily.progress.archive).toEqual([]);
     expect(daily.progress.best).toEqual({});
   });
+
+  test('campaign victory records final wave and continued freeplay stats separately', async ({ page }) => {
+    await seedProgress(page, { runs: 0, victories: 0, kills: 0, totalWaves: 49, history: [], best: {}, clearedMaps: [] });
+    await page.goto('/');
+    await deployFromMenu(page);
+
+    const progressAfter = await page.evaluate(() => {
+      const game = (window as unknown as { game: any }).game;
+      game.phase = 'wave';
+      game.queue = [];
+      game.enemies = [];
+      game.wave = game.diff.waves;
+      game.update(0.016);
+      game.enterFreeplay('standard');
+      game.wave = 65;
+      game.totalKills = 123;
+      game.finishRun(false, 'gameover');
+      return JSON.parse(window.localStorage.getItem('nvd-progress-v1') ?? '{}');
+    });
+
+    expect(progressAfter.totalWaves).toBe(50);
+    expect(progressAfter.runs).toBe(1);
+    expect(progressAfter.victories).toBe(1);
+    expect(progressAfter.kills).toBe(0);
+    expect(progressAfter.fpRuns).toBe(1);
+    expect(progressAfter.fpBest).toBe(65);
+  });
 });
 
 test.describe('browser perf harness', () => {
@@ -731,7 +760,7 @@ test.describe('browser perf harness', () => {
     const firestorePosts: string[] = [];
     await page.route('**/*', async (route) => {
       const request = route.request();
-      if (request.method() === 'POST' && request.url().includes('firestore.googleapis.com')) {
+      if (request.method() === 'POST' && request.url().includes('firestore.googleapis.com') && !request.url().includes('/Listen/channel')) {
         firestorePosts.push(request.url());
         await route.abort();
         return;
