@@ -3,9 +3,12 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { applyAccessibility } from './game/settings';
+import { loadRemoteBalance } from './game/balanceConfig';
 
 // apply persisted accessibility prefs before first paint
 applyAccessibility();
+// fetch remote balance overrides (fire-and-forget; identity fallback until it resolves)
+void loadRemoteBalance();
 
 // Top-level error boundary: in a sandboxed portal iframe a normally-safe API can throw
 // synchronously, and React 19 unmounts the whole tree on any render throw → blank screen,

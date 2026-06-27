@@ -5,6 +5,7 @@ import type {
 import { ENEMIES, rbe } from './enemies';
 import { ABILITIES } from './abilities';
 import { ARCHIVE } from './lore';
+import { getBalance } from './balanceConfig';
 import { progress } from './storage';
 import { computeStats, sellValue, TOWER_MAP } from './towers';
 import { getWave, waveBonus, incomeMult } from './waves';
@@ -236,14 +237,15 @@ export class Game {
   constructor(map: GameMap, diff: DifficultyDef) {
     this.map = map;
     this.diff = diff;
-    this.credits = diff.cash;
-    this.lives = diff.lives;
+    const bdiff = getBalance().diff(diff.id);
+    this.credits = Math.round(diff.cash * bdiff.cashMult);
+    this.lives = Math.max(1, Math.round(diff.lives * bdiff.livesMult));
     appMetrics.beginRun(map.id, diff.id);
     this.recorder = new RunRecorder({
       map,
       diff,
-      startingCash: diff.cash,
-      startingLives: diff.lives,
+      startingCash: this.credits,
+      startingLives: this.lives,
       availableTowerIds: TOWERS.filter((t) => t.unlockAt <= progress.record.kills).map((t) => t.id),
       lifetimeKillsAtStart: progress.record.kills,
       runsBeforeStart: progress.record.runs,
@@ -446,7 +448,8 @@ export class Game {
   }
 
   cost(def: TowerDef): number {
-    return Math.round((def.cost * this.diff.costMult) / 5) * 5;
+    const b = getBalance();
+    return Math.round((def.cost * b.tower(def.id).costMult * this.diff.costMult * b.diff(this.diff.id).costMult) / 5) * 5;
   }
 
   /** Blackout Reach: towers outside every beacon zone lose 35% range */
@@ -473,7 +476,8 @@ export class Game {
     // the two committed bonus tiers cost dramatically more — a real late-game sink
     const freeplaySink = this.freeplay && tier >= 4 ? (tier === 4 ? 1.35 : 1.55) : 1;
     const bonusMult = (tier === 4 ? 3.2 : tier === 5 ? 6.5 : 1) * freeplaySink;
-    return Math.round((t.def.tracks[track].upgrades[tier].cost * this.diff.costMult * bonusMult) / 5) * 5;
+    const b = getBalance();
+    return Math.round((t.def.tracks[track].upgrades[tier].cost * b.tower(t.def.id).costMult * this.diff.costMult * b.diff(this.diff.id).costMult * bonusMult) / 5) * 5;
   }
 
   /** Committed bonus tiers make a tower genuinely overpowered — the payoff for the
@@ -715,18 +719,21 @@ export class Game {
     const def = ENEMIES[typeId];
     // difficulty hp scaling ramps in over the first 25 waves so the early game
     // stays fair while the late game bites
+    // remote balance overrides (identity 1× by default) multiply the static diff values
+    const bo = getBalance();
+    const bd = bo.diff(this.diff.id);
     const ramp = Math.min(1, this.wave / 25);
-    const diffMult = 1 + (this.diff.hpMult - 1) * ramp;
+    const diffMult = 1 + (this.diff.hpMult * bd.hpMult - 1) * ramp;
     // post-25 climb that kills the mid-game "escape velocity" — steeper on the
     // harder protocols so Apex/Extinction keep demanding new strategy late.
-    const late = 1 + Math.max(0, this.wave - 25) * this.diff.lateScale;
+    const late = 1 + Math.max(0, this.wave - 25) * this.diff.lateScale * bd.lateScale;
     // beyond the designed campaign (freeplay) the siege steepens hard.
     const fp = 1 + Math.max(0, this.wave - this.diff.waves) * 0.18;
     const mutatorHp =
       this.freeplay && def.boss && this.freeplayState.currentMutators.some((m) => m.id === 'shieldedBoss') ? 1.35 :
         this.freeplay && (def.armored || typeId === 'juggernaut' || typeId === 'aegis') && this.freeplayState.currentMutators.some((m) => m.id === 'armoredSwarm') ? 1.22 : 1;
     const rivalHp = this.freeplay && def.boss && this.freeplayState.rival ? 1 + this.freeplayState.rivalLevel * 0.12 : 1;
-    const hp = Math.ceil(def.hp * diffMult * late * fp * mutatorHp * rivalHp);
+    const hp = Math.ceil(def.hp * bo.enemy(typeId).hpMult * diffMult * late * fp * mutatorHp * rivalHp);
     return {
       uid: uidCounter++,
       def,
@@ -901,7 +908,7 @@ export class Game {
   private killEnemy(e: Enemy) {
     if (e.dead) return;
     e.dead = true;
-    this.earn(Math.max(1, Math.round(e.def.reward * incomeMult(this.wave) *
+    this.earn(Math.max(1, Math.round(e.def.reward * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
       (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1))));
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
@@ -1106,7 +1113,7 @@ export class Game {
 
     // wave completion
     if (this.phase === 'wave' && this.queue.length === 0 && this.enemies.length === 0) {
-      const bonus = Math.round(waveBonus(this.wave) * (this.freeplay ? freeplayWaveBonusMult(this.wave) : 1));
+      const bonus = Math.round(waveBonus(this.wave) * getBalance().waveBonusMult * (this.freeplay ? freeplayWaveBonusMult(this.wave) : 1));
       this.earn(bonus);
       this.recorder.recordWaveEnd(this.telemetryState(), bonus);
       if (this.freeplay) {

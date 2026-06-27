@@ -1,4 +1,5 @@
 import type { TowerDef, TowerStats, UpgradeDef, UpgradeTrack } from './types';
+import { getBalance } from './balanceConfig';
 
 function base(partial: Partial<TowerStats>): TowerStats {
   return {
@@ -519,6 +520,11 @@ export function computeStats(def: TowerDef, tierA: number, tierB: number): Tower
   const s = { ...def.base };
   for (let i = 0; i < tierA; i++) def.tracks[0].upgrades[i].apply(s);
   for (let i = 0; i < tierB; i++) def.tracks[1].upgrades[i].apply(s);
+  // remote balance overrides (identity 1× by default — no-op unless a config is loaded)
+  const o = getBalance().tower(def.id);
+  s.damage *= o.damageMult;
+  s.range *= o.rangeMult;
+  s.fireRate *= o.fireRateMult;
   return s;
 }
 

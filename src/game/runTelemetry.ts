@@ -9,6 +9,7 @@ import type {
   Vec,
 } from './types';
 import { appMetrics, METRIC_EVENTS, type AppMetricSnapshot, type InputKind, type MetricEventName } from './metrics';
+import { balanceVersion } from './balanceConfig';
 
 export const RUN_TELEMETRY_SCHEMA = 2;
 export const RUN_EVENT_CHUNK_SIZE = 650;
@@ -998,7 +999,7 @@ export class RunRecorder {
         startingCash: this.start.startingCash,
         startingLives: this.start.startingLives,
         availableTowerIds: [...this.start.availableTowerIds],
-        balanceVersion: build,
+        balanceVersion: balanceVersion() || build,
       },
       events: runEvents,
       snapshots: this.snapshots.slice(-80),
