@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ENEMY_LIST } from './game/enemies';
 import { progress } from './game/storage';
 import type { EnemyDef } from './game/types';
@@ -17,16 +18,29 @@ function traits(d: EnemyDef): string[] {
 }
 
 export default function Bestiary({ onClose }: { onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
   const seen = new Set(progress.enemiesSeen);
   const total = ENEMY_LIST.length;
   const found = ENEMY_LIST.filter((d) => seen.has(d.id)).length;
+
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
   return (
     <div className="bestiary-overlay" onClick={onClose} data-testid="bestiary">
-      <div className="bestiary" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bestiary"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bestiary-title"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+      >
         <div className="bestiary-head">
-          <span className="bestiary-title">COMBINE BESTIARY</span>
+          <span className="bestiary-title" id="bestiary-title">COMBINE BESTIARY</span>
           <span className="bestiary-count">{found} / {total} IDENTIFIED</span>
-          <button className="bestiary-close" onClick={onClose} aria-label="Close">✕</button>
+          <button ref={closeRef} className="bestiary-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="bestiary-grid">
           {ENEMY_LIST.map((d) => {
