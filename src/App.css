@@ -82,6 +82,10 @@
   display: flex;
   gap: 8px;
   padding: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
   border: 1px solid rgba(31, 44, 85, 0.74);
   border-radius: 12px;
   background: rgba(5, 9, 22, 0.58);
@@ -90,6 +94,7 @@
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
 }
 .menu-tabs button {
+  flex: 0 0 auto;
   font-family: 'Orbitron', sans-serif;
   font-size: 12px;
   letter-spacing: 2px;
@@ -2274,6 +2279,96 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .map-card:hover { transform: none; }
   .diff-row { gap: 8px; }
   .diff-card { flex-basis: 138px; padding: 9px 10px; }
+  .board-tab {
+    gap: 8px;
+  }
+  .board-head {
+    align-items: flex-start;
+  }
+  .board-title {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  .board-title span {
+    display: inline-block;
+    font-size: 12px;
+  }
+  .board-modes button {
+    min-height: 42px;
+    padding: 8px 12px;
+  }
+  .board-list {
+    overflow: visible;
+  }
+  .board-row-head {
+    display: none;
+  }
+  .board-global {
+    max-height: none;
+    overflow-y: visible;
+  }
+  .board-row,
+  .board-global .board-row,
+  .board-global.fp .board-row,
+  .board-local .board-row,
+  .board-local.fp .board-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 5px 10px;
+    align-items: start;
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+  .board-row:not(.board-row-head) + .board-row:not(.board-row-head) {
+    border-top: 1px solid rgba(31, 44, 85, 0.38);
+  }
+  .board-rank {
+    grid-row: 1 / span 3;
+    padding-top: 1px;
+  }
+  .board-name {
+    grid-column: 2 / 4;
+    white-space: normal;
+  }
+  .board-context {
+    grid-column: 2 / 4;
+    white-space: normal;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+  .board-wave,
+  .board-kills,
+  .board-cash,
+  .board-watch {
+    grid-column: auto;
+    align-self: center;
+    min-width: 0;
+    text-align: left;
+  }
+  .board-cash {
+    justify-self: end;
+    text-align: right;
+  }
+  .board-watch {
+    justify-content: flex-start;
+  }
+  .watch-btn {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .board-empty {
+    padding: 22px 14px;
+  }
+  .ai-root.on-menu,
+  .fb-root.on-menu {
+    bottom: 88px;
+  }
+  .ai-root.on-menu {
+    right: 72px;
+  }
+  .fb-root.on-menu {
+    right: 14px;
+  }
   /* long wave/mutator advisories must wrap, not overflow the letterboxed canvas */
   .notice {
     white-space: normal;
