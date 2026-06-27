@@ -33,7 +33,7 @@
     "check:deploy-env": "tsx scripts/deploy-preflight.ts",
     "test:rules": "npm run check:deploy-env && firebase emulators:exec --only firestore \"npm run test:rules:run\"",
     "test:rules:run": "tsx --test tests/security/firestore-rules.test.ts",
-    "test:functions": "tsx --test tests/functions/*.test.ts",
+    "test:functions": "npm --prefix functions ci && tsx --test tests/functions/*.test.ts",
     "test:worker": "node --test tests/worker/*.test.mjs",
     "test:jest": "jest --runInBand",
     "test:security": "npm run test:rules && npm run test:worker && npm run test:functions",
