@@ -385,6 +385,32 @@ export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null
   }
 }
 
+export interface RunSnapshotRow {
+  map: string; diff: string; wave: number; outcome: string;
+  snapshots: { wave: number; lives: number; leaks: number }[];
+}
+
+/** Admin-only: list recent runs and return just their per-wave cores/leak snapshots
+ *  (the live data source for the balance canary). `runs` list is admin-gated by rules;
+ *  snapshots are embedded in each doc, so no chunk/subcollection reads. */
+export async function fetchRunSnapshots(max = 300): Promise<RunSnapshotRow[]> {
+  try {
+    const q = query(collection(db, 'runs'), orderBy('endedAt', 'desc'), limitResults(max));
+    const snap = await withTimeout(getDocs(q));
+    return snap.docs.map((d) => {
+      const r = d.data() as PublicRunDoc;
+      return {
+        map: r.summary?.map ?? '', diff: r.summary?.diff ?? '', wave: r.summary?.wave ?? 0,
+        outcome: r.summary?.outcome ?? '',
+        snapshots: (Array.isArray(r.snapshots) ? r.snapshots : []).map((s) => ({ wave: s.wave, lives: s.lives, leaks: s.leaks })),
+      };
+    }).filter((r) => r.map && r.diff);
+  } catch (error) {
+    console.warn('Run snapshots fetch failed', error);
+    return [];
+  }
+}
+
 export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<boolean> {
   if (!canWriteAnalytics() || !isSampledRun(progress.uid, doc.runId)) return false;
   if (!isValidRunId(doc.runId)) return false;

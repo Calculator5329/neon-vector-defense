@@ -8,7 +8,9 @@ import './App.css';
 import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWER_MAP } from './game/towers';
 import { clearAdmin } from './game/admin';
-import { fetchRunAnalytics, fetchTelemetry, type RunAnalyticsRow, type TelemetryRow } from './game/leaderboard';
+import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow } from './game/leaderboard';
+import { buildGhostCurves, ghostCurveFor } from './game/ghostCurve';
+import { computeCanary, type CanarySeries } from './game/adminCanary';
 import { analyzeDifficulty, DIFFICULTY_TARGETS, type WaveDifficulty } from './game/difficulty';
 import {
   DEFAULT_ANALYTICS_FILTERS,
@@ -850,6 +852,110 @@ function FilterBar({ filter, setFilter, builds, fetchedAt, onRefresh, onExport, 
   );
 }
 
+// Balance canary: model cores curve vs live player median, per {map,diff}, flagging
+// waves where reality diverges from the bot model. Reads runs/{runId} snapshots (admin).
+function BalanceCanaryCard({ report }: { report: Report | null | 'missing' }) {
+  const [rows, setRows] = useState<RunSnapshotRow[] | null>(null);
+  const [err, setErr] = useState(false);
+  const [sel, setSel] = useState({ map: ALL_MAPS[0].id, diff: 'normal' });
+
+  useEffect(() => {
+    let live = true;
+    fetchRunSnapshots(300).then((r) => { if (live) setRows(r); }).catch(() => { if (live) setErr(true); });
+    return () => { live = false; };
+  }, []);
+
+  const ghostCurves = useMemo(
+    () => (report && report !== 'missing' ? buildGhostCurves(report.curves) : []),
+    [report],
+  );
+  const series: CanarySeries | null = useMemo(() => {
+    if (!rows) return null;
+    const ghost = ghostCurveFor(ghostCurves, sel.map, sel.diff);
+    return ghost ? computeCanary(rows, ghost) : null;
+  }, [rows, ghostCurves, sel]);
+
+  if (!report || report === 'missing') {
+    return (
+      <div className="adm-card">
+        <div className="adm-card-head"><h3>Balance canary</h3><span className="adm-hint">model vs live players</span></div>
+        <div className="adm-empty">Run <code>npm run balance</code> to generate the model curves first.</div>
+      </div>
+    );
+  }
+
+  // chart geometry — model (cyan) vs live median (gold) coreFraction over waves
+  const CW = 640, CH = 200, padL = 36, padB = 22, padT = 12, padR = 12;
+  const allWaves = [...(series?.model ?? []).map((p) => p.wave), ...(series?.live ?? []).map((p) => p.wave)];
+  const maxX = Math.max(1, ...allWaves);
+  const sx = (w: number) => padL + (w / maxX) * (CW - padL - padR);
+  const sy = (v: number) => padT + (1 - Math.max(0, Math.min(1, v))) * (CH - padT - padB);
+  const modelPath = (series?.model ?? []).map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p.wave).toFixed(1)},${sy(p.coreFraction).toFixed(1)}`).join(' ');
+  const live
+    = (series?.live ?? []).filter((p) => p.n >= 1);
+  const livePath = live.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p.wave).toFixed(1)},${sy(p.coreFraction).toFixed(1)}`).join(' ');
+
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head">
+        <h3>Balance canary</h3>
+        <span className="adm-hint">model cores (cyan) vs live player median (gold)</span>
+      </div>
+      <div className="adm-canary-controls">
+        <select value={sel.map} onChange={(e) => setSel((s) => ({ ...s, map: e.target.value }))}>
+          {ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <select value={sel.diff} onChange={(e) => setSel((s) => ({ ...s, diff: e.target.value }))}>
+          {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <span className="adm-dim">{rows === null ? 'loading runs…' : err ? 'fetch failed' : series ? `${series.runs} live runs · ${series.startingLives} starting cores` : 'no model curve'}</span>
+      </div>
+      {!series ? (
+        <div className="adm-empty">{rows === null ? 'Establishing uplink…' : 'No model curve for this sector×protocol.'}</div>
+      ) : (
+        <>
+          <svg className="adm-line" viewBox={`0 0 ${CW} ${CH}`} preserveAspectRatio="xMidYMid meet">
+            {[0, 0.25, 0.5, 0.75, 1].map((g) => (
+              <g key={g}>
+                <line x1={padL} y1={sy(g)} x2={CW - padR} y2={sy(g)} className="adm-grid" />
+                <text x={padL - 5} y={sy(g) + 3} className="adm-axis" textAnchor="end">{Math.round(g * 100)}</text>
+              </g>
+            ))}
+            {[0, Math.round(maxX / 2), maxX].map((w) => (
+              <text key={w} x={sx(w)} y={CH - 6} className="adm-axis" textAnchor="middle">w{w}</text>
+            ))}
+            {series.divergences.map((d) => (
+              <line key={d.wave} x1={sx(d.wave)} y1={padT} x2={sx(d.wave)} y2={CH - padB}
+                stroke={d.severity === 'hard' ? 'rgba(255,71,87,0.45)' : 'rgba(254,202,87,0.35)'} strokeWidth={1} />
+            ))}
+            {modelPath && <path d={modelPath} fill="none" stroke="#4bcffa" strokeWidth={2} />}
+            {livePath && <path d={livePath} fill="none" stroke="#ffd32a" strokeWidth={2} strokeDasharray="5 3" />}
+          </svg>
+          {series.divergences.length === 0 ? (
+            <p className="adm-hint">Live medians track the model within tolerance (need ≥5 runs/wave to flag). {series.runs < 5 ? 'Low live sample — collect more runs.' : ''}</p>
+          ) : (
+            <table className="adm-table">
+              <thead><tr><th>wave</th><th>model</th><th>live</th><th>Δ</th><th>n</th><th>read</th></tr></thead>
+              <tbody>
+                {series.divergences.slice(0, 8).map((d) => (
+                  <tr key={d.wave}>
+                    <td>w{d.wave}</td>
+                    <td>{Math.round(d.model * 100)}%</td>
+                    <td>{Math.round(d.live * 100)}%</td>
+                    <td style={{ color: d.severity === 'hard' ? '#ff4757' : '#feca57' }}>{d.delta >= 0 ? '+' : ''}{Math.round(d.delta * 100)}%</td>
+                    <td className="adm-dim">{d.n}</td>
+                    <td style={{ textAlign: 'right' }} className="adm-dim">{d.delta > 0 ? 'players hold more cores than model' : 'players bleed faster than model'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
   const [rows, setRows] = useState<TelemetryRow[] | null>(null);
   const [err, setErr] = useState(false);
@@ -1034,6 +1140,8 @@ function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
       <FilterBar filter={filter} setFilter={setFilter} builds={builds} fetchedAt={fetchedAt}
         onRefresh={() => setReloadKey((k) => k + 1)} onExport={exportCsv}
         shown={filtered?.length ?? 0} total={rows.length} />
+
+      <BalanceCanaryCard report={report} />
 
       {!s ? (
         <div className="adm-card"><div className="adm-empty">No runs match this filter.</div></div>

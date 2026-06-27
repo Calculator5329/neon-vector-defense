@@ -712,6 +712,12 @@
   overflow-y: auto;
 }
 
+.adm-canary-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.adm-canary-controls select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--edge);
+  border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: inherit;
+}
+
 .aar { margin-top: 10px; text-align: left; }
 .aar-badge {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
