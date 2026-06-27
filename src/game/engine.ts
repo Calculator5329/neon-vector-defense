@@ -549,8 +549,16 @@ export class Game {
     return this.placementBlockReason(pos) === null;
   }
 
+  private terminalControlsLocked(): boolean {
+    return this.phase === 'gameover' || this.phase === 'victory' || this.phase === 'armistice';
+  }
+
   placeTower(def: TowerDef, pos: Vec): Tower | null {
     const cost = this.cost(def);
+    if (this.terminalControlsLocked()) {
+      sfx.error();
+      return null;
+    }
     if (this.dailyTowerIds && !this.dailyTowerIds.has(def.id)) {
       this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'daily_pool', cost, pos);
       this.announce(`${def.name} is not in today's Daily arsenal`);
@@ -600,6 +608,10 @@ export class Game {
   }
 
   upgradeTower(t: Tower, track: 0 | 1): boolean {
+    if (this.terminalControlsLocked()) {
+      sfx.error();
+      return false;
+    }
     const cost = this.upgradeCost(t, track);
     const state = this.upgradeState(t, track);
     if (cost === 0 || this.credits < cost || state !== 'ok') {
@@ -684,6 +696,10 @@ export class Game {
   }
 
   sellTower(t: Tower) {
+    if (this.terminalControlsLocked()) {
+      sfx.error();
+      return;
+    }
     if (this.freeplay && this.freeplayState.contract?.noSell) {
       this.announce(`${this.freeplayState.contract.short} contract forbids selling`);
       sfx.error();
@@ -825,7 +841,7 @@ export class Game {
   /** Available once the wave-50 manifest is recovered. */
   canBuildReceiver(): boolean {
     return !this.isDailyFreeplay && this.diff.id !== 'ngplus' && !this.receiver && this.archive.includes(RECEIVER_FRAGMENT) &&
-      this.phase !== 'gameover' && this.phase !== 'armistice';
+      !this.terminalControlsLocked();
   }
 
   buildReceiver(): boolean {
