@@ -13,6 +13,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 import { ALL_MAPS, DIFFICULTIES } from '../src/game/maps';
 import { setMuted, setMusic } from '../src/game/sound';
@@ -185,6 +186,13 @@ const report = {
 
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify(report, null, 2));
+
+// regenerate the bundled bot-ghost asset (src/game/ghostCurveData.ts) from the fresh report
+try {
+  execFileSync(process.execPath, [resolve(__dirname, 'genGhostCurves.mjs')], { stdio: 'inherit' });
+} catch (err) {
+  console.warn('ghost-curve asset regeneration failed (non-fatal):', err);
+}
 
 // ---------- console summary ----------
 

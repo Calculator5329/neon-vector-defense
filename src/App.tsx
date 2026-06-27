@@ -47,6 +47,9 @@ import {
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, MUSIC_PACKS, getMusicPack, setMusicPack } from './game/sound';
 import { applyAccessibility } from './game/settings';
 import DossierShare from './DossierShare';
+import BotGhostHud from './BotGhostHud';
+import { buildGhostCurves, ghostCurveFor, judgeRun, type GhostCurve } from './game/ghostCurve';
+import { GHOST_CURVES_RAW } from './game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from './game/dossier';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 import { isAdmin } from './game/admin';
@@ -69,6 +72,8 @@ const PERF_MAP = PERF_PARAMS.get('perf');
 const DEMO_MODE = PERF_PARAMS.get('demo') === '1';
 const AI_HELP_ENABLED = Boolean(import.meta.env.VITE_AI_HELP_URL);
 const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
+// Bot-rival ghost curves (matched-difficulty AI cores pace), built once from the bundled asset.
+const GHOST_CURVES: GhostCurve[] = buildGhostCurves(GHOST_CURVES_RAW);
 
 // Unlinked owner console route; real access control is Firebase Auth + rules.
 const ADMIN = isAdmin();
@@ -1361,6 +1366,9 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         <div className="tb-stat wave">
           WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
         </div>
+        {!game.freeplay && (
+          <BotGhostHud curve={ghostCurveFor(GHOST_CURVES, map.id, diff.id)} wave={game.wave} cores={game.lives} phase={game.phase} />
+        )}
         {PERF_MAP !== null && (
           <div className="tb-stat" style={{ color: '#7bed9f' }} title="Perf harness: expert bot, 4x, auto-freeplay">
             ⏱ {fpsRef.current.fps}fps · {game.enemies.length}E {game.particles.length}P {game.projectiles.length}J
@@ -1467,7 +1475,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacing(null); setRun((r) => r + 1); } },
@@ -1515,13 +1523,13 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'armistice' && (
-            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={ARMISTICE_LINES}
               buttons={[{ label: 'MAIN MENU', fn: onExit }]}
             />
           )}
           {game.phase === 'victory' && (
-            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><AfterAction game={game} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '∞ FREEPLAY', fn: () => { game.paused = true; setContractOpen(true); sfx.click(); } },
@@ -1772,14 +1780,26 @@ function MusicButton() {
   );
 }
 
-function AfterAction({ game }: { game: Game }) {
+function AfterAction({ game, ghost }: { game: Game; ghost?: GhostCurve | null }) {
   const s = game.runStats;
   const dmg = Object.entries(s.dmg).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxDmg = dmg[0]?.[1] ?? 1;
   const kills = Object.entries(s.kills).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const name = (id: string) => TOWERS.find((t) => t.id === id)?.name ?? ENEMIES[id]?.name ?? id;
+  const verdict = ghost ? judgeRun(ghost, game.wave, game.lives) : null;
+  const outWarded = verdict && (verdict.beatWave || verdict.beatCores);
   return (
     <div className="aar">
+      {outWarded && verdict && (
+        <div className="aar-badge" title={`AI rival (${ghost!.skill}): ~${verdict.refCores} cores by wave ${verdict.refWave}.`}>
+          <span className="aar-badge-star">★</span> OUT-WARDED THE AI
+          <span className="aar-badge-sub">
+            {verdict.beatWave ? `+${verdict.deltaWave} waves` : ''}
+            {verdict.beatWave && verdict.beatCores ? ' · ' : ''}
+            {verdict.beatCores ? `+${verdict.deltaCores} cores` : ''}
+          </span>
+        </div>
+      )}
       <div className="aar-title">AFTER-ACTION REPORT</div>
       <div className="aar-cols">
         <div className="aar-col">
