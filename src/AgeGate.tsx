@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ADULT_MIN_AGE, setAgeFromBirthDate } from './game/consent';
 import { sfx } from './game/sound';
 
@@ -17,6 +17,33 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
   const [year, setYear] = useState<number | ''>('');
   const [month, setMonth] = useState<number | ''>('');
   const [kid, setKid] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const monthRef = useRef<HTMLSelectElement>(null);
+  const enterRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    window.setTimeout(() => {
+      if (kid) enterRef.current?.focus();
+      else monthRef.current?.focus();
+    }, 0);
+  }, [kid]);
+
+  const trapFocus = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'a[href], button:not(:disabled), select:not(:disabled), textarea:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    ) ?? [])].filter((el) => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const confirm = () => {
     if (year === '' || month === '') return;
@@ -28,23 +55,32 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="overlay age-gate">
-      <div className="overlay-box age-gate-box">
+      <div
+        className="overlay-box age-gate-box"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={kid ? 'age-gate-safe-title' : 'age-gate-title'}
+        aria-describedby={kid ? 'age-gate-safe-copy' : 'age-gate-copy'}
+        onKeyDown={trapFocus}
+      >
         <div className="age-gate-eyebrow">LANTERN SEVEN · ACCESS</div>
         {kid ? (
           <>
-            <h2>WELCOME, RECRUIT</h2>
-            <p className="age-gate-copy">
+            <h2 id="age-gate-safe-title">WELCOME, RECRUIT</h2>
+            <p className="age-gate-copy" id="age-gate-safe-copy">
               You're in <b>safe mode</b>: the game plays exactly the same, but we don't keep a
               public callsign for you or collect usage data. Have fun out there.
             </p>
-            <button className="start-btn" onClick={() => { sfx.click(); onDone(); }}>ENTER THE GRID ▸</button>
+            <button ref={enterRef} className="start-btn" onClick={() => { sfx.click(); onDone(); }}>ENTER THE GRID ▸</button>
           </>
         ) : (
           <>
-            <h2>BEFORE YOU DEPLOY</h2>
-            <p className="age-gate-copy">What month and year were you born? This sets your privacy options — we never share it.</p>
+            <h2 id="age-gate-title">BEFORE YOU DEPLOY</h2>
+            <p className="age-gate-copy" id="age-gate-copy">What month and year were you born? This sets your privacy options — we never share it.</p>
             <div className="age-gate-row">
               <select
+                ref={monthRef}
                 className="age-gate-select"
                 value={month}
                 onChange={(e) => setMonth(e.target.value ? Number(e.target.value) : '')}
