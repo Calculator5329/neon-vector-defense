@@ -4,7 +4,7 @@ describe('CI/CD guardrails', () => {
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   const ciWorkflow = fs.readFileSync('.github/workflows/ci.yml', 'utf8');
   const codeqlWorkflow = fs.readFileSync('.github/workflows/codeql.yml', 'utf8');
-  const deployWorkflow = fs.readFileSync('.github/workflows/deploy.yml', 'utf8');
+  const deployWorkflow = fs.readFileSync('.github/workflows/firebase-deploy.yml', 'utf8');
 
   test('CI runs quick perf and Jest smoke checks', () => {
     expect(packageJson.scripts['test:jest']).toBe('jest --runInBand');

@@ -23,13 +23,13 @@ concurrency:
 
 jobs:
   validate:
-    if: github.event_name == 'push'
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - run: echo "Deploy workflow validated; Firebase deploys only run from workflow_dispatch."
 
   deploy:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -50,11 +50,11 @@ jobs:
       - run: npm run ci
       - run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
       - run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-      - if: inputs.target == 'hosting-rules'
+      - if: ${{ github.event.inputs.target == 'hosting-rules' }}
         run: |
           npm run build
           npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
-      - if: inputs.target == 'functions'
+      - if: ${{ github.event.inputs.target == 'functions' }}
         run: |
           npm --prefix functions ci
           npm --prefix functions run build
