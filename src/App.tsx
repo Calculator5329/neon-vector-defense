@@ -49,6 +49,7 @@ import { applyAccessibility } from './game/settings';
 import DossierShare from './DossierShare';
 import BotGhostHud from './BotGhostHud';
 import OperationsBoard from './OperationsBoard';
+import { UpgradeIcon, upgradeIconKey } from './UpgradeIcon';
 import { meta, type RunMetaReward } from './game/meta';
 import { buildGhostCurves, ghostCurveFor, judgeRun, type GhostCurve } from './game/ghostCurve';
 import { GHOST_CURVES_RAW } from './game/ghostCurveData';
@@ -1531,7 +1532,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<><MetaReward reward={metaReward} /><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacing(null); setRun((r) => r + 1); } },
@@ -1579,13 +1580,13 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'armistice' && (
-            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><MetaReward reward={metaReward} /><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={ARMISTICE_LINES}
               buttons={[{ label: 'MAIN MENU', fn: onExit }]}
             />
           )}
           {game.phase === 'victory' && (
-            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><MetaReward reward={metaReward} /><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '∞ FREEPLAY', fn: () => { game.paused = true; setContractOpen(true); sfx.click(); } },
@@ -1845,6 +1846,23 @@ function MusicButton() {
   );
 }
 
+// Run-end report: a balanced 2-column layout (reward + after-action on the left,
+// score submit + dossier + leaderboard on the right) instead of one tall stack.
+function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null }) {
+  const ghost = game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id);
+  return (
+    <div className="aar-layout">
+      <div className="aar-left">
+        <MetaReward reward={reward} />
+        <AfterAction game={game} ghost={ghost} />
+      </div>
+      <div className="aar-right">
+        <SubmitScore game={game} map={map} diff={diff} />
+      </div>
+    </div>
+  );
+}
+
 function MetaReward({ reward }: { reward: RunMetaReward | null }) {
   if (!reward || (!reward.xp && !reward.salvage)) return null;
   const rank = meta.rank;
@@ -2007,7 +2025,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 function Overlay(props: { title: string; color: string; lines: string[]; buttons: { label: string; fn: () => void }[]; art?: string; report?: ReactNode }) {
   return (
     <div className="overlay">
-      <div className="overlay-box" style={{ borderColor: props.color }}>
+      <div className={`overlay-box ${props.report ? 'result' : ''}`} style={{ borderColor: props.color }}>
         {props.art && <img className="overlay-art" src={props.art} alt="" />}
         <h2 style={{ color: props.color }}>{props.title}</h2>
         {props.lines.map((l, i) => <p key={i}>{l}</p>)}
@@ -2148,7 +2166,7 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
           title={isBonusNext && tower.committed === null ? 'BONUS TIER — buying this commits the tower to this track!' : next.desc}
           onClick={() => { game.upgradeTower(tower, track); }}
         >
-          <div className="up-name">{isBonusNext ? '✦' : '▲'} {next.name}</div>
+          <div className="up-name"><UpgradeIcon k={upgradeIconKey(next.name, next.desc, isBonusNext)} /> {next.name}</div>
           <div className="up-desc">{next.desc}</div>
           <div className="up-cost">⌬{cost}</div>
         </button>
