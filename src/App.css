@@ -2668,3 +2668,21 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .replay-btn.spd { padding: 7px 11px; }
 .replay-btn.spd.on { background: var(--accent); color: #021018; border-color: var(--accent); }
 .reduced-motion .replay-stamp, .reduced-motion .replay-dots::after { animation: none; }
+
+/* ── Mission Dossier share ───────────────────────────────────────────────── */
+.dossier-share { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 14px; }
+.dossier-share.compact { flex-direction: row; margin-top: 0; }
+.dossier-preview {
+  width: 100%; max-width: 460px; border-radius: 8px;
+  border: 1px solid var(--edge); box-shadow: 0 0 24px rgba(20, 40, 120, 0.35);
+}
+.dossier-preview.placeholder {
+  display: flex; align-items: center; justify-content: center; aspect-ratio: 1200 / 630;
+  color: var(--dim); font-size: 13px; letter-spacing: 1px; background: rgba(10, 16, 40, 0.5);
+}
+.dossier-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.dossier-actions .start-btn.ghost { background: rgba(40, 56, 110, 0.5); color: var(--text); }
+.dossier-actions .start-btn.ghost:hover { background: rgba(60, 84, 150, 0.6); }
+.dossier-toast { font-size: 12px; letter-spacing: 1px; color: var(--accent); animation: dossierToast 0.2s ease-out; }
+@keyframes dossierToast { from { opacity: 0; } to { opacity: 1; } }
+.reduced-motion .dossier-toast { animation: none; }

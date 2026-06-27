@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nvd-shell-v1';
+const CACHE_VERSION = 'nvd-shell-v2';
 const APP_SHELL = [
   '/',
   '/index.html',

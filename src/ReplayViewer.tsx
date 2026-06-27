@@ -6,6 +6,8 @@ import { ALL_MAPS } from './game/maps';
 import { fetchRunReplay } from './game/leaderboard';
 import { appMetrics } from './game/metrics';
 import { sfx } from './game/sound';
+import DossierShare from './DossierShare';
+import { buildDossierInputFromRun } from './game/dossier';
 import type { PublicRunDoc, RunWaveSnapshot, RunOutcome } from './game/runTelemetry';
 import type { TowerDef } from './game/types';
 
@@ -167,6 +169,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
 
   const gameMap = useMemo(() => ALL_MAPS.find((m) => m.id === run.setup.map) ?? null, [run.setup.map]);
   const bg = useMemo(() => (gameMap ? buildBackground(gameMap) : null), [gameMap]);
+  const dossierInput = useMemo(() => buildDossierInputFromRun(run), [run]);
 
   // Snapshot tick marks (positions along the [t0,tEnd] timeline).
   const ticks = useMemo(
@@ -318,7 +321,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
           <b>{s.callsign}</b>
           <span>{s.mapName} · {s.diffName}{s.freeplay ? ' · FREEPLAY' : ''}</span>
         </div>
-        <div className="replay-build">BATTLE PLAN</div>
+        <DossierShare input={dossierInput} runId={run.runId} compact />
       </div>
 
       <div className="replay-stage">

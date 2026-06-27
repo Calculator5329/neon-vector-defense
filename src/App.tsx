@@ -46,6 +46,8 @@ import {
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, MUSIC_PACKS, getMusicPack, setMusicPack } from './game/sound';
 import { applyAccessibility } from './game/settings';
+import DossierShare from './DossierShare';
+import { buildDossierInputFromGame, type DossierInput } from './game/dossier';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 import { isAdmin } from './game/admin';
 import AgeGate from './AgeGate';
@@ -1810,6 +1812,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const [name, setName] = useState(progress.playerName);
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [top, setTop] = useState<ScoreEntry[] | null>(null);
+  const [dossier, setDossier] = useState<DossierInput | null>(null);
+  const [sharedRunId, setSharedRunId] = useState<string | undefined>(undefined);
   const eligible = game.phase === 'victory' || game.phase === 'armistice' ||
     (game.phase === 'gameover' && game.freeplay);
   useEffect(() => {
@@ -1858,6 +1862,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
     if (ok) {
       setTop(dailyId ? await fetchDailyTop(dailyId) : await fetchTop(board));
+      try { setDossier(buildDossierInputFromGame(game, n)); } catch (e) { console.warn('dossier build failed', e); }
+      setSharedRunId(replayOk ? game.runId : undefined);
       setState('done');
       sfx.upgrade();
     } else {
@@ -1891,6 +1897,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
           ))}
         </div>
       )}
+      {state === 'done' && dossier && <DossierShare input={dossier} runId={sharedRunId} />}
     </div>
   );
 }
