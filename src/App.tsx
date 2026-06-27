@@ -44,6 +44,7 @@ import {
   type FreeplayRelicId,
   type RiskWaveId,
 } from './game/freeplay';
+import { fetchReplayOfTheDay, type ReplaySpotlight } from './game/replaySpotlight';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, MUSIC_PACKS, getMusicPack, setMusicPack } from './game/sound';
 import { applyAccessibility } from './game/settings';
@@ -554,6 +555,30 @@ function mapUnlocked(idx: number): boolean {
   return true;
 }
 
+// Featured "Replay of the Day" spotlight — pulls a deterministic strong run from
+// the live global boards. Renders nothing while loading or when no replay exists,
+// so it never shows an empty box. The WATCH anchor reuses the ?run deep link;
+// ReplayViewer records the watch telemetry on mount, so none is wired here.
+function ReplayOfTheDayCard() {
+  const [spot, setSpot] = useState<ReplaySpotlight | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchReplayOfTheDay().then((s) => { if (live) setSpot(s); });
+    return () => { live = false; };
+  }, []);
+  if (!spot) return null;
+  return (
+    <div className="replay-of-day-card">
+      <div>
+        <div className="replay-of-day-kicker">REPLAY OF THE DAY</div>
+        <div className="replay-of-day-title">{spot.callsign} · Wave {spot.wave}</div>
+        <div className="replay-of-day-rules">{spot.mapName} · {spot.diffName}</div>
+      </div>
+      <a className="replay-of-day-watch" href={`/?run=${spot.runId}`} title="Watch today's featured battle plan">▶ WATCH</a>
+    </div>
+  );
+}
+
 function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
@@ -737,6 +762,7 @@ function MainMenu(props: {
                 </div>
                 <button className="tb-btn on" onClick={props.onStartDaily}>DAILY FREEPLAY</button>
               </div>
+              <ReplayOfTheDayCard />
             </div>
           </>
         ) : tab === 'board' ? (
