@@ -2361,13 +2361,13 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   }
   .ai-root.on-menu,
   .fb-root.on-menu {
-    bottom: 88px;
+    right: 14px;
   }
   .ai-root.on-menu {
-    right: 72px;
+    bottom: 148px;
   }
   .fb-root.on-menu {
-    right: 14px;
+    bottom: 88px;
   }
   /* long wave/mutator advisories must wrap, not overflow the letterboxed canvas */
   .notice {
