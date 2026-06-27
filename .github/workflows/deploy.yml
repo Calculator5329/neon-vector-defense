@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-production-${{ github.event.inputs.target }}
+  group: deploy-production-${{ inputs.target || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
       - run: npm --prefix functions run build
 
   deploy-hosting-rules:
-    if: ${{ github.event.inputs.target == 'hosting-rules' }}
+    if: ${{ inputs.target == 'hosting-rules' }}
     needs: verify
     runs-on: ubuntu-latest
     environment: production
@@ -60,7 +60,7 @@ jobs:
       - run: npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
 
   deploy-functions:
-    if: ${{ github.event.inputs.target == 'functions' }}
+    if: ${{ inputs.target == 'functions' }}
     needs: verify
     runs-on: ubuntu-latest
     environment: production
