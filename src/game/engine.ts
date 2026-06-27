@@ -725,6 +725,7 @@ export class Game {
     if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
+    else { vox('wave-incoming'); }
     for (const a of this.abilities) {
       if (a.def.unlockWave === this.wave) this.announce(`✦ Commander ability online: ${a.def.name}`);
     }
@@ -1079,6 +1080,7 @@ export class Game {
     a.cd = a.def.cooldown;
     this.runStats.abilitiesCast++;
     this.recorder.recordAbilityCast(this.telemetryState(), id, pos);
+    vox(`cast-${id}`);
     return true;
   }
 

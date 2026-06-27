@@ -25,6 +25,13 @@ const LINES = {
   'armistice': 'The war is over. The receipt is signed. Come home.',
   'low-cores': 'Warden. The cores are failing.',
   'unlock': 'New instrument pattern decrypted.',
+  'wave-incoming': 'Hostiles inbound.',
+  'cast-strike': 'Orbital strike, away.',
+  'cast-chrono': 'Chronal field engaged.',
+  'cast-overdrive': 'Reactors to overdrive.',
+  'cast-salvage': 'Emergency requisition inbound.',
+  'cast-cascade': 'Null cascade.',
+  'cast-mirror': 'Mirror protocol active.',
 };
 
 async function streamAudio(content) {
