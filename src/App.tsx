@@ -27,6 +27,7 @@ import {
   logTelemetry,
   TELEMETRY_BUILD,
   type FeedbackReply,
+  type FeedbackReceipt,
   type ScoreEntry,
   type RankedScoreEntry,
 } from './game/leaderboard';
@@ -333,22 +334,30 @@ function AIHelpWidget({
 
 // ---------------- Feedback (always available, anonymous) ----------------
 
-const FEEDBACK_IDS_KEY = 'nvd-feedback-ids-v1';
+const FEEDBACK_RECEIPTS_KEY = 'nvd-feedback-receipts-v2';
 const FEEDBACK_READ_KEY = 'nvd-feedback-read-v1';
 const FEEDBACK_DISMISSED_KEY = 'nvd-feedback-dismissed-v1';
 
-function loadFeedbackIds(): string[] {
+function loadFeedbackReceipts(): FeedbackReceipt[] {
   try {
-    const raw = localStorage.getItem(FEEDBACK_IDS_KEY);
-    return raw ? JSON.parse(raw).filter((id: unknown) => typeof id === 'string') : [];
+    const raw = localStorage.getItem(FEEDBACK_RECEIPTS_KEY);
+    if (!raw) return [];
+    const rows = JSON.parse(raw);
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .filter((row): row is FeedbackReceipt => !!row
+        && typeof row === 'object'
+        && typeof row.id === 'string'
+        && typeof row.token === 'string')
+      .slice(-20);
   } catch {
     return [];
   }
 }
 
-function saveFeedbackId(id: string) {
-  const ids = [...loadFeedbackIds().filter((x) => x !== id), id].slice(-20);
-  try { localStorage.setItem(FEEDBACK_IDS_KEY, JSON.stringify(ids)); } catch { /* non-fatal */ }
+function saveFeedbackReceipt(receipt: FeedbackReceipt) {
+  const receipts = [...loadFeedbackReceipts().filter((x) => x.id !== receipt.id), receipt].slice(-20);
+  try { localStorage.setItem(FEEDBACK_RECEIPTS_KEY, JSON.stringify(receipts)); } catch { /* non-fatal */ }
 }
 
 function feedbackReadAt(): number {
@@ -384,7 +393,7 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
   const MAX = 1000;
   const refreshReplies = useCallback(async () => {
     setCheckingReplies(true);
-    const rows = await fetchFeedbackReplies(loadFeedbackIds());
+    const rows = await fetchFeedbackReplies(loadFeedbackReceipts());
     rows.sort((a, b) => b.replyTs - a.replyTs);
     setReplies(rows);
     setCheckingReplies(false);
@@ -426,15 +435,15 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
     const t = text.trim();
     if (!t) return;
     setState('busy');
-    const id = await submitFeedback(t, ctx);
-    if (!id) {
+    const receipt = await submitFeedback(t, ctx);
+    if (!receipt) {
       appMetrics.recordFeedbackSubmit(false);
       setState('err');
       sfx.error();
       return;
     }
     appMetrics.recordFeedbackSubmit(true);
-    saveFeedbackId(id);
+    saveFeedbackReceipt({ ...receipt, text: t, ctx, ts: Date.now() });
     setState('done');
     setText('');
     void refreshReplies();
@@ -444,7 +453,7 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
   const visibleReplies = replies.filter((r) => !dismissedReplies.includes(r.id));
   const unread = visibleReplies.filter((r) => r.replyTs > readAt).length;
   const dismissedCount = replies.length - visibleReplies.length;
-  const sentCount = loadFeedbackIds().length;
+  const sentCount = loadFeedbackReceipts().length;
   const dismissReply = (id: string) => {
     const next = [...dismissedReplies, id];
     setDismissedReplies(next);
@@ -488,7 +497,7 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
                     <button className="fb-dismiss" title="Dismiss reply" aria-label="Dismiss admin reply" onClick={() => dismissReply(r.id)}>DISMISS</button>
                   </div>
                   <div className="fb-reply-body">{r.reply}</div>
-                  <div className="fb-reply-quote">You: {r.text}</div>
+                  {r.text && <div className="fb-reply-quote">You: {r.text}</div>}
                 </div>
               ))
             ) : (
