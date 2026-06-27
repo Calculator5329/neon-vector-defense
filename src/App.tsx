@@ -1536,7 +1536,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   return (
     <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} data-testid="game-root">
       <div className="rotate-device" data-testid="rotate-device">
-        <div className="rotate-device-icon">âŸ²</div>
+        <div className="rotate-device-icon" aria-hidden="true">&#8635;</div>
         <b>Rotate for command view</b>
         <span>Landscape gives the lane, arsenal, and wave controls room to breathe.</span>
       </div>
@@ -1549,7 +1549,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         />
       )}
       <FeedbackWidget ctx="game" blocked={blockingOverlay} sideOpen={sideOpen} />
-      <div className="topbar">
+      <div className="topbar" aria-label="Run status and controls">
         <button
           className={`tb-btn exit ${abortConfirm ? 'confirm' : ''}`}
           aria-label={abortConfirm ? 'Confirm abort run' : 'Abort run'}
@@ -1558,9 +1558,9 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         >
           {abortConfirm ? 'CONFIRM' : '✕ ABORT'}
         </button>
-        <div className="tb-stat lives" title="Reactor cores (lives)">⬢ {game.lives}</div>
-        <div className="tb-stat credits" title="Credits">⌬ {Math.floor(game.credits)}</div>
-        <div className="tb-stat wave">
+        <div className="tb-stat lives" title="Reactor cores (lives)" aria-label={`Reactor cores ${game.lives}`}>⬢ {game.lives}</div>
+        <div className="tb-stat credits" title="Credits" aria-label={`Credits ${Math.floor(game.credits)}`}>⌬ {Math.floor(game.credits)}</div>
+        <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : diff.waves}` : ''}`}>
           WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
         </div>
         {!game.freeplay && (
@@ -1577,7 +1577,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           </div>
         )}
         <div className="tb-spacer" />
-        <div className="tb-stat kills" title="Hostiles destroyed">☠ {game.totalKills}</div>
+        <div className="tb-stat kills" title="Hostiles destroyed" aria-label={`Hostiles destroyed ${game.totalKills}`}>☠ {game.totalKills}</div>
         <button
           className={`tb-btn ${game.autoNext ? 'on' : ''}`}
           title="Auto-start next wave"
@@ -1645,7 +1645,11 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           </div>
 
           {/* threat advisories */}
-          {game.noticeTimer > 0 && <div className="notice">{game.notice}</div>}
+          {game.noticeTimer > 0 && (
+            <div className="notice" role="status" aria-live="polite" aria-atomic="true">
+              {game.notice}
+            </div>
+          )}
           <NewHostileReveal def={hostileReveal} />
 
           {game.freeplay && game.phase === 'build' && (
