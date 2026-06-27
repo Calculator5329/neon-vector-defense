@@ -1,11 +1,13 @@
-# Neon Vector Defense — Product Roadmap & Idea Backlog
+# Neon Vector Defense — Idea Backlog
 
-> Generated from a whole-game audit (80 ideas, 8 dimensions) + a code-grounded planning pass. Status as of this commit.
+> Full 80-idea audit (8 dimensions) + code-grounded planning pass. Generated 2026-06.
 
-## Build status
+**For current shipped status and next priorities, see [roadmap.md](./roadmap.md).** This file is the historical idea catalog; many top bets and quick wins listed below are now shipped.
 
-- **Top bets (1-6):** planned in detail below — NOT yet built (awaiting go-ahead per feature).
-- **Quick wins:** SHIPPED this pass → next-unlock progress bar (in-game label + menu bar), Settings hub with **reduced-motion** + **colorblind palette**, **smart fast-forward** (persisted speed + capital-hull auto-ease to 1x), **music packs** (Concord Signal / Deep Drift generative) selector. Generating *new composed* music packs needs a valid OpenRouter key in `.env.local` (the current key 401s; the live key lives in the Cloudflare AI worker).
+## Build status (historical snapshot — mostly superseded)
+
+- **Top bets (1-6):** ✅ All shipped — Battle Plan, Dossier share, meta loop, remote balance, bot ghosts, Phase Anchor.
+- **Quick wins:** ✅ Mostly shipped — a11y settings, smart FF, music packs, progress bar, balance canary.
 - **Big swings & by-theme backlog:** documented below — not scheduled.
 
 ---

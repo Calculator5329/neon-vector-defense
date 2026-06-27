@@ -16,22 +16,28 @@ procedural audio, and Firebase-backed leaderboards.
 
 ## Gameplay
 
-- **6 sectors** - Orbital Relay, Twin Reactor, Hyperlane Junction, Mobius
-  Drift, Blackout Reach, and The Throat, each with a custom lane shape,
-  no-build zones, and visual theme.
-- **5 protocols** - Recruit, Veteran, Apex, Extinction, and Long Watch, with
+- **8 sectors** — Orbital Relay, Twin Reactor, Hyperlane Junction, Mobius
+  Drift, Blackout Reach, The Throat, Umbral Reach, and Cinder Causeway, each
+  with a custom lane shape, no-build zones, and visual theme.
+- **5 protocols** — Recruit, Veteran, Apex, Extinction, and Long Watch, with
   different cash, hull, wave, cloak, and scaling rules.
-- **14 towers with 2 upgrade tracks** - including support, crowd-control,
+- **19 towers with 2 upgrade tracks** — including support, crowd-control,
   anti-cloak, burst, drone, missile, gravity, resonance, and late-game towers.
-- **6 commander abilities** - Q/W/E/R/T/Y abilities for orbital strikes, slow
+- **6 commander abilities** — Q/W/E/R/T/Y abilities for orbital strikes, slow
   fields, overdrive, emergency salvage, and late-run control tools.
-- **Enemy variants** - armored, blast-proof, cryo-proof, phase-cloaked, repair,
+- **Enemy variants** — armored, blast-proof, cryo-proof, phase-cloaked, repair,
   boss, and nested-hull units.
-- **Progression** - service records, tower unlocks, freeplay, recovered signal
+- **Progression** — service records, tower unlocks, freeplay, recovered signal
   fragments, and alternate ending progression persist locally.
-- **Leaderboards and feedback** - public Firestore-backed scoreboards and
+- **Meta loop** — Warden Rank, Salvage wallet, daily/weekly Operations Board
+  quests, and Watch Streak (cosmetic/QoL only — never affects run balance).
+- **Battle Plan replays** — watch any run via `/?run=<runId>`; leaderboard rows
+  link to reconstructions built from uploaded wave snapshots.
+- **Bot-rival ghosts** — in-run pacing curve compares your cores/cash to the
+  expert bot's curve for the same map and protocol.
+- **Leaderboards and feedback** — server-validated Firestore scoreboards and
   anonymous feedback submission.
-- **AI field assistant** - an optional helper backed by the included
+- **AI field assistant** — an optional helper backed by the included
   Cloudflare Worker proxy, OpenRouter, and server-side usage limits.
 
 ## The Game World
@@ -50,6 +56,8 @@ follow the recovered signal fragments.
   and damage effects.
 - **Headless game engine** - the same game model powers live play, bot
   playtests, balance simulations, performance harnesses, and admin analytics.
+- **Remote balance config** - optional Firestore `config/balance` doc hot-patches
+  tower/enemy/difficulty multipliers without a redeploy.
 - **Balance harness** - `npm run balance` simulates map/protocol/bot matrices,
   tower efficiency, strategy viability, solo-tower runs, and writes an in-app
   `balance-report.json`.
@@ -72,6 +80,12 @@ Append `?demo=1` to the live URL to launch a no-persistence demo session:
 https://neon-vector-defense-7.web.app/?demo=1
 ```
 
+Watch a Battle Plan replay:
+
+```txt
+https://neon-vector-defense-7.web.app/?run=r_<runId>
+```
+
 Demo mode unlocks all sectors, protocols, and towers for that browser session.
 It skips telemetry and disables score submission so recruiter exploration does
 not pollute production data.
@@ -88,10 +102,13 @@ Useful scripts:
 ```bash
 npm run build      # typecheck and production build
 npm run preview    # preview the built app
-npm run sim        # full headless balance simulation
+npm run sim        # full headless bot simulation
 npm run sim -- quick
 npm run balance    # write public/balance-report.json for the admin dashboard
 npm run balance -- quick
+npm run perf       # headless engine stress timing
+npm run perf:browser  # live FPS sampling via /?perf= route
+npm run meta:sim   # guard that meta.ts stays off the score/engine path
 ```
 
 `public/balance-report.json` is intentionally committed as demo/admin dashboard
@@ -110,7 +127,19 @@ node scripts/genart.mjs
 
 Some one-off generation scripts also read `.env.local` directly. Do not commit
 local key files. Source code and docs are MIT licensed; generated art/audio are
-reserved project assets. See `ASSET_PROVENANCE.md`.
+reserved project assets. See [docs/asset_provenance.md](docs/asset_provenance.md).
+
+## Documentation
+
+| Doc | Contents |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | Module map, layer model, runtime flow |
+| [docs/tech_spec.md](docs/tech_spec.md) | Firestore schema, Cloud Functions, env vars |
+| [docs/roadmap.md](docs/roadmap.md) | Shipped features and next priorities |
+| [docs/idea_backlog.md](docs/idea_backlog.md) | Full 80-idea audit backlog |
+| [docs/changelog.md](docs/changelog.md) | Session-by-session change log |
+| [docs/performance_audit.md](docs/performance_audit.md) | Engine perf baselines (2026-06-17) |
+| [docs/asset_provenance.md](docs/asset_provenance.md) | Media licensing vs MIT source |
 
 ## Controls
 
@@ -132,8 +161,8 @@ public identifiers, not server secrets, so the protection layer is
 
 The intended rules model is:
 
-- Leaderboards are public read and append-only for anonymously authenticated
-  visitors.
+- Leaderboards are public read; writes go through the `submitScore` Cloud Function
+  (direct client writes are blocked).
 - Feedback is append-only for anonymously authenticated visitors, and
   readable/repliable only by allowlisted Google admin accounts.
 - Telemetry is append-only for anonymously authenticated visitors with
@@ -212,7 +241,7 @@ Then build the game with the Worker URL:
 ```bash
 $env:VITE_AI_HELP_URL="https://your-worker-name.your-subdomain.workers.dev"
 npm run build
-firebase deploy --only hosting,firestore:rules
+firebase deploy --only hosting,firestore:rules,functions
 ```
 
 The Worker template enforces:
@@ -233,7 +262,7 @@ needed.
 
 ```bash
 npm run build
-firebase deploy --only hosting,firestore:rules
+firebase deploy --only hosting,firestore:rules,functions
 ```
 
 Configured Firebase project: `neon-vector-defense-7`
