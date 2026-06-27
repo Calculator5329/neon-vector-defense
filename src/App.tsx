@@ -53,6 +53,8 @@ import AgeGate from './AgeGate';
 // loaded only on the /admin route. PrivacyView is lazy too (rare /privacy route).
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
 const PrivacyView = lazy(() => import('./PrivacyView'));
+// Battle Plan replay viewer — public read-only surface, code-split off the player path.
+const ReplayViewer = lazy(() => import('./ReplayViewer'));
 
 type Screen = 'menu' | 'game';
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
@@ -98,9 +100,22 @@ function isPrivacyRoute(): boolean {
   return typeof location !== 'undefined' && location.pathname.replace(/\/+$/, '') === '/privacy';
 }
 
+const RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
+function isRunId(id: string | null | undefined): id is string {
+  return !!id && RUN_ID_RE.test(id);
+}
+// ?run=<runId> deep link → Battle Plan viewer (served by the **→index.html rewrite).
+function runIdFromUrl(): string | null {
+  const id = PERF_PARAMS.get('run');
+  return isRunId(id) ? id : null;
+}
+
 export default function App() {
   if (ADMIN) return <Suspense fallback={null}><AdminDashboard /></Suspense>;
   if (isPrivacyRoute()) return <Suspense fallback={null}><PrivacyView /></Suspense>;
+  // Public, read-only replay — writes nothing, so it bypasses the AgeGate like /privacy.
+  const watchId = runIdFromUrl();
+  if (watchId) return <Suspense fallback={null}><ReplayViewer runId={watchId} onExit={() => { location.href = '/'; }} /></Suspense>;
   return <Gate />;
 }
 
@@ -717,6 +732,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           {fp && <span className="board-wave">WAVE</span>}
           <span className="board-kills">HULLS</span>
           <span className="board-cash">CREDITS</span>
+          <span className="board-watch">REPLAY</span>
         </div>
         {globalRows === null ? (
           <div className="board-empty">Establishing uplink...</div>
@@ -741,6 +757,11 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
               {fp && <span className="board-wave">{r.wave}</span>}
               <span className="board-kills">{r.kills.toLocaleString()}</span>
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
+              <span className="board-watch">
+                {isRunId(r.runId)
+                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">\u25b6 WATCH</a>
+                  : null}
+              </span>
             </div>
           ))
         )}

@@ -97,6 +97,7 @@ export interface AppMetricSnapshot {
     menuOpens: number;
     campaignModeClicks: number;
     freeplayModeClicks: number;
+    replayWatches: number;
   };
   performance: {
     qualityDowngrades: number;
@@ -175,6 +176,12 @@ export const appMetrics = {
     const leaderboard = target().leaderboard;
     if (freeplay) leaderboard.freeplayModeClicks++;
     else leaderboard.campaignModeClicks++;
+  },
+
+  // Battle Plan replay opened from the menu leaderboard or a ?run= deep link
+  // (no live RunRecorder exists in those contexts; folds into the next run's analytics).
+  recordReplayWatch(): void {
+    target().leaderboard.replayWatches++;
   },
 
   recordInput(kind: InputKind): void {
@@ -286,6 +293,7 @@ function freshSnapshot(): AppMetricSnapshot {
       menuOpens: 0,
       campaignModeClicks: 0,
       freeplayModeClicks: 0,
+      replayWatches: 0,
     },
     performance: {
       qualityDowngrades: 0,

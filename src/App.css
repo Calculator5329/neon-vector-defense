@@ -357,6 +357,18 @@
 .board-list.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) minmax(110px, 0.8fr) minmax(92px, 0.7fr) auto auto auto; }
 .board-local .board-row { grid-template-columns: 34px minmax(120px, 1fr) auto; padding-block: 7px; font-size: 13px; }
 .board-local.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) auto auto; }
+/* global board carries a trailing REPLAY column (WATCH deep links) */
+.board-global .board-row { grid-template-columns: 34px minmax(120px, 1fr) minmax(110px, 0.8fr) minmax(92px, 0.7fr) auto auto auto; }
+.board-global.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) minmax(110px, 0.8fr) minmax(92px, 0.7fr) auto auto auto auto; }
+.board-watch { display: flex; justify-content: flex-end; align-items: center; min-width: 74px; }
+.board-row-head .board-watch { color: var(--dim); }
+.watch-btn {
+  font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 1px;
+  color: var(--accent); text-decoration: none; white-space: nowrap;
+  padding: 4px 9px; border-radius: 6px; border: 1px solid rgba(75, 207, 250, 0.35);
+  background: rgba(75, 207, 250, 0.08); transition: background 0.15s, box-shadow 0.15s;
+}
+.watch-btn:hover { background: rgba(75, 207, 250, 0.2); box-shadow: 0 0 14px rgba(75, 207, 250, 0.3); }
 .board-row:last-child { border-bottom: none; }
 .board-row-head { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--dim); background: rgba(0, 0, 0, 0.25); }
 .board-rank { color: var(--dim); font-family: 'Orbitron', sans-serif; }
@@ -2585,3 +2597,74 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 
 .menu-next-unlock { max-width: 420px; margin: 10px auto 0; flex: 0 0 auto; width: 100%; }
 .menu-next-unlock .unlock-label { text-align: center; }
+
+/* ── Battle Plan replay viewer ───────────────────────────────────────────── */
+.replay-root {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px clamp(12px, 4vw, 48px) 18px;
+  background: radial-gradient(circle at 50% 0%, #0a1030, #04060f 70%);
+  color: var(--text); overflow: hidden;
+}
+.replay-status {
+  margin: auto; text-align: center; display: flex; flex-direction: column; gap: 14px;
+  align-items: center; color: var(--dim); letter-spacing: 1px;
+}
+.replay-lost { font-family: 'Orbitron', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--accent); }
+.replay-dots::after { content: '...'; animation: replayDots 1.2s steps(4, end) infinite; }
+@keyframes replayDots { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+
+.replay-topbar { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
+.replay-title { display: flex; flex-direction: column; line-height: 1.25; flex: 1; min-width: 0; }
+.replay-title b { font-family: 'Orbitron', sans-serif; letter-spacing: 1px; color: var(--text); }
+.replay-title span { font-size: 12px; color: var(--dim); letter-spacing: 1px; }
+.replay-build { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 3px; color: var(--accent); opacity: 0.8; }
+
+.replay-stage {
+  position: relative; flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.replay-canvas {
+  max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
+  border-radius: 8px; border: 1px solid var(--edge); box-shadow: 0 0 50px rgba(20, 40, 120, 0.4);
+}
+.replay-stamp {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center; pointer-events: none; text-shadow: 0 0 24px currentColor;
+  animation: replayStamp 0.5s ease-out;
+}
+@keyframes replayStamp { from { opacity: 0; transform: translate(-50%, -50%) scale(1.15); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.replay-stamp-outcome { font-family: 'Orbitron', sans-serif; font-size: clamp(26px, 6vw, 56px); letter-spacing: 6px; }
+.replay-stamp-sub { font-size: 13px; letter-spacing: 3px; color: var(--text); opacity: 0.85; margin-top: 6px; }
+
+.replay-hud { display: flex; gap: clamp(10px, 3vw, 30px); justify-content: center; flex: 0 0 auto; flex-wrap: wrap; }
+.replay-stat { display: flex; flex-direction: column; align-items: center; min-width: 56px; }
+.replay-stat label { font-size: 9px; letter-spacing: 2px; color: var(--dim); font-family: 'Orbitron', sans-serif; }
+.replay-stat b { font-size: 18px; font-variant-numeric: tabular-nums; color: var(--text); }
+
+.replay-timeline { flex: 0 0 auto; padding: 2px 4px; }
+.replay-bar {
+  position: relative; height: 16px; border-radius: 8px; cursor: pointer;
+  background: rgba(40, 56, 110, 0.4); border: 1px solid var(--edge); touch-action: none;
+}
+.replay-tick { position: absolute; top: 2px; width: 2px; height: 12px; background: rgba(150, 170, 240, 0.45); transform: translateX(-1px); }
+.replay-tick.end { background: var(--accent); width: 3px; }
+.replay-playhead {
+  position: absolute; top: -3px; width: 4px; height: 22px; border-radius: 2px;
+  background: var(--accent); box-shadow: 0 0 10px var(--accent); transform: translateX(-2px); pointer-events: none;
+}
+
+.replay-controls { display: flex; gap: 10px; justify-content: center; align-items: center; flex: 0 0 auto; }
+.replay-speeds { display: flex; gap: 4px; margin-left: 8px; }
+.replay-btn {
+  font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 1px; cursor: pointer;
+  padding: 8px 16px; border-radius: 8px; color: var(--text);
+  background: rgba(40, 56, 110, 0.5); border: 1px solid var(--edge); transition: background 0.15s, box-shadow 0.15s;
+}
+.replay-btn:hover { background: rgba(60, 84, 150, 0.6); }
+.replay-btn.primary { background: linear-gradient(#3ad6ff, #4bcffa); color: #021018; border: none; font-weight: 700; }
+.replay-btn.primary:hover { box-shadow: 0 0 16px rgba(75, 207, 250, 0.5); }
+.replay-btn.ghost { background: transparent; color: var(--dim); }
+.replay-btn.spd { padding: 7px 11px; }
+.replay-btn.spd.on { background: var(--accent); color: #021018; border-color: var(--accent); }
+.reduced-motion .replay-stamp, .reduced-motion .replay-dots::after { animation: none; }

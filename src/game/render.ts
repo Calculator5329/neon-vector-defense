@@ -313,7 +313,7 @@ function mulberry(seed: number) {
   };
 }
 
-function buildBackground(map: GameMap): HTMLCanvasElement {
+export function buildBackground(map: GameMap): HTMLCanvasElement {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const c = cv.getContext('2d')!;
@@ -774,7 +774,7 @@ function drawAnimatedLane(ctx: CanvasRenderingContext2D, game: Game) {
   ctx.globalAlpha = 1;
 }
 
-function drawMarkers(ctx: CanvasRenderingContext2D, map: GameMap, time: number) {
+export function drawMarkers(ctx: CanvasRenderingContext2D, map: GameMap, time: number) {
   const a = map.path[0], b = map.path[map.path.length - 1];
   marker(ctx, a, '#2ed573', 'IN', time);
   marker(ctx, b, '#ff4757', 'OUT', time);
@@ -806,7 +806,7 @@ function marker(ctx: CanvasRenderingContext2D, p: Vec, color: string, label: str
   ctx.restore();
 }
 
-function drawBlockers(ctx: CanvasRenderingContext2D, map: GameMap, time: number) {
+export function drawBlockers(ctx: CanvasRenderingContext2D, map: GameMap, time: number) {
   for (const b of map.blockers) {
     if (b.r <= 0) continue;
     ctx.save();

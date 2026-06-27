@@ -18,7 +18,7 @@ import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
 import { canSubmitScore, canWriteAnalytics } from './consent';
 import { isSampledRun } from './writePolicy';
-import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle } from './runTelemetry';
+import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle, PublicRunDoc } from './runTelemetry';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
@@ -355,6 +355,33 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean>
   } catch (error) {
     console.warn('Run replay submit failed', error);
     return false;
+  }
+}
+
+const replayCache = new Map<string, { expires: number; doc: PublicRunDoc | null }>();
+
+/** Read a run replay by id (public get). The head doc holds all per-wave snapshots +
+ *  summary + final state — everything the Battle Plan viewer needs; event-overflow
+ *  chunks are not required for the snapshot reconstruction. Returns null if missing. */
+export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null> {
+  if (!isValidRunId(runId)) return null;
+  const cached = replayCache.get(runId);
+  if (cached && cached.expires > Date.now()) return cached.doc;
+  try {
+    const snap = await withTimeout(getDoc(firestoreDoc(db, 'runs', runId)));
+    const doc = snap.exists() ? (snap.data() as PublicRunDoc) : null;
+    // light defensive normalization so a partial/legacy doc can't crash the viewer
+    const safe = doc && doc.summary && doc.setup ? {
+      ...doc,
+      snapshots: Array.isArray(doc.snapshots) ? doc.snapshots : [],
+      events: Array.isArray(doc.events) ? doc.events : [],
+      final: doc.final ?? { towers: [], damageByTower: {}, killsByEnemy: {}, abilitiesCast: 0, cashEarned: 0, leaks: 0 },
+    } : null;
+    replayCache.set(runId, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, doc: safe });
+    return safe;
+  } catch (error) {
+    console.warn('Run replay fetch failed', error);
+    return null;
   }
 }
 
