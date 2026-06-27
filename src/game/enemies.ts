@@ -111,6 +111,9 @@ const defs: EnemyDef[] = [
 
 export const ENEMIES: Record<string, EnemyDef> = Object.fromEntries(defs.map((d) => [d.id, d]));
 
+/** Ordered roster (encounter order) for the Bestiary codex. */
+export const ENEMY_LIST: EnemyDef[] = defs;
+
 /** Total layered enemy count (lives lost on leak), computed recursively. */
 export function rbe(id: string): number {
   const d = ENEMIES[id];

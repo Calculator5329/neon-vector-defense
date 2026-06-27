@@ -49,12 +49,13 @@ import { applyAccessibility } from './game/settings';
 import DossierShare from './DossierShare';
 import BotGhostHud from './BotGhostHud';
 import OperationsBoard from './OperationsBoard';
+import Bestiary from './Bestiary';
 import { UpgradeIcon, upgradeIconKey } from './UpgradeIcon';
 import { meta, type RunMetaReward } from './game/meta';
 import { buildGhostCurves, ghostCurveFor, judgeRun, type GhostCurve } from './game/ghostCurve';
 import { GHOST_CURVES_RAW } from './game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from './game/dossier';
-import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
+import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec, EnemyDef } from './game/types';
 import { isAdmin } from './game/admin';
 import AgeGate from './AgeGate';
 // Lazy: the 2,900-line dashboard + admin auth SDK are code-split off the player path,
@@ -554,6 +555,7 @@ function MainMenu(props: {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bestiaryOpen, setBestiaryOpen] = useState(false);
   // Apex unlocks on a COMPLETED campaign (a win), matching its "survive one campaign"
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
@@ -574,6 +576,7 @@ function MainMenu(props: {
           <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
           <button className={tab === 'board' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
           <button className={tab === 'ops' ? 'on' : ''} onClick={() => { setTab('ops'); sfx.click(); }}>OPERATIONS</button>
+          <button className="menu-tab-help" title="Bestiary" aria-label="Combine Bestiary" onClick={() => { setBestiaryOpen(true); sfx.click(); }}>👾</button>
           <button className="menu-tab-help" title="How to play" onClick={() => { setHelp(true); sfx.click(); }}>?</button>
           <button className="menu-tab-help" title="Settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>⚙</button>
         </nav>
@@ -581,6 +584,7 @@ function MainMenu(props: {
 
       {help && <HowToPlay onDone={() => { setHelp(false); sfx.click(); }} />}
       {settingsOpen && <SettingsPanel onClose={() => { setSettingsOpen(false); sfx.click(); }} />}
+      {bestiaryOpen && <Bestiary onClose={() => { setBestiaryOpen(false); sfx.click(); }} />}
 
       {DEMO_MODE && (
         <div className="menu-demo-banner">
@@ -923,6 +927,9 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   const [contractOpen, setContractOpen] = useState(false);
   const [checkpointState, setCheckpointState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [metaReward, setMetaReward] = useState<RunMetaReward | null>(null);
+  const [hostileReveal, setHostileReveal] = useState<EnemyDef | null>(null);
+  const hostileRevealRef = useRef<EnemyDef | null>(null);
+  const hostileQueueRef = useRef<EnemyDef[]>([]);
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
   const selectedRef = useRef<Tower | null>(null);
@@ -1080,6 +1087,18 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         if (now - f.t > 1000) { f.fps = f.frames; f.frames = 0; f.t = now; }
       }
       game.update(dt);
+      // Combine Bestiary: drain first-sighting reveals (skip bot/demo runs)
+      if (game.newHostiles.length) {
+        if (PERF_MAP === null && !DEMO_MODE) {
+          for (const d of game.newHostiles) { progress.discoverEnemy(d.id); hostileQueueRef.current.push(d); }
+        }
+        game.newHostiles.length = 0;
+      }
+      if (!hostileRevealRef.current && hostileQueueRef.current.length) {
+        const d = hostileQueueRef.current.shift()!;
+        hostileRevealRef.current = d; setHostileReveal(d);
+        window.setTimeout(() => { hostileRevealRef.current = null; setHostileReveal(null); }, 3800);
+      }
       // Checkpoint only on MILESTONE build phases (opener + every 10th wave), not every
       // wave + every 30s — that was ~60-90 Firestore writes/run. submitRunCheckpoint
       // additionally self-gates on consent + per-run sampling, so most runs write none.
@@ -1503,6 +1522,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
 
           {/* threat advisories */}
           {game.noticeTimer > 0 && <div className="notice">{game.notice}</div>}
+          <NewHostileReveal def={hostileReveal} />
 
           {game.freeplay && game.phase === 'build' && (
             <FreeplayBuildPanel
@@ -1858,6 +1878,21 @@ function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff
       </div>
       <div className="aar-right">
         <SubmitScore game={game} map={map} diff={diff} />
+      </div>
+    </div>
+  );
+}
+
+// Non-blocking first-encounter banner — drives the Combine Bestiary discovery.
+function NewHostileReveal({ def }: { def: EnemyDef | null }) {
+  if (!def) return null;
+  return (
+    <div className="hostile-reveal" key={def.id}>
+      <img className="hostile-reveal-art" src={`/art/enemy-${def.id}.png`} alt="" />
+      <div className="hostile-reveal-text">
+        <div className="hostile-reveal-eyebrow">{def.boss ? '⚠ CAPITAL HULL IDENTIFIED' : 'NEW HOSTILE IDENTIFIED'}</div>
+        <div className="hostile-reveal-name" style={{ color: def.glow }}>{def.name}</div>
+        <div className="hostile-reveal-lore">{def.lore}</div>
       </div>
     </div>
   );
