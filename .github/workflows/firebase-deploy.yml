@@ -12,7 +12,7 @@ on:
           - functions
   push:
     paths:
-      - '.github/workflows/deploy.yml'
+      - '.github/workflows/firebase-deploy.yml'
 
 permissions:
   contents: read
