@@ -227,6 +227,7 @@ export async function requestDataDeletion(uid: string): Promise<boolean> {
 
 /** player feedback -> callable. A local private token correlates replies without login. */
 export async function submitFeedback(text: string, ctx: string): Promise<FeedbackReceipt | null> {
+  if (!canSubmitScore()) return null;
   try {
     const res = await withTimeout(callSubmitFeedback({
       uid: progress.uid,

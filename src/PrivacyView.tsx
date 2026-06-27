@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { consentState, setSell, gpcActive, resetConsent } from './game/consent';
+import { requestDataDeletion } from './game/leaderboard';
 import { sfx } from './game/sound';
+import { progress } from './game/storage';
 
 /** /privacy route check, mirroring the admin pathname fork. */
 export function isPrivacyRoute(): boolean {
@@ -9,6 +11,7 @@ export function isPrivacyRoute(): boolean {
 
 const LOCAL_KEYS = [
   'nvd-progress-v1',
+  'nvd-meta-v2',
   'nvd-consent-v1',
   'nvd-feedback-ids-v1',
   'nvd-feedback-receipts-v2',
@@ -43,6 +46,8 @@ export default function PrivacyView() {
   const [state, setState] = useState(consentState());
   const gpc = gpcActive();
   const [cleared, setCleared] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [serverDeleted, setServerDeleted] = useState<boolean | null>(null);
   const sold = state.sell === 'optout' || gpc;
 
   const toggleSell = () => {
@@ -51,11 +56,15 @@ export default function PrivacyView() {
     setState(consentState());
   };
 
-  const doDelete = () => {
+  const doDelete = async () => {
     if (!confirm('Delete all the data this game stored on this device (progress, settings, callsign, privacy choices)? This cannot be undone.')) return;
     sfx.click();
+    setDeleting(true);
+    const remoteOk = await requestDataDeletion(progress.uid);
     clearLocalData();
     resetConsent();
+    setServerDeleted(remoteOk);
+    setDeleting(false);
     setCleared(true);
   };
 
@@ -134,12 +143,12 @@ export default function PrivacyView() {
                 <div className="privacy-control-name">Delete my data</div>
                 <div className="privacy-control-sub">
                   {cleared
-                    ? 'Done — all local data for this device has been erased.'
-                    : 'Erase all local game data, including private feedback reply receipts. Anonymous server records carry no identity; to request deletion of those too, message us via feedback.'}
+                    ? `Done — local data for this device has been erased. ${serverDeleted ? 'Server deletion request was accepted.' : 'Server deletion request could not be confirmed; local data is gone.'}`
+                    : 'Erase all local game data, including progress, rank, cosmetics, privacy choices, and private feedback reply receipts. This also requests deletion of anonymous server records for this device id.'}
                 </div>
               </div>
-              <button className="privacy-toggle danger" disabled={cleared} onClick={doDelete}>
-                {cleared ? 'DELETED' : 'DELETE'}
+              <button className="privacy-toggle danger" disabled={cleared || deleting} onClick={doDelete}>
+                {cleared ? 'DELETED' : deleting ? 'DELETING' : 'DELETE'}
               </button>
             </div>
           </div>

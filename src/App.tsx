@@ -11,7 +11,7 @@ import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
 import { Bot } from './game/bot';
 import { isMilestoneWave } from './game/writePolicy';
-import { needsAgeGate } from './game/consent';
+import { canSubmitScore, needsAgeGate } from './game/consent';
 import {
   boardId,
   submitScore,
@@ -453,9 +453,10 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
     };
   }, [ctx, open]);
   if (PERF_MAP !== null) return null; // not during perf runs
+  const canSendFeedback = canSubmitScore();
   const send = async () => {
     const t = text.trim();
-    if (!t) return;
+    if (!t || !canSendFeedback) return;
     setState('busy');
     const receipt = await submitFeedback(t, ctx);
     if (!receipt) {
@@ -535,7 +536,11 @@ function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx: strin
               <button className="fb-restore" onClick={restoreReplies}>RESTORE DISMISSED ({dismissedCount})</button>
             )}
           </div>}
-          {tab === 'send' && (state === 'done' ? (
+          {tab === 'send' && !canSendFeedback ? (
+            <div className="fb-no-replies">
+              Safe mode is on, so free-text messages are disabled and nothing is sent off this device.
+            </div>
+          ) : tab === 'send' && (state === 'done' ? (
             <div className="fb-thanks">Transmission received. Admin replies will appear in Inbox.</div>
           ) : (
             <div className="fb-compose">
@@ -2103,6 +2108,15 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       <div className="submit-score demo-score-disabled">
         <div className="aar-title">RECRUITER DEMO RUN</div>
         <p>Leaderboard submission is disabled in demo mode so live score data stays clean.</p>
+      </div>
+    );
+  }
+
+  if (!canSubmitScore()) {
+    return (
+      <div className="submit-score demo-score-disabled">
+        <div className="aar-title">SAFE MODE</div>
+        <p>Leaderboard callsigns, public replays, and feedback messages are disabled, so nothing personal is sent off this device.</p>
       </div>
     );
   }

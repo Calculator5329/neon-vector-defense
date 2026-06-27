@@ -25,6 +25,8 @@ export interface ConsentState {
   ageBand: AgeBand;
   /** retained only to recompute the band; never sent off-device */
   birthYear?: number;
+  /** 1-12, retained only to compute the age band more accurately */
+  birthMonth?: number;
   sell: SellChoice;
   /** Global Privacy Control signal observed from the browser */
   gpc: boolean;
@@ -51,9 +53,14 @@ function sanitize(raw: unknown): ConsentState {
     o.sell === 'optout' || o.sell === 'ok' ? o.sell : 'unset';
   const birthYear =
     typeof o.birthYear === 'number' && Number.isFinite(o.birthYear) ? o.birthYear : undefined;
+  const birthMonth =
+    typeof o.birthMonth === 'number' && Number.isFinite(o.birthMonth) && o.birthMonth >= 1 && o.birthMonth <= 12
+      ? Math.floor(o.birthMonth)
+      : undefined;
   return {
     ageBand,
     birthYear,
+    birthMonth,
     sell,
     gpc: o.gpc === true,
     ts: typeof o.ts === 'number' && Number.isFinite(o.ts) ? o.ts : 0,
@@ -152,14 +159,23 @@ export function needsAgeGate(): boolean {
  * Invalid/empty years leave the band 'unknown' (gate stays up).
  */
 export function setAgeFromBirthYear(birthYear: number): AgeBand {
+  return setAgeFromBirthDate(birthYear, 12);
+}
+
+export function setAgeFromBirthDate(birthYear: number, birthMonth: number): AgeBand {
   const year = Math.floor(birthYear);
-  const nowYear = new Date().getFullYear();
+  const month = Math.floor(birthMonth);
+  const now = new Date();
+  const nowYear = now.getFullYear();
+  const nowMonth = now.getMonth() + 1;
   // reject implausible years; gate remains unanswered
-  if (!Number.isFinite(year) || year < 1900 || year > nowYear) {
+  if (!Number.isFinite(year) || !Number.isFinite(month) || year < 1900 || year > nowYear || month < 1 || month > 12) {
     return cache.ageBand;
   }
-  const age = nowYear - year;
+  let age = nowYear - year;
+  if (month >= nowMonth) age -= 1;
   cache.birthYear = year;
+  cache.birthMonth = month;
   cache.ageBand = age >= ADULT_MIN_AGE ? 'adult' : 'under13';
   cache.ts = Date.now();
   save();
