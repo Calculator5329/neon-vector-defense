@@ -94,6 +94,11 @@ export function rankTitle(rank: number): string {
   const sub = Math.min(ROMAN.length - 1, (r - 1) % ROMAN.length);
   return `${RANK_BANDS[band]} ${ROMAN[sub]}`;
 }
+/** band key for the rank-crest asset path (/art/rank-<key>.png) */
+export function rankBandKey(rank: number): string {
+  const r = Math.max(1, Math.min(MAX_RANK, rank));
+  return RANK_BANDS[Math.min(RANK_BANDS.length - 1, Math.floor((r - 1) / ROMAN.length))].toLowerCase();
+}
 export function rankFromXp(xp: number): RankInfo {
   let rank = 1;
   while (rank < MAX_RANK && xpForRank(rank + 1) <= xp) rank++;
@@ -285,6 +290,7 @@ export const meta = {
     cache.salvage -= cost; cache.cosmetics.push(id); save(); return true;
   },
   equip(slot: string, id: string) { cache.cosmeticEquipped[slot] = id; save(); },
+  get equippedPalette(): string { return cache.cosmeticEquipped['accent'] ?? 'standard'; },
 
   reset() { cache = fresh(); save(); },
 };

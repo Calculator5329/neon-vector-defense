@@ -19,6 +19,8 @@ const TRACKS = {
   "drift-1": "Warm melodic synthwave space drift, a slow nostalgic analog arpeggio with a gentle major-key glow, hopeful lighthouse vigil over a calm starfield, dreamy and uplifting, soft brushed pulse, no vocals.",
   "drift-2": "Mellow retro sci-fi ambient drift, a soft pulsing bassline under shimmering chorus pads, a quiet confident groove, deep-space cruise between battles, seamless, no vocals.",
   "drift-3": "Ethereal ambient drift, a glassy bell melody over deep warm pads, weightless and serene, slow tidal swells, the calm between waves, seamless loop, no vocals.",
+  "boss-theme": "Intense dark sci-fi BOSS BATTLE music, driving ominous low brass-like synth stabs over pounding war drums and a relentless pulse, a colossal capital warship bearing down, rising dread and adrenaline, cinematic and heavy, seamless loop, no vocals.",
+  "menu-theme": "Calm cinematic sci-fi MAIN MENU theme, a slow hopeful melodic synth motif over deep warm space pads, a quiet lighthouse vigil among the stars, welcoming and atmospheric, seamless loop, no drums, no vocals.",
 };
 
 let total = 0;

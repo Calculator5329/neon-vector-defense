@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { applyAccessibility } from './game/settings';
+import { applyAccent } from './game/palette';
 import { loadRemoteBalance } from './game/balanceConfig';
 
-// apply persisted accessibility prefs before first paint
+// apply persisted accessibility prefs + cosmetic accent palette before first paint
 applyAccessibility();
+applyAccent();
 // fetch remote balance overrides (fire-and-forget; identity fallback until it resolves)
 void loadRemoteBalance();
 

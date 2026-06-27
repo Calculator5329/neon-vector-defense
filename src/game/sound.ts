@@ -164,11 +164,35 @@ export function isMusicOn() { return musicOn; }
 /** sector ambience playlist in-game (sector track + theme variations); null = menu set */
 export function playSectorTheme(mapId: string | null) {
   if (typeof Audio === 'undefined') return;
+  bossActive = false;
   const tracks = mapId
     ? [`/audio/amb-${mapId}.mp3`, ...packTracks().slice(0, 2)]
-    : packTracks();
+    : ['/audio/menu-theme.mp3', ...packTracks()]; // dedicated menu theme leads the menu set
   if (musicOn) startPlaylist(tracks);
   else playlist = tracks; // queued for when music returns
+}
+
+// Boss override: a capital-hull wave swaps the score to a looping boss theme, then the
+// sector playlist resumes when the wave clears (or the next normal wave starts).
+let bossActive = false;
+let preBossPlaylist: string[] = [];
+export function setBossMusic(on: boolean): void {
+  if (on === bossActive) return;
+  bossActive = on;
+  if (typeof Audio === 'undefined' || !musicOn) return;
+  if (on) {
+    preBossPlaylist = playlist;
+    if (musicEl) { musicEl.pause(); musicEl = null; }
+    const el = new Audio('/audio/boss-theme.mp3');
+    el.loop = true; el.volume = 0.14;
+    el.addEventListener('error', () => { if (musicBus) musicBus.gain.value = 0.3; });
+    musicEl = el;
+    if (musicBus) musicBus.gain.value = 0;
+    void el.play().catch(() => {});
+  } else {
+    if (musicEl) { musicEl.pause(); musicEl = null; }
+    startPlaylist(preBossPlaylist.length ? preBossPlaylist : packTracks());
+  }
 }
 
 // announcer voice lines (generated, see scripts/genvox.mjs)

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { meta, type QuestWithProgress } from './game/meta';
+import { meta, rankBandKey, type QuestWithProgress } from './game/meta';
+import { PALETTES, applyAccent } from './game/palette';
 import { sfx } from './game/sound';
 
 // Third menu tab: Warden Rank + Salvage wallet + Watch Streak + the daily/weekly
@@ -24,15 +25,18 @@ export default function OperationsBoard() {
     <div className="ops-tab" data-testid="ops-tab">
       <div className="ops-head">
         <div className="ops-rank" data-testid="rank-bar">
-          <div className="ops-rank-top">
-            <span className="ops-rank-title">{rank.title}</span>
-            <span className="ops-rank-xp">{rank.xpIntoRank.toLocaleString()} / {rank.xpForRank.toLocaleString()} XP</span>
+          <img className="ops-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.png`} alt="" draggable={false} />
+          <div className="ops-rank-body">
+            <div className="ops-rank-top">
+              <span className="ops-rank-title">{rank.title}</span>
+              <span className="ops-rank-xp">{rank.xpIntoRank.toLocaleString()} / {rank.xpForRank.toLocaleString()} XP</span>
+            </div>
+            <div className="ops-rank-bar"><div className="ops-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></div>
+            <div className="ops-rank-sub">WARDEN RANK {rank.rank} · {rank.totalXp.toLocaleString()} lifetime XP</div>
           </div>
-          <div className="ops-rank-bar"><div className="ops-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></div>
-          <div className="ops-rank-sub">WARDEN RANK {rank.rank} · {rank.totalXp.toLocaleString()} lifetime XP</div>
         </div>
         <div className="ops-chips">
-          <div className="ops-chip salvage" title="Salvage — earned per run (cosmetics coming soon)">
+          <div className="ops-chip salvage" title="Salvage — earned per run, spent on Signal Palettes below">
             <span className="ops-chip-val"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}</span>
             <span className="ops-chip-label">SALVAGE</span>
           </div>
@@ -40,6 +44,32 @@ export default function OperationsBoard() {
             <span className="ops-chip-val">🔥 {streak.current}</span>
             <span className="ops-chip-label">{streak.activeToday ? 'DAY STREAK' : streak.current > 0 ? 'STREAK (PLAY TODAY)' : 'NO STREAK'}</span>
           </div>
+        </div>
+      </div>
+
+      <div className="ops-shop">
+        <div className="menu-section-label">SIGNAL PALETTES</div>
+        <div className="palette-row">
+          {PALETTES.map((p) => {
+            const owned = p.cost === 0 || meta.owns(`palette-${p.id}`);
+            const equipped = meta.equippedPalette === p.id;
+            const afford = meta.salvage >= p.cost;
+            return (
+              <button key={p.id} className={`palette-chip ${equipped ? 'equipped' : ''}`} disabled={!owned && !afford}
+                title={owned ? (equipped ? 'Equipped' : 'Equip') : `Buy for ${p.cost} salvage`}
+                onClick={() => {
+                  if (owned) { meta.equip('accent', p.id); applyAccent(); sfx.click(); rerender(); }
+                  else if (meta.buyCosmetic(`palette-${p.id}`, p.cost)) { meta.equip('accent', p.id); applyAccent(); sfx.upgrade(); rerender(); }
+                  else sfx.error();
+                }}>
+                <span className="palette-swatch" style={{ background: p.color }} />
+                <span className="palette-name">{p.name}</span>
+                <span className="palette-tag">
+                  {equipped ? '✓ EQUIPPED' : owned ? 'EQUIP' : <><i className="ico-diamond" aria-hidden="true" /> {p.cost}</>}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
