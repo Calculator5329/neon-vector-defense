@@ -17,6 +17,7 @@ describe('CI/CD guardrails', () => {
     expect(ciWorkflow).toContain('npm run perf:quick');
     expect(ciWorkflow).not.toContain('npm run sim -- quick');
     expect(ciWorkflow).not.toContain('npm run sim');
+    expect(ciWorkflow).toContain('pull-requests: read');
     expect(deepWorkflow).toContain('schedule:');
     expect(deepWorkflow).toContain("DEEP_SUITE: ${{ github.event_name == 'schedule' && 'quick-balance' || inputs.suite }}");
     expect(deepWorkflow).toContain('npm run sim -- quick');
