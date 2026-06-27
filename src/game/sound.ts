@@ -101,7 +101,7 @@ export function isMuted() { return !sfxOn; }
 export interface MusicPack { id: string; name: string; tracks: string[] }
 export const MUSIC_PACKS: MusicPack[] = [
   { id: 'concord', name: 'Concord Signal', tracks: ['/audio/theme.mp3', '/audio/theme-2.mp3', '/audio/theme-3.mp3'] },
-  { id: 'drift', name: 'Deep Drift (generative)', tracks: [] },
+  { id: 'drift', name: 'Deep Drift', tracks: ['/audio/drift-1.mp3', '/audio/drift-2.mp3', '/audio/drift-3.mp3'] },
 ];
 function packTracks(): string[] {
   const id = progress.musicPack;

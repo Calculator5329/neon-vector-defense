@@ -1492,7 +1492,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
                     : `${a.def.name} (${'QWERTY'[i]}) — ${a.def.desc}\n\n${ABILITY_LORE[a.def.id] ?? ''}`}
                   onClick={() => useAbility(a.def.id)}
                 >
-                  <span className="ability-icon">{locked ? '🔒' : a.def.icon}</span>
+                  <span className="ability-icon">{locked ? '🔒' : <img className="ability-icon-img" src={`/art/ability-${a.def.id}.png`} alt="" draggable={false} />}</span>
                   <span className="ability-key">{'QWERTY'[i]}</span>
                   {a.cd > 0 && <span className="ability-cd" style={{ height: `${pct * 100}%` }} />}
                   {a.cd > 0 && <span className="ability-cd-num">{Math.ceil(a.cd)}</span>}
