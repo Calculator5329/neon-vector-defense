@@ -963,6 +963,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   const [contractOpen, setContractOpen] = useState(false);
   const [checkpointState, setCheckpointState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [metaReward, setMetaReward] = useState<RunMetaReward | null>(null);
+  const [touchPreview, setTouchPreview] = useState<{ towerId: string; x: number; y: number } | null>(null);
   const [hostileReveal, setHostileReveal] = useState<EnemyDef | null>(null);
   const hostileRevealRef = useRef<EnemyDef | null>(null);
   const hostileQueueRef = useRef<EnemyDef[]>([]);
@@ -971,6 +972,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   const selectedRef = useRef<Tower | null>(null);
   const aimingRef = useRef(false);
   const overlayRef = useRef(false);
+  const suppressMouseUntilRef = useRef(0);
   placingRef.current = placing;
   aimingRef.current = aiming;
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
@@ -993,6 +995,9 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   useEffect(() => {
     if (cloakTip) game.recorder.recordControl(METRIC_EVENTS.CLOAK_TIP_VIEW);
   }, [cloakTip, game]);
+  useEffect(() => {
+    setTouchPreview(null);
+  }, [placing?.id]);
 
   // returning players already earned earlier towers — mark them seen silently so
   // the unlock modal only celebrates genuinely new unlocks during this run.
@@ -1234,15 +1239,61 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     return { x: (ev.clientX - ox) / scale, y: (ev.clientY - oy) / scale };
   }, []);
 
-  // touch: dragging a finger shows the placement ghost; the tap's click event places
+  const coarsePointer = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  const selectTowerAt = (pos: Vec, radius = coarsePointer() ? 32 : 20): Tower | null => {
+    for (const t of game.towers) {
+      if (Math.hypot(t.pos.x - pos.x, t.pos.y - pos.y) <= radius) return t;
+    }
+    return null;
+  };
+
+  // Touch placement is deliberate in portal/mobile embeds: first tap previews the
+  // ghost/range, second tap in the same neighborhood confirms the build.
   const onCanvasTouch = (ev: React.TouchEvent) => {
     const t = ev.touches[0];
     if (t) hoverRef.current = toCanvas(t);
+  };
+  const onCanvasTouchEnd = (ev: React.TouchEvent) => {
+    const t = ev.changedTouches[0];
+    if (!t) return;
+    ev.preventDefault();
+    suppressMouseUntilRef.current = Date.now() + 450;
+    const pos = toCanvas(t);
+    hoverRef.current = pos;
+    if (aiming) {
+      game.castAbility('strike', pos);
+      setAiming(false);
+      setTouchPreview(null);
+      return;
+    }
+    if (game.collectPickup(pos)) return;
+    if (placing) {
+      const previewMatches = touchPreview?.towerId === placing.id
+        && Math.hypot(touchPreview.x - pos.x, touchPreview.y - pos.y) <= 36;
+      if (!previewMatches) {
+        setTouchPreview({ towerId: placing.id, x: pos.x, y: pos.y });
+        setTick((v) => v + 1);
+        sfx.click();
+        return;
+      }
+      const placed = game.placeTower(placing, pos);
+      if (placed) {
+        setPlacing(null);
+        setTouchPreview(null);
+      } else {
+        sfx.error();
+      }
+      return;
+    }
+    const found = selectTowerAt(pos, 34);
+    setSelectedUid(found ? found.uid : null);
+    if (found) sfx.click();
   };
 
   const onCanvasMove = (ev: React.MouseEvent) => { hoverRef.current = toCanvas(ev); };
   const onCanvasLeave = () => { hoverRef.current = null; };
   const onCanvasClick = (ev: React.MouseEvent) => {
+    if (Date.now() < suppressMouseUntilRef.current) return;
     const pos = toCanvas(ev);
     if (aiming) {
       game.castAbility('strike', pos);
@@ -1256,10 +1307,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       return;
     }
     // select tower under cursor
-    let found: Tower | null = null;
-    for (const t of game.towers) {
-      if (Math.hypot(t.pos.x - pos.x, t.pos.y - pos.y) <= 20) { found = t; break; }
-    }
+    const found = selectTowerAt(pos);
     setSelectedUid(found ? found.uid : null);
     if (found) sfx.click();
   };
@@ -1455,6 +1503,11 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
 
   return (
     <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} data-testid="game-root">
+      <div className="rotate-device" data-testid="rotate-device">
+        <div className="rotate-device-icon">âŸ²</div>
+        <b>Rotate for command view</b>
+        <span>Landscape gives the lane, arsenal, and wave controls room to breathe.</span>
+      </div>
       {AI_HELP_ENABLED && (
         <AIHelpWidget
           placement="game"
@@ -1525,9 +1578,12 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             ref={canvasRef} width={W} height={H}
             onMouseMove={onCanvasMove} onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick} onContextMenu={onContext}
-            onTouchStart={onCanvasTouch} onTouchMove={onCanvasTouch}
+            onTouchStart={onCanvasTouch} onTouchMove={onCanvasTouch} onTouchEnd={onCanvasTouchEnd}
             style={{ cursor: placing ? 'crosshair' : 'default', touchAction: 'none' }}
           />
+          {touchPreview && placing && (
+            <div className="touch-place-hint">Tap again to place {placing.name}</div>
+          )}
           {/* commander abilities */}
           <div className="ability-bar">
             {game.abilities.map((a, i) => {

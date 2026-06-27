@@ -774,6 +774,30 @@
   box-shadow: 0 0 40px rgba(20, 40, 120, 0.35);
 }
 
+.rotate-device {
+  display: none;
+}
+
+.touch-place-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  z-index: 8;
+  max-width: min(360px, calc(100% - 28px));
+  padding: 8px 13px;
+  border: 1px solid rgba(255, 211, 42, 0.42);
+  border-radius: 8px;
+  background: rgba(5, 8, 18, 0.86);
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1.3px;
+  text-align: center;
+  box-shadow: 0 0 18px rgba(255, 211, 42, 0.22);
+  pointer-events: none;
+}
+
 .wave-btn {
   position: absolute;
   bottom: 22px;
@@ -2131,7 +2155,33 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
      canvas instead of fighting it for centered row space */
   .canvas-wrap { min-height: 0; flex-direction: column; }
   .canvas-wrap canvas { height: auto; }
-  .sidebar { width: 100%; }
+  .sidebar {
+    width: 100%;
+    max-height: min(42vh, 340px);
+    border-radius: 14px 14px 0 0;
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  .sidebar.collapsed {
+    width: 100%;
+    max-height: 52px;
+    overflow: hidden;
+  }
+  .side-body {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .side-rail {
+    height: 48px;
+    flex-direction: row;
+    justify-content: center;
+    padding: 0 14px;
+    border-radius: 12px;
+  }
+  .side-rail-label {
+    writing-mode: horizontal-tb;
+    letter-spacing: 2px;
+  }
   .ai-root.in-game,
   .fb-root.on-game,
   body.game-sidebar-open .ai-root.in-game,
@@ -2153,10 +2203,11 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .tb-btn { min-height: 34px; min-width: 0; font-size: 11px; padding: 6px 4px; }
   .tb-stat { min-width: 0; font-size: 12px; padding: 7px 4px; text-align: center; overflow: hidden; text-overflow: ellipsis; }
   .tb-stat.wave { grid-column: span 2; }
-  .ability-bar { bottom: 10px; left: 8px; gap: 6px; }
+  .ability-bar { bottom: max(10px, env(safe-area-inset-bottom)); left: 8px; gap: 6px; }
   .ability-btn { width: 58px; height: 58px; }
   .ability-btn .ability-icon { font-size: 24px; }
-  .wave-btn { font-size: 14px; padding: 12px 22px; bottom: 12px; }
+  .wave-btn { font-size: 14px; padding: 12px 22px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .touch-place-hint { bottom: 78px; }
   .freeplay-build-panel {
     position: relative;
     left: auto;
@@ -2230,6 +2281,63 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
     text-align: center;
     font-size: 12px;
     padding: 6px 12px;
+  }
+}
+
+@media (pointer: coarse) {
+  .tb-btn,
+  .side-tabs button,
+  .upgrade-btn,
+  .sell-btn,
+  .target-row .tb-btn,
+  .panel-collapse {
+    min-height: 44px;
+  }
+  .shop-item {
+    min-height: 104px;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .game-root .rotate-device {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 28px;
+    text-align: center;
+    background:
+      radial-gradient(circle at 50% 34%, rgba(75, 207, 250, 0.2), transparent 34%),
+      rgba(2, 4, 10, 0.88);
+    color: var(--text);
+    pointer-events: none;
+  }
+  .rotate-device-icon {
+    width: 62px;
+    height: 62px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(75, 207, 250, 0.5);
+    border-radius: 50%;
+    color: var(--accent);
+    font-size: 28px;
+    box-shadow: 0 0 24px rgba(75, 207, 250, 0.28);
+  }
+  .rotate-device b {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .rotate-device span {
+    max-width: 300px;
+    font-size: 14px;
+    color: var(--dim);
+    line-height: 1.35;
   }
 }
 

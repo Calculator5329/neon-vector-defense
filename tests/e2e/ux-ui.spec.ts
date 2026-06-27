@@ -918,4 +918,36 @@ test.describe('mobile UX layout', () => {
     expect(dock.ai?.right).toBeLessThanOrEqual(dock.viewport.width);
     expect(dock.message?.right).toBeLessThanOrEqual(dock.viewport.width);
   });
+
+  test('portrait game view shows rotate guidance without blocking touch placement preview', async ({ page }) => {
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+
+    await expect(page.getByTestId('rotate-device')).toBeVisible();
+    await page.getByTestId('tower-pulse').click();
+    const point = await page.evaluate(() => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+      const rect = canvas.getBoundingClientRect();
+      const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
+      const W = 1280;
+      const H = 720;
+      const scale = Math.min(rect.width / W, rect.height / H);
+      const ox = rect.left + (rect.width - W * scale) / 2;
+      const oy = rect.top + (rect.height - H * scale) / 2;
+      for (let y = 90; y <= 630; y += 36) {
+        for (let x = 90; x <= 1190; x += 36) {
+          if (game.canPlace({ x, y })) return { x: ox + x * scale, y: oy + y * scale };
+        }
+      }
+      throw new Error('no valid placement point');
+    });
+
+    await page.touchscreen.tap(point.x, point.y);
+    await expect(page.getByText(/Tap again to place/i)).toBeVisible();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { game: { towers: unknown[] } }).game.towers.length)).toBe(0);
+
+    await page.touchscreen.tap(point.x, point.y);
+    await expect.poll(() => page.evaluate(() => (window as unknown as { game: { towers: unknown[] } }).game.towers.length)).toBe(1);
+    await expect(page.getByText(/Tap again to place/i)).toBeHidden();
+  });
 });
