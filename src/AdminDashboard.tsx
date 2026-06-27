@@ -8,7 +8,7 @@ import './App.css';
 import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWER_MAP } from './game/towers';
 import { clearAdmin } from './game/admin';
-import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow } from './game/leaderboard';
+import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow } from './game/leaderboard';
 import { buildGhostCurves, ghostCurveFor } from './game/ghostCurve';
 import { computeCanary, type CanarySeries } from './game/adminCanary';
 import { analyzeDifficulty, DIFFICULTY_TARGETS, type WaveDifficulty } from './game/difficulty';
@@ -1350,6 +1350,41 @@ function AnalyticsState({ rows, err }: { rows: RunAnalyticsRow[] | null; err: bo
   return null;
 }
 
+function OperationsHealthPanel({ runCount }: { runCount: number }) {
+  const mode = import.meta.env.MODE || 'development';
+  const hasAppCheckSiteKey = Boolean(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY);
+  const hasDebugToken = Boolean(import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN);
+  const checklist = [
+    'Run npm run check:deploy-env before emulator or deploy work.',
+    'Keep callable score, daily score, and feedback writes server-mediated.',
+    'Smoke test score, replay, feedback, telemetry, and admin paths before App Check enforcement.',
+    'Confirm portal hostnames before adding frame-ancestors exceptions.',
+  ];
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head">
+        <h3>Security and deploy health</h3>
+        <span className="adm-hint">runtime posture for release checks</span>
+      </div>
+      <div className="adm-stat-row">
+        <Stat label="client build" value={TELEMETRY_BUILD} />
+        <Stat label="runtime mode" value={mode} />
+        <Stat label="App Check key" value={hasAppCheckSiteKey ? 'present' : 'off'} />
+        <Stat label="analytics sample" value={runCount.toLocaleString()} />
+      </div>
+      <div className="adm-insight-grid">
+        <div className="adm-insight"><b>Score writes</b><span>Callable-only submission path</span><span>Replay doc required before scoring</span></div>
+        <div className="adm-insight"><b>Replay records</b><span>Append-only public verification docs</span><span>Chunks are create-only under rules</span></div>
+        <div className="adm-insight"><b>Feedback privacy</b><span>Private receipt token lookup</span><span>Admin replies are server mediated</span></div>
+        <div className="adm-insight"><b>App Check rollout</b><span>{hasAppCheckSiteKey ? 'Token plumbing ready' : 'No site key in this build'}</span><span>{hasDebugToken ? 'Debug token enabled' : 'No debug token exposed'}</span></div>
+      </div>
+      <div className="adm-devs">
+        {checklist.map((item) => <span className="adm-dev" key={item}>{item}</span>)}
+      </div>
+    </div>
+  );
+}
+
 function MiniArea({ values, color = '#54a0ff', height = 90 }: { values: number[]; color?: string; height?: number }) {
   const W = 420, H = height, pad = 8;
   if (values.length < 2) return <div className="adm-empty compact">Need more samples.</div>;
@@ -1784,6 +1819,7 @@ function SystemsStoryTab() {
         <Stat label="quick sellbacks" value={data.reduce((sum, row) => sum + row.placement.quickSellbacks, 0).toLocaleString()} />
         <Stat label="target changes" value={data.reduce((sum, row) => sum + row.placement.targetModeChanges, 0).toLocaleString()} />
       </div>
+      <OperationsHealthPanel runCount={data.length} />
       <InsightDeck insights={dataset.insights.filter((item) => item.domain === 'towers' || item.domain === 'placement')} title="Systems readouts" />
       <div className="adm-card"><div className="adm-card-head"><h3>Economy friction</h3><span className="adm-hint">averages per run</span></div><HBars data={cashBars} /></div>
       <div className="adm-two">
