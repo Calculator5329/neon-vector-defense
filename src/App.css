@@ -566,8 +566,8 @@
   font-size: 14px;
 }
 .board-list.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) minmax(110px, 0.8fr) minmax(92px, 0.7fr) auto auto auto; }
-.board-local .board-row { grid-template-columns: 34px minmax(120px, 1fr) auto; padding-block: 7px; font-size: 13px; }
-.board-local.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) auto auto; }
+.board-local .board-row { grid-template-columns: 34px minmax(120px, 1fr) auto auto; padding-block: 7px; font-size: 13px; }
+.board-local.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) auto auto auto; }
 /* global board carries a trailing REPLAY column (WATCH deep links) */
 .board-global .board-row { grid-template-columns: 34px minmax(120px, 1fr) minmax(110px, 0.8fr) minmax(92px, 0.7fr) auto auto auto; }
 .board-global.fp .board-row { grid-template-columns: 34px minmax(120px, 1fr) minmax(110px, 0.8fr) minmax(92px, 0.7fr) auto auto auto auto; }

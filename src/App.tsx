@@ -895,6 +895,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           <span className="board-name">CALLSIGN</span>
           {fp && <span className="board-wave">WAVE</span>}
           <span className="board-cash">CREDITS</span>
+          <span className="board-watch">REPLAY</span>
         </div>
         {localRows === null ? (
           <div className="board-empty compact">Checking local board...</div>
@@ -916,6 +917,11 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
               </span>
               {fp && <span className="board-wave">{r.wave}</span>}
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
+              <span className="board-watch">
+                {isRunId(r.runId)
+                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">\u25b6 WATCH</a>
+                  : null}
+              </span>
             </div>
           ))
         )}
