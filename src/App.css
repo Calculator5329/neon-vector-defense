@@ -3189,6 +3189,17 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 
 .ops-board { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 720px) { .ops-board { grid-template-columns: 1fr; } }
+.ops-status {
+  border: 1px solid rgba(75, 207, 250, 0.28);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: rgba(75, 207, 250, 0.08);
+  color: #dce8ff;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ops-status.ok { border-color: rgba(46, 213, 115, 0.38); background: rgba(46, 213, 115, 0.08); }
+.ops-status.err { border-color: rgba(255, 107, 129, 0.38); background: rgba(255, 107, 129, 0.08); }
 .ops-col { display: flex; flex-direction: column; gap: 10px; }
 .ops-col .menu-section-label { margin-bottom: 4px; }
 .quest-card { padding: 13px 16px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--edge); transition: border-color 0.15s, box-shadow 0.15s; }

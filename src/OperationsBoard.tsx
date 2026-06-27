@@ -8,6 +8,7 @@ import { sfx } from './game/sound';
 // completed quest grants XP/salvage. Cosmetic/QoL only — never touches run balance.
 export default function OperationsBoard() {
   const [, force] = useState(0);
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const rerender = () => force((n) => n + 1);
 
   const rank = meta.rank;
@@ -18,7 +19,14 @@ export default function OperationsBoard() {
 
   const claim = (id: string) => {
     const r = meta.claimQuest(id);
-    if (r) { sfx.upgrade(); rerender(); } else sfx.error();
+    if (r) {
+      setStatus({ kind: 'ok', text: `Claimed ${r.breakdown[0]?.label ?? 'operation'}: +${r.xp} XP and +${r.salvage} salvage.` });
+      sfx.upgrade();
+      rerender();
+    } else {
+      setStatus({ kind: 'err', text: 'That operation is not ready to claim yet.' });
+      sfx.error();
+    }
   };
 
   return (
@@ -54,24 +62,52 @@ export default function OperationsBoard() {
             const owned = p.cost === 0 || meta.owns(`palette-${p.id}`);
             const equipped = meta.equippedPalette === p.id;
             const afford = meta.salvage >= p.cost;
+            const short = Math.max(0, p.cost - meta.salvage);
+            const paletteLabel = owned
+              ? (equipped ? `${p.name} palette equipped` : `Equip ${p.name} palette`)
+              : afford
+                ? `Buy ${p.name} palette for ${p.cost} salvage`
+                : `${p.name} palette needs ${short} more salvage`;
             return (
               <button key={p.id} className={`palette-chip ${equipped ? 'equipped' : ''}`} disabled={!owned && !afford}
-                title={owned ? (equipped ? 'Equipped' : 'Equip') : `Buy for ${p.cost} salvage`}
+                title={paletteLabel}
+                aria-label={paletteLabel}
                 onClick={() => {
-                  if (owned) { meta.equip('accent', p.id); applyAccent(); sfx.click(); rerender(); }
-                  else if (meta.buyCosmetic(`palette-${p.id}`, p.cost)) { meta.equip('accent', p.id); applyAccent(); sfx.upgrade(); rerender(); }
-                  else sfx.error();
+                  if (owned) {
+                    meta.equip('accent', p.id);
+                    applyAccent();
+                    setStatus({ kind: 'ok', text: `${p.name} palette equipped.` });
+                    sfx.click();
+                    rerender();
+                  }
+                  else if (meta.buyCosmetic(`palette-${p.id}`, p.cost)) {
+                    meta.equip('accent', p.id);
+                    applyAccent();
+                    setStatus({ kind: 'ok', text: `${p.name} palette purchased and equipped.` });
+                    sfx.upgrade();
+                    rerender();
+                  }
+                  else {
+                    setStatus({ kind: 'err', text: `${p.name} needs ${short} more salvage.` });
+                    sfx.error();
+                  }
                 }}>
                 <span className="palette-swatch" style={{ background: p.color }} />
                 <span className="palette-name">{p.name}</span>
                 <span className="palette-tag">
-                  {equipped ? '✓ EQUIPPED' : owned ? 'EQUIP' : <><i className="ico-diamond" aria-hidden="true" /> {p.cost}</>}
+                  {equipped ? '✓ EQUIPPED' : owned ? 'EQUIP' : afford ? <><i className="ico-diamond" aria-hidden="true" /> {p.cost}</> : <><i className="ico-diamond" aria-hidden="true" /> need {short}</>}
                 </span>
               </button>
             );
           })}
         </div>
       </div>
+
+      {status && (
+        <div className={`ops-status ${status.kind}`} role="status" aria-live="polite" aria-atomic="true">
+          {status.text}
+        </div>
+      )}
 
       <div className="ops-board" data-testid="ops-board">
         <QuestColumn label="DAILY OPERATIONS" quests={daily} onClaim={claim} />
