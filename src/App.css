@@ -2621,6 +2621,67 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .menu-next-unlock { max-width: 420px; margin: 10px auto 0; flex: 0 0 auto; width: 100%; }
 .menu-next-unlock .unlock-label { text-align: center; }
 
+/* ── Meta loop: rank strip, Operations Board, run-end reward ──────────────── */
+.menu-rank-strip {
+  display: flex; align-items: center; gap: 10px; max-width: 460px; width: 100%;
+  margin: 8px auto 0; padding: 6px 14px; border-radius: 8px; cursor: pointer;
+  background: rgba(40, 56, 110, 0.35); border: 1px solid var(--edge); color: var(--text);
+  font-family: 'Orbitron', sans-serif; transition: background 0.15s;
+}
+.menu-rank-strip:hover { background: rgba(60, 84, 150, 0.5); }
+.menu-rank-title { font-size: 12px; letter-spacing: 1px; color: var(--accent); white-space: nowrap; }
+.menu-rank-bar { flex: 1; height: 7px; border-radius: 4px; background: rgba(0,0,0,0.35); overflow: hidden; }
+.menu-rank-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #8e7bef); }
+.menu-rank-meta { font-size: 12px; color: var(--gold); white-space: nowrap; }
+
+.ops-tab { display: flex; flex-direction: column; gap: 16px; padding: 4px; overflow-y: auto; }
+.ops-head { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
+.ops-rank { flex: 1; min-width: 260px; padding: 14px 18px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--edge); }
+.ops-rank-top { display: flex; justify-content: space-between; align-items: baseline; }
+.ops-rank-title { font-family: 'Orbitron', sans-serif; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+.ops-rank-xp { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.ops-rank-bar { height: 12px; border-radius: 6px; background: rgba(0,0,0,0.35); overflow: hidden; margin: 8px 0 6px; }
+.ops-rank-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #8e7bef); box-shadow: 0 0 12px rgba(75,207,250,0.4); }
+.ops-rank-sub { font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+.ops-chips { display: flex; gap: 12px; }
+.ops-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 96px; padding: 10px 16px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--edge); }
+.ops-chip-val { font-family: 'Orbitron', sans-serif; font-size: 20px; }
+.ops-chip-label { font-size: 9px; letter-spacing: 1.5px; color: var(--dim); margin-top: 2px; }
+.ops-chip.salvage .ops-chip-val { color: #8ef5d9; }
+.ops-chip.streak .ops-chip-val { color: #9aa6c8; }
+.ops-chip.streak.active .ops-chip-val { color: #ff9f43; }
+
+.ops-board { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .ops-board { grid-template-columns: 1fr; } }
+.ops-col { display: flex; flex-direction: column; gap: 10px; }
+.quest-card { padding: 12px 14px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--edge); transition: border-color 0.15s; }
+.quest-card.complete { border-color: rgba(46, 213, 115, 0.5); box-shadow: 0 0 14px rgba(46, 213, 115, 0.15); }
+.quest-card.claimed { opacity: 0.55; }
+.quest-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.quest-title { font-size: 14px; color: var(--text); }
+.quest-reward { font-size: 11px; color: var(--gold); white-space: nowrap; }
+.quest-bar { height: 8px; border-radius: 4px; background: rgba(0,0,0,0.35); overflow: hidden; margin: 8px 0 6px; }
+.quest-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #2ed573); }
+.quest-bot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.quest-prog { color: var(--text); font-variant-numeric: tabular-nums; }
+.quest-prog.dim { color: var(--dim); }
+.quest-done { color: var(--good); font-size: 11px; letter-spacing: 1px; }
+.quest-claim {
+  font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 1px; cursor: pointer;
+  padding: 5px 14px; border-radius: 6px; border: none; font-weight: 700;
+  background: linear-gradient(#3ad6ff, #4bcffa); color: #021018;
+}
+.quest-claim:hover { box-shadow: 0 0 12px rgba(75,207,250,0.5); }
+.ops-foot { font-size: 11px; color: var(--dim); text-align: center; padding: 4px 0 8px; }
+
+.meta-reward { margin: 6px 0 4px; padding: 10px 14px; border-radius: 8px; background: rgba(75,207,250,0.08); border: 1px solid rgba(75,207,250,0.3); }
+.meta-reward-head { display: flex; gap: 16px; justify-content: center; font-family: 'Orbitron', sans-serif; }
+.meta-reward-xp { color: var(--accent); font-size: 16px; }
+.meta-reward-salvage { color: #8ef5d9; font-size: 16px; }
+.meta-reward-rank { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; color: var(--dim); }
+.meta-reward-bar { flex: 1; height: 7px; border-radius: 4px; background: rgba(0,0,0,0.35); overflow: hidden; }
+.meta-reward-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #8e7bef); }
+
 /* ── Battle Plan replay viewer ───────────────────────────────────────────── */
 .replay-root {
   position: fixed; inset: 0; z-index: 200;

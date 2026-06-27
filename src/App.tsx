@@ -48,6 +48,8 @@ import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTh
 import { applyAccessibility } from './game/settings';
 import DossierShare from './DossierShare';
 import BotGhostHud from './BotGhostHud';
+import OperationsBoard from './OperationsBoard';
+import { meta, type RunMetaReward } from './game/meta';
 import { buildGhostCurves, ghostCurveFor, judgeRun, type GhostCurve } from './game/ghostCurve';
 import { GHOST_CURVES_RAW } from './game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from './game/dossier';
@@ -144,7 +146,14 @@ function Main() {
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
   const [dailySeed] = useState(() => dailyFreeplaySeed());
   const [dailyMode, setDailyMode] = useState(false);
+  const [comeback, setComeback] = useState(false);
   useEffect(() => { progress.markSession(); }, []);
+  useEffect(() => {
+    if (DEMO_MODE || PERF_MAP !== null) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const s = meta.streak;
+    if (s.brokenYesterday && meta.comebackSeenFor !== today) setComeback(true);
+  }, []);
   useEffect(() => {
     const standalone = window.matchMedia?.('(display-mode: standalone)').matches || Boolean((navigator as unknown as { standalone?: boolean }).standalone);
     appMetrics.recordDisplayMode(standalone);
@@ -181,7 +190,26 @@ function Main() {
         <AIHelpWidget getContext={() => buildAIHelpContext({ screen: 'menu', map, diff })} />
       )}
       {screen === 'menu' && <FeedbackWidget ctx="menu" />}
+      {comeback && screen === 'menu' && (
+        <ComebackPrompt onClose={() => { meta.markComebackSeen(new Date().toISOString().slice(0, 10)); setComeback(false); sfx.click(); }} />
+      )}
     </>
+  );
+}
+
+function ComebackPrompt({ onClose }: { onClose: () => void }) {
+  const streak = meta.streak;
+  return (
+    <div className="cutscene-overlay" onClick={onClose}>
+      <div className="cutscene-box tip-box" onClick={(e) => e.stopPropagation()}>
+        <div className="cutscene-title" style={{ color: '#ffd32a' }}>⚠ THE LANTERN DIMMED</div>
+        <p className="tip-text">
+          You held a <b>{streak.best}-day watch</b> over Lantern Seven before the signal lapsed.
+          The Combine never sleeps, Warden — light the beacon again today to start a new streak.
+        </p>
+        <button className="start-btn small" onClick={onClose}>RESUME THE WATCH ▸</button>
+      </div>
+    </div>
   );
 }
 
@@ -522,7 +550,7 @@ function MainMenu(props: {
   onStart: () => void;
   onStartDaily: () => void;
 }) {
-  const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
+  const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Apex unlocks on a COMPLETED campaign (a win), matching its "survive one campaign"
@@ -544,6 +572,7 @@ function MainMenu(props: {
         <nav className="menu-tabs">
           <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
           <button className={tab === 'board' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
+          <button className={tab === 'ops' ? 'on' : ''} onClick={() => { setTab('ops'); sfx.click(); }}>OPERATIONS</button>
           <button className="menu-tab-help" title="How to play" onClick={() => { setHelp(true); sfx.click(); }}>?</button>
           <button className="menu-tab-help" title="Settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>⚙</button>
         </nav>
@@ -566,6 +595,17 @@ function MainMenu(props: {
           {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
         </div>
       )}
+
+      {!DEMO_MODE && progress.record.runs > 0 && (() => {
+        const rank = meta.rank; const streak = meta.streak;
+        return (
+          <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
+            <span className="menu-rank-title">{rank.title}</span>
+            <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
+            <span className="menu-rank-meta">◆ {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
+          </button>
+        );
+      })()}
 
       {!DEMO_MODE && (() => {
         const k = progress.record.kills;
@@ -681,8 +721,10 @@ function MainMenu(props: {
               </div>
             </div>
           </>
-        ) : (
+        ) : tab === 'board' ? (
           <LeaderboardTab map={props.map} diff={props.diff} />
+        ) : (
+          <OperationsBoard />
         )}
       </div>
 
@@ -876,6 +918,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   const [abortConfirm, setAbortConfirm] = useState(false);
   const [contractOpen, setContractOpen] = useState(false);
   const [checkpointState, setCheckpointState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
+  const [metaReward, setMetaReward] = useState<RunMetaReward | null>(null);
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
   const selectedRef = useRef<Tower | null>(null);
@@ -1061,6 +1104,16 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           abilities: game.runStats.abilitiesCast,
         });
         void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
+        // credit the meta layer (XP/salvage/quests) — cosmetic only; reads engine values, never mutates the Game
+        const reward = meta.creditRun(game.runId, {
+          wave: game.wave, kills: game.totalKills, cashEarned: game.runStats.cashEarned,
+          won: game.phase !== 'gameover', freeplay: game.freeplay, diffId: game.diff.id,
+          isDailyFreeplay: game.isDailyFreeplay, outcome: game.phase as 'victory' | 'armistice' | 'gameover',
+        }, {
+          towerKindsUsed: new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)]).size,
+          abilitiesCast: game.runStats.abilitiesCast,
+        });
+        if (reward.xp || reward.salvage) setMetaReward(reward);
       }
       const ctx = ctxRef.current ?? (ctxRef.current = canvasRef.current?.getContext('2d') ?? null);
       if (ctx) {
@@ -1475,7 +1528,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<><MetaReward reward={metaReward} /><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacing(null); setRun((r) => r + 1); } },
@@ -1523,13 +1576,13 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'armistice' && (
-            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<><MetaReward reward={metaReward} /><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={ARMISTICE_LINES}
               buttons={[{ label: 'MAIN MENU', fn: onExit }]}
             />
           )}
           {game.phase === 'victory' && (
-            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
+            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<><MetaReward reward={metaReward} /><AfterAction game={game} ghost={game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id)} /><SubmitScore game={game} map={map} diff={diff} /></>}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '∞ FREEPLAY', fn: () => { game.paused = true; setContractOpen(true); sfx.click(); } },
@@ -1777,6 +1830,23 @@ function MusicButton() {
   return (
     <button className={`tb-btn ${on ? 'on' : ''}`} title="Music on/off" aria-label="Toggle music"
       onClick={() => { const v = !on; setMusic(v); setOn(v); appMetrics.recordSoundToggle('music'); }}>♪</button>
+  );
+}
+
+function MetaReward({ reward }: { reward: RunMetaReward | null }) {
+  if (!reward || (!reward.xp && !reward.salvage)) return null;
+  const rank = meta.rank;
+  return (
+    <div className="meta-reward" data-testid="meta-reward">
+      <div className="meta-reward-head">
+        <span className="meta-reward-xp">+{reward.xp.toLocaleString()} XP</span>
+        <span className="meta-reward-salvage">+◆{reward.salvage.toLocaleString()} SALVAGE</span>
+      </div>
+      <div className="meta-reward-rank">
+        <span>{rank.title}</span>
+        <span className="meta-reward-bar"><span className="meta-reward-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
+      </div>
+    </div>
   );
 }
 

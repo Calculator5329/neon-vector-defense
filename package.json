@@ -33,7 +33,8 @@
     "sim": "tsx scripts/sim.ts",
     "perf": "tsx scripts/perf.ts",
     "perf:browser": "node scripts/browserPerf.mjs",
-    "balance": "tsx scripts/balance.ts"
+    "balance": "tsx scripts/balance.ts",
+  "meta:sim": "tsx scripts/meta-sim.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

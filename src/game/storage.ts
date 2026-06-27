@@ -141,6 +141,8 @@ export const progress = {
     cache.lastSeenAt = now;
     save();
   },
+  /** read-only copy of per-day session counts (keys 'YYYY-MM-DD') — for the watch streak */
+  get sessionDays(): Record<string, number> { return { ...cache.sessionDays }; },
   get engagement() {
     const now = Date.now();
     const firstSeenAt = cache.firstSeenAt || now;
