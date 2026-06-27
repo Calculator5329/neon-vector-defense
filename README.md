@@ -109,6 +109,7 @@ npm run balance -- quick
 npm run perf       # headless engine stress timing
 npm run perf:browser  # live FPS sampling via /?perf= route
 npm run meta:sim   # guard that meta.ts stays off the score/engine path
+npm run check:deploy-env  # verify Node, Java, and Firebase project before emulator/deploy work
 ```
 
 `public/balance-report.json` is intentionally committed as demo/admin dashboard
@@ -279,6 +280,18 @@ environment variable `ENFORCE_APP_CHECK=true` and enable Firestore App Check
 enforcement in the Firebase console.
 
 ## Deployment
+
+Local Firestore rules tests and Firebase deploy work require:
+
+- Node.js 20+
+- Java 21+ on `PATH` for the Firebase emulator
+- Firebase project set to `neon-vector-defense-7`
+
+Run the preflight before a release or rules-test session:
+
+```bash
+npm run check:deploy-env
+```
 
 ```bash
 npm run build
