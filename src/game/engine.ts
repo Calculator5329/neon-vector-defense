@@ -530,19 +530,23 @@ export class Game {
 
   // ---------- placement ----------
 
-  canPlace(pos: Vec): boolean {
-    if (pos.x < TOWER_R || pos.y < TOWER_R || pos.x > W - TOWER_R || pos.y > H - TOWER_R) return false;
+  placementBlockReason(pos: Vec): string | null {
+    if (pos.x < TOWER_R || pos.y < TOWER_R || pos.x > W - TOWER_R || pos.y > H - TOWER_R) return 'inside the build boundary';
     const clearance = this.map.pathWidth / 2 + TOWER_R - 4;
     for (let i = 1; i < this.map.path.length; i++) {
-      if (distToSeg(pos, this.map.path[i - 1], this.map.path[i]) < clearance) return false;
+      if (distToSeg(pos, this.map.path[i - 1], this.map.path[i]) < clearance) return 'too close to the hostile lane';
     }
     for (const b of this.map.blockers) {
-      if (b.r > 0 && Math.hypot(pos.x - b.x, pos.y - b.y) < b.r + TOWER_R - 4) return false;
+      if (b.r > 0 && Math.hypot(pos.x - b.x, pos.y - b.y) < b.r + TOWER_R - 4) return 'blocked by terrain';
     }
     for (const t of this.towers) {
-      if (Math.hypot(pos.x - t.pos.x, pos.y - t.pos.y) < TOWER_R * 2 - 2) return false;
+      if (Math.hypot(pos.x - t.pos.x, pos.y - t.pos.y) < TOWER_R * 2 - 2) return 'too close to another tower';
     }
-    return true;
+    return null;
+  }
+
+  canPlace(pos: Vec): boolean {
+    return this.placementBlockReason(pos) === null;
   }
 
   placeTower(def: TowerDef, pos: Vec): Tower | null {
@@ -560,8 +564,12 @@ export class Game {
       sfx.error();
       return null;
     }
-    if (this.credits < cost || !this.canPlace(pos)) {
+    const blockReason = this.placementBlockReason(pos);
+    if (this.credits < cost || blockReason) {
       this.recorder.recordFailedPlacement(this.telemetryState(), def.id, this.credits < cost ? 'credits' : 'space', cost, pos);
+      this.announce(this.credits < cost
+        ? `${def.name} needs ${cost - this.credits} more credits`
+        : `Cannot build here: ${blockReason}`);
       sfx.error();
       return null;
     }
@@ -596,6 +604,11 @@ export class Game {
     const state = this.upgradeState(t, track);
     if (cost === 0 || this.credits < cost || state !== 'ok') {
       this.recorder.recordFailedUpgrade(this.telemetryState(), t, track, cost === 0 ? 'maxed' : this.credits < cost ? 'credits' : state, cost);
+      this.announce(cost === 0 || state === 'maxed'
+        ? `${t.def.name} track is already maxed`
+        : this.credits < cost
+          ? `${t.def.name} upgrade needs ${cost - this.credits} more credits`
+          : `${t.def.name} is committed to the other upgrade track`);
       sfx.error();
       return false;
     }
