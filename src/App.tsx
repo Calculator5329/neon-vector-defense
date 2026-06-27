@@ -123,12 +123,33 @@ function runIdFromUrl(): string | null {
   return isRunId(id) ? id : null;
 }
 
+function RouteFallback({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        minHeight: '100svh',
+        display: 'grid',
+        placeItems: 'center',
+        background: 'var(--bg)',
+        color: 'var(--accent)',
+        fontFamily: 'Orbitron, sans-serif',
+        fontSize: 13,
+        letterSpacing: 1.4,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 export default function App() {
-  if (ADMIN) return <Suspense fallback={null}><AdminDashboard /></Suspense>;
-  if (isPrivacyRoute()) return <Suspense fallback={null}><PrivacyView /></Suspense>;
+  if (ADMIN) return <Suspense fallback={<RouteFallback label="LOADING OPERATIONS" />}><AdminDashboard /></Suspense>;
+  if (isPrivacyRoute()) return <Suspense fallback={<RouteFallback label="LOADING PRIVACY" />}><PrivacyView /></Suspense>;
   // Public, read-only replay — writes nothing, so it bypasses the AgeGate like /privacy.
   const watchId = runIdFromUrl();
-  if (watchId) return <Suspense fallback={null}><ReplayViewer runId={watchId} onExit={() => { location.href = '/'; }} /></Suspense>;
+  if (watchId) return <Suspense fallback={<RouteFallback label="LOADING REPLAY" />}><ReplayViewer runId={watchId} onExit={() => { location.href = '/'; }} /></Suspense>;
   return <Gate />;
 }
 
@@ -639,7 +660,7 @@ function MainMenu(props: {
             const rank = meta.rank; const streak = meta.streak;
             return (
               <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
-                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.png`} alt="" draggable={false} />
+                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.png`} alt="" draggable={false} decoding="async" />
                 <span className="menu-rank-title">{rank.title}</span>
                 <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
                 <span className="menu-rank-meta"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
@@ -698,7 +719,7 @@ function MainMenu(props: {
                       {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
                       {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
                       <div className="map-thumb-stack">
-                        <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" />
+                        <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" loading="lazy" decoding="async" />
                         <MapThumb map={m} />
                       </div>
                       <div className="map-card-row">
@@ -1780,7 +1801,7 @@ function FreeplayBuildPanel({
           <b>{fp.nextMutators.length ? fp.nextMutators.map((m) => m.name).join(' + ') : 'Standard pressure'}</b>
         </div>
         <div className="freeplay-rival-cell">
-          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.png`} alt="" draggable={false} title={nextRival.desc} />}
+          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.png`} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
           <div>
             <span>Rival</span>
             <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? 'Signal forming' : 'None'}</b>
@@ -1942,7 +1963,7 @@ function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => voi
   return (
     <div className="overlay" data-testid="briefing-overlay">
       <div className="overlay-box briefing" style={{ borderColor: '#4bcffa' }}>
-        <img className="brief-portrait" src={portrait} alt="Transmission" />
+        <img className="brief-portrait" src={portrait} alt="Transmission" decoding="async" />
         <h2 style={{ color: '#4bcffa' }}>INCOMING TRANSMISSION</h2>
         {lines.map((l, i) => <p key={i} className="brief-line">{l}</p>)}
         <div className="overlay-btns">
@@ -1983,7 +2004,7 @@ function NewHostileReveal({ def }: { def: EnemyDef | null }) {
   if (!def) return null;
   return (
     <div className="hostile-reveal" key={def.id}>
-      <img className="hostile-reveal-art" src={`/art/enemy-${def.id}.png`} alt="" />
+      <img className="hostile-reveal-art" src={`/art/enemy-${def.id}.png`} alt="" loading="lazy" decoding="async" />
       <div className="hostile-reveal-text">
         <div className="hostile-reveal-eyebrow">{def.boss ? '⚠ CAPITAL HULL IDENTIFIED' : 'NEW HOSTILE IDENTIFIED'}</div>
         <div className="hostile-reveal-name" style={{ color: def.glow }}>{def.name}</div>
