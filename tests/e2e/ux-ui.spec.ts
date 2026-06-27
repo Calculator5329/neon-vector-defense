@@ -43,6 +43,12 @@ async function openDemoMenu(page: Page) {
   await expect(page.getByTestId('deploy-button')).toBeVisible();
 }
 
+async function openConsentedMenu(page: Page) {
+  await seedProgress(page);
+  await page.goto('/');
+  await expect(page.getByTestId('deploy-button')).toBeVisible();
+}
+
 async function deployFromMenu(page: Page) {
   await page.getByTestId('deploy-button').click();
   await expect(page.getByTestId('game-root')).toBeVisible();
@@ -488,7 +494,7 @@ test.describe('feedback privacy flow', () => {
       });
     });
 
-    await openDemoMenu(page);
+    await openConsentedMenu(page);
     await page.getByRole('button', { name: 'Messages' }).click();
     await page.getByLabel('Message to the developer').fill('hello privately');
     await page.getByRole('button', { name: 'Send message to developer' }).click();
