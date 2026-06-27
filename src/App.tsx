@@ -2245,13 +2245,14 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
           const lockedBy = def.unlockAt - kills;
           const available = towerAvailable(game, def);
           if (!available) {
+            const lockText = towerLockText(game, def);
             return (
-              <div key={def.id} className="shop-item shop-locked" data-testid={`tower-${def.id}`} title={dailyMode ? `${def.name} is not in today's Daily arsenal` : `${def.name} - destroy ${lockedBy} more hostiles to unlock`}
+              <button key={def.id} type="button" className="shop-item shop-locked" data-testid={`tower-${def.id}`} title={lockText} aria-disabled="true" aria-label={lockText}
                 onClick={() => { game.recorder.recordTowerShopSelect(def, 'locked'); sfx.error(); }}>
                 <div className="shop-lock-icon">🔒</div>
                 <div className="shop-name">{def.name}</div>
                 <div className="shop-cost">{dailyMode ? 'daily pool' : `${lockedBy} kills`}</div>
-              </div>
+              </button>
             );
           }
           const cost = game.cost(def);
