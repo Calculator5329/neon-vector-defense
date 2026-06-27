@@ -16,6 +16,11 @@ const SS = 3; // supersample factor
 // enemy-count threshold for level-of-detail. Render stays correct, just plainer.
 let qualityLite = false;
 export function setRenderQuality(lite: boolean) { qualityLite = lite; }
+
+// Accessibility: when on, suppress camera shake + the red hurt vignette (motion/flash
+// that can trigger vestibular discomfort). Set from the Settings panel.
+let reducedMotion = false;
+export function setReducedMotion(v: boolean) { reducedMotion = v; }
 /** above this many live hulls, per-enemy flourishes (flame, shadow, status ring) are dropped */
 const LOD_HULLS = 160;
 const LOD_HULLS_LITE = 90;
@@ -448,8 +453,8 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
   if (!bg) { bg = buildBackground(game.map); bgCache.set(game.map.id, bg); }
 
   ctx.save();
-  // camera shake
-  if (game.shake > 0) {
+  // camera shake (suppressed in reduced-motion)
+  if (game.shake > 0 && !reducedMotion) {
     const s = game.shake * game.shake * 7;
     ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
   }
@@ -665,8 +670,8 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
     ctx.fillStyle = `rgba(255,170,60,${a})`;
     ctx.fillRect(0, 0, W, H);
   }
-  // hurt vignette
-  if (game.hurtFlash > 0) {
+  // hurt vignette (suppressed in reduced-motion — full-screen red flash)
+  if (game.hurtFlash > 0 && !reducedMotion) {
     const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75);
     g.addColorStop(0, 'rgba(255,40,60,0)');
     g.addColorStop(1, `rgba(255,40,60,${game.hurtFlash * 0.45})`);

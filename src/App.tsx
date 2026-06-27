@@ -44,7 +44,8 @@ import {
   type RiskWaveId,
 } from './game/freeplay';
 
-import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from './game/sound';
+import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme, MUSIC_PACKS, getMusicPack, setMusicPack } from './game/sound';
+import { applyAccessibility } from './game/settings';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec } from './game/types';
 import { isAdmin } from './game/admin';
 import AgeGate from './AgeGate';
@@ -501,6 +502,7 @@ function MainMenu(props: {
 }) {
   const [tab, setTab] = useState<'deploy' | 'board'>('deploy');
   const [help, setHelp] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Apex unlocks on a COMPLETED campaign (a win), matching its "survive one campaign"
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
@@ -521,10 +523,12 @@ function MainMenu(props: {
           <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
           <button className={tab === 'board' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
           <button className="menu-tab-help" title="How to play" onClick={() => { setHelp(true); sfx.click(); }}>?</button>
+          <button className="menu-tab-help" title="Settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>⚙</button>
         </nav>
       </header>
 
       {help && <HowToPlay onDone={() => { setHelp(false); sfx.click(); }} />}
+      {settingsOpen && <SettingsPanel onClose={() => { setSettingsOpen(false); sfx.click(); }} />}
 
       {DEMO_MODE && (
         <div className="menu-demo-banner">
@@ -540,6 +544,20 @@ function MainMenu(props: {
           {progress.freeplay.runs > 0 && <span><b>{progress.freeplay.bestWave}</b> best freeplay wave</span>}
         </div>
       )}
+
+      {!DEMO_MODE && (() => {
+        const k = progress.record.kills;
+        const next = TOWERS_BY_UNLOCK.find((d) => d.unlockAt > k);
+        if (!next) return null;
+        const prev = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= k).reduce((m, d) => Math.max(m, d.unlockAt), 0);
+        const pct = Math.min(100, ((k - prev) / (next.unlockAt - prev)) * 100);
+        return (
+          <div className="menu-next-unlock" title={`${k.toLocaleString()} / ${next.unlockAt.toLocaleString()} hulls`}>
+            <div className="unlock-bar"><div className="unlock-fill" style={{ width: `${pct}%` }} /></div>
+            <div className="unlock-label">NEXT ARSENAL: {next.name} · {k.toLocaleString()} / {next.unlockAt.toLocaleString()} hulls destroyed</div>
+          </div>
+        );
+      })()}
 
       <div className="menu-content">
         {tab === 'deploy' ? (
@@ -800,6 +818,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   if (!gameRef.current || runRef.current !== run) {
     const nextGame = new Game(map, diff);
     if (dailySeed) nextGame.startDailyFreeplay(dailySeed);
+    // restore the player's preferred run speed (smart fast-forward persistence)
+    if (PERF_MAP === null && progress.preferredSpeed > 0) nextGame.speed = progress.preferredSpeed;
     gameRef.current = nextGame;
     runRef.current = run;
   }
@@ -1340,7 +1360,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           <button key={s} className={`tb-btn ${game.speed === s ? 'on' : ''}`}
             title={`Set game speed to ${s}x`}
             aria-label={`Set game speed to ${s}x`}
-            onClick={() => { game.speed = s; game.recorder.recordControl(METRIC_EVENTS.SPEED_CHANGE, s); sfx.click(); }}>{s}×</button>
+            onClick={() => { game.speed = s; progress.preferredSpeed = s; game.recorder.recordControl(METRIC_EVENTS.SPEED_CHANGE, s); sfx.click(); }}>{s}×</button>
         ))}
         <button className={`tb-btn ${game.paused ? 'on' : ''}`}
           title={game.paused ? 'Resume game' : 'Pause game'}
@@ -1654,6 +1674,53 @@ function HowToPlay({ onDone }: { onDone: () => void }) {
   );
 }
 
+function SettingsRow({ name, sub, on, onToggle }: { name: string; sub: string; on: boolean; onToggle: () => void }) {
+  return (
+    <div className="privacy-control">
+      <div>
+        <div className="privacy-control-name">{name}</div>
+        <div className="privacy-control-sub">{sub}</div>
+      </div>
+      <button className={`privacy-toggle ${on ? 'on' : ''}`} onClick={onToggle}>{on ? 'ON' : 'OFF'}</button>
+    </div>
+  );
+}
+
+function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const [, force] = useState(0);
+  const rerender = () => force((n) => n + 1);
+  const sfxOn = !isMuted();
+  const musicOn = isMusicOn();
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="overlay-box settings-box" style={{ borderColor: '#4bcffa' }} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ color: '#4bcffa' }}>SETTINGS</h2>
+        <div className="privacy-controls">
+          <SettingsRow name="Sound effects" sub="Procedural combat audio." on={sfxOn}
+            onToggle={() => { setMuted(sfxOn); rerender(); if (!sfxOn) sfx.click(); }} />
+          <SettingsRow name="Music" sub="Generative score." on={musicOn}
+            onToggle={() => { setMusic(!musicOn); rerender(); }} />
+          <div className="privacy-control">
+            <div>
+              <div className="privacy-control-name">Music pack</div>
+              <div className="privacy-control-sub">Choose the soundtrack.</div>
+            </div>
+            <select className="age-gate-select settings-select" value={getMusicPack()}
+              onChange={(e) => { setMusicPack(e.target.value); rerender(); sfx.click(); }}>
+              {MUSIC_PACKS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <SettingsRow name="Reduced motion" sub="Turns off screen shake and the red damage flash." on={progress.reducedMotion}
+            onToggle={() => { progress.reducedMotion = !progress.reducedMotion; applyAccessibility(); rerender(); sfx.click(); }} />
+          <SettingsRow name="Colorblind palette" sub="Colorblind-safe damage-type colors (kinetic/energy/cryo/blast)." on={progress.colorblind}
+            onToggle={() => { progress.colorblind = !progress.colorblind; applyAccessibility(); rerender(); sfx.click(); }} />
+        </div>
+        <div className="overlay-btns"><button className="start-btn small" onClick={onClose}>DONE ▸</button></div>
+      </div>
+    </div>
+  );
+}
+
 function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => void; lines: string[]; portrait: string; audio: string }) {
   const stopRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -1891,7 +1958,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
           <div className="unlock-bar">
             <div className="unlock-fill" style={{ width: `${Math.min(100, ((kills - prevThreshold) / (next.unlockAt - prevThreshold)) * 100)}%` }} />
           </div>
-          <div className="unlock-label">NEXT: {next.name} · {(next.unlockAt - kills).toLocaleString()} kills</div>
+          <div className="unlock-label">NEXT: {next.name} · {kills.toLocaleString()} / {next.unlockAt.toLocaleString()} hulls</div>
         </div>
       )}
       {dailyMode && (

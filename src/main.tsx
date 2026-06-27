@@ -2,6 +2,10 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { applyAccessibility } from './game/settings';
+
+// apply persisted accessibility prefs before first paint
+applyAccessibility();
 
 // Top-level error boundary: in a sandboxed portal iframe a normally-safe API can throw
 // synchronously, and React 19 unmounts the whole tree on any render throw → blank screen,

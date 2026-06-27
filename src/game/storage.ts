@@ -106,6 +106,17 @@ export const progress = {
   set audioMuted(v: boolean) { (cache as unknown as { mutedPref?: boolean }).mutedPref = v; save(); },
   get musicOff(): boolean { return (cache as unknown as { musicOff?: boolean }).musicOff ?? false; },
   set musicOff(v: boolean) { (cache as unknown as { musicOff?: boolean }).musicOff = v; save(); },
+  // accessibility + QoL prefs (same throw-safe persistence as audio)
+  get reducedMotion(): boolean { return (cache as unknown as { reducedMotion?: boolean }).reducedMotion ?? false; },
+  set reducedMotion(v: boolean) { (cache as unknown as { reducedMotion?: boolean }).reducedMotion = v; save(); },
+  get colorblind(): boolean { return (cache as unknown as { colorblind?: boolean }).colorblind ?? false; },
+  set colorblind(v: boolean) { (cache as unknown as { colorblind?: boolean }).colorblind = v; save(); },
+  /** preferred run speed (1/2/4), restored on each new run; 0 = unset */
+  get preferredSpeed(): number { return (cache as unknown as { prefSpeed?: number }).prefSpeed ?? 0; },
+  set preferredSpeed(v: number) { (cache as unknown as { prefSpeed?: number }).prefSpeed = v; save(); },
+  /** chosen music pack id */
+  get musicPack(): string { return (cache as unknown as { musicPack?: string }).musicPack ?? 'concord'; },
+  set musicPack(v: string) { (cache as unknown as { musicPack?: string }).musicPack = v; save(); },
   mapCleared(mapId: string): boolean { return cache.clearedMaps.includes(mapId); },
   get apexCleared(): boolean { return (cache as unknown as { apexW?: boolean }).apexW ?? false; },
   /** lifetime freeplay service record */

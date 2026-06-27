@@ -2554,3 +2554,34 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .menu-legal { text-align: center; margin-top: 10px; flex: 0 0 auto; }
 .menu-legal a { font-size: 11px; letter-spacing: 1px; opacity: 0.7; text-decoration: none; }
 .menu-legal a:hover { opacity: 1; }
+
+/* ===== Accessibility ===== */
+/* Reduced motion: neutralize animations/transitions + camera/flash FX (those are
+   suppressed in render.ts). Honors the OS preference automatically too. */
+.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+.reduced-motion .menu-stars { animation: none; opacity: 0.3; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+/* Colorblind palette: remap the four damage-type colors (the only type signal) to a
+   high-contrast, colorblind-safe set (gray / purple / orange / sky-blue — no red-green pair). */
+.colorblind .t-kinetic { color: #e8eef5; border-color: rgba(232, 238, 245, 0.55); }
+.colorblind .t-energy { color: #cc79a7; border-color: rgba(204, 121, 167, 0.55); }
+.colorblind .t-explosive { color: #e69f00; border-color: rgba(230, 159, 0, 0.55); }
+.colorblind .t-cryo { color: #56b4e9; border-color: rgba(86, 180, 233, 0.55); }
+
+/* ===== Settings panel ===== */
+.settings-box { max-width: 460px; width: 92%; text-align: left; }
+.settings-box h2 { text-align: center; }
+.settings-select { min-width: 132px; padding: 8px 10px; font-size: 13px; }
+
+.menu-next-unlock { max-width: 420px; margin: 10px auto 0; flex: 0 0 auto; width: 100%; }
+.menu-next-unlock .unlock-label { text-align: center; }

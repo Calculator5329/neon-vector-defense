@@ -93,11 +93,35 @@ export function isSfxOn() { return sfxOn; }
 export function setMuted(m: boolean) { setSfx(!m); }
 export function isMuted() { return !sfxOn; }
 
-// ---- music: shuffled playlists so the score never sits on one loop ----
-const MENU_TRACKS = ['/audio/theme.mp3', '/audio/theme-2.mp3', '/audio/theme-3.mp3'];
+// ---- music packs: selectable score sets; shuffled so it never sits on one loop ----
+// A pack with tracks plays composed MP3s; an empty-tracks pack lets the built-in
+// generative synth score carry it (a calmer, ever-changing option, no assets needed).
+// New composed packs only require dropping MP3s in public/audio + a tracks entry
+// (generate them with scripts/genaudio.mjs once a valid OpenRouter key is in .env.local).
+export interface MusicPack { id: string; name: string; tracks: string[] }
+export const MUSIC_PACKS: MusicPack[] = [
+  { id: 'concord', name: 'Concord Signal', tracks: ['/audio/theme.mp3', '/audio/theme-2.mp3', '/audio/theme-3.mp3'] },
+  { id: 'drift', name: 'Deep Drift (generative)', tracks: [] },
+];
+function packTracks(): string[] {
+  const id = progress.musicPack;
+  return (MUSIC_PACKS.find((p) => p.id === id) ?? MUSIC_PACKS[0]).tracks;
+}
 let musicEl: HTMLAudioElement | null = null;
 let playlist: string[] = [];
 let plIdx = 0;
+
+/** Switch the active music pack and (if music is on) restart the score with it. */
+export function setMusicPack(id: string): void {
+  if (!MUSIC_PACKS.some((p) => p.id === id)) return;
+  progress.musicPack = id;
+  if (!musicOn) { playlist = packTracks(); return; }
+  if (musicEl) { musicEl.pause(); musicEl = null; }
+  const tracks = packTracks();
+  if (tracks.length > 0) startPlaylist(tracks);
+  else { playlist = []; if (musicBus) musicBus.gain.value = 0.3; if (ctx && !musicStarted) startMusic(); } // generative score
+}
+export function getMusicPack(): string { return progress.musicPack; }
 
 function startPlaylist(tracks: string[]) {
   playlist = [...tracks].sort(() => Math.random() - 0.5);
@@ -132,7 +156,7 @@ export function setMusic(on: boolean) {
     return;
   }
   if (musicEl) void musicEl.play().catch(() => {});
-  else startPlaylist(MENU_TRACKS);
+  else startPlaylist(packTracks());
   if (ctx && !musicStarted) startMusic();
 }
 export function isMusicOn() { return musicOn; }
@@ -141,8 +165,8 @@ export function isMusicOn() { return musicOn; }
 export function playSectorTheme(mapId: string | null) {
   if (typeof Audio === 'undefined') return;
   const tracks = mapId
-    ? [`/audio/amb-${mapId}.mp3`, '/audio/theme-2.mp3', '/audio/theme-3.mp3']
-    : MENU_TRACKS;
+    ? [`/audio/amb-${mapId}.mp3`, ...packTracks().slice(0, 2)]
+    : packTracks();
   if (musicOn) startPlaylist(tracks);
   else playlist = tracks; // queued for when music returns
 }
@@ -465,7 +489,7 @@ function startMusic() {
   if (!musicOn) musicBus.gain.value = 0;
 
   // generated playlist carries the score; the pads below are only the fallback
-  if (musicEl === null && musicOn) startPlaylist(MENU_TRACKS);
+  if (musicEl === null && musicOn) startPlaylist(packTracks());
 
   let chordIdx = 0;
 
