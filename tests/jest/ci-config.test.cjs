@@ -18,6 +18,7 @@ describe('CI/CD guardrails', () => {
   test('cost-sensitive workflows keep explicit gates', () => {
     expect(codeqlWorkflow).toContain("github.event.repository.visibility == 'public'");
     expect(deployWorkflow).toContain('workflow_dispatch');
-    expect(deployWorkflow).not.toMatch(/\npush:|\npull_request:|\nschedule:/);
+    expect(deployWorkflow).toContain("github.event_name == 'workflow_dispatch'");
+    expect(deployWorkflow).not.toMatch(/\npull_request:|\nschedule:/);
   });
 });

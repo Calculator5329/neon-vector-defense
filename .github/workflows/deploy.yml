@@ -10,6 +10,9 @@ on:
         options:
           - hosting-rules
           - functions
+  push:
+    paths:
+      - .github/workflows/deploy.yml
 
 permissions:
   contents: read
@@ -19,7 +22,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy workflow validated; Firebase deploys only run from workflow_dispatch."
+
   verify:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -38,7 +48,7 @@ jobs:
       - run: npm --prefix functions run build
 
   deploy-hosting-rules:
-    if: ${{ inputs.target == 'hosting-rules' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'hosting-rules' }}
     needs: verify
     runs-on: ubuntu-latest
     environment: production
@@ -60,7 +70,7 @@ jobs:
       - run: npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
 
   deploy-functions:
-    if: ${{ inputs.target == 'functions' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'functions' }}
     needs: verify
     runs-on: ubuntu-latest
     environment: production
