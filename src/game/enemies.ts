@@ -37,8 +37,8 @@ const defs: EnemyDef[] = [
   {
     id: 'prism', name: 'Prism', hp: 2, speed: 120, radius: 12, reward: 8,
     color: '#f1f2f6', glow: '#ffffff', children: ['wraith', 'wraith'],
-    immuneCryo: true, shape: 'hex',
-    lore: 'Mirror-faceted thermal hull. Cryo plasma refracts off it like light off a diamond.',
+    immuneCryo: true, resist: { energy: 0.5 }, shape: 'hex',
+    lore: 'Mirror-faceted thermal hull. Cryo plasma refracts off it like light off a diamond — and energy beams scatter off its facets half-spent.',
   },
   {
     id: 'aegis', name: 'Aegis Hull', hp: 3, speed: 55, radius: 13, reward: 10,
@@ -104,8 +104,8 @@ const defs: EnemyDef[] = [
   {
     id: 'umbra', name: 'THE UMBRA', hp: 1400, speed: 22, radius: 40, reward: 850,
     color: '#0a0614', glow: '#b388ff', children: ['titan', 'titan'],
-    boss: true, armored: true, immuneExplosive: true, shape: 'capital',
-    lore: 'The thing the Combine spent three centuries holding back. Where it passes, the lighthouse forgets it was ever lit. It does not deliver. It does not queue. It eats the light — and then it starts on the dark.',
+    boss: true, armored: true, immuneExplosive: true, resist: { energy: 0.5 }, shape: 'capital',
+    lore: 'The thing the Combine spent three centuries holding back. Where it passes, the lighthouse forgets it was ever lit. It does not deliver. It does not queue. It eats the light — energy beams included — and then it starts on the dark.',
   },
 ];
 

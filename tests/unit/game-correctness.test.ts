@@ -33,24 +33,43 @@ function makeEnemy(def: EnemyDef): Enemy {
   };
 }
 
-describe('damage immunity rules', () => {
-  test('cryo immunity blocks cryo damage unless shred is active', () => {
+// Mirrors the soft-resistance constants in engine.ts. Resistances reduce
+// damage instead of zeroing it; `shred` strips them entirely.
+const RESIST_ARMORED = 0.35;
+const RESIST_BLAST = 0.25;
+const RESIST_CRYO = 0.25;
+const RESIST_ENERGY = 0.5; // prism / umbra resist energy
+
+describe('damage resistance rules', () => {
+  test('cryo-resistant hull takes reduced cryo damage unless shred is active', () => {
     const game = makeGame();
     const prism = makeEnemy(ENEMIES.prism);
-    assert.equal(game.damageEnemy(prism, 10, 'cryo', false), 0);
-    assert.equal(prism.hp, 1000);
+    assert.equal(game.damageEnemy(prism, 10, 'cryo', false), 10 * RESIST_CRYO);
+    assert.equal(prism.hp, 1000 - 10 * RESIST_CRYO);
     assert.equal(game.damageEnemy(prism, 10, 'cryo', true), 10);
-    assert.equal(prism.hp, 990);
+    assert.equal(prism.hp, 1000 - 10 * RESIST_CRYO - 10);
   });
 
-  test('explosive immunity and armor both respect shred', () => {
+  test('explosive-resistant and armored hulls take reduced damage, full under shred', () => {
     const game = makeGame();
     const shade = makeEnemy(ENEMIES.shade);
     const aegis = makeEnemy(ENEMIES.aegis);
-    assert.equal(game.damageEnemy(shade, 10, 'explosive', false), 0);
+    assert.equal(game.damageEnemy(shade, 10, 'explosive', false), 10 * RESIST_BLAST);
     assert.equal(game.damageEnemy(shade, 10, 'explosive', true), 10);
-    assert.equal(game.damageEnemy(aegis, 10, 'kinetic', false), 0);
+    assert.equal(game.damageEnemy(aegis, 10, 'kinetic', false), 10 * RESIST_ARMORED);
     assert.equal(game.damageEnemy(aegis, 10, 'kinetic', true), 10);
+  });
+
+  test('energy resistance from resist map reduces energy damage and is stripped by shred', () => {
+    const game = makeGame();
+    const prism = makeEnemy(ENEMIES.prism);
+    assert.equal(prism.def.resist?.energy, RESIST_ENERGY);
+    assert.equal(game.damageEnemy(prism, 10, 'energy', false), 10 * RESIST_ENERGY);
+    assert.equal(prism.hp, 1000 - 10 * RESIST_ENERGY);
+    assert.equal(game.damageEnemy(prism, 10, 'energy', true), 10);
+    // non-resisted type on the same hull takes full damage
+    const prism2 = makeEnemy(ENEMIES.prism);
+    assert.equal(game.damageEnemy(prism2, 10, 'kinetic', false), 10);
   });
 });
 

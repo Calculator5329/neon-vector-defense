@@ -9,7 +9,7 @@ import { getBalance } from './balanceConfig';
 import { progress } from './storage';
 import { computeStats, sellValue, TOWER_MAP } from './towers';
 import { getWave, waveBonus, incomeMult } from './waves';
-import { sfx, vox, playStinger } from './sound';
+import { sfx, vox, playStinger, setBossMusic } from './sound';
 import { TOWERS } from './towers';
 import {
   RunRecorder,
@@ -130,6 +130,13 @@ const LONGWATCH_ESCORT_SPEED = 82;
 const DAILY_FREEPLAY_MIN_CASH = 18000;
 const DAILY_FREEPLAY_CASH_PER_WAVE = 420;
 
+// Soft damage-type resistance for the legacy binary-immunity flags.
+// These hulls used to take 0 damage from the matching type; now they take a
+// reduced fraction instead. `shred` still strips resistances entirely.
+const RESIST_ARMORED = 0.35; // armored hulls take 35% kinetic (was 0%)
+const RESIST_BLAST = 0.25;   // explosive-immune hulls take 25% explosive (was 0%)
+const RESIST_CRYO = 0.25;    // cryo-immune hulls take 25% cryo (was 0%)
+
 export class Game {
   map: GameMap;
   diff: DifficultyDef;
@@ -204,6 +211,7 @@ export class Game {
   }
 
   private finishRun(won: boolean, outcome: 'victory' | 'armistice' | 'gameover') {
+    setBossMusic(false); // never leave the boss theme looping past a run's end
     // A win→freeplay→death session calls finishRun twice on the SAME Game instance.
     // Persist the lifetime record only once, or runs/kills/history double-count and
     // tower unlocks (gated on lifetime kills) advance faster than designed.
@@ -726,6 +734,8 @@ export class Game {
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
     else { vox('wave-incoming'); }
+    // capital-hull waves swap to the boss theme; normal waves resume the sector score
+    setBossMusic(def.some((g) => ENEMIES[g.type]?.boss));
     for (const a of this.abilities) {
       if (a.def.unlockWave === this.wave) this.announce(`✦ Commander ability online: ${a.def.name}`);
     }
@@ -888,9 +898,14 @@ export class Game {
   /** Returns actual damage dealt (0 if immune). */
   damageEnemy(e: Enemy, dmg: number, type: Projectile['damageType'], shred: boolean, src?: Tower): number {
     if (e.dead || e.finished || e.courier) return 0;
-    if (e.def.armored && type === 'kinetic' && !shred) return 0;
-    if (e.def.immuneExplosive && type === 'explosive' && !shred) return 0;
-    if (e.def.immuneCryo && type === 'cryo' && !shred) return 0;
+    // Soft resistance: shred strips all resistances (preserves "shred counters armor").
+    if (!shred) {
+      if (e.def.armored && type === 'kinetic') dmg *= RESIST_ARMORED;
+      if (e.def.immuneExplosive && type === 'explosive') dmg *= RESIST_BLAST;
+      if (e.def.immuneCryo && type === 'cryo') dmg *= RESIST_CRYO;
+      const r = e.def.resist?.[type];
+      if (r != null) dmg *= r;
+    }
     if (dmg <= 0) return 0;
     if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src) * this.freeplayTowerPower(src);
     if (this.freeplay && type === 'explosive' && this.freeplayState.relics.some((r) => r.id === 'emberDoctrine')) dmg *= 1.12;

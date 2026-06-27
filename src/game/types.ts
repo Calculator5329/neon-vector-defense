@@ -24,6 +24,8 @@ export interface EnemyDef {
   immuneCryo?: boolean;
   /** armored: immune to kinetic damage */
   armored?: boolean;
+  /** Per-type damage multiplier taken (0..1). 1 = full damage, 0.35 = takes 35%. Multiplies with the legacy armored/immune* flags. */
+  resist?: Partial<Record<DamageType, number>>;
   boss?: boolean;
   /** repairs nearby hulls: radius and hp per second */
   heal?: { radius: number; hps: number };
