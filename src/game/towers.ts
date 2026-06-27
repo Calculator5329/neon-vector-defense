@@ -379,6 +379,34 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
+    id: 'anchor', name: 'Phase Anchor', short: 'ANC', cost: 700, unlockAt: 22000,
+    desc: 'A caged singularity that never fires. It rewrites where hulls ARE — pinning a column in a kill-pocket, or hurling it forward off its escorts. Its "ascension" is control, not damage.',
+    lore: 'The civilian ancestor of the Abyss Gate: harbor-tugs once used it to berth freighters in a storm. The Concord kept the gentle version. The Combine did not.',
+    color: '#8e7bef', glow: '#cdbcff', style: 'gravity',
+    base: base({
+      range: 120, fireRate: 1.0, damage: 0, damageType: 'energy', pierce: 99,
+      drag: 26, slowPower: 0.25, slowDuration: 0.8, detection: false,
+    }),
+    tracks: [
+      track('Singularity Well', [
+        u('Deeper Well', '+35% range.', 300, (s) => { s.range *= 1.35; }),
+        u('Mass Shadow', 'Stronger backward pull.', 450, (s) => { s.drag = 40; }),
+        u('Time Dilation', 'Slow 45%, longer.', 650, (s) => { s.slowPower = 0.45; s.slowDuration = 1.4; }),
+        u('Gravity Vise', 'Crushing pull + hold.', 1000, (s) => { s.drag = 70; s.slowPower = 0.55; }),
+        u('EVENT WELL', 'BONUS: deep pull, +20% range.', 1900, (s) => { s.drag = 110; s.range *= 1.2; }),
+        u('THE PIT', 'BONUS: a column simply stops existing forward. Brutal pull, deep slow, wide.', 3800, (s) => { s.drag = 180; s.slowPower = 0.7; s.slowDuration = 2; s.range *= 1.2; }),
+      ]),
+      track('Repulsor Field', [
+        u('Reverse Polarity', 'Push hulls FORWARD, away from the anchor.', 320, (s) => { s.drag = -26; }),
+        u('Phase Detector', 'Reveals cloaked hulls in the field.', 440, (s) => { s.detection = true; }),
+        u('Hard Shove', 'Stronger forward push.', 650, (s) => { s.drag = -48; }),
+        u('Dispersion Field', '+25% range, harder push.', 1000, (s) => { s.range *= 1.25; s.drag = -70; }),
+        u('SCATTER ENGINE', 'BONUS: violent forward scatter — shatters heal-clusters and escorts.', 1900, (s) => { s.drag = -110; }),
+        u('THE EXILE GATE', 'BONUS: hurls hulls forward then strands them mid-lane in your kill-zone.', 3800, (s) => { s.drag = -170; s.slowPower = 0.4; s.range *= 1.3; }),
+      ]),
+    ],
+  },
+  {
     id: 'sunspear', name: 'Sunspear Battery', short: 'SUN', cost: 760, unlockAt: 25000,
     desc: 'A focused spear of daylight on a rail. Energy, armor-shredding, and it sees through any cloak — built to put down the things the dark hides.',
     lore: 'Forged from the Meridian Gate\'s last working lens, after the Prism Array proved the principle. One shot, one dawn, repeated.',

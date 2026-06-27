@@ -30,7 +30,7 @@ export function dpsOf(def: TowerDef, s: TowerStats): Dps {
   const util: string[] = [];
   if (s.slowPower > 0) util.push(`slow ${Math.round(s.slowPower * 100)}%`);
   if (s.detection) util.push('detect');
-  if (s.drag > 0) util.push(`drag ${s.drag}`);
+  if (s.drag !== 0) util.push(`${s.drag > 0 ? 'drag' : 'push'} ${Math.abs(s.drag)}`);
   if (s.execute > 0) util.push(`execute<${Math.round(s.execute * 100)}%`);
   if (s.burnZoneDps > 0) util.push(`burn zone ${s.burnZoneDps}/s`);
   if (s.droneSwarm > 0) util.push(`${s.droneSwarm} interceptors`);

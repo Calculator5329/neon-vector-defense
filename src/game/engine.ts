@@ -110,6 +110,8 @@ class EnemyGrid {
 
 export type Phase = 'build' | 'wave' | 'gameover' | 'victory' | 'armistice';
 
+/** a forward (repel) gravity push can never shove a hull closer than this to the exit */
+const SAFE_EXIT_MARGIN = 80;
 export const RECEIVER_COST = 4000;
 /** index of the Archive fragment that reveals the LEVIATHAN's cargo */
 export const RECEIVER_FRAGMENT = ARCHIVE.findIndex((f) => f.wave === 50);
@@ -1500,8 +1502,13 @@ export class Game {
           if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
           if (!this.visibleTo(t, e)) return;
           any = true;
+          // drag > 0 = pull backward (hold); drag < 0 = push forward (repel). The leak
+          // check lives only in the movement block, so clamp forward pushes to a safe
+          // margin before the exit — a hull must never be shoved into the core here.
           const drag = st.drag * (e.def.boss ? 0.22 : 1);
-          e.dist = Math.max(0, e.dist - drag);
+          let nd = Math.max(0, e.dist - drag);
+          if (drag < 0) nd = Math.min(nd, Math.max(0, this.pathLength() - SAFE_EXIT_MARGIN));
+          e.dist = nd;
           const at = this.posAtDist(e.dist);
           e.pos = at.pos;
           e.wp = at.wp;
