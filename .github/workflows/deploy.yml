@@ -12,7 +12,7 @@ on:
           - functions
   push:
     paths:
-      - .github/workflows/deploy.yml
+      - '.github/workflows/deploy.yml'
 
 permissions:
   contents: read
@@ -23,14 +23,18 @@ concurrency:
 
 jobs:
   validate:
-    if: ${{ github.event_name != 'workflow_dispatch' }}
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - run: echo "Deploy workflow validated; Firebase deploys only run from workflow_dispatch."
 
-  verify:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -44,50 +48,14 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run ci
-      - run: npm --prefix functions ci
-      - run: npm --prefix functions run build
-
-  deploy-hosting-rules:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'hosting-rules' }}
-    needs: verify
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - name: Authenticate Firebase
+      - run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+      - run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - if: inputs.target == 'hosting-rules'
         run: |
-          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-      - run: npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
-
-  deploy-functions:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'functions' }}
-    needs: verify
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm --prefix functions ci
-      - run: npm --prefix functions run build
-      - name: Authenticate Firebase
+          npm run build
+          npx firebase-tools deploy --project neon-vector-defense-7 --only hosting,firestore:rules --non-interactive
+      - if: inputs.target == 'functions'
         run: |
-          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-      - run: npx firebase-tools deploy --project neon-vector-defense-7 --only functions --non-interactive
+          npm --prefix functions ci
+          npm --prefix functions run build
+          npx firebase-tools deploy --project neon-vector-defense-7 --only functions --non-interactive
