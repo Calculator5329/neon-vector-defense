@@ -669,6 +669,7 @@
 .overlay {
   position: absolute;
   inset: 0;
+  z-index: 150; /* above menu cards (2) + deploy bar (50); below the age gate (300) */
   display: flex;
   align-items: center;
   justify-content: center;

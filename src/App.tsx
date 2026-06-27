@@ -884,7 +884,13 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     };
   }, [game]);
 
-  useEffect(() => () => appMetrics.endRun(), [game]);
+  // Re-assert beginRun in an effect so it runs AFTER the previous run's endRun cleanup.
+  // (The Game constructor also calls beginRun during render, but on RETRY that ran before
+  // the old run's cleanup, leaving the new run inactive and dropping its app-metrics.)
+  useEffect(() => {
+    appMetrics.beginRun(game.map.id, game.diff.id);
+    return () => appMetrics.endRun();
+  }, [game]);
 
   // sector ambience while deployed
   useEffect(() => {

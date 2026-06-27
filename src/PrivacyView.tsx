@@ -87,8 +87,8 @@ export default function PrivacyView() {
             <li><b>Leaderboard scores</b> you choose to submit (callsign, cash, kills, wave).</li>
             <li><b>Anonymous gameplay telemetry</b> (map, difficulty, wave reached, outcome) so we
               can tune balance.</li>
-            <li>For a small <b>sample of runs</b>, more detailed analytics + a replay, kept
-              temporarily and auto-deleted after about 30 days.</li>
+            <li>For a small <b>sample of runs</b>, more detailed anonymous analytics + a replay,
+              which we keep to study and improve game balance.</li>
             <li>Any <b>feedback</b> you send us, with that random id so we can reply.</li>
           </ul>
           <p>We use Google Firebase (Firestore) to store this. There are no third-party advertising
@@ -132,7 +132,7 @@ export default function PrivacyView() {
                 <div className="privacy-control-sub">
                   {cleared
                     ? 'Done — all local data for this device has been erased.'
-                    : 'Erase all local game data. Anonymous server records carry no identity and auto-expire; to request server-side deletion too, message us via feedback.'}
+                    : 'Erase all local game data. Anonymous server records carry no identity; to request deletion of those too, message us via feedback.'}
                 </div>
               </div>
               <button className="privacy-toggle danger" disabled={cleared} onClick={doDelete}>

@@ -1125,9 +1125,12 @@ export class Game {
           this.freeplayState.riskAccepted = null;
         }
       }
-      // archive fragments unlock by wave
+      // archive fragments unlock by wave. +1 so a fragment becomes available during the
+      // NEXT build phase, not the instant its wave clears — critical on Recruit, where the
+      // receiver fragment is at wave 50 (the final wave): without the +1 it would unlock
+      // exactly at victory, making the armistice ending (and thus Long Watch) unreachable.
       ARCHIVE.forEach((f, i) => {
-        if (f.wave <= this.wave && !this.archive.includes(i)) {
+        if (f.wave <= this.wave + 1 && !this.archive.includes(i)) {
           this.archive.push(i);
           if (this.campaignProgressEnabled()) progress.addArchive(i);
           this.newArchive = true;

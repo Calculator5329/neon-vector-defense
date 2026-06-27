@@ -7,11 +7,9 @@
 // - Sampled runs additionally emit milestone checkpoints, run analytics, and the
 //   verifiable replay. All of it is still consent-gated (see consent.ts).
 
-/** Fraction of runs captured at full fidelity (checkpoints + analytics + replay). */
+/** Fraction of runs captured at full fidelity (checkpoints + analytics + replay).
+ *  These detailed, anonymous runs are kept (no TTL) as the balance-tuning dataset. */
 export const SAMPLE_RATE = 0.1;
-
-/** Raw capture (replays + live checkpoints) is retained this long, then TTL-expired. */
-export const RUN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 /** Deterministic [0,1) hash of a string (FNV-1a → unit float). Stable across a run. */
 function unitHash(s: string): number {
