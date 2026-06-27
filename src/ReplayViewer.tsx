@@ -67,7 +67,7 @@ export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
       uid: ts.towerUid, def, x: ts.x, y: ts.y,
       tierA: ts.tierA, tierB: ts.tierB,
       placedAtS: ts.placedAtS, soldAtS: ts.soldAtS ?? undefined,
-      damage: ts.damage, name: ts.name,
+      damage: ts.damage, name: ts.name ?? def.name,
     });
   }
   const terminal = idx === snaps.length - 1;

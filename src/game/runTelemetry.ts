@@ -31,20 +31,25 @@ export interface RunEvent {
 export interface RunTowerSnapshot {
   towerUid: number;
   towerId: string;
-  name: string;
   x: number;
   y: number;
   placedAtS: number;
   soldAtS?: number;
   tierA: number;
   tierB: number;
-  committed: 0 | 1 | null;
-  targetMode: TargetMode;
-  invested: number;
-  kills: number;
   damage: number;
-  upgrades: { t: number; track: 0 | 1; tier: number; name: string; cost: number }[];
+  // heavy fields — present on final.towers, OMITTED from per-wave snapshots to keep the
+  // run doc under Firestore's 1MB limit (they were duplicated across ~120 snapshots).
+  name?: string;
+  committed?: 0 | 1 | null;
+  targetMode?: TargetMode;
+  invested?: number;
+  kills?: number;
+  upgrades?: { t: number; track: 0 | 1; tier: number; name: string; cost: number }[];
 }
+
+/** Minimal per-snapshot tower — only what the replay flipbook reconstructs from. */
+export type RunTowerLean = Pick<RunTowerSnapshot, 'towerUid' | 'towerId' | 'x' | 'y' | 'placedAtS' | 'soldAtS' | 'tierA' | 'tierB' | 'damage'>;
 
 export interface RunWaveSnapshot {
   label: string;
@@ -369,6 +374,13 @@ export interface RunUploadBundle {
 
 interface TowerLedger extends RunTowerSnapshot {
   placedAtWave: number;
+  // the in-memory ledger keeps the full record (only the serialized snapshot is lean)
+  name: string;
+  committed: 0 | 1 | null;
+  targetMode: TargetMode;
+  invested: number;
+  kills: number;
+  upgrades: { t: number; track: 0 | 1; tier: number; name: string; cost: number }[];
 }
 
 interface AttentionSample {
@@ -1012,6 +1024,17 @@ export class RunRecorder {
         leaks: Math.round(state.runStats.leaks),
       },
     };
+    // Hard safety net: Firestore caps a single doc at 1 MB. Even with lean snapshots a very
+    // long run could approach it — drop the OLDEST snapshots first (the viewer clamps to the
+    // captured window anyway), then trim head events, so score submission never fails on size.
+    const DOC_LIMIT = 900_000;
+    const size = () => JSON.stringify(run).length;
+    while (size() > DOC_LIMIT && run.snapshots.length > 12) {
+      run.snapshots = run.snapshots.slice(Math.ceil(run.snapshots.length * 0.2));
+    }
+    while (size() > DOC_LIMIT && run.events.length > 40) {
+      run.events = run.events.slice(0, Math.floor(run.events.length * 0.6));
+    }
     return { run, chunks };
   }
 
@@ -1332,7 +1355,7 @@ export class RunRecorder {
       enemyCount: state.enemyCount,
       damageByTower: intRecord(state.runStats.dmg),
       killsByEnemy: intRecord(state.runStats.kills),
-      towers: this.finalTowers(state),
+      towers: this.snapshotTowers(state),
     });
     if (this.snapshots.length > 120) this.snapshots.splice(0, this.snapshots.length - 120);
   }
@@ -1375,6 +1398,16 @@ export class RunRecorder {
     return [...this.ledger.values()]
       .sort((a, b) => a.placedAtS - b.placedAtS || a.towerUid - b.towerUid)
       .map(({ placedAtWave, ...tower }) => ({ ...tower, damage: Math.round(tower.damage) }));
+  }
+
+  /** Lean per-snapshot tower roster — only the fields the replay flipbook needs. The full
+   *  roster (with upgrades) is stored once in final.towers; duplicating it across ~120
+   *  snapshots blew the run doc past Firestore's 1MB limit. */
+  private snapshotTowers(state: RunTelemetryState): RunTowerLean[] {
+    return this.finalTowers(state).map((t) => ({
+      towerUid: t.towerUid, towerId: t.towerId, x: t.x, y: t.y,
+      placedAtS: t.placedAtS, soldAtS: t.soldAtS, tierA: t.tierA, tierB: t.tierB, damage: t.damage,
+    }));
   }
 
   private withSyntheticEnd(state: RunTelemetryState): RunEvent[] {
