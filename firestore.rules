@@ -10,10 +10,6 @@ service cloud.firestore {
         ];
     }
 
-    function isValidBoard(board) {
-      return board.matches('^(orbital|reactor|hyperlane|mobius|blackout|throat|umbral|cinder)_(easy|normal|hard|extinction|ngplus)(_fp)?$');
-    }
-
     function isValidDailyBoard(daily) {
       return daily.matches('^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }

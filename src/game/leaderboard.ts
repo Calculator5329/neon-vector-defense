@@ -206,12 +206,6 @@ export interface RunReplaySubmitResult {
   runId?: string;
   replayToken?: string;
 }
-interface DeleteDataResult {
-  ok: boolean;
-  uid: string;
-  deleted?: Record<string, number>;
-  errors?: string[];
-}
 export interface FeedbackReceipt {
   id: string;
   token: string;
@@ -240,8 +234,6 @@ const callSubmitScore =
   httpsCallable<{ board: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitScore');
 const callSubmitDailyScore =
   httpsCallable<{ dailyId: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitDailyScore');
-const callDeleteMyData =
-  httpsCallable<{ uid: string }, DeleteDataResult>(functions, 'deleteMyData');
 const callSubmitFeedback =
   httpsCallable<{ uid: string; text: string; ctx: string }, SubmitFeedbackResult>(functions, 'submitFeedback');
 const callFetchFeedbackReplies =
@@ -276,17 +268,6 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
     console.warn('Daily score submit failed', error);
   }
   return false;
-}
-
-/** Cascade-delete all server data for an anonymous uid (CCPA right to delete). */
-export async function requestDataDeletion(uid: string): Promise<boolean> {
-  try {
-    const res = await withTimeout(callDeleteMyData({ uid }), 20000);
-    return res.data?.ok === true;
-  } catch (error) {
-    console.warn('Data deletion request failed', error);
-    return false;
-  }
 }
 
 /** player feedback -> callable. A local private token correlates replies without login. */
