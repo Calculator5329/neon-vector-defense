@@ -2605,7 +2605,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
       radial-gradient(circle at 50% 34%, rgba(75, 207, 250, 0.2), transparent 34%),
       rgba(2, 4, 10, 0.88);
     color: var(--text);
-    pointer-events: auto;
+    pointer-events: none;
   }
   .rotate-device-icon {
     width: 62px;
