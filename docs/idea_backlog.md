@@ -13,6 +13,77 @@ not as a current status report.
 
 **For current shipped status and next priorities, see [roadmap.md](./roadmap.md).** This file is the historical idea catalog; many top bets and quick wins listed below are now shipped.
 
+## 2026-06-28 active audit backlog refresh
+
+These are the remaining items from the multi-agent audit after the UX retrofit
+work and this implementation pass. Treat these as the active handoff list before
+mining the older historical backlog below.
+
+### P0 - Replay, score, and security integrity
+
+- Add a replay completion manifest: expected chunk count, event count, checksum
+  or content hash, schema version, mode/freeplay summary, and a final complete
+  marker. The viewer and score functions should distinguish complete, partial,
+  expired, and malformed replays.
+- Harden `fetchRunReplay` and the viewer against malformed docs/chunks. Missing
+  or invalid chunk data should not crash the viewer or silently present a full
+  reconstruction.
+- Move score-critical freeplay and multiplier checks server-side: compare board
+  mode to replay `summary.freeplay`, recompute/validate freeplay contract/risk
+  multiplier fields, and reject stale or impossible claims.
+- Tighten write trust: deploy App Check enforcement once verified in production,
+  keep direct board writes denied, and prefer callable/server mediation for any
+  new score-adjacent writes.
+- Extend privacy and deletion tests around replay ownership, local replay tokens,
+  and operator-run deletion so server data cannot be stranded unexpectedly.
+
+### P1 - Gameplay correctness and replay fidelity
+
+- Fix support-revealed cloaked enemies so targeting and projectile collision use
+  the same revealed/visible predicate.
+- Audit burn zones and damage-over-time attribution so stacking/source ownership
+  matches the tower that created the effect.
+- Stop same-tick terminal leaks or duplicate terminal transitions after gameover,
+  victory, armistice, or freeplay bank.
+- Enforce campaign tower unlocks in `Game.placeTower`, not only in the shop UI.
+- Make checkpoint leaderboard rows point at immutable replay data rather than
+  mutable or partial run state.
+
+### P1 - UX, accessibility, and portal usability
+
+- Finish the keyboard path for canvas placement/aiming or explicitly label the
+  canvas as pointer-required until the keyboard cursor ships.
+- Add a textual replay event/narration rail for canvas-only Battle Plan action.
+- Continue mobile HUD verification across 560-820 px, 981-1024 px, and
+  short-landscape iframe bands.
+- Replace fragile literal currency/CTA glyphs with inline SVG or text fallbacks
+  where terminal/source encoding still risks mojibake or tofu.
+- Keep modal work on the shared `Modal` primitive; new overlays must preserve
+  focus trap, Escape behavior, focus restore, labels, and mobile scroll.
+
+### P2 - Performance, CI, and release hardening
+
+- Add late-freeplay browser perf coverage, not only early wave samples.
+- Index replay playback by frame/time so scrubbing does not become O(history) on
+  long public runs.
+- Optimize beam/high-count enemy scans with spatial buckets or LOD thresholds
+  once perf data shows pressure.
+- Add production-bundle smoke tests, callable integration tests, Worker deploy
+  dry-runs, App Check preflight, branch/tag guards, and coverage thresholds.
+- Keep admin analytics scalable with cached fetches, virtualized tables, and
+  clearer long-run loading/error states.
+
+### Shipped or verified in this pass
+
+- Already-owned Signal Palette equips are silent; purchase/error feedback stays
+  visible.
+- The existing `.board-row.me` style is wired for the current browser uid.
+- `/privacy` local export/delete includes replay score tokens.
+- The stopped-midway UX transcript was source-checked: shared `Modal`, focus
+  ring, contrast token, protocol descriptions, economy labels, cloak toast,
+  run-end mobile order, claim-all, Bestiary filters/badges, replay slider, and
+  dossier URL/palette share work are present on this branch.
+
 ## Build status (historical snapshot — mostly superseded)
 
 - **Top bets (1-6):** ✅ All shipped — Battle Plan, Dossier share, meta loop, remote balance, bot ghosts, Phase Anchor.

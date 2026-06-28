@@ -158,6 +158,9 @@ firebase deploy --only firestore:rules
 
 ## Client localStorage keys
 
+Keys that store player state, consent, score retry state, or private reply
+receipts must be included in `/privacy` local export/delete controls.
+
 | Key | Module | Contents |
 | --- | --- | --- |
 | `nvd-progress-v1` | `storage.ts` | Progression, settings, blueprints, session days |

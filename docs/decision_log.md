@@ -73,3 +73,15 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   CSS affordances.
 - Modal and overlay work should preserve keyboard access, visible focus, and
   non-overlapping text at desktop and mobile viewport sizes.
+
+## 2026-06-28 - Audit backlog is priority-split
+
+- Small player-facing regressions from the audit should ship immediately when
+  they are low risk: silent owned-palette equips, current-player leaderboard
+  highlighting, and complete local privacy export/delete coverage.
+- Replay integrity, score validation, security rules, gameplay correctness, and
+  release hardening are tracked as active backlog categories rather than mixed
+  into the historical 80-idea archive.
+- The shipped Battle Plan viewer remains a reconstruction from public snapshots
+  and events. Stronger replay manifests, chunk hashes, and server re-simulation
+  are separate hardening steps before high-stakes leaderboard incentives.

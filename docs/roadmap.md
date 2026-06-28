@@ -3,7 +3,7 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-06-28 (source-of-truth documentation audit)
+Last updated: 2026-06-28 (audit backlog implementation pass)
 
 ## Current shipped pillars
 
@@ -27,15 +27,18 @@ Last updated: 2026-06-28 (source-of-truth documentation audit)
 - Leaderboard rows now use server timestamps for ordering instead of trusting client clocks.
 - Battle Plan replay fidelity improved with richer public events, enemy/tower re-enactment, safer public chunks, and stricter replay schema tests.
 - Global focus-visible styling and design tokens improved the contrast/accessibility baseline.
+- Operations palette re-equips are now silent while purchase/error feedback remains visible.
+- Leaderboard rows can highlight the current browser's anonymous uid, and privacy export/delete includes replay score tokens.
 
 ## Near-term priorities
 
-1. **Balance CI gate** - wire a semantic `public/balance-report.json` diff into CI so unintentional dead/op tower swings fail before release.
-2. **Touch-first game surface** - finish the mobile landscape command layout: bottom-dock arsenal, upgrade sheet, safe-area controls, and coarse-pointer hit targets.
-3. **Guided first build** - replace the static tutorial with an action-gated first run that teaches placement, wave launch, upgrades, and cloak detection.
-4. **Cloud save** - optional `saves/{uid}` mirror for local progress, blueprints, and settings, with clear privacy language.
-5. **Live-vs-sim balance insights** - reconcile admin telemetry with bot/balance harness verdicts so player pain and bot dominance can be compared directly.
-6. **PWA build freshness** - add conservative chunk precache plus a build-tag reload toast so installed users do not linger on stale bundles.
+1. **Replay and score integrity** - add replay completion manifests, chunk hashes/count validation, malformed replay hardening, and server-side freeplay/mode validation before leaderboard incentives grow.
+2. **Gameplay correctness audit fixes** - close cloaked-reveal projectile collision, burn attribution/stacking, same-tick terminal leaks, campaign unlock enforcement, and immutable checkpoint replay links.
+3. **Touch-first game surface** - finish the mobile landscape command layout: bottom-dock arsenal, upgrade sheet, safe-area controls, and coarse-pointer hit targets.
+4. **Guided first build** - replace the static tutorial with an action-gated first run that teaches placement, wave launch, upgrades, and cloak detection.
+5. **Balance CI gate** - wire a semantic `public/balance-report.json` diff into CI so unintentional dead/op tower swings fail before release.
+6. **Production release hardening** - deploy preflights for production Vite flags, App Check enforcement, branch/tag guards, Worker dry-runs, callable integration tests, and production-bundle smoke checks.
+7. **PWA build freshness** - add conservative chunk precache plus a build-tag reload toast so installed users do not linger on stale bundles.
 
 ## Deferred / bigger bets
 
@@ -55,14 +58,19 @@ Last updated: 2026-06-28 (source-of-truth documentation audit)
 - [x] Replay-of-the-Day menu spotlight
 - [x] Daily Freeplay seed
 - [ ] Touch-first responsive command layout
+- [ ] Replay completion manifest and chunk validation
+- [ ] Gameplay correctness audit fixes
 - [ ] Guided onboarding funnel
 - [ ] Balance CI gate on PRs
+- [ ] Production deploy hardening checks
 - [ ] Full PWA precache + build-tag reload toast
 
 ## Guardrails
 
 - `meta.ts` must stay off the combat, score, and bot paths.
 - Public replay docs must remain compact and free of `undefined` values.
+- Replay read paths must reject or clearly label incomplete/malformed chunks; partial data should not masquerade as a full Battle Plan.
 - Leaderboard score claims must include a matching replay token.
+- Privacy export/delete must cover every local key that can affect score retry, identity, consent, or private replies.
 - Admin allowlists in `firestore.rules`, Functions helpers, and client admin code must stay synchronized.
 - AI help remains optional and must keep secrets in the Worker, not in Vite-exposed variables.

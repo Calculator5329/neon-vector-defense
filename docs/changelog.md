@@ -2,6 +2,16 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-06-28 - Audit backlog implementation pass
+
+- Removed the visible owned-palette equip status while preserving purchase and
+  insufficient-salvage feedback.
+- Added Operations Board palette regression tests.
+- Wired current-player leaderboard row highlighting and included replay score
+  tokens in `/privacy` local export/delete.
+- Added the active multi-agent audit backlog to `roadmap.md`, `idea_backlog.md`,
+  and `decision_log.md`.
+
 ## 2026-06-28 - Source-of-truth documentation audit
 
 - Added `docs/decision_log.md` for replay, score, freeplay, privacy, AI, meta,
