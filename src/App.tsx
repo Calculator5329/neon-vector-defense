@@ -1901,8 +1901,8 @@ function HowToPlay({ onDone }: { onDone: () => void }) {
   ];
   return (
     <div className="overlay" data-testid="tutorial-overlay">
-      <div className="overlay-box howto">
-        <h2 style={{ color: '#4bcffa' }}>HOW TO HOLD THE LANE</h2>
+      <div className="overlay-box howto" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+        <h2 id="howto-title" style={{ color: '#4bcffa' }}>HOW TO HOLD THE LANE</h2>
         <div className="howto-steps">
           {steps.map(([icon, title, body]) => (
             <div key={title} className="howto-step">
@@ -1941,8 +1941,8 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const musicOn = isMusicOn();
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="overlay-box settings-box" style={{ borderColor: '#4bcffa' }} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ color: '#4bcffa' }}>SETTINGS</h2>
+      <div className="overlay-box settings-box" role="dialog" aria-modal="true" aria-labelledby="settings-title" style={{ borderColor: '#4bcffa' }} onClick={(e) => e.stopPropagation()}>
+        <h2 id="settings-title" style={{ color: '#4bcffa' }}>SETTINGS</h2>
         <div className="privacy-controls">
           <SettingsRow name="Sound effects" sub="Procedural combat audio." on={sfxOn}
             onToggle={() => { setMuted(sfxOn); rerender(); if (!sfxOn) sfx.click(); }} />
@@ -2200,9 +2200,9 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 function Overlay(props: { title: string; color: string; lines: string[]; buttons: { label: string; fn: () => void }[]; art?: string; report?: ReactNode }) {
   return (
     <div className="overlay">
-      <div className={`overlay-box ${props.report ? 'result' : ''}`} style={{ borderColor: props.color }}>
+      <div className={`overlay-box ${props.report ? 'result' : ''}`} role="dialog" aria-modal="true" aria-labelledby="result-overlay-title" style={{ borderColor: props.color }}>
         {props.art && <img className="overlay-art" src={props.art} alt="" />}
-        <h2 style={{ color: props.color }}>{props.title}</h2>
+        <h2 id="result-overlay-title" style={{ color: props.color }}>{props.title}</h2>
         {props.lines.map((l, i) => <p key={i}>{l}</p>)}
         {props.report}
         <div className="overlay-btns">
