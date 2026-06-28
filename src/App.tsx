@@ -17,8 +17,9 @@ import {
   submitScore,
   submitDailyScore,
   fetchTop,
+  fetchTopResult,
   fetchDailyTop,
-  fetchGlobalTop,
+  fetchGlobalTopResult,
   submitRunReplay,
   submitRunAnalytics,
   submitRunCheckpoint,
@@ -824,15 +825,21 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
   const [fp, setFp] = useState(false);
   const [globalRows, setGlobalRows] = useState<RankedScoreEntry[] | null>(null);
   const [localRows, setLocalRows] = useState<ScoreEntry[] | null>(null);
+  const [globalError, setGlobalError] = useState(false);
+  const [localError, setLocalError] = useState(false);
   const board = boardId(map.id, diff.id, fp);
   useEffect(() => {
     let live = true;
     setGlobalRows(null);
     setLocalRows(null);
-    Promise.all([fetchGlobalTop(fp, 20), fetchTop(board, 5)]).then(([global, local]) => {
+    setGlobalError(false);
+    setLocalError(false);
+    Promise.all([fetchGlobalTopResult(fp, 20), fetchTopResult(board, 5)]).then(([global, local]) => {
       if (!live) return;
-      setGlobalRows(global);
-      setLocalRows(local);
+      setGlobalRows(global.rows);
+      setLocalRows(local.rows);
+      setGlobalError(global.error);
+      setLocalError(local.error);
     });
     return () => { live = false; };
   }, [board, fp]);
@@ -858,6 +865,8 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
         </div>
         {globalRows === null ? (
           <div className="board-empty">Establishing uplink...</div>
+        ) : globalError ? (
+          <div className="board-empty">Leaderboard uplink failed - check your connection and try again.</div>
         ) : globalRows.length === 0 ? (
           <div className="board-empty">No global records yet - deploy and claim the top spot.</div>
         ) : (
@@ -902,6 +911,8 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
         </div>
         {localRows === null ? (
           <div className="board-empty compact">Checking local board...</div>
+        ) : localError ? (
+          <div className="board-empty compact">Could not load this sector board. Try again in a moment.</div>
         ) : localRows.length === 0 ? (
           <div className="board-empty compact">No records for this sector/protocol yet.</div>
         ) : (
