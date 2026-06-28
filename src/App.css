@@ -3316,6 +3316,8 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .dossier-actions .start-btn.ghost { background: rgba(40, 56, 110, 0.5); color: var(--text); }
 .dossier-actions .start-btn.ghost:hover { background: rgba(60, 84, 150, 0.6); }
 .dossier-toast { font-size: 12px; letter-spacing: 1px; color: var(--accent); animation: dossierToast 0.2s ease-out; }
+.dossier-toast.info { color: #9fb2dd; }
+.dossier-toast.err { color: #ff6b81; }
 @keyframes dossierToast { from { opacity: 0; } to { opacity: 1; } }
 .reduced-motion .dossier-toast { animation: none; }
 
