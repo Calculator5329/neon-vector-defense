@@ -53,6 +53,7 @@ import DossierShare from './DossierShare';
 import BotGhostHud from './BotGhostHud';
 import OperationsBoard from './OperationsBoard';
 import Bestiary from './Bestiary';
+import Modal from './Modal';
 import EnemyPortrait from './EnemyPortrait';
 import { UpgradeIcon, upgradeIconKey } from './UpgradeIcon';
 import { meta, rankBandKey, type RunMetaReward } from './game/meta';
@@ -243,16 +244,14 @@ function Main() {
 function ComebackPrompt({ onClose }: { onClose: () => void }) {
   const streak = meta.streak;
   return (
-    <div className="cutscene-overlay" onClick={onClose}>
-      <div className="cutscene-box tip-box" onClick={(e) => e.stopPropagation()}>
-        <div className="cutscene-title" style={{ color: '#ffd32a' }}>⚠ THE LANTERN DIMMED</div>
-        <p className="tip-text">
-          You held a <b>{streak.best}-day watch</b> over Lantern Seven before the signal lapsed.
-          The Combine never sleeps, Warden — light the beacon again today to start a new streak.
-        </p>
-        <button className="start-btn small" onClick={onClose}>RESUME THE WATCH ▸</button>
-      </div>
-    </div>
+    <Modal onClose={onClose} overlayClass="cutscene-overlay" boxClass="cutscene-box tip-box" labelledBy="comeback-title">
+      <div className="cutscene-title" id="comeback-title" style={{ color: 'var(--gold)' }}>⚠ THE LANTERN DIMMED</div>
+      <p className="tip-text">
+        You held a <b>{streak.best}-day watch</b> over Lantern Seven before the signal lapsed.
+        The Combine never sleeps, Warden — light the beacon again today to start a new streak.
+      </p>
+      <button className="start-btn small" onClick={onClose}>RESUME THE WATCH ▸</button>
+    </Modal>
   );
 }
 
@@ -1748,24 +1747,26 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             </div>
           )}
           {unlockModal && (
-            <div className="cutscene-overlay" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>
-              <div className="cutscene-box unlock-modal" style={{ borderColor: unlockModal.color, ['--bc' as string]: unlockModal.glow }} onClick={(e) => e.stopPropagation()}>
-                <div className="unlock-eyebrow">◆ NEW INSTRUMENT UNLOCKED ◆</div>
-                <div className="unlock-head">
-                  <div className="unlock-badge" style={{ ['--tc' as string]: unlockModal.color, ['--tg' as string]: unlockModal.glow }}>
-                    <TowerIcon def={unlockModal} />
-                  </div>
-                  <div>
-                    <div className="unlock-name" style={{ color: unlockModal.glow }}>{unlockModal.name}</div>
-                    <div className="unlock-type">{unlockModal.base.damageType} · ⌬{unlockModal.cost}</div>
-                  </div>
+            <Modal
+              onClose={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}
+              overlayClass="cutscene-overlay" boxClass="cutscene-box unlock-modal" labelledBy="unlock-name-title"
+              style={{ borderColor: unlockModal.color, ['--bc' as string]: unlockModal.glow }}
+            >
+              <div className="unlock-eyebrow">◆ NEW INSTRUMENT UNLOCKED ◆</div>
+              <div className="unlock-head">
+                <div className="unlock-badge" style={{ ['--tc' as string]: unlockModal.color, ['--tg' as string]: unlockModal.glow }}>
+                  <TowerIcon def={unlockModal} />
                 </div>
-                <p className="tip-text">{unlockModal.desc}</p>
-                <p className="unlock-lore">“{unlockModal.lore}”</p>
-                <p className="hint-dim">Find it in your ARSENAL — two upgrade paths, commit to one for its devastating final tiers.</p>
-                <button className="start-btn small" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>DEPLOY IT ▸</button>
+                <div>
+                  <div className="unlock-name" id="unlock-name-title" style={{ color: unlockModal.glow }}>{unlockModal.name}</div>
+                  <div className="unlock-type">{unlockModal.base.damageType} · ⌬{unlockModal.cost}</div>
+                </div>
               </div>
-            </div>
+              <p className="tip-text">{unlockModal.desc}</p>
+              <p className="unlock-lore">“{unlockModal.lore}”</p>
+              <p className="hint-dim">Find it in your ARSENAL — two upgrade paths, commit to one for its devastating final tiers.</p>
+              <button className="start-btn small" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>DEPLOY IT ▸</button>
+            </Modal>
           )}
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
@@ -1892,44 +1893,41 @@ function FreeplayBuildPanel({
 
 function FreeplayContractModal({ onSelect, onCancel }: { onSelect: (id: FreeplayContractId) => void; onCancel: () => void }) {
   return (
-    <div className="cutscene-overlay" onClick={onCancel}>
-      <div className="cutscene-box freeplay-modal" role="dialog" aria-modal="true" aria-labelledby="freeplay-contract-title" onClick={(e) => e.stopPropagation()}>
-        <div className="cutscene-title" id="freeplay-contract-title">PRESTIGE CONTRACT</div>
-        <p className="tip-text">Choose how the endless siege scores you. Higher multipliers add real constraints for the whole freeplay run.</p>
-        <div className="contract-grid">
-          {FREEPLAY_CONTRACTS.map((c) => (
-            <button key={c.id} className="contract-card" onClick={() => onSelect(c.id)}>
-              <span className="contract-mult">{c.multiplier.toFixed(2)}x</span>
-              <b>{c.name}</b>
-              <p>{c.desc}</p>
-            </button>
-          ))}
-        </div>
-        <button className="tb-btn" onClick={onCancel}>BACK</button>
+    <Modal onClose={onCancel} overlayClass="cutscene-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="freeplay-contract-title">
+      <div className="cutscene-title" id="freeplay-contract-title">PRESTIGE CONTRACT</div>
+      <p className="tip-text">Choose how the endless siege scores you. Higher multipliers add real constraints for the whole freeplay run.</p>
+      <div className="contract-grid">
+        {FREEPLAY_CONTRACTS.map((c) => (
+          <button key={c.id} className="contract-card" onClick={() => onSelect(c.id)}>
+            <span className="contract-mult">{c.multiplier.toFixed(2)}x</span>
+            <b>{c.name}</b>
+            <p>{c.desc}</p>
+          </button>
+        ))}
       </div>
-    </div>
+      <button className="tb-btn" onClick={onCancel}>BACK</button>
+    </Modal>
   );
 }
 
 function FreeplayRelicModal({ game, onSelect }: { game: Game; onSelect: (id: FreeplayRelicId) => void }) {
   const offer = game.freeplayState.nextRelicOffer;
+  // a forced draft — no backdrop/Esc dismiss; you must pick one
   return (
-    <div className="cutscene-overlay">
-      <div className="cutscene-box freeplay-modal" role="dialog" aria-modal="true" aria-labelledby="freeplay-relic-title">
-        <div className="cutscene-title" id="freeplay-relic-title">RELIC DRAFT</div>
-        <p className="tip-text">Pick one run modifier. Relics are permanent, powerful, and a little dangerous.</p>
-        <div className="relic-grid">
-          {offer.map((r) => (
-            <button key={r.id} className="relic-card" onClick={() => onSelect(r.id)}>
-              <span className="contract-mult">{r.scoreMult.toFixed(2)}x</span>
-              <b>{r.name}</b>
-              <p>{r.desc}</p>
-              <em>{r.downside}</em>
-            </button>
-          ))}
-        </div>
+    <Modal onClose={() => {}} overlayClass="cutscene-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="freeplay-relic-title" closeOnBackdrop={false} closeOnEsc={false}>
+      <div className="cutscene-title" id="freeplay-relic-title">RELIC DRAFT</div>
+      <p className="tip-text">Pick one run modifier. Relics are permanent, powerful, and a little dangerous.</p>
+      <div className="relic-grid">
+        {offer.map((r) => (
+          <button key={r.id} className="relic-card" onClick={() => onSelect(r.id)}>
+            <span className="contract-mult">{r.scoreMult.toFixed(2)}x</span>
+            <b>{r.name}</b>
+            <p>{r.desc}</p>
+            <em>{r.downside}</em>
+          </button>
+        ))}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -1942,25 +1940,23 @@ function HowToPlay({ onDone }: { onDone: () => void }) {
     ['⬢', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1×/2×/4× sets the pace.'],
   ];
   return (
-    <div className="overlay" data-testid="tutorial-overlay">
-      <div className="overlay-box howto" role="dialog" aria-modal="true" aria-labelledby="howto-title">
-        <h2 id="howto-title" style={{ color: '#4bcffa' }}>HOW TO HOLD THE LANE</h2>
-        <div className="howto-steps">
-          {steps.map(([icon, title, body]) => (
-            <div key={title} className="howto-step">
-              <span className="howto-icon">{icon}</span>
-              <div>
-                <div className="howto-title">{title}</div>
-                <div className="howto-body">{body}</div>
-              </div>
+    <Modal onClose={onDone} boxClass="overlay-box howto" labelledBy="howto-title" testId="tutorial-overlay">
+      <h2 id="howto-title" style={{ color: 'var(--accent)' }}>HOW TO HOLD THE LANE</h2>
+      <div className="howto-steps">
+        {steps.map(([icon, title, body]) => (
+          <div key={title} className="howto-step">
+            <span className="howto-icon">{icon}</span>
+            <div>
+              <div className="howto-title">{title}</div>
+              <div className="howto-body">{body}</div>
             </div>
-          ))}
-        </div>
-        <div className="overlay-btns">
-          <button className="start-btn small" onClick={onDone}>GOT IT ▶</button>
-        </div>
+          </div>
+        ))}
       </div>
-    </div>
+      <div className="overlay-btns">
+        <button className="start-btn small" onClick={onDone}>GOT IT ▸</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1982,10 +1978,9 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const sfxOn = !isMuted();
   const musicOn = isMusicOn();
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="overlay-box settings-box" role="dialog" aria-modal="true" aria-labelledby="settings-title" style={{ borderColor: '#4bcffa' }} onClick={(e) => e.stopPropagation()}>
-        <h2 id="settings-title" style={{ color: '#4bcffa' }}>SETTINGS</h2>
-        <div className="privacy-controls">
+    <Modal onClose={onClose} boxClass="overlay-box settings-box" labelledBy="settings-title" style={{ borderColor: 'var(--accent)' }}>
+      <h2 id="settings-title" style={{ color: 'var(--accent)' }}>SETTINGS</h2>
+      <div className="privacy-controls">
           <SettingsRow name="Sound effects" sub="Procedural combat audio." on={sfxOn}
             onToggle={() => { setMuted(sfxOn); rerender(); if (!sfxOn) sfx.click(); }} />
           <SettingsRow name="Music" sub="Generative score." on={musicOn}
@@ -2006,8 +2001,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
             onToggle={() => { progress.colorblind = !progress.colorblind; applyAccessibility(); rerender(); sfx.click(); }} />
         </div>
         <div className="overlay-btns"><button className="start-btn small" onClick={onClose}>DONE ▸</button></div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -2017,17 +2011,16 @@ function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => voi
     stopRef.current = playBriefing(audio);
     return () => stopRef.current();
   }, [audio]);
+  const finish = () => { stopRef.current(); onDone(); };
   return (
-    <div className="overlay" data-testid="briefing-overlay">
-      <div className="overlay-box briefing" style={{ borderColor: '#4bcffa' }}>
-        <img className="brief-portrait" src={portrait} alt="Transmission" decoding="async" />
-        <h2 style={{ color: '#4bcffa' }}>INCOMING TRANSMISSION</h2>
-        {lines.map((l, i) => <p key={i} className="brief-line">{l}</p>)}
-        <div className="overlay-btns">
-          <button className="start-btn small" onClick={() => { stopRef.current(); onDone(); }}>ACKNOWLEDGE</button>
-        </div>
+    <Modal onClose={finish} boxClass="overlay-box briefing" labelledBy="briefing-title" style={{ borderColor: 'var(--accent)' }} testId="briefing-overlay">
+      <img className="brief-portrait" src={portrait} alt="Transmission" decoding="async" />
+      <h2 id="briefing-title" style={{ color: 'var(--accent)' }}>INCOMING TRANSMISSION</h2>
+      {lines.map((l, i) => <p key={i} className="brief-line">{l}</p>)}
+      <div className="overlay-btns">
+        <button className="start-btn small" onClick={finish}>ACKNOWLEDGE ▸</button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -2249,22 +2242,22 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 
 function Overlay(props: { title: string; color: string; lines: string[]; buttons: { label: string; fn: () => void }[]; art?: string; report?: ReactNode }) {
   const style = { '--overlay-accent': props.color } as React.CSSProperties;
+  // run-end is a decision screen: no backdrop dismiss, but Esc triggers the safe exit (MAIN MENU)
+  const safeExit = props.buttons.find((b) => /menu/i.test(b.label)) ?? props.buttons[props.buttons.length - 1];
   return (
-    <div className="overlay">
-      <div className={`overlay-box ${props.report ? 'result' : ''}`} role="dialog" aria-modal="true" aria-labelledby="result-overlay-title" style={style}>
-        {props.art && <img className="overlay-art" src={props.art} alt="" />}
-        <h2 id="result-overlay-title">{props.title}</h2>
-        <div className="overlay-copy">
-          {props.lines.map((l, i) => <p key={i}>{l}</p>)}
-        </div>
-        {props.report}
-        <div className="overlay-btns">
-          {props.buttons.map((b) => (
-            <button key={b.label} className="start-btn small" onClick={b.fn}>{b.label}</button>
-          ))}
-        </div>
+    <Modal onClose={() => safeExit?.fn()} closeOnBackdrop={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
+      {props.art && <img className="overlay-art" src={props.art} alt="" />}
+      <h2 id="result-overlay-title">{props.title}</h2>
+      <div className="overlay-copy">
+        {props.lines.map((l, i) => <p key={i}>{l}</p>)}
       </div>
-    </div>
+      {props.report}
+      <div className="overlay-btns">
+        {props.buttons.map((b) => (
+          <button key={b.label} className="start-btn small" onClick={b.fn}>{b.label}</button>
+        ))}
+      </div>
+    </Modal>
   );
 }
 
