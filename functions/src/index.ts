@@ -24,6 +24,7 @@ import {
   feedbackTokenHash,
   newFeedbackToken,
   rateLimitOk,
+  replayTokenHash,
   sanitizeFeedbackReceipts,
   validUid,
   type RateLimitStore,
@@ -43,6 +44,7 @@ const BOARD_RE = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?<fp>_fp)?$/;
 const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
 const UID_RE = /^[A-Za-z0-9_-]{6,40}$/;
+const REPLAY_TOKEN_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
 const CASH_MAX = 100_000_000;
 const KILLS_MAX = 10_000_000;
@@ -74,6 +76,7 @@ interface ClaimedScore {
   ts: number;
   uid: string;
   runId: string;
+  replayToken: string;
   meta?: string;
   daily?: string;
   checkpoint?: boolean;
@@ -84,6 +87,12 @@ interface SubmitResult {
   reason?: string;
   claimed: { cash: number; kills: number; wave: number };
   accepted_values?: { cash: number; kills: number; wave: number };
+}
+
+interface CanonicalScore {
+  cash: number;
+  kills: number;
+  wave: number;
 }
 
 function n(v: unknown, fallback = 0): number {
@@ -106,9 +115,11 @@ function readClaim(raw: unknown): ClaimedScore | null {
   const name = String(d.name ?? '').slice(0, 20);
   const uid = String(d.uid ?? '');
   const runId = String(d.runId ?? '');
+  const replayToken = String(d.replayToken ?? '');
   if (name.length < 1) return null;
   if (!UID_RE.test(uid)) return null;
   if (!RUN_ID_RE.test(runId)) return null;
+  if (!REPLAY_TOKEN_RE.test(replayToken)) return null;
   const claim: ClaimedScore = {
     name,
     cash: Math.max(0, Math.floor(n(d.cash))),
@@ -118,6 +129,7 @@ function readClaim(raw: unknown): ClaimedScore | null {
     ts: Math.floor(n(d.ts, Date.now())),
     uid,
     runId,
+    replayToken,
   };
   if (claim.cash >= CASH_MAX || claim.kills >= KILLS_MAX || claim.wave > WAVE_MAX) return null;
   if (typeof d.meta === 'string') claim.meta = d.meta.slice(0, 240);
@@ -129,17 +141,21 @@ function readClaim(raw: unknown): ClaimedScore | null {
 interface RunSummary {
   wave: number; kills: number; credits: number; cashEarned: number;
   coresLeft: number; durationS: number; freeplay: boolean;
-  map: string; diff: string; outcome: string;
+  map: string; diff: string; outcome: string; daily?: string;
 }
 
-/** Verify runs/{runId} exists and the claimed score is plausibly produced by it. */
-async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean): Promise<string | null> {
+/** Verify runs/{runId} exists and return the replay-derived canonical score. */
+async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean): Promise<{ reason?: string; canonical?: CanonicalScore }> {
   const snap = await db.doc(`runs/${claim.runId}`).get();
-  if (!snap.exists) return 'no-replay';
+  if (!snap.exists) return { reason: 'no-replay' };
   const run = snap.data() as Record<string, unknown>;
 
+  const storedHash = String(run.replayTokenHash ?? '');
+  if (!storedHash) return { reason: 'no-replay-token' };
+  if (storedHash !== replayTokenHash(claim.replayToken)) return { reason: 'replay-token-mismatch' };
+
   const eventCount = n(run.eventCount, 0);
-  if (eventCount <= 0) return 'empty-replay';
+  if (eventCount <= 0) return { reason: 'empty-replay' };
 
   const summary = (run.summary ?? {}) as Partial<RunSummary>;
   const recWave = n(summary.wave);
@@ -148,38 +164,49 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   const recCredits = n(summary.credits);
   const recDuration = n(summary.durationS);
 
-  if (recDuration < MIN_RUN_DURATION_S) return 'too-short';
-  if (recDuration > MAX_RUN_DURATION_S) return 'too-long';
+  if (recDuration < MIN_RUN_DURATION_S) return { reason: 'too-short' };
+  if (recDuration > MAX_RUN_DURATION_S) return { reason: 'too-long' };
 
   const createdAt = n(run.createdAt);
   const endedAt = n(run.endedAt);
-  if (createdAt <= 0 || endedAt < createdAt) return 'bad-timestamps';
+  if (createdAt <= 0 || endedAt < createdAt) return { reason: 'bad-timestamps' };
 
   const cashCeiling = Math.max(recCashEarned, recCredits) * SCORE_SLACK + 5;
-  if (claim.cash > cashCeiling) return 'cash-too-high';
-  if (claim.kills > recKills * SCORE_SLACK + 2) return 'kills-too-high';
-  if (claim.wave > recWave + WAVE_SLACK) return 'wave-too-high';
+  if (claim.cash > cashCeiling) return { reason: 'cash-too-high' };
+  if (claim.kills > recKills * SCORE_SLACK + 2) return { reason: 'kills-too-high' };
+  if (claim.wave > recWave + WAVE_SLACK) return { reason: 'wave-too-high' };
 
   const wantFreeplay = isDaily || boardIsFreeplay(board);
-  if (claim.freeplay !== wantFreeplay) return 'freeplay-mismatch';
+  if (claim.freeplay !== wantFreeplay) return { reason: 'freeplay-mismatch' };
 
   if (!isDaily) {
     const m = BOARD_RE.exec(board);
     const setup = (run.setup ?? {}) as { map?: string; diff?: string };
     const runMap = String(summary.map ?? setup.map ?? '');
     const runDiff = String(summary.diff ?? setup.diff ?? '');
-    if (m?.groups && runMap && runMap !== m.groups.map) return 'map-mismatch';
-    if (m?.groups && runDiff && runDiff !== m.groups.diff) return 'diff-mismatch';
+    if (m?.groups && runMap && runMap !== m.groups.map) return { reason: 'map-mismatch' };
+    if (m?.groups && runDiff && runDiff !== m.groups.diff) return { reason: 'diff-mismatch' };
+    if (summary.daily) return { reason: 'daily-on-board' };
+  } else {
+    if (!summary.freeplay) return { reason: 'daily-not-freeplay' };
+    if (summary.daily !== board) return { reason: 'daily-mismatch' };
   }
 
-  return null;
+  return {
+    canonical: {
+      cash: Math.max(0, Math.floor(Math.max(recCashEarned, recCredits))),
+      kills: Math.max(0, Math.floor(recKills)),
+      wave: Math.max(0, Math.floor(recWave)),
+    },
+  };
 }
 
 async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolean): Promise<SubmitResult> {
   const claimed = { cash: claim.cash, kills: claim.kills, wave: claim.wave };
 
-  const replayReason = await checkReplay(claim, board, isDaily);
-  if (replayReason) return { accepted: false, reason: replayReason, claimed };
+  const replay = await checkReplay(claim, board, isDaily);
+  if (replay.reason || !replay.canonical) return { accepted: false, reason: replay.reason ?? 'bad-replay', claimed };
+  const canonical = replay.canonical;
 
   if (!(await rateLimitOk(db as unknown as RateLimitStore, claim.uid))) {
     return { accepted: false, reason: 'rate-limited', claimed };
@@ -187,9 +214,9 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
 
   const stored: Record<string, unknown> = {
     name: claim.name,
-    cash: claim.cash,
-    kills: claim.kills,
-    wave: claim.wave,
+    cash: canonical.cash,
+    kills: canonical.kills,
+    wave: canonical.wave,
     freeplay: isDaily ? true : boardIsFreeplay(board),
     ts: claim.ts > 0 ? claim.ts : Date.now(),
     uid: claim.uid,
@@ -201,12 +228,13 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
   if (isDaily) stored.daily = board;
 
   const collPath = isDaily ? `dailyBoards/${board}/scores` : `boards/${board}/scores`;
-  await db.collection(collPath).add(stored);
+  const docId = `${claim.uid}_${claim.runId}${claim.checkpoint ? `_w${canonical.wave}` : ''}`.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 180);
+  await db.collection(collPath).doc(docId).set(stored, { merge: false });
 
   return {
     accepted: true,
     claimed,
-    accepted_values: { cash: claim.cash, kills: claim.kills, wave: claim.wave },
+    accepted_values: canonical,
   };
 }
 

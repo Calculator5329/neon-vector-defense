@@ -25,6 +25,8 @@ blob-report/
 !.vscode/extensions.json
 .idea
 .claude/
+.codex-artifacts/
+.orc/
 .cursor/
 .DS_Store
 *.suo

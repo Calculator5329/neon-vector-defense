@@ -52,9 +52,10 @@ import DossierShare from './DossierShare';
 import BotGhostHud from './BotGhostHud';
 import OperationsBoard from './OperationsBoard';
 import Bestiary from './Bestiary';
+import EnemyPortrait from './EnemyPortrait';
 import { UpgradeIcon, upgradeIconKey } from './UpgradeIcon';
 import { meta, rankBandKey, type RunMetaReward } from './game/meta';
-import { buildGhostCurves, ghostCurveFor, judgeRun, type GhostCurve } from './game/ghostCurve';
+import { buildGhostCurves, ghostCurveFor, ghostCurvesForMap, judgeRun, type GhostCurve } from './game/ghostCurve';
 import { GHOST_CURVES_RAW } from './game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from './game/dossier';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec, EnemyDef } from './game/types';
@@ -718,6 +719,7 @@ function MainMenu(props: {
                       key={m.id}
                       className={`map-card ${active ? 'active' : ''}`}
                       data-testid={`map-card-${m.id}`}
+                      aria-label={`${m.name}. ${m.difficulty} sector. ${m.desc}`}
                       onClick={() => { appMetrics.recordMapSelect(m.id); sfx.click(); props.setMap(m); }}
                       title={m.desc}
                     >
@@ -731,7 +733,6 @@ function MainMenu(props: {
                         <span className="map-card-name">{m.name}</span>
                         <span className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</span>
                       </div>
-                      <div className="map-card-desc">{m.desc}</div>
                       {best > 0 && <div className="map-card-best">BEST · W{best}</div>}
                     </button>
                   );
@@ -766,11 +767,12 @@ function MainMenu(props: {
                       key={d.id}
                       className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
                       data-testid={`diff-card-${d.id}`}
+                      aria-label={`${d.name} protocol. ${d.desc}`}
+                      title={d.desc}
                       onClick={() => { appMetrics.recordProtocolSelect(d.id); sfx.click(); props.setDiff(d); }}
                     >
                       {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
                       <div className="diff-name">{d.name}</div>
-                      <div className="diff-desc">{d.desc}</div>
                     </button>
                   );
                 })}
@@ -798,20 +800,21 @@ function MainMenu(props: {
         )}
       </div>
 
-      <div className="menu-legal">
-        <a href="/privacy">Privacy &amp; Data Choices</a>
-      </div>
-
       {/* sticky launch bar — always visible, reflects the current selection */}
       <div className="deploy-bar">
-        <div className="deploy-bar-sel">
-          <span className="dbar-label">DEPLOYING TO</span>
-          <span className="dbar-sec">{props.map.name}</span>
-          <span className="dbar-dot">·</span>
-          <span className="dbar-diff">{props.diff.name}</span>
+        <div className="deploy-bar-inner">
+          <div className="menu-legal">
+            <a href="/privacy">Privacy &amp; Data Choices</a>
+          </div>
+          <div className="deploy-bar-sel">
+            <span className="dbar-label">DEPLOYING TO</span>
+            <span className="dbar-sec">{props.map.name}</span>
+            <span className="dbar-dot">·</span>
+            <span className="dbar-diff">{props.diff.name}</span>
+          </div>
+          <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked}
+            onClick={() => { appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked); props.onStart(); }}>▶ DEPLOY</button>
         </div>
-        <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked}
-          onClick={() => { appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked); props.onStart(); }}>▶ DEPLOY</button>
       </div>
     </div>
   );
@@ -1163,7 +1166,9 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       // Combine Bestiary: drain first-sighting reveals (skip bot/demo runs)
       if (game.newHostiles.length) {
         if (PERF_MAP === null && !DEMO_MODE) {
-          for (const d of game.newHostiles) { progress.discoverEnemy(d.id); hostileQueueRef.current.push(d); }
+          for (const d of game.newHostiles) {
+            if (progress.discoverEnemy(d.id)) hostileQueueRef.current.push(d);
+          }
         }
         game.newHostiles.length = 0;
       }
@@ -1503,8 +1508,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     await submitCheckpointNow('bank');
     game.recorder.recordScoreSubmitAttempt(game.telemetryState());
     const meta = game.freeplayMeta();
-    const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
-    game.recorder.recordReplaySubmitResult(replayOk);
+    const replay = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
+    game.recorder.recordReplaySubmitResult(replay.ok);
     const scoreEntry = {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
@@ -1512,7 +1517,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: true,
       ts: Date.now(),
-      runId: replayOk ? game.runId : undefined,
+      runId: replay.ok ? replay.runId : undefined,
+      replayToken: replay.ok ? replay.replayToken : undefined,
       meta: meta.summary,
       daily: meta.daily || undefined,
       checkpoint: true,
@@ -1564,7 +1570,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
         </div>
         {!game.freeplay && (
-          <BotGhostHud curve={ghostCurveFor(GHOST_CURVES, map.id, diff.id)} wave={game.wave} cores={game.lives} phase={game.phase} />
+          <BotGhostHud curves={ghostCurvesForMap(GHOST_CURVES, map.id)} matchedDiffId={diff.id} wave={game.wave} cores={game.lives} currentStartingLives={diff.lives} phase={game.phase} />
         )}
         {PERF_MAP !== null && (
           <div className="tb-stat" style={{ color: '#7bed9f' }} title="Perf harness: expert bot, 4x, auto-freeplay">
@@ -1851,8 +1857,8 @@ function FreeplayBuildPanel({
 function FreeplayContractModal({ onSelect, onCancel }: { onSelect: (id: FreeplayContractId) => void; onCancel: () => void }) {
   return (
     <div className="cutscene-overlay" onClick={onCancel}>
-      <div className="cutscene-box freeplay-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cutscene-title">PRESTIGE CONTRACT</div>
+      <div className="cutscene-box freeplay-modal" role="dialog" aria-modal="true" aria-labelledby="freeplay-contract-title" onClick={(e) => e.stopPropagation()}>
+        <div className="cutscene-title" id="freeplay-contract-title">PRESTIGE CONTRACT</div>
         <p className="tip-text">Choose how the endless siege scores you. Higher multipliers add real constraints for the whole freeplay run.</p>
         <div className="contract-grid">
           {FREEPLAY_CONTRACTS.map((c) => (
@@ -1873,8 +1879,8 @@ function FreeplayRelicModal({ game, onSelect }: { game: Game; onSelect: (id: Fre
   const offer = game.freeplayState.nextRelicOffer;
   return (
     <div className="cutscene-overlay">
-      <div className="cutscene-box freeplay-modal">
-        <div className="cutscene-title">RELIC DRAFT</div>
+      <div className="cutscene-box freeplay-modal" role="dialog" aria-modal="true" aria-labelledby="freeplay-relic-title">
+        <div className="cutscene-title" id="freeplay-relic-title">RELIC DRAFT</div>
         <p className="tip-text">Pick one run modifier. Relics are permanent, powerful, and a little dangerous.</p>
         <div className="relic-grid">
           {offer.map((r) => (
@@ -2019,7 +2025,7 @@ function NewHostileReveal({ def }: { def: EnemyDef | null }) {
   if (!def) return null;
   return (
     <div className="hostile-reveal" key={def.id}>
-      <img className="hostile-reveal-art" src={`/art/enemy-${def.id}.png`} alt="" loading="lazy" decoding="async" />
+      <EnemyPortrait def={def} className="hostile-reveal-art" />
       <div className="hostile-reveal-text">
         <div className="hostile-reveal-eyebrow">{def.boss ? '⚠ CAPITAL HULL IDENTIFIED' : 'NEW HOSTILE IDENTIFIED'}</div>
         <div className="hostile-reveal-name" style={{ color: def.glow }}>{def.name}</div>
@@ -2136,8 +2142,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     progress.playerName = n;
     setState('busy');
     game.recorder.recordScoreSubmitAttempt(game.telemetryState());
-    const replayOk = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
-    game.recorder.recordReplaySubmitResult(replayOk);
+    const replay = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
+    game.recorder.recordReplaySubmitResult(replay.ok);
     const scoreEntry = {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
@@ -2145,7 +2151,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: game.freeplay,
       ts: Date.now(),
-      runId: replayOk ? game.runId : undefined,
+      runId: replay.ok ? replay.runId : undefined,
+      replayToken: replay.ok ? replay.replayToken : undefined,
       meta: freeplayMeta?.summary,
       daily: dailyId || undefined,
       checkpoint: false,
@@ -2158,7 +2165,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     if (ok) {
       setTop(dailyId ? await fetchDailyTop(dailyId) : await fetchTop(board));
       try { setDossier(buildDossierInputFromGame(game, n)); } catch (e) { console.warn('dossier build failed', e); }
-      setSharedRunId(replayOk ? game.runId : undefined);
+      setSharedRunId(replay.ok ? replay.runId : undefined);
       setState('done');
       sfx.upgrade();
     } else {
@@ -2198,12 +2205,15 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 }
 
 function Overlay(props: { title: string; color: string; lines: string[]; buttons: { label: string; fn: () => void }[]; art?: string; report?: ReactNode }) {
+  const style = { '--overlay-accent': props.color } as React.CSSProperties;
   return (
     <div className="overlay">
-      <div className={`overlay-box ${props.report ? 'result' : ''}`} role="dialog" aria-modal="true" aria-labelledby="result-overlay-title" style={{ borderColor: props.color }}>
+      <div className={`overlay-box ${props.report ? 'result' : ''}`} role="dialog" aria-modal="true" aria-labelledby="result-overlay-title" style={style}>
         {props.art && <img className="overlay-art" src={props.art} alt="" />}
-        <h2 id="result-overlay-title" style={{ color: props.color }}>{props.title}</h2>
-        {props.lines.map((l, i) => <p key={i}>{l}</p>)}
+        <h2 id="result-overlay-title">{props.title}</h2>
+        <div className="overlay-copy">
+          {props.lines.map((l, i) => <p key={i}>{l}</p>)}
+        </div>
         {props.report}
         <div className="overlay-btns">
           {props.buttons.map((b) => (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { W, H } from './game/engine';
-import { buildBackground, drawTowerBody, drawMarkers, drawBlockers } from './game/render';
+import { buildBackground, drawTowerBody, drawMarkers, drawBlockers, drawReplayEnemy, drawReplayMapEffects } from './game/render';
 import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
 import { getWave } from './game/waves';
@@ -11,7 +11,7 @@ import { sfx } from './game/sound';
 import DossierShare from './DossierShare';
 import { buildDossierInputFromRun } from './game/dossier';
 import type { PublicRunDoc, RunWaveSnapshot, RunOutcome, RunEvent } from './game/runTelemetry';
-import type { TowerDef, EnemyDef } from './game/types';
+import type { AbilityId, Enemy, EnemyDef, TowerDef } from './game/types';
 
 // ── Reconstruction model ────────────────────────────────────────────────────
 // A Battle Plan is a *reconstruction*, not a re-sim: the engine's update() loop
@@ -42,7 +42,17 @@ export interface ReconFrame {
 }
 
 const FADE_S = 0.45;     // tower fade-in duration (game-seconds) after placedAtS
-const PLAY_SECONDS = 24; // wall-clock to play the whole captured window at 1× (game length agnostic)
+const REPLAY_SPEEDS = [1, 5, 10, 100] as const;
+const CALLOUT_S = 1.8;
+const EVENT_FEED_S = 3.2;
+const ABILITY_DURATIONS: Partial<Record<AbilityId, number>> = {
+  strike: 1.2,
+  chrono: 6,
+  overdrive: 8,
+  salvage: 1.4,
+  cascade: 1.7,
+  mirror: 10,
+};
 
 /** Pure: derive what to draw at scrub position `t` (seconds). Exported for tests. */
 export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
@@ -112,7 +122,7 @@ function buildGeom(path: { x: number; y: number }[]): PathGeom {
   for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y));
   return { pts: path, cum, len: cum[cum.length - 1] || 1 };
 }
-function posAtDist(geom: PathGeom, d: number): { x: number; y: number; angle: number } {
+function posAtDist(geom: PathGeom, d: number): { x: number; y: number; angle: number; wp: number; dist: number } {
   const { pts, cum } = geom;
   const dist = Math.max(0, Math.min(geom.len, d));
   for (let i = 1; i < pts.length; i++) {
@@ -120,14 +130,38 @@ function posAtDist(geom: PathGeom, d: number): { x: number; y: number; angle: nu
       const seg = cum[i] - cum[i - 1] || 1;
       const f = (dist - cum[i - 1]) / seg;
       const a = pts[i - 1], b = pts[i];
-      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, angle: Math.atan2(b.y - a.y, b.x - a.x) };
+      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, angle: Math.atan2(b.y - a.y, b.x - a.x), wp: i, dist };
     }
   }
   const last = pts[pts.length - 1];
-  return { x: last.x, y: last.y, angle: 0 };
+  return { x: last.x, y: last.y, angle: 0, wp: pts.length - 1, dist };
 }
 
-interface Ghost { x: number; y: number; angle: number; def: EnemyDef; cloaked: boolean; }
+interface Ghost {
+  x: number;
+  y: number;
+  angle: number;
+  wp: number;
+  dist: number;
+  uid: number;
+  def: EnemyDef;
+  cloaked: boolean;
+  slow: number;
+  resonance: number;
+  burnTimer: number;
+  hpPct: number;
+}
+
+interface ReplayShot {
+  x: number;
+  y: number;
+  tx: number;
+  ty: number;
+  color: string;
+  style: TowerDef['style'];
+  tierA: number;
+  uid: number;
+}
 
 /** The current wave + its start time, from the recorded wave_start snapshots. */
 function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT: number } {
@@ -144,17 +178,29 @@ function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT: numbe
 function reenactEnemies(geom: PathGeom, wave: number, startT: number, t: number, cap = 240): Ghost[] {
   const out: Ghost[] = [];
   let groups; try { groups = getWave(wave); } catch { return out; }
-  for (const grp of groups) {
+  let seq = 0;
+  for (let gi = 0; gi < groups.length; gi++) {
+    const grp = groups[gi];
     const def = ENEMIES[grp.type];
     if (!def) continue;
     for (let i = 0; i < grp.count; i++) {
+      seq++;
       const spawnT = startT + (grp.delay ?? 0) + i * grp.gap;
       const age = t - spawnT;
       if (age <= 0) continue;
       const dist = def.speed * age;
       if (dist >= geom.len) continue; // exited the lane
       const p = posAtDist(geom, dist);
-      out.push({ x: p.x, y: p.y, angle: p.angle, def, cloaked: grp.cloaked ?? false });
+      const pulse = 0.5 + 0.5 * Math.sin(t * 1.7 + seq * 0.41);
+      const hpPct = def.boss ? Math.max(0.18, 0.82 - Math.min(0.55, age / 60) + pulse * 0.08) : 1;
+      out.push({
+        x: p.x, y: p.y, angle: p.angle, wp: p.wp, dist: p.dist, uid: wave * 10000 + gi * 500 + i,
+        def, cloaked: grp.cloaked ?? false,
+        slow: 1,
+        resonance: def.id === 'prism' && pulse > 0.86 ? 1 : 0,
+        burnTimer: def.boss && pulse > 0.9 ? 0.6 : 0,
+        hpPct,
+      });
       if (out.length >= cap) return out;
     }
   }
@@ -190,6 +236,29 @@ function drawGhost(ctx: CanvasRenderingContext2D, gh: Ghost) {
   ctx.restore();
 }
 
+function ghostToEnemy(gh: Ghost): Enemy {
+  const maxHp = Math.max(1, gh.def.hp);
+  return {
+    uid: gh.uid,
+    def: gh.def,
+    hp: maxHp * gh.hpPct,
+    maxHp,
+    pos: { x: gh.x, y: gh.y },
+    wp: gh.wp,
+    dist: gh.dist,
+    slow: gh.slow,
+    slowTimer: gh.slow < 1 ? 1 : 0,
+    burnDps: 0,
+    burnTimer: gh.burnTimer,
+    cloaked: gh.cloaked,
+    resonance: gh.resonance,
+    resonanceTimer: gh.resonance ? 1 : 0,
+    phase: gh.uid * 0.013,
+    dead: false,
+    finished: false,
+  };
+}
+
 function isBossWave(wave: number): boolean {
   try { return getWave(wave).some((g) => ENEMIES[g.type]?.boss); } catch { return false; }
 }
@@ -222,10 +291,153 @@ function recentEvents(events: RunEvent[], t: number, windowS: number, max = 4): 
   return out;
 }
 
-/** Floating "WAVE N" / boss callout that fades over the first ~1.8 wall-clock s of each wave. */
+function eventAbilityId(e: RunEvent): AbilityId | null {
+  if (e.type !== 'ability_cast') return null;
+  const id = e.abilityId;
+  return id === 'strike' || id === 'chrono' || id === 'overdrive' || id === 'salvage' || id === 'cascade' || id === 'mirror'
+    ? id
+    : null;
+}
+
+function activeAbilityIds(events: RunEvent[], t: number): Set<AbilityId> {
+  const active = new Set<AbilityId>();
+  for (const e of events) {
+    if (e.t > t) break;
+    const id = eventAbilityId(e);
+    if (!id) continue;
+    const dur = ABILITY_DURATIONS[id] ?? 0;
+    if (t - e.t >= 0 && t - e.t <= dur) active.add(id);
+  }
+  return active;
+}
+
+function drawReplayWeaponFire(ctx: CanvasRenderingContext2D, shots: ReplayShot[], time: number) {
+  if (!shots.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (const s of shots) {
+    const dx = s.tx - s.x, dy = s.ty - s.y;
+    const ang = Math.atan2(dy, dx);
+    const dist = Math.hypot(dx, dy) || 1;
+    if (s.style === 'missile') {
+      const p = 0.35 + 0.45 * ((time * 3 + s.uid * 0.17) % 1);
+      const x = s.x + dx * p, y = s.y + dy * p;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      ctx.fillStyle = '#d8dff0';
+      ctx.beginPath();
+      ctx.moveTo(9, 0); ctx.lineTo(2, -3); ctx.lineTo(-7, -2.4); ctx.lineTo(-9, 0); ctx.lineTo(-7, 2.4); ctx.lineTo(2, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = rgba(s.color, 0.8);
+      ctx.beginPath();
+      ctx.moveTo(-6, -2.4); ctx.lineTo(-18, 0); ctx.lineTo(-6, 2.4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (s.style === 'arc') {
+      ctx.strokeStyle = rgba(s.color, 0.72);
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      const steps = 5;
+      for (let i = 1; i < steps; i++) {
+        const k = i / steps;
+        const jitter = Math.sin(time * 28 + s.uid + i * 1.7) * 10;
+        ctx.lineTo(s.x + dx * k + Math.cos(ang + Math.PI / 2) * jitter, s.y + dy * k + Math.sin(ang + Math.PI / 2) * jitter);
+      }
+      ctx.lineTo(s.tx, s.ty);
+      ctx.stroke();
+    } else if (s.style === 'pulse' || s.style === 'nova' || s.style === 'gravity' || s.style === 'rift') {
+      ctx.strokeStyle = rgba(s.color, 0.55);
+      ctx.lineWidth = s.style === 'gravity' || s.style === 'rift' ? 2.4 : 1.8;
+      ctx.setLineDash(s.style === 'gravity' ? [4, 5] : []);
+      ctx.beginPath();
+      ctx.arc(s.tx, s.ty, 12 + ((time * 24 + s.uid) % 10), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (s.style === 'sweep') {
+      const g = ctx.createLinearGradient(s.x, s.y, s.tx, s.ty);
+      g.addColorStop(0, rgba(s.color, 0.55));
+      g.addColorStop(1, rgba(s.color, 0));
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + Math.cos(ang) * Math.min(dist, 220), s.y + Math.sin(ang) * Math.min(dist, 220)); ctx.stroke();
+    } else {
+      ctx.strokeStyle = rgba(s.color, s.style === 'rail' ? 0.75 : 0.45);
+      ctx.lineWidth = s.style === 'rail' ? 3 : 2;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.tx, s.ty); ctx.stroke();
+    }
+    ctx.fillStyle = rgba(s.color, 0.85);
+    ctx.beginPath(); ctx.arc(s.tx, s.ty, s.style === 'rail' ? 4 : 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawReplayAbilityEffects(ctx: CanvasRenderingContext2D, events: RunEvent[], t: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.t > t) continue;
+    const id = eventAbilityId(e);
+    if (!id) continue;
+    const age = t - e.t;
+    const dur = ABILITY_DURATIONS[id] ?? 0;
+    if (age > dur) {
+      if (age > 12) break;
+      continue;
+    }
+    const k = Math.max(0, 1 - age / Math.max(0.001, dur));
+    if (id === 'strike') {
+      const x = typeof e.x === 'number' ? e.x : W / 2;
+      const y = typeof e.y === 'number' ? e.y : H / 2;
+      ctx.strokeStyle = `rgba(255,211,42,${0.3 + k * 0.55})`;
+      ctx.shadowColor = '#ffd32a';
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, 36 + age * 80, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${0.35 + k * 0.5})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, y); ctx.stroke();
+    } else if (id === 'salvage') {
+      ctx.fillStyle = `rgba(255,211,42,${0.08 + k * 0.18})`;
+      ctx.fillRect(0, 0, W, H);
+    } else if (id === 'cascade') {
+      ctx.strokeStyle = `rgba(255,248,196,${0.25 + k * 0.45})`;
+      ctx.lineWidth = 2;
+      for (let r = 80; r < W; r += 170) {
+        ctx.beginPath(); ctx.arc(W / 2, H / 2, r + age * 80, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (id === 'mirror') {
+      ctx.strokeStyle = `rgba(179,136,255,${0.18 + k * 0.25})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([12, 10]);
+      ctx.lineDashOffset = -t * 45;
+      ctx.strokeRect(18, 18, W - 36, H - 36);
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
+  const active = activeAbilityIds(events, t);
+  if (active.has('chrono')) {
+    ctx.fillStyle = 'rgba(80,160,255,0.13)';
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (active.has('overdrive')) {
+    const a = 0.06 * (0.7 + 0.3 * Math.sin(t * 10));
+    ctx.fillStyle = `rgba(255,170,60,${a})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/** Floating "WAVE N" / boss callout that fades over the first few replay seconds of each wave. */
 function drawCallout(ctx: CanvasRenderingContext2D, win: { wave: number; startT: number }, time: number, span: number) {
   const age = time - win.startT;
-  const showGame = (span / PLAY_SECONDS) * 1.8; // ~1.8s of wall-clock at 1×, in game-seconds
+  void span;
+  const showGame = CALLOUT_S;
   if (age < 0 || age > showGame) return;
   const k = 1 - age / showGame;
   const boss = isBossWave(win.wave);
@@ -307,8 +519,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
     }
     const b = Math.max(snaps[snaps.length - 1].t, a + 1);
     const sp = b - a;
-    // fade window in game-seconds, sized so a placement reads as ~0.4s of wall-clock at 1×
-    return { t0: a, tEnd: b, span: sp, fade: Math.max(FADE_S, (sp / PLAY_SECONDS) * 0.4) };
+    return { t0: a, tEnd: b, span: sp, fade: FADE_S };
   }, [run]);
 
   const tRef = useRef(t0);
@@ -343,6 +554,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
 
     if (bg && gameMap) {
       ctx.drawImage(bg, 0, 0);
+      drawReplayMapEffects(ctx, gameMap, time);
       drawBlockers(ctx, gameMap, time);
       drawMarkers(ctx, gameMap, time);
     } else {
@@ -352,7 +564,9 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
 
     // re-enact the armada streaming down the lane for the active wave
     const win = waveWindow(run, time);
+    const activeAbilities = activeAbilityIds(run.events, time);
     const ghosts = geom ? reenactEnemies(geom, win.wave, win.startT, time) : [];
+    const replayEnemies = ghosts.map((gh) => ghostToEnemy({ ...gh, slow: activeAbilities.has('chrono') ? 0.35 : gh.slow }));
 
     // coverage + heat per tower (lighter blend so overlaps glow)
     ctx.save();
@@ -378,10 +592,14 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
     ctx.restore();
 
     // enemies (over the heat glow)
-    for (const gh of ghosts) drawGhost(ctx, gh);
+    if (gameMap) {
+      for (const enemy of replayEnemies) drawReplayEnemy(ctx, enemy, time, gameMap, run.setup.diff, replayEnemies.length);
+    } else {
+      for (const gh of ghosts) drawGhost(ctx, gh);
+    }
 
     // towers — aim at the nearest in-range hull and fire; fade in by placedAtS
-    const beams: { x: number; y: number; tx: number; ty: number; color: string }[] = [];
+    const shots: ReplayShot[] = [];
     for (const tw of frame.towers) {
       const alpha = Math.max(0, Math.min(1, (time - tw.placedAtS) / fade));
       if (alpha <= 0) continue;
@@ -397,30 +615,23 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
         angle = Math.atan2(target.y - tw.y, target.x - tw.x);
         const rate = Math.max(0.4, tw.def.base.fireRate || 1);
         const cyc = (time * rate + tw.uid * 0.37) % 1; // deterministic firing cadence
-        if (cyc < 0.5) { flash = 1 - cyc * 2; beams.push({ x: tw.x, y: tw.y, tx: target.x, ty: target.y, color: tw.def.glow }); }
+        if (cyc < 0.5) {
+          flash = 1 - cyc * 2;
+          shots.push({ x: tw.x, y: tw.y, tx: target.x, ty: target.y, color: tw.def.glow, style: tw.def.style, tierA: tw.tierA, uid: tw.uid });
+        }
       }
-      drawTowerBody(ctx, { x: tw.x, y: tw.y }, tw.def, angle, tw.tierA, tw.tierB, alpha, flash, time, 0);
+      drawTowerBody(ctx, { x: tw.x, y: tw.y }, tw.def, angle, tw.tierA, tw.tierB, alpha, flash, time, 0, activeAbilities.has('overdrive'));
     }
 
     // weapon fire (over towers, additive)
-    if (beams.length) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (const b of beams) {
-        ctx.strokeStyle = rgba(b.color, 0.45);
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.tx, b.ty); ctx.stroke();
-        ctx.fillStyle = rgba(b.color, 0.85);
-        ctx.beginPath(); ctx.arc(b.tx, b.ty, 3, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
-    }
+    drawReplayWeaponFire(ctx, shots, time);
+    drawReplayAbilityEffects(ctx, run.events, time);
 
     // wave / boss callout (events narration)
     drawCallout(ctx, win, time, span);
 
     // floating event feed — placements / upgrades / abilities as they happen
-    const evWindow = (span / PLAY_SECONDS) * 3.2; // ~3.2s of wall-clock at 1×
+    const evWindow = EVENT_FEED_S;
     const feed = recentEvents(run.events, time, evWindow);
     if (feed.length) {
       ctx.save();
@@ -449,7 +660,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
       lastTsRef.current = ts;
 
       if (playingRef.current) {
-        tRef.current += dt * speedRef.current * (span / PLAY_SECONDS);
+        tRef.current += dt * speedRef.current;
         if (tRef.current >= tEnd) {
           tRef.current = tEnd;
           playingRef.current = false;
@@ -572,8 +783,8 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
         <button className="replay-btn primary" onClick={togglePlay} data-testid="replay-play">{playing ? '❚❚ PAUSE' : '▶ PLAY'}</button>
         <button className="replay-btn" onClick={() => stepSnap(1)} title="Next wave">▶</button>
         <div className="replay-speeds">
-          {[1, 2, 4].map((sp) => (
-            <button key={sp} className={`replay-btn spd ${speed === sp ? 'on' : ''}`} onClick={() => setSpd(sp)}>{sp}×</button>
+          {REPLAY_SPEEDS.map((sp) => (
+            <button key={sp} className={`replay-btn spd ${speed === sp ? 'on' : ''}`} onClick={() => setSpd(sp)}>{sp}x</button>
           ))}
         </div>
       </div>

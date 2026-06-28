@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Game } from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
+import { buildGhostCurves, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { normalizeProgress } from '../../src/game/storage';
 import type { Enemy, EnemyDef } from '../../src/game/types';
@@ -131,5 +132,19 @@ describe('freeplay correctness guards', () => {
 describe('server deletion helpers', () => {
   test('keeps unique valid run ids from leaderboard score rows', () => {
     assert.deepEqual(validDeletedRunIds(['r_abcdefgh', 'bad', 'r_abcdefgh', null, 'r_ijklmnop']), ['r_abcdefgh', 'r_ijklmnop']);
+  });
+});
+
+describe('bot rival profile helpers', () => {
+  test('returns current-sector bot profiles in difficulty order', () => {
+    const raw: WaveCurveLite[] = [
+      { map: 'relay', diff: 'hard', skill: 'expert', winRate: 0.2, avgFinalWave: 42, points: [{ wave: 1, coreFraction: 1 }] },
+      { map: 'other', diff: 'easy', skill: 'rookie', winRate: 1, avgFinalWave: 50, points: [{ wave: 1, coreFraction: 1 }] },
+      { map: 'relay', diff: 'easy', skill: 'rookie', winRate: 0.8, avgFinalWave: 50, points: [{ wave: 1, coreFraction: 1 }] },
+      { map: 'relay', diff: 'normal', skill: 'standard', winRate: 0.5, avgFinalWave: 47, points: [{ wave: 1, coreFraction: 0.5 }] },
+    ];
+    const profiles = ghostCurvesForMap(buildGhostCurves(raw), 'relay');
+    assert.deepEqual(profiles.map((curve) => `${curve.diff}:${curve.skill}`), ['easy:rookie', 'normal:standard', 'hard:expert']);
+    assert.equal(profiles[1].startingLives, DIFFICULTIES.find((diff) => diff.id === 'normal')?.lives);
   });
 });

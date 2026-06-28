@@ -23,6 +23,7 @@ const adminToken = { email: '5329548871.eg@gmail.com', email_verified: true };
 const validRun = {
   schemaVersion: 2,
   runId,
+  replayTokenHash: 'a'.repeat(64),
   createdAt: 1,
   endedAt: 2,
   build: 'test',
@@ -107,6 +108,30 @@ describe('leaderboard and telemetry write rules', () => {
       durationS: 10,
     }));
     await assertFails(updateDoc(ref, { wave: 2 }));
+  });
+
+  test('allow private run analytics create and deny public updates', async () => {
+    const db = anonDb();
+    const ref = doc(db, 'runAnalytics', runId);
+    await assertSucceeds(setDoc(ref, {
+      schemaVersion: 1,
+      runId,
+      uid: 'w_rules1',
+      createdAt: 1,
+      endedAt: 2,
+      build: 'test',
+      summary: {},
+      onboarding: {},
+      abandonment: {},
+      difficulty: {},
+      economy: {},
+      towerInterest: {},
+      progression: {},
+      leaderboard: {},
+      attention: {},
+      performance: {},
+    }));
+    await assertFails(updateDoc(ref, { endedAt: 3 }));
   });
 
   test('allow checkpoint chunk creates and keep reads admin-only', async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ENEMY_LIST } from './game/enemies';
 import { progress } from './game/storage';
+import EnemyPortrait from './EnemyPortrait';
 import type { EnemyDef } from './game/types';
 
 // The Combine Bestiary — a browsable codex of every hull. Undiscovered entries show a
@@ -48,7 +49,7 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
             return (
               <div key={d.id} className={`foe-card ${known ? '' : 'foe-unknown'} ${d.boss ? 'foe-boss' : ''}`}>
                 <div className="foe-portrait">
-                  <img src={`/art/enemy-${d.id}.png`} alt="" draggable={false} />
+                  <EnemyPortrait def={d} unknown={!known} />
                   {!known && <div className="foe-lock">?</div>}
                 </div>
                 <div className="foe-name" style={known ? { color: d.glow } : undefined}>{known ? d.name : 'UNIDENTIFIED'}</div>

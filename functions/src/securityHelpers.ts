@@ -46,6 +46,10 @@ export function feedbackTokenHash(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+export function replayTokenHash(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
 export function sanitizeFeedbackReceipts(raw: unknown, max = 20): FeedbackReceiptInput[] {
   const rows = Array.isArray(raw) ? raw : [];
   const out: FeedbackReceiptInput[] = [];

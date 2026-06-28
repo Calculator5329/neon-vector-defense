@@ -48,10 +48,11 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow delete: if false;
       allow create: if isValidRunId(runId)
-        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
-        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && isTelemetrySchema(request.resource.data)
         && request.resource.data.runId == runId
+        && request.resource.data.replayTokenHash is string && request.resource.data.replayTokenHash.matches('^[a-f0-9]{64}$')
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
         && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
         && request.resource.data.build is string && request.resource.data.build.size() <= 30
@@ -81,8 +82,8 @@ service cloud.firestore {
     // private engagement analytics: players write; only admins can read.
     match /runAnalytics/{runId} {
       allow read: if isAdmin();
-      allow delete: if false;
-      allow create, update: if isValidRunId(runId)
+      allow update, delete: if false;
+      allow create: if isValidRunId(runId)
         && isTelemetrySchema(request.resource.data)
         && (
           (

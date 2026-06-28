@@ -1,90 +1,249 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ghostAtWave, type GhostCurve } from './game/ghostCurve';
+import { DIFFICULTIES } from './game/maps';
 import { sfx } from './game/sound';
 
-// Live "bot rival" readout: the matched-difficulty AI's cores pace at the current wave,
-// plus a sparkline. Click it for a full user-vs-bot breakdown. Campaign-only (report
-// curves are campaign-matched); renders nothing when there's no curve/point.
-export default function BotGhostHud({ curve, wave, cores }: { curve: GhostCurve | null; wave: number; cores: number; phase: string }) {
+type BotGhostHudProps = {
+  curves: GhostCurve[];
+  matchedDiffId: string;
+  wave: number;
+  cores: number;
+  currentStartingLives: number;
+  phase: string;
+};
+
+const PROFILE_COLORS = ['#2ed573', '#8e7bef', '#54a0ff', '#ff9f43', '#ff6b81'];
+
+function curveKey(curve: GhostCurve): string {
+  return `${curve.map}:${curve.diff}:${curve.skill}`;
+}
+
+function diffName(id: string): string {
+  return DIFFICULTIES.find((d) => d.id === id)?.name ?? id;
+}
+
+function pct(n: number): string {
+  return `${Math.round(n * 100)}%`;
+}
+
+function signed(n: number): string {
+  if (n === 0) return '+/-0';
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
+function profileLabel(curve: GhostCurve): string {
+  return `${diffName(curve.diff)} / ${curve.skill}`;
+}
+
+function profileShortLabel(curve: GhostCurve): string {
+  return `${curve.skill.toUpperCase()} ${diffName(curve.diff).toUpperCase()}`;
+}
+
+function curveStats(curve: GhostCurve) {
+  const first = curve.points[0];
+  const last = curve.points[curve.points.length - 1];
+  const firstLeak = curve.points.find((p) => p.cores < curve.startingLives);
+  let hardestDrop = 0;
+  let hardestDropWave = first?.wave ?? 0;
+  for (let i = 1; i < curve.points.length; i++) {
+    const drop = curve.points[i - 1].cores - curve.points[i].cores;
+    if (drop > hardestDrop) {
+      hardestDrop = drop;
+      hardestDropWave = curve.points[i].wave;
+    }
+  }
+  return {
+    firstLeakWave: firstLeak?.wave ?? null,
+    finishCores: last?.cores ?? curve.startingLives,
+    minCores: Math.min(curve.startingLives, ...curve.points.map((p) => p.cores)),
+    hardestDrop,
+    hardestDropWave,
+  };
+}
+
+// Live bot-rival readout. Defaults to the matched campaign profile, then lets the
+// player switch to any bundled bot curve for the same sector.
+export default function BotGhostHud({ curves, matchedDiffId, wave, cores, currentStartingLives }: BotGhostHudProps) {
+  const matchedCurve = useMemo(
+    () => curves.find((c) => c.diff === matchedDiffId) ?? curves[0] ?? null,
+    [curves, matchedDiffId],
+  );
+  const [selectedKey, setSelectedKey] = useState(() => matchedCurve ? curveKey(matchedCurve) : '');
   const [open, setOpen] = useState(false);
-  if (!curve) return null;
-  const g = ghostAtWave(curve, wave);
+
+  useEffect(() => {
+    if (matchedCurve) setSelectedKey(curveKey(matchedCurve));
+  }, [matchedCurve]);
+
+  const selectedCurve = curves.find((c) => curveKey(c) === selectedKey) ?? matchedCurve;
+  if (!selectedCurve) return null;
+  const g = ghostAtWave(selectedCurve, wave);
   if (!g) return null;
 
-  const ahead = cores >= g.cores;
-  const delta = cores - g.cores;
-  const deltaTxt = delta === 0 ? '±0' : delta > 0 ? `+${delta}` : `${delta}`;
+  const playerPct = cores / Math.max(1, currentStartingLives);
+  const botPct = g.cores / Math.max(1, selectedCurve.startingLives);
+  const ahead = playerPct >= botPct;
+  const deltaPct = Math.round((playerPct - botPct) * 100);
   const tone = ahead ? '#2ed573' : '#ff6b81';
 
   const W = 78, H = 22, pad = 2;
-  const maxWave = curve.points[curve.points.length - 1]?.wave || 1;
+  const maxWave = selectedCurve.points[selectedCurve.points.length - 1]?.wave || 1;
   const sx = (w: number) => pad + (w / maxWave) * (W - pad * 2);
-  const sy = (c: number) => pad + (1 - Math.min(1, c / curve.startingLives)) * (H - pad * 2);
-  const line = curve.points.map((p) => `${sx(p.wave).toFixed(1)},${sy(p.cores).toFixed(1)}`).join(' ');
-  const px = sx(Math.min(wave, maxWave)), py = sy(Math.min(cores, curve.startingLives));
+  const sy = (frac: number) => pad + (1 - Math.max(0, Math.min(1, frac))) * (H - pad * 2);
+  const line = selectedCurve.points.map((p) => `${sx(p.wave).toFixed(1)},${sy(p.coreFraction).toFixed(1)}`).join(' ');
+  const px = sx(Math.min(wave, maxWave)), py = sy(playerPct);
 
   return (
     <>
       <button className="tb-stat ghost" onClick={() => { sfx.click(); setOpen(true); }}
-        title={`AI rival (${curve.skill}) held ~${g.cores} cores by wave ${g.wave}. You: ${cores}. Click for details.`}>
-        <span className="ghost-label">🤖</span>
-        <span className="ghost-cores">{g.cores}</span>
-        <span className="ghost-delta" style={{ color: tone }}>{deltaTxt}</span>
+        title={`AI rival ${profileLabel(selectedCurve)}: ${g.cores}/${selectedCurve.startingLives} cores by wave ${g.wave}. You: ${cores}/${currentStartingLives}.`}>
+        <span className="ghost-label">AI</span>
+        <span className="ghost-cores">{pct(botPct)}</span>
+        <span className="ghost-delta" style={{ color: tone }}>{signed(deltaPct)}</span>
         <svg className="ghost-spark" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
           <polyline points={line} fill="none" stroke="rgba(120,150,255,0.55)" strokeWidth="1.2" />
           <line x1={px} y1={pad} x2={px} y2={H - pad} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
           <circle cx={px} cy={py} r="2.6" fill={tone} />
         </svg>
       </button>
-      {open && <GhostModal curve={curve} wave={wave} cores={cores} onClose={() => { sfx.click(); setOpen(false); }} />}
+      {open && (
+        <GhostModal
+          curves={curves}
+          selectedKey={curveKey(selectedCurve)}
+          matchedDiffId={matchedDiffId}
+          wave={wave}
+          cores={cores}
+          currentStartingLives={currentStartingLives}
+          onSelect={setSelectedKey}
+          onClose={() => { sfx.click(); setOpen(false); }}
+        />
+      )}
     </>
   );
 }
 
-function GhostModal({ curve, wave, cores, onClose }: { curve: GhostCurve; wave: number; cores: number; onClose: () => void }) {
-  const g = ghostAtWave(curve, wave);
-  const botCores = g?.cores ?? curve.startingLives;
-  const delta = cores - botCores;
-  const ahead = delta >= 0;
+function GhostModal({
+  curves,
+  selectedKey,
+  matchedDiffId,
+  wave,
+  cores,
+  currentStartingLives,
+  onSelect,
+  onClose,
+}: {
+  curves: GhostCurve[];
+  selectedKey: string;
+  matchedDiffId: string;
+  wave: number;
+  cores: number;
+  currentStartingLives: number;
+  onSelect: (key: string) => void;
+  onClose: () => void;
+}) {
+  const selectedCurve = curves.find((c) => curveKey(c) === selectedKey) ?? curves.find((c) => c.diff === matchedDiffId) ?? curves[0];
+  const g = ghostAtWave(selectedCurve, wave);
+  const botCores = g?.cores ?? selectedCurve.startingLives;
+  const playerPct = cores / Math.max(1, currentStartingLives);
+  const botPct = botCores / Math.max(1, selectedCurve.startingLives);
+  const deltaCores = cores - botCores;
+  const deltaPct = playerPct - botPct;
+  const ahead = deltaPct >= 0;
+  const stats = curveStats(selectedCurve);
 
-  const W = 520, H = 180, padL = 36, padB = 22, padT = 12, padR = 14;
-  const maxWave = curve.points[curve.points.length - 1]?.wave || 1;
+  const W = 560, H = 210, padL = 38, padB = 26, padT = 14, padR = 16;
+  const maxWave = Math.max(1, ...curves.flatMap((curve) => curve.points.map((p) => p.wave)));
   const sx = (w: number) => padL + (w / maxWave) * (W - padL - padR);
   const sy = (frac: number) => padT + (1 - Math.max(0, Math.min(1, frac))) * (H - padT - padB);
-  const botPath = curve.points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.wave).toFixed(1)},${sy(p.coreFraction).toFixed(1)}`).join(' ');
-  const px = sx(Math.min(wave, maxWave)), py = sy(Math.min(1, cores / curve.startingLives));
+  const pathFor = (curve: GhostCurve) => curve.points
+    .map((p, i) => `${i ? 'L' : 'M'}${sx(p.wave).toFixed(1)},${sy(p.coreFraction).toFixed(1)}`)
+    .join(' ');
+  const px = sx(Math.min(wave, maxWave)), py = sy(playerPct);
+
+  const sortedCurves = curves.length ? curves : [selectedCurve];
+  const selectedIndex = Math.max(0, sortedCurves.findIndex((curve) => curveKey(curve) === curveKey(selectedCurve)));
+  const selectedColor = PROFILE_COLORS[selectedIndex % PROFILE_COLORS.length];
 
   return (
     <div className="ghost-modal-overlay" onClick={onClose}>
-      <div className="ghost-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ghost-modal ghost-modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="ghost-modal-head">
-          <span>🤖 AI RIVAL · {curve.skill.toUpperCase()}</span>
-          <button className="ghost-modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <span>AI RIVAL - {profileShortLabel(selectedCurve)}</span>
+          <button className="ghost-modal-close" onClick={onClose} aria-label="Close">x</button>
         </div>
-        <p className="ghost-modal-sub">How the matched-difficulty bot held the line. Stay above its curve to out-ward the armada.</p>
-        <svg className="ghost-modal-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-          {[0, 0.5, 1].map((gr) => (
+        <p className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Long Watch starts are comparable.</p>
+
+        <div className="ghost-profile-switch" role="tablist" aria-label="AI rival profile">
+          {sortedCurves.map((curve, i) => {
+            const key = curveKey(curve);
+            const selected = key === curveKey(selectedCurve);
+            const matched = curve.diff === matchedDiffId;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={selected ? 'on' : ''}
+                style={{ borderColor: selected ? PROFILE_COLORS[i % PROFILE_COLORS.length] : undefined }}
+                onClick={() => { sfx.click(); onSelect(key); }}
+              >
+                <b>{curve.skill}</b>
+                <span>{diffName(curve.diff)}{matched ? ' - matched' : ''}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <svg className="ghost-modal-chart ghost-modal-chart-deep" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+          {[0, 0.25, 0.5, 0.75, 1].map((gr) => (
             <g key={gr}>
               <line x1={padL} y1={sy(gr)} x2={W - padR} y2={sy(gr)} className="gm-grid" />
               <text x={padL - 5} y={sy(gr) + 3} className="gm-axis" textAnchor="end">{Math.round(gr * 100)}</text>
             </g>
           ))}
           {[0, Math.round(maxWave / 2), maxWave].map((w) => (
-            <text key={w} x={sx(w)} y={H - 6} className="gm-axis" textAnchor="middle">W{w}</text>
+            <text key={w} x={sx(w)} y={H - 7} className="gm-axis" textAnchor="middle">W{w}</text>
           ))}
-          <path d={botPath} fill="none" stroke="#8e7bef" strokeWidth="2" />
+          {sortedCurves.map((curve, i) => (
+            <path
+              key={curveKey(curve)}
+              d={pathFor(curve)}
+              fill="none"
+              stroke={PROFILE_COLORS[i % PROFILE_COLORS.length]}
+              strokeWidth={curveKey(curve) === curveKey(selectedCurve) ? 2.6 : 1.2}
+              opacity={curveKey(curve) === curveKey(selectedCurve) ? 0.95 : 0.28}
+            />
+          ))}
           <line x1={px} y1={padT} x2={px} y2={H - padB} stroke="rgba(255,255,255,0.25)" strokeDasharray="3 3" />
-          <circle cx={px} cy={py} r="4.5" fill={ahead ? '#2ed573' : '#ff6b81'} />
-          <text x={px + 7} y={py + 4} className="gm-axis" fill={ahead ? '#2ed573' : '#ff6b81'} textAnchor="start">YOU</text>
+          <circle cx={px} cy={py} r="4.8" fill={ahead ? '#2ed573' : '#ff6b81'} />
+          <text x={Math.min(px + 8, W - 28)} y={py + 4} className="gm-axis" fill={ahead ? '#2ed573' : '#ff6b81'} textAnchor="start">YOU</text>
         </svg>
-        <div className="ghost-modal-rows">
-          <div><span>AI cores @ W{wave}</span><b>{botCores}</b></div>
-          <div><span>Your cores</span><b style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>{cores} ({ahead ? '+' : ''}{delta})</b></div>
-          <div><span>AI typically clears</span><b>W{Math.round(curve.avgFinalWave)}</b></div>
-          <div><span>AI win rate</span><b>{Math.round(curve.winRate * 100)}%</b></div>
+
+        <div className="ghost-modal-legend">
+          {sortedCurves.map((curve, i) => (
+            <span key={curveKey(curve)} className={curveKey(curve) === curveKey(selectedCurve) ? 'on' : ''}>
+              <i style={{ background: PROFILE_COLORS[i % PROFILE_COLORS.length] }} />
+              {diffName(curve.diff)}
+            </span>
+          ))}
         </div>
+
+        <div className="ghost-modal-rows ghost-modal-rows-deep">
+          <div><span>Bot cores @ W{wave}</span><b>{botCores}/{selectedCurve.startingLives} ({pct(botPct)})</b></div>
+          <div><span>Your cores</span><b style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>{cores}/{currentStartingLives} ({pct(playerPct)})</b></div>
+          <div><span>Core delta</span><b style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>{signed(deltaCores)} cores / {signed(Math.round(deltaPct * 100))} pts</b></div>
+          <div><span>Bot usually reaches</span><b>W{Math.round(selectedCurve.avgFinalWave)}</b></div>
+          <div><span>Bot win rate</span><b>{pct(selectedCurve.winRate)}</b></div>
+          <div><span>First bot leak</span><b>{stats.firstLeakWave ? `W${stats.firstLeakWave}` : 'none seen'}</b></div>
+          <div><span>Worst bot drop</span><b>{stats.hardestDrop ? `${stats.hardestDrop} cores @ W${stats.hardestDropWave}` : 'none'}</b></div>
+          <div><span>Lowest bot cores</span><b>{stats.minCores}</b></div>
+          <div><span>Finish cores</span><b>{stats.finishCores}</b></div>
+          <div><span>Comparison profile</span><b style={{ color: selectedColor }}>{profileLabel(selectedCurve)}</b></div>
+        </div>
+
         <div className="ghost-modal-verdict" style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>
-          {ahead ? '◆ You are out-warding the AI — hold the pace.' : '◆ The AI held more cores here — tighten your defense.'}
+          {ahead ? 'You are ahead of this rival profile - hold the pace.' : 'This rival profile is ahead on core percentage - tighten the defense.'}
         </div>
       </div>
     </div>

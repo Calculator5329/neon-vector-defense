@@ -71,6 +71,41 @@ interface Report {
   curves: WaveCurve[]; grid: GridCell[]; efficiency: TowerEfficiency[]; strategies: StrategyResult[]; solo: SoloResult[];
 }
 
+interface DeepDiveSummary {
+  id: string; name: string; style: string; unlockAt: number; cost: number;
+  bestStaticBuild: string; bestStaticAoePerCredit: number; bestStaticDpsPerCredit: number;
+  avgProgressPct: number; winRate: number; avgCorePctOnWins: number;
+  veteranWinRate: number; veteranAvgCorePctOnWins: number; apexWinRate: number; flawlessWins: number;
+  bestSim: string; bestSimProgressPct: number; bestSimCorePct: number;
+  opScore: number; verdict: 'OP' | 'strong' | 'fair' | 'weak' | 'utility/needs-support';
+  strengths: string[]; weaknesses: string[]; notableStages: string[];
+}
+interface DeepDiveStaticBuild {
+  towerId: string; towerName: string; style: string; tierA: number; tierB: number; cost: number;
+  singleDps: number; aoeDps: number; burnDps: number; dpsPerCredit: number; aoePerCredit: number;
+  vsArmored: number; vsExplosiveImmune: number; vsCryoImmune: number; vsCloaked: number; vsBoss: number;
+  utility: string[]; opScore: number;
+}
+interface DeepDiveSim {
+  towerId: string; towerName: string; stageId: string; stageLabel: string; tierA: number; tierB: number;
+  map: string; mapName: string; difficulty: string; difficultyName: string; won: boolean;
+  finalWave: number; targetWaves: number; progressPct: number; livesLeft: number; startingLives: number;
+  corePct: number; leaks: number; firstLeakWave: number | null;
+  worstWave: { wave: number; pressure: number } | null;
+}
+interface TowerDeepDiveReport {
+  generatedAt: string; preset: string;
+  meta: {
+    simCount: number; medianDpsPerCredit: number; medianAoePerCredit: number; elapsedSeconds: number;
+    maps: { id: string; name: string; difficulty: string }[];
+    difficulties: { id: string; name: string; waves: number }[];
+    stages: { id: string; label: string; a: number; b: number }[];
+  };
+  summaries: DeepDiveSummary[];
+  staticBuilds: DeepDiveStaticBuild[];
+  sims: DeepDiveSim[];
+}
+
 const mapName = (id: string) => ALL_MAPS.find((m) => m.id === id)?.name ?? id;
 const diffName = (id: string) => DIFFICULTIES.find((d) => d.id === id)?.name ?? id;
 const towerGlow = (id: string) => TOWER_MAP[id]?.glow ?? '#4bcffa';
@@ -416,6 +451,229 @@ function StepChip({ s }: { s: UpgradeStep }) {
       <span style={{ background: FLAG_COLOR[s.flag] }}>{s.flag}</span>
       <b>{s.trackName} t{s.tier}: {s.name}</b>
       <em>cost {s.cost} / value {s.valuePerCredit.toFixed(3)}</em>
+    </div>
+  );
+}
+
+interface TowerTweak {
+  damageMult: number;
+  fireRateMult: number;
+  rangeMult: number;
+  costMult: number;
+}
+
+const IDENTITY_TWEAK: TowerTweak = { damageMult: 1, fireRateMult: 1, rangeMult: 1, costMult: 1 };
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+const multFmt = (n: number) => `${n.toFixed(2)}x`;
+
+function projectedPower(t: TowerTweak): number {
+  return (t.damageMult * t.fireRateMult * (0.72 + 0.28 * t.rangeMult)) / Math.max(0.25, t.costMult);
+}
+
+function tweakSnippet(id: string, tweak: TowerTweak): string {
+  return JSON.stringify({
+    version: `tower-lab-${new Date().toISOString().slice(0, 10)}`,
+    towers: {
+      [id]: {
+        costMult: Number(tweak.costMult.toFixed(2)),
+        damageMult: Number(tweak.damageMult.toFixed(2)),
+        rangeMult: Number(tweak.rangeMult.toFixed(2)),
+        fireRateMult: Number(tweak.fireRateMult.toFixed(2)),
+      },
+    },
+  }, null, 2);
+}
+
+function TweakControl({ label, value, min, max, onChange }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void;
+}) {
+  return (
+    <label className="adm-tweak-control">
+      <span>{label}</span>
+      <input type="range" min={min} max={max} step={0.01} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input type="number" min={min} max={max} step={0.01} value={value.toFixed(2)} onChange={(e) => onChange(Number(e.target.value) || 1)} />
+    </label>
+  );
+}
+
+function TowerDeepDiveTab({ report }: { report: TowerDeepDiveReport }) {
+  const sorted = useMemo(() => [...report.summaries].sort((a, b) => b.opScore - a.opScore), [report]);
+  const [selected, setSelected] = useState(sorted[0]?.id ?? '');
+  const [tweaks, setTweaks] = useState<Record<string, TowerTweak>>({});
+  const summary = sorted.find((s) => s.id === selected) ?? sorted[0];
+  const tweak = tweaks[summary?.id ?? ''] ?? IDENTITY_TWEAK;
+  const builds = useMemo(() => report.staticBuilds.filter((b) => b.towerId === summary?.id), [report, summary]);
+  const baseBuild = builds.length > 0 ? builds.reduce((best, b) => (b.aoePerCredit > best.aoePerCredit ? b : best), builds[0]) : null;
+  const power = projectedPower(tweak);
+  const projectedBuilds = builds.map((b) => ({
+    ...b,
+    projectedSingle: b.singleDps * tweak.damageMult * tweak.fireRateMult,
+    projectedAoe: b.aoeDps * tweak.damageMult * tweak.fireRateMult,
+    projectedCost: b.cost * tweak.costMult,
+    projectedAoePerCredit: (b.aoePerCredit * tweak.damageMult * tweak.fireRateMult) / Math.max(0.25, tweak.costMult),
+    projectedDpsPerCredit: (b.dpsPerCredit * tweak.damageMult * tweak.fireRateMult) / Math.max(0.25, tweak.costMult),
+  }));
+  const projectedBest = projectedBuilds.length > 0 ? projectedBuilds.reduce((best, b) => (b.projectedAoePerCredit > best.projectedAoePerCredit ? b : best), projectedBuilds[0]) : null;
+  const projectedVeteran = summary ? clamp01(summary.veteranWinRate + Math.log(power) * 0.35) : 0;
+  const projectedApex = summary ? clamp01(summary.apexWinRate + Math.log(power) * 0.25) : 0;
+  const selectedSims = report.sims
+    .filter((s) => s.towerId === summary?.id)
+    .sort((a, b) => Number(b.won) - Number(a.won) || b.corePct - a.corePct || b.progressPct - a.progressPct)
+    .slice(0, 16);
+  const op = sorted.filter((s) => s.verdict === 'OP');
+  const setTweak = (patch: Partial<TowerTweak>) => {
+    if (!summary) return;
+    setTweaks((cur) => ({ ...cur, [summary.id]: { ...(cur[summary.id] ?? IDENTITY_TWEAK), ...patch } }));
+  };
+  const resetTweak = () => {
+    if (!summary) return;
+    setTweaks((cur) => {
+      const next = { ...cur };
+      delete next[summary.id];
+      return next;
+    });
+  };
+  const copySnippet = () => {
+    if (!summary || !navigator.clipboard) return;
+    void navigator.clipboard.writeText(tweakSnippet(summary.id, tweak));
+  };
+  if (!summary || !baseBuild || !projectedBest) {
+    return <div className="adm-content"><div className="adm-card"><div className="adm-empty">No tower deep-dive data loaded.</div></div></div>;
+  }
+  return (
+    <div className="adm-content adm-tower-deep">
+      <div className="adm-card">
+        <div className="adm-card-head">
+          <h3>Tower deep dive</h3>
+          <span className="adm-hint">{report.preset} preset · {report.meta.simCount.toLocaleString()} sims · generated {new Date(report.generatedAt).toLocaleString()}</span>
+        </div>
+        <div className="adm-stat-row">
+          <Stat label="likely OP" value={String(op.length)} />
+          <Stat label="maps" value={String(report.meta.maps.length)} />
+          <Stat label="difficulties" value={String(report.meta.difficulties.length)} />
+          <Stat label="stages" value={String(report.meta.stages.length)} />
+        </div>
+      </div>
+
+      <div className="adm-tower-deep-grid">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Ranking</h3><span className="adm-hint">simulation-led OP score</span></div>
+          <div className="adm-deep-rank-list">
+            {sorted.map((s) => (
+              <button key={s.id} className={s.id === summary.id ? 'on' : ''} onClick={() => setSelected(s.id)}>
+                <span><i style={{ background: towerGlow(s.id) }} />{s.name}</span>
+                <b className={`adm-verdict-${s.verdict.replace(/[^a-z]/gi, '-').toLowerCase()}`}>{s.verdict}</b>
+                <em>{s.opScore.toFixed(2)}</em>
+                <small>Vet {pct(s.veteranWinRate)} · Apex {pct(s.apexWinRate)} · progress {pct(s.avgProgressPct)}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="adm-card">
+          <div className="adm-card-head">
+            <h3>{summary.name}</h3>
+            <span className="adm-hint">{summary.style} · {summary.verdict} · best sim {summary.bestSim}</span>
+          </div>
+          <div className="adm-mini-kpis">
+            <Stat label="OP score" value={summary.opScore.toFixed(2)} />
+            <Stat label="Veteran wins" value={pct(summary.veteranWinRate)} />
+            <Stat label="Apex wins" value={pct(summary.apexWinRate)} />
+            <Stat label="win cores" value={pct(summary.avgCorePctOnWins)} />
+          </div>
+          <div className="adm-two">
+            <div>
+              <div className="adm-subhead">Strengths</div>
+              <div className="adm-tag-row">{summary.strengths.map((s) => <span key={s}>{s}</span>)}</div>
+            </div>
+            <div>
+              <div className="adm-subhead">Weaknesses</div>
+              <div className="adm-tag-row warn">{summary.weaknesses.map((s) => <span key={s}>{s}</span>)}</div>
+            </div>
+          </div>
+          <div className="adm-deep-stage-list">
+            {summary.notableStages.map((s) => <span key={s}>{s}</span>)}
+          </div>
+        </div>
+      </div>
+
+      <div className="adm-tower-deep-grid">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>What-if tweak</h3><span className="adm-hint">local projection for one tower</span></div>
+          <div className="adm-tweak-grid">
+            <TweakControl label="damage" value={tweak.damageMult} min={0.5} max={1.5} onChange={(damageMult) => setTweak({ damageMult })} />
+            <TweakControl label="fire rate" value={tweak.fireRateMult} min={0.5} max={1.5} onChange={(fireRateMult) => setTweak({ fireRateMult })} />
+            <TweakControl label="range" value={tweak.rangeMult} min={0.65} max={1.4} onChange={(rangeMult) => setTweak({ rangeMult })} />
+            <TweakControl label="cost" value={tweak.costMult} min={0.65} max={2} onChange={(costMult) => setTweak({ costMult })} />
+          </div>
+          <div className="adm-mini-kpis">
+            <Stat label="power index" value={`${Math.round(power * 100)}%`} />
+            <Stat label="projected Vet" value={`${pct(summary.veteranWinRate)} → ${pct(projectedVeteran)}`} />
+            <Stat label="projected Apex" value={`${pct(summary.apexWinRate)} → ${pct(projectedApex)}`} />
+            <Stat label="best static" value={`${baseBuild.tierA}/${baseBuild.tierB} → ${projectedBest.tierA}/${projectedBest.tierB}`} />
+          </div>
+          <table className="adm-table adm-projection-table">
+            <thead><tr><th>metric</th><th>current</th><th>projected</th><th>change</th></tr></thead>
+            <tbody>
+              <tr><td>best AoE / credit</td><td>{baseBuild.aoePerCredit.toFixed(4)}</td><td>{projectedBest.projectedAoePerCredit.toFixed(4)}</td><td>{multFmt(projectedBest.projectedAoePerCredit / Math.max(0.000001, baseBuild.aoePerCredit))}</td></tr>
+              <tr><td>single DPS</td><td>{baseBuild.singleDps.toFixed(1)}</td><td>{projectedBest.projectedSingle.toFixed(1)}</td><td>{multFmt(projectedBest.projectedSingle / Math.max(0.000001, baseBuild.singleDps))}</td></tr>
+              <tr><td>crowd DPS</td><td>{baseBuild.aoeDps.toFixed(1)}</td><td>{projectedBest.projectedAoe.toFixed(1)}</td><td>{multFmt(projectedBest.projectedAoe / Math.max(0.000001, baseBuild.aoeDps))}</td></tr>
+              <tr><td>build cost</td><td>⌬{Math.round(baseBuild.cost).toLocaleString()}</td><td>⌬{Math.round(projectedBest.projectedCost).toLocaleString()}</td><td>{multFmt(projectedBest.projectedCost / Math.max(1, baseBuild.cost))}</td></tr>
+            </tbody>
+          </table>
+          <div className="adm-tweak-actions">
+            <button className="adm-mini" onClick={resetTweak}>reset</button>
+            <button className="adm-mini" onClick={copySnippet}>copy config</button>
+          </div>
+          <pre className="adm-config-snippet">{tweakSnippet(summary.id, tweak)}</pre>
+          <p className="adm-hint adm-eff-legend">Projection uses saved static data plus a small range weight. Rerun <code>npm run tower:deep-dive</code> after applying real values to verify actual wave outcomes.</p>
+        </div>
+
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Best saved sims</h3><span className="adm-hint">selected tower only</span></div>
+          <table className="adm-table">
+            <thead><tr><th>stage</th><th>sector</th><th>protocol</th><th>result</th><th>cores</th><th>leaks</th><th>worst</th></tr></thead>
+            <tbody>
+              {selectedSims.map((s) => (
+                <tr key={`${s.stageId}-${s.map}-${s.difficulty}`}>
+                  <td>{s.stageLabel}</td>
+                  <td>{s.mapName}</td>
+                  <td>{s.difficultyName}</td>
+                  <td style={{ color: s.won ? '#2ed573' : '#ff9f43' }}>{s.won ? 'WIN' : `w${s.finalWave}/${s.targetWaves}`}</td>
+                  <td>{pct(s.corePct)}</td>
+                  <td>{s.leaks}</td>
+                  <td>{s.worstWave ? `w${s.worstWave.wave} ${pct(s.worstWave.pressure)}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="adm-card">
+        <div className="adm-card-head"><h3>Full tower summary</h3><span className="adm-hint">from saved deep-dive JSON</span></div>
+        <table className="adm-table adm-deep-summary">
+          <thead>
+            <tr><th>tower</th><th>verdict</th><th>score</th><th>all wins</th><th>Vet</th><th>Apex</th><th>progress</th><th>best static</th><th>AoE/credit</th><th>best sim</th></tr>
+          </thead>
+          <tbody>
+            {sorted.map((s) => (
+              <tr key={s.id} onClick={() => setSelected(s.id)}>
+                <td><span className="adm-dot" style={{ background: towerGlow(s.id) }} />{s.name}</td>
+                <td>{s.verdict}</td>
+                <td>{s.opScore.toFixed(2)}</td>
+                <td>{pct(s.winRate)}</td>
+                <td>{pct(s.veteranWinRate)}</td>
+                <td>{pct(s.apexWinRate)}</td>
+                <td>{pct(s.avgProgressPct)}</td>
+                <td>{s.bestStaticBuild}</td>
+                <td>{s.bestStaticAoePerCredit.toFixed(4)}</td>
+                <td>{s.bestSim}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -2444,10 +2702,10 @@ function InboxTab({ user }: { user: User }) {
 }
 
 export default function AdminDashboard() {
-  type AdminTab = 'inbox' | 'balance' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf';
+  type AdminTab = 'inbox' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf';
   const [tab, setTabState] = useState<AdminTab>(() => {
     const t = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('tab') : null;
-    return t === 'balance' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
+    return t === 'balance' || t === 'towers' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
       || t === 'combat' || t === 'systems' || t === 'freeplay' || t === 'uxperf' ? t : 'inbox';
   });
   const setTab = (t: AdminTab) => {
@@ -2455,6 +2713,7 @@ export default function AdminDashboard() {
     try { const u = new URL(location.href); u.searchParams.set('tab', t); history.replaceState(null, '', u); } catch { /* ignore */ }
   };
   const [report, setReport] = useState<Report | null | 'missing'>(null);
+  const [towerReport, setTowerReport] = useState<TowerDeepDiveReport | null | 'missing'>(null);
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [allowed, setAllowed] = useState(false);
@@ -2471,6 +2730,13 @@ export default function AdminDashboard() {
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((j: Report) => setReport(j))
       .catch(() => setReport('missing'));
+  }, []);
+
+  useEffect(() => {
+    fetch('/tower-deep-dive-report.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: TowerDeepDiveReport) => setTowerReport(j))
+      .catch(() => setTowerReport('missing'));
   }, []);
 
   if (!authReady || !user || !allowed) {
@@ -2499,6 +2765,7 @@ export default function AdminDashboard() {
         <nav className="adm-tabs">
           <button className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
           <button className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
+          <button className={tab === 'towers' ? 'on' : ''} onClick={() => setTab('towers')}>TOWERS</button>
           <button className={tab === 'telemetry' ? 'on' : ''} onClick={() => setTab('telemetry')}>TELEMETRY</button>
           <button className={tab === 'explore' ? 'on' : ''} onClick={() => setTab('explore')}>EXPLORE</button>
           <button className={tab === 'overview' ? 'on' : ''} onClick={() => setTab('overview')}>OVERVIEW</button>
@@ -2523,6 +2790,14 @@ export default function AdminDashboard() {
                 <p className="adm-hint">Run <code>npm run balance</code> to generate it.</p>
               </div></div></div>
             : <BalanceTab report={report} />
+      ) : tab === 'towers' ? (
+        towerReport === null ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">Loading tower deep dive…</div></div></div>
+          : towerReport === 'missing'
+            ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">
+                <p>No tower deep-dive report found at <code>/tower-deep-dive-report.json</code>.</p>
+                <p className="adm-hint">Run <code>npm run tower:deep-dive</code> to generate it.</p>
+              </div></div></div>
+            : <TowerDeepDiveTab report={towerReport} />
       ) : tab === 'telemetry' ? <TelemetryTab report={report} />
         : tab === 'explore' ? <MetricExplorerTab />
           : tab === 'overview' ? <RunIntelligenceTab />

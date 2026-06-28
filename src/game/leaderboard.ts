@@ -24,6 +24,7 @@ const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
 const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const LEADERBOARD_CACHE_TTL_MS = 30_000;
+const REPLAY_TOKEN_KEY = 'nvd-replay-tokens-v1';
 const topCache = new Map<string, { expires: number; rows: ScoreEntry[] }>();
 const globalTopCache = new Map<string, { expires: number; rows: RankedScoreEntry[] }>();
 
@@ -48,6 +49,7 @@ export interface ScoreEntry {
   ts: number;
   uid?: string;
   runId?: string;
+  replayToken?: string;
   meta?: string;
   daily?: string;
   checkpoint?: boolean;
@@ -85,6 +87,57 @@ function validDailyBoard(board: string): boolean {
 
 function isValidRunId(id: string): boolean {
   return /^r_[A-Za-z0-9_-]{8,80}$/.test(id);
+}
+
+function isValidReplayToken(token: string): boolean {
+  return /^[A-Za-z0-9_-]{16,128}$/.test(token);
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomToken(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let raw = '';
+  for (const b of bytes) raw += String.fromCharCode(b);
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+function loadReplayTokens(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(REPLAY_TOKEN_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, string> : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveReplayToken(runId: string, token: string): void {
+  try {
+    const rows = Object.entries(loadReplayTokens())
+      .filter(([id, value]) => isValidRunId(id) && isValidReplayToken(String(value)) && id !== runId)
+      .slice(-39);
+    rows.push([runId, token]);
+    localStorage.setItem(REPLAY_TOKEN_KEY, JSON.stringify(Object.fromEntries(rows)));
+  } catch {
+    // Replay token persistence is only for score retry; failed storage is non-fatal.
+  }
+}
+
+function replayTokenFor(runId: string): string {
+  const existing = loadReplayTokens()[runId];
+  if (isValidReplayToken(existing)) return existing;
+  const token = randomToken();
+  saveReplayToken(runId, token);
+  return token;
 }
 
 function invalidateBoardCache(board: string): void {
@@ -125,6 +178,7 @@ function scorePayload(entry: ScoreEntry): ScoreEntry {
     uid: (entry.uid ?? progress.uid).slice(0, 40),
   };
   if (entry.runId && isValidRunId(entry.runId)) payload.runId = entry.runId;
+  if (entry.replayToken && isValidReplayToken(entry.replayToken)) payload.replayToken = entry.replayToken;
   if (entry.meta) payload.meta = entry.meta.slice(0, 240);
   if (entry.daily) payload.daily = entry.daily.slice(0, 80);
   if (entry.checkpoint !== undefined) payload.checkpoint = !!entry.checkpoint;
@@ -141,6 +195,11 @@ interface SubmitScoreResult {
   reason?: string;
   claimed?: { cash: number; kills: number; wave: number };
   accepted_values?: { cash: number; kills: number; wave: number };
+}
+export interface RunReplaySubmitResult {
+  ok: boolean;
+  runId?: string;
+  replayToken?: string;
 }
 interface DeleteDataResult {
   ok: boolean;
@@ -341,19 +400,38 @@ export function logTelemetry(e: TelemetryEvent): void {
   })();
 }
 
-export async function submitRunReplay(bundle: RunUploadBundle): Promise<boolean> {
+function sameReplayDoc(existing: PublicRunDoc | null, run: PublicRunDoc): boolean {
+  return !!existing
+    && existing.runId === run.runId
+    && existing.replayTokenHash === run.replayTokenHash
+    && existing.createdAt === run.createdAt
+    && existing.endedAt === run.endedAt
+    && Number(existing.eventCount ?? -1) === Number(run.eventCount ?? -2);
+}
+
+export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunReplaySubmitResult> {
   // Replay backs leaderboard verification, so it is SCORE-tier (every adult who posts),
   // not analytics-tier — a privacy-conscious adult must still produce a verifiable replay.
-  if (!canSubmitScore()) return false;
-  if (!isValidRunId(bundle.run.runId)) return false;
+  if (!canSubmitScore()) return { ok: false };
+  if (!isValidRunId(bundle.run.runId)) return { ok: false };
+  const replayToken = replayTokenFor(bundle.run.runId);
+  const replayTokenHash = await sha256Hex(replayToken);
+  const run: PublicRunDoc = { ...bundle.run, replayTokenHash };
   try {
-    await withTimeout(setDoc(firestoreDoc(db, 'runs', bundle.run.runId), bundle.run));
+    await withTimeout(setDoc(firestoreDoc(db, 'runs', run.runId), run));
     await withTimeout(Promise.all(bundle.chunks.map((chunk) =>
-      setDoc(firestoreDoc(db, 'runs', bundle.run.runId, 'chunks', `c${chunk.chunk}`), chunk))));
-    return true;
+      setDoc(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk))));
+    return { ok: true, runId: run.runId, replayToken };
   } catch (error) {
     console.warn('Run replay submit failed', error);
-    return false;
+    try {
+      const snap = await withTimeout(getDoc(firestoreDoc(db, 'runs', run.runId)));
+      const existing = snap.exists() ? (snap.data() as PublicRunDoc) : null;
+      if (sameReplayDoc(existing, run)) return { ok: true, runId: run.runId, replayToken };
+    } catch {
+      // Preserve the original upload failure.
+    }
+    return { ok: false };
   }
 }
 

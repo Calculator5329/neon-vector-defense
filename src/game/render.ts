@@ -774,6 +774,33 @@ function drawAnimatedLane(ctx: CanvasRenderingContext2D, game: Game) {
   ctx.globalAlpha = 1;
 }
 
+export function drawReplayMapEffects(ctx: CanvasRenderingContext2D, map: GameMap, time: number) {
+  drawAnimatedLane(ctx, { map, time } as Game);
+  if (!map.zones) return;
+  for (const z of map.zones) {
+    ctx.save();
+    const zg = ctx.createRadialGradient(z.x, z.y, z.r * 0.3, z.x, z.y, z.r);
+    zg.addColorStop(0, 'rgba(255,190,80,0.07)');
+    zg.addColorStop(1, 'rgba(255,190,80,0)');
+    ctx.fillStyle = zg;
+    circle(ctx, z.x, z.y, z.r);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,190,80,0.5)';
+    ctx.shadowColor = '#ffbe50';
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([10, 8]);
+    ctx.lineDashOffset = -time * 10;
+    circle(ctx, z.x, z.y, z.r);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ffbe50';
+    circle(ctx, z.x, z.y, 3 + Math.sin(time * 3) * 1);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 export function drawMarkers(ctx: CanvasRenderingContext2D, map: GameMap, time: number) {
   const a = map.path[0], b = map.path[map.path.length - 1];
   marker(ctx, a, '#2ed573', 'IN', time);
@@ -1638,6 +1665,62 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
     ctx.fillStyle = hpct > 0.5 ? '#2ed573' : hpct > 0.25 ? '#ffd32a' : '#ff4757';
     ctx.fillRect(e.pos.x - w / 2, y, w * hpct, def.boss ? 5 : 3.5);
   }
+}
+
+export function drawEnemyPortrait(
+  ctx: CanvasRenderingContext2D,
+  def: EnemyDef,
+  options: { time?: number; corrupted?: boolean; unknown?: boolean } = {},
+) {
+  const time = options.time ?? 0;
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const min = Math.min(w, h);
+  ctx.clearRect(0, 0, w, h);
+
+  const bg = ctx.createRadialGradient(cx, cy, min * 0.06, cx, cy, min * 0.55);
+  bg.addColorStop(0, options.unknown ? 'rgba(80,90,120,0.12)' : withAlphaCss(def.glow, 0.18));
+  bg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = options.unknown ? 'rgba(120,150,255,0.18)' : withAlphaCss(def.glow, 0.45);
+  ctx.lineWidth = Math.max(1, min * 0.018);
+  ctx.setLineDash([min * 0.06, min * 0.045]);
+  ctx.lineDashOffset = -time * min * 0.08;
+  circle(ctx, cx, cy, min * 0.34);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  const sprite = options.corrupted ? corruptedSprite(def) : enemySprite(def);
+  const spriteCss = Math.max(sprite.width, sprite.height) / SS;
+  const scale = Math.max(0.8, (min * (def.boss ? 0.68 : 0.56)) / spriteCss);
+  ctx.save();
+  if (options.unknown) {
+    ctx.globalAlpha = 0.84;
+    ctx.filter = 'brightness(0.08) saturate(0)';
+  }
+  blit(ctx, sprite, cx, cy + Math.sin(time * 2) * min * 0.012, -Math.PI / 9 + Math.sin(time * 0.9) * 0.08, scale);
+  ctx.restore();
+}
+
+export function drawReplayEnemy(
+  ctx: CanvasRenderingContext2D,
+  enemy: Enemy,
+  time: number,
+  map: GameMap,
+  diffId: string,
+  enemyCount: number,
+) {
+  drawEnemy(ctx, enemy, time, map, {
+    enemies: new Array(Math.max(0, enemyCount)) as Enemy[],
+    diff: { id: diffId },
+  } as Game);
 }
 
 // ---------- pickups ----------

@@ -43,6 +43,13 @@ export function ghostCurveFor(curves: GhostCurve[], mapId: string, diffId: strin
   return curves.find((c) => c.map === mapId && c.diff === diffId) ?? null;
 }
 
+export function ghostCurvesForMap(curves: GhostCurve[], mapId: string): GhostCurve[] {
+  const order = new Map(DIFFICULTIES.map((d, i) => [d.id, i]));
+  return curves
+    .filter((c) => c.map === mapId)
+    .sort((a, b) => (order.get(a.diff) ?? 99) - (order.get(b.diff) ?? 99) || a.skill.localeCompare(b.skill));
+}
+
 /** Ghost point at an exact wave, else the nearest prior wave (the curve is post-wave keyframes). */
 export function ghostAtWave(curve: GhostCurve, wave: number): GhostPoint | null {
   let best: GhostPoint | null = null;

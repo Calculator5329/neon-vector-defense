@@ -4,6 +4,7 @@ import {
   feedbackTokenHash,
   newFeedbackToken,
   rateLimitOk,
+  replayTokenHash,
   sanitizeFeedbackReceipts,
   type RateLimitStore,
 } from '../../functions/src/securityHelpers.ts';
@@ -13,6 +14,15 @@ describe('feedback receipt helpers', () => {
     const token = 'abcdefghijklmnop';
     const hash = feedbackTokenHash(token);
     assert.equal(hash, feedbackTokenHash(token));
+    assert.notEqual(hash, token);
+    assert.match(hash, /^[a-f0-9]{64}$/);
+    assert.equal(replayTokenHash(token), hash);
+  });
+
+  test('hashes replay claim tokens with the same hex contract', () => {
+    const token = 'abcdefghijklmnop';
+    const hash = replayTokenHash(token);
+    assert.equal(hash, replayTokenHash(token));
     assert.notEqual(hash, token);
     assert.match(hash, /^[a-f0-9]{64}$/);
   });

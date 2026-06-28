@@ -46,6 +46,7 @@
     "perf:quick": "npm run perf -- quick",
     "perf:browser": "node scripts/browserPerf.mjs",
     "balance": "tsx scripts/balance.ts",
+    "tower:deep-dive": "tsx scripts/tower-deep-dive.ts",
     "meta:sim": "tsx scripts/meta-sim.ts"
   },
   "devDependencies": {

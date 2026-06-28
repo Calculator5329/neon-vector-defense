@@ -110,6 +110,7 @@ export interface RunRecorderStart {
 export interface PublicRunDoc {
   schemaVersion: number;
   runId: string;
+  replayTokenHash?: string;
   createdAt: number;
   endedAt: number;
   build: string;
@@ -122,6 +123,9 @@ export interface PublicRunDoc {
     diff: string;
     diffName: string;
     freeplay: boolean;
+    daily?: string;
+    contractId?: string;
+    scoreMultiplierEnd?: number;
     outcome: RunOutcome;
     phase: string;
     wave: number;
@@ -1428,7 +1432,7 @@ export class RunRecorder {
 
   private summary(state: RunTelemetryState, callsign: string): PublicRunDoc['summary'] {
     const outcome = this.outcome ?? this.inferOutcome(state);
-    return {
+    const summary: PublicRunDoc['summary'] = {
       callsign: sanitizeCallsign(callsign),
       map: this.start.map.id,
       mapName: this.start.map.name,
@@ -1445,6 +1449,10 @@ export class RunRecorder {
       coresLeft: Math.max(0, Math.round(state.lives)),
       durationS: Math.max(0, Math.round(state.time)),
     };
+    if (this.freeplay.dailyId) summary.daily = this.freeplay.dailyId;
+    if (this.freeplay.contractId) summary.contractId = this.freeplay.contractId;
+    if (Number.isFinite(this.freeplay.scoreMultiplierEnd)) summary.scoreMultiplierEnd = this.freeplay.scoreMultiplierEnd;
+    return summary;
   }
 
   private inferOutcome(state: RunTelemetryState): RunOutcome {
