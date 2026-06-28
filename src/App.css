@@ -3431,6 +3431,15 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .privacy-toggle.on { color: var(--good); border-color: rgba(46, 213, 115, 0.5); }
 .privacy-toggle.danger:hover { border-color: var(--danger); color: var(--danger); }
 .privacy-toggle:disabled { opacity: 0.55; cursor: default; }
+.privacy-action-status {
+  padding: 8px 10px;
+  border: 1px solid rgba(75, 207, 250, 0.24);
+  border-radius: 7px;
+  background: rgba(75, 207, 250, 0.08);
+  color: #dce8ff;
+  font-size: 12px;
+  line-height: 1.35;
+}
 
 .menu-legal {
   margin: 0;

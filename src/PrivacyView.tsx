@@ -48,12 +48,20 @@ export default function PrivacyView() {
   const [cleared, setCleared] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [serverDeleted, setServerDeleted] = useState<boolean | null>(null);
+  const [notice, setNotice] = useState('');
   const sold = state.sell === 'optout' || gpc;
 
   const toggleSell = () => {
     sfx.click();
     setSell(sold && !gpc ? 'ok' : 'optout');
     setState(consentState());
+    setNotice(sold && !gpc ? 'Analytics opt-out removed.' : 'Analytics opt-out saved.');
+  };
+
+  const doExport = () => {
+    sfx.click();
+    exportLocalData();
+    setNotice('Local data export started.');
   };
 
   const doDelete = async () => {
@@ -66,6 +74,9 @@ export default function PrivacyView() {
     setServerDeleted(remoteOk);
     setDeleting(false);
     setCleared(true);
+    setNotice(remoteOk
+      ? 'Local data erased and server deletion request accepted.'
+      : 'Local data erased. Server deletion request could not be confirmed.');
   };
 
   return (
@@ -125,7 +136,7 @@ export default function PrivacyView() {
                     : 'Turns off all analytics/telemetry collection. (We never actually sell data; this is the CCPA opt-out.)'}
                 </div>
               </div>
-              <button className={`privacy-toggle ${sold ? 'on' : ''}`} disabled={gpc} onClick={toggleSell}>
+              <button className={`privacy-toggle ${sold ? 'on' : ''}`} aria-pressed={sold} disabled={gpc} onClick={toggleSell}>
                 {sold ? 'OPTED OUT' : 'OPT OUT'}
               </button>
             </div>
@@ -135,7 +146,7 @@ export default function PrivacyView() {
                 <div className="privacy-control-name">Download my data</div>
                 <div className="privacy-control-sub">Export everything stored on this device as JSON.</div>
               </div>
-              <button className="privacy-toggle" onClick={() => { sfx.click(); exportLocalData(); }}>DOWNLOAD</button>
+              <button className="privacy-toggle" onClick={doExport}>DOWNLOAD</button>
             </div>
 
             <div className="privacy-control">
@@ -151,6 +162,7 @@ export default function PrivacyView() {
                 {cleared ? 'DELETED' : deleting ? 'DELETING' : 'DELETE'}
               </button>
             </div>
+            {notice && <div className="privacy-action-status" role="status" aria-live="polite" aria-atomic="true">{notice}</div>}
           </div>
         </section>
 
