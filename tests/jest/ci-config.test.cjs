@@ -9,6 +9,7 @@ describe('CI/CD guardrails', () => {
   const functionsDeployWorkflow = fs.readFileSync('.github/workflows/firebase-functions-deploy.yml', 'utf8');
   const playwrightConfig = fs.readFileSync('playwright.config.ts', 'utf8');
   const workerPackageJson = JSON.parse(fs.readFileSync('worker/package.json', 'utf8'));
+  const appTsx = fs.readFileSync('src/App.tsx', 'utf8');
   const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
   const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
   const clientLeaderboard = fs.readFileSync('src/game/leaderboard.ts', 'utf8');
@@ -109,5 +110,15 @@ describe('CI/CD guardrails', () => {
     expect(privacyView).toContain('Cloudflare Worker');
     expect(privacyView).toContain('OpenRouter');
     expect(privacyView).toContain('gameplay context');
+  });
+
+  test('privacy controls include replay score tokens in local export and delete', () => {
+    expect(privacyView).toContain("'nvd-replay-tokens-v1'");
+    expect(privacyView).toContain('private score-retry tokens');
+  });
+
+  test('leaderboard rows can highlight the current player', () => {
+    expect(appTsx).toContain('const myUid = progress.uid');
+    expect(appTsx).toContain("r.uid === myUid ? 'me' : ''");
   });
 });

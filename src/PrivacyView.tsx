@@ -11,6 +11,7 @@ const LOCAL_KEYS = [
   'nvd-progress-v1',
   'nvd-meta-v2',
   'nvd-consent-v1',
+  'nvd-replay-tokens-v1',
   'nvd-feedback-ids-v1',
   'nvd-feedback-receipts-v2',
   'nvd-feedback-read-v1',
@@ -89,9 +90,10 @@ export default function PrivacyView() {
         <section>
           <h2>What's stored on your device</h2>
           <p>In your browser's local storage: your progress and service record, saved layouts,
-            audio settings, your leaderboard callsign (if you set one), a random per-device id
-            (e.g. <code>w_ab12cd34</code>), and your privacy choices. None of this leaves your device
-            except as described below. Clearing your browser data, or the button below, removes it.</p>
+            audio settings, your leaderboard callsign (if you set one), private score-retry tokens,
+            a random per-device id (e.g. <code>w_ab12cd34</code>), and your privacy choices. None of
+            this leaves your device except as described below. Clearing your browser data, or the
+            button below, removes it.</p>
         </section>
 
         <section>

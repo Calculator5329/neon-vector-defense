@@ -856,6 +856,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
   const [globalError, setGlobalError] = useState(false);
   const [localError, setLocalError] = useState(false);
   const board = boardId(map.id, diff.id, fp);
+  const myUid = progress.uid;
   useEffect(() => {
     let live = true;
     setGlobalRows(null);
@@ -899,7 +900,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           <div className="board-empty">No global records yet - deploy and claim the top spot.</div>
         ) : (
           globalRows.map((r, i) => (
-            <div key={`${r.board}-${i}`} className="board-row">
+            <div key={`${r.board}-${i}`} className={`board-row ${r.uid === myUid ? 'me' : ''}`}>
               <span className="board-rank">{i + 1}</span>
               <span className="board-name">
                 <span>{r.name}</span>
@@ -945,7 +946,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           <div className="board-empty compact">No records for this sector/protocol yet.</div>
         ) : (
           localRows.map((r, i) => (
-            <div key={i} className="board-row">
+            <div key={i} className={`board-row ${r.uid === myUid ? 'me' : ''}`}>
               <span className="board-rank">{i + 1}</span>
               <span className="board-name">
                 <span>{r.name}</span>
