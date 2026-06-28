@@ -42,7 +42,7 @@ export interface ReconFrame {
 }
 
 const FADE_S = 0.45;     // tower fade-in duration (game-seconds) after placedAtS
-const REPLAY_SPEEDS = [1, 5, 10, 100] as const;
+const REPLAY_SPEEDS = [0.5, 1, 2, 5, 10] as const;
 const CALLOUT_S = 1.8;
 const EVENT_FEED_S = 3.2;
 const ABILITY_DURATIONS: Partial<Record<AbilityId, number>> = {
@@ -706,11 +706,12 @@ export default function ReplayViewer({ runId, onExit }: { runId: string; onExit:
 
   useEffect(() => {
     let live = true;
-    appMetrics.recordReplayWatch();
     setPhase('loading');
     fetchRunReplay(runId).then((doc) => {
       if (!live) return;
-      if (doc) { setRun(doc); setPhase('ready'); }
+      // only count a watch once the run actually loads (was firing on mount, inflating
+      // counts for expired/invalid links)
+      if (doc) { appMetrics.recordReplayWatch(); setRun(doc); setPhase('ready'); }
       else setPhase('notfound');
     });
     return () => { live = false; };
@@ -728,8 +729,8 @@ export default function ReplayViewer({ runId, onExit }: { runId: string; onExit:
       <div className="replay-root" data-testid="replay-root">
         <div className="replay-status">
           <div className="replay-lost">REPLAY UNAVAILABLE</div>
-          <p>This battle plan has expired or the link is invalid.</p>
-          <button className="replay-btn primary" onClick={() => { sfx.click(); onExit(); }}>RETURN TO GRID</button>
+          <p>This battle plan couldn't be loaded — shared replays are kept for a limited time, so the link may have expired, or it may be invalid.</p>
+          <button className="replay-btn primary" onClick={() => { sfx.click(); onExit(); }}>RETURN TO THE GRID</button>
         </div>
       </div>
     );
@@ -749,6 +750,8 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const [hintOpen, setHintOpen] = useState(true);
 
   // The writer keeps only the last ~80 snapshots, so a long run's earliest keyframe
   // can be deep into the game (no wave-1 data). Clamp the scrub domain to the captured
@@ -926,8 +929,14 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
       const frame = reconstructAt(run, tRef.current);
       draw(frame);
       needsDrawRef.current = false;
-      // move playhead without a React render
-      if (playheadRef.current) playheadRef.current.style.left = `${((tRef.current - t0) / span) * 100}%`;
+      // move playhead + progress fill without a React render
+      const posPct = ((tRef.current - t0) / span) * 100;
+      if (playheadRef.current) playheadRef.current.style.left = `${posPct}%`;
+      if (progressRef.current) progressRef.current.style.width = `${posPct}%`;
+      if (barRef.current) {
+        barRef.current.setAttribute('aria-valuenow', String(Math.round(tRef.current - t0)));
+        barRef.current.setAttribute('aria-valuetext', `Wave ${frame.snap.wave}, ${Math.round(tRef.current - t0)} of ${Math.round(span)} seconds`);
+      }
       // only re-render HUD when the active keyframe changes
       if (frame.idx !== lastIdxRef.current) { lastIdxRef.current = frame.idx; setHud(frame); }
     };
@@ -968,6 +977,8 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
     }
   };
   const setSpd = (s: number) => { sfx.click(); speedRef.current = s; setSpeed(s); };
+  const restart = () => { sfx.click(); tRef.current = t0; lastIdxRef.current = -1; needsDrawRef.current = true; playingRef.current = true; setPlaying(true); };
+  const fineSeek = (deltaS: number) => { playingRef.current = false; setPlaying(false); seek(tRef.current + deltaS); };
 
   const onBarPoint = (clientX: number) => {
     const bar = barRef.current;
@@ -977,13 +988,13 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
     seek(t0 + ratio * span);
   };
 
-  // keyboard: space = play/pause, ←/→ = step, Esc = exit
+  // keyboard: space = play/pause, ←/→ = jump keyframe, Shift+←/→ = fine ±2s, Esc = exit
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isReplayShortcutTarget(e.target)) return;
       if (e.key === ' ') { e.preventDefault(); togglePlay(); }
-      else if (e.key === 'ArrowRight') stepSnap(1);
-      else if (e.key === 'ArrowLeft') stepSnap(-1);
+      else if (e.key === 'ArrowRight') { e.shiftKey ? fineSeek(2) : stepSnap(1); }
+      else if (e.key === 'ArrowLeft') { e.shiftKey ? fineSeek(-2) : stepSnap(-1); }
       else if (e.key === 'Escape') onExit();
     };
     window.addEventListener('keydown', onKey);
@@ -1026,24 +1037,44 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
         <div className="replay-stat"><label>TOWERS</label><b>{hud.towers.length}</b></div>
       </div>
 
+      {hintOpen && (
+        <div className="replay-hint" role="note">
+          <span>Reconstructed from saved snapshots. <b>Space</b> play/pause · <b>←/→</b> jump wave · <b>Shift+←/→</b> nudge · drag the bar to scrub.</span>
+          <button className="replay-hint-x" aria-label="Dismiss tip" onClick={() => { setHintOpen(false); sfx.click(); }}>✕</button>
+        </div>
+      )}
+
       <div className="replay-timeline">
         <div className="replay-bar" ref={barRef}
+          role="slider" tabIndex={0}
+          aria-label="Replay timeline — arrow keys to seek"
+          aria-valuemin={0} aria-valuemax={Math.round(span)} aria-valuenow={0}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight') { e.preventDefault(); fineSeek(2); }
+            else if (e.key === 'ArrowLeft') { e.preventDefault(); fineSeek(-2); }
+            else if (e.key === 'Home') { e.preventDefault(); seek(t0); }
+            else if (e.key === 'End') { e.preventDefault(); seek(tEnd); }
+          }}
           onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onBarPoint(e.clientX); }}
           onPointerMove={(e) => { if (e.buttons & 1) onBarPoint(e.clientX); }}>
+          <div className="replay-progress" ref={progressRef} style={{ width: '0%' }} />
           {ticks.map((tk, i) => (
-            <span key={i} className={`replay-tick ${tk.label === 'run_end' ? 'end' : ''}`} style={{ left: `${tk.pct}%` }} title={`Wave ${tk.wave} · ${tk.label}`} />
+            <span key={i} className={`replay-tick ${tk.label === 'run_end' ? 'end' : ''} ${tk.label === 'wave_start' ? 'wave' : ''}`} style={{ left: `${tk.pct}%` }} title={`Wave ${tk.wave}`}>
+              {tk.label === 'wave_start' && tk.wave % 5 === 0 && <span className="replay-tick-label">W{tk.wave}</span>}
+            </span>
           ))}
           <div className="replay-playhead" ref={playheadRef} style={{ left: '0%' }} />
         </div>
       </div>
 
       <div className="replay-controls">
-        <button className="replay-btn" onClick={() => stepSnap(-1)} title="Previous wave">◀</button>
+        <button className="replay-btn" onClick={() => stepSnap(-1)} aria-label="Previous keyframe" title="Previous keyframe (←)">◀</button>
         <button className="replay-btn primary" onClick={togglePlay} data-testid="replay-play">{playing ? '❚❚ PAUSE' : '▶ PLAY'}</button>
-        <button className="replay-btn" onClick={() => stepSnap(1)} title="Next wave">▶</button>
+        <button className="replay-btn" onClick={() => stepSnap(1)} aria-label="Next keyframe" title="Next keyframe (→)">▶</button>
+        <button className="replay-btn" onClick={restart} aria-label="Restart replay" title="Restart">↺</button>
         <div className="replay-speeds">
           {REPLAY_SPEEDS.map((sp) => (
-            <button key={sp} className={`replay-btn spd ${speed === sp ? 'on' : ''}`} onClick={() => setSpd(sp)}>{sp}x</button>
+            <button key={sp} className={`replay-btn spd ${speed === sp ? 'on' : ''}`} aria-pressed={speed === sp} aria-label={`${sp}x speed`} onClick={() => setSpd(sp)}>{sp}x</button>
           ))}
         </div>
       </div>

@@ -3737,16 +3737,32 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .replay-stat label { font-size: 9px; letter-spacing: 2px; color: var(--dim); font-family: 'Orbitron', sans-serif; }
 .replay-stat b { font-size: 18px; font-variant-numeric: tabular-nums; color: var(--text); }
 
-.replay-timeline { flex: 0 0 auto; padding: 2px 4px; }
+/* cold-visitor onboarding hint */
+.replay-hint {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px; justify-content: center;
+  margin: 0 4px 4px; padding: 7px 12px; border-radius: 8px;
+  background: rgba(40, 56, 110, 0.35); border: 1px solid var(--edge);
+  font-size: 12px; color: var(--dim); text-align: center;
+}
+.replay-hint b { color: var(--text); font-weight: 600; }
+.replay-hint-x { flex: 0 0 auto; width: 22px; height: 22px; border: none; background: transparent; color: var(--dim); border-radius: 5px; cursor: pointer; }
+.replay-hint-x:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+
+.replay-timeline { flex: 0 0 auto; padding: 2px 4px 14px; }
 .replay-bar {
   position: relative; height: 16px; border-radius: 8px; cursor: pointer;
   background: rgba(40, 56, 110, 0.4); border: 1px solid var(--edge); touch-action: none;
 }
+/* generous invisible touch target so the bar is grabbable on mobile (~40px) */
+.replay-bar::before { content: ''; position: absolute; left: 0; right: 0; top: -14px; bottom: -14px; }
+.replay-progress { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px 0 0 8px; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
 .replay-tick { position: absolute; top: 2px; width: 2px; height: 12px; background: rgba(150, 170, 240, 0.45); transform: translateX(-1px); }
-.replay-tick.end { background: var(--accent); width: 3px; }
+.replay-tick.wave { height: 16px; top: 0; background: rgba(150, 170, 240, 0.7); }
+.replay-tick.end { background: var(--accent); width: 3px; height: 16px; top: 0; }
+.replay-tick-label { position: absolute; top: 17px; left: 0; transform: translateX(-50%); font-family: 'Orbitron', sans-serif; font-size: 8px; color: var(--dim); white-space: nowrap; }
 .replay-playhead {
   position: absolute; top: -3px; width: 4px; height: 22px; border-radius: 2px;
-  background: var(--accent); box-shadow: 0 0 10px var(--accent); transform: translateX(-2px); pointer-events: none;
+  background: var(--accent); box-shadow: 0 0 10px var(--accent); transform: translateX(-2px); pointer-events: none; z-index: 2;
 }
 
 .replay-controls { display: flex; gap: 10px; justify-content: center; align-items: center; flex: 0 0 auto; }
