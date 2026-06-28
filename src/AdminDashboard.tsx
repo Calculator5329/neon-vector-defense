@@ -256,10 +256,10 @@ function CurveViewer({ curves }: { curves: WaveCurve[] }) {
       <div className="adm-card-head">
         <h3>Per-wave balance curve</h3>
         <div className="adm-selects">
-          <select value={mapId} onChange={(e) => setMapId(e.target.value)}>
+          <select aria-label="Balance curve sector" value={mapId} onChange={(e) => setMapId(e.target.value)}>
             {ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
-          <select value={diffId} onChange={(e) => setDiffId(e.target.value)}>
+          <select aria-label="Balance curve protocol" value={diffId} onChange={(e) => setDiffId(e.target.value)}>
             {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
@@ -910,10 +910,10 @@ function DifficultyModel() {
       <div className="adm-card-head" style={{ marginTop: 16 }}>
         <h3 style={{ fontSize: 12 }}>Tune to a target curve</h3>
         <div className="adm-selects">
-          <select value={sel} onChange={(e) => setSel(e.target.value)}>
+          <select aria-label="Difficulty curve" value={sel} onChange={(e) => setSel(e.target.value)}>
             {curves.map((c) => <option key={c.diff} value={c.diff}>{c.name}</option>)}
           </select>
-          <select value={target} onChange={(e) => setTarget(e.target.value)}>
+          <select aria-label="Target difficulty curve" value={target} onChange={(e) => setTarget(e.target.value)}>
             {Object.keys(DIFFICULTY_TARGETS).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
@@ -1082,21 +1082,21 @@ function FilterBar({ filter, setFilter, builds, fetchedAt, onRefresh, onExport, 
   const set = (k: keyof TFilter) => (e: React.ChangeEvent<HTMLSelectElement>) => setFilter({ ...filter, [k]: e.target.value });
   return (
     <div className="adm-filterbar">
-      <select value={filter.range} onChange={set('range')}>
+      <select aria-label="Telemetry date range" value={filter.range} onChange={set('range')}>
         <option value="all">all time</option><option value="30d">last 30d</option>
         <option value="7d">last 7d</option><option value="24h">last 24h</option>
       </select>
-      <select value={filter.map} onChange={set('map')}>
+      <select aria-label="Telemetry sector" value={filter.map} onChange={set('map')}>
         <option value="all">all sectors</option>{ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
-      <select value={filter.diff} onChange={set('diff')}>
+      <select aria-label="Telemetry protocol" value={filter.diff} onChange={set('diff')}>
         <option value="all">all protocols</option>{DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
       </select>
-      <select value={filter.mode} onChange={set('mode')}>
+      <select aria-label="Telemetry mode" value={filter.mode} onChange={set('mode')}>
         <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
       </select>
       {builds.length > 1 && (
-        <select value={filter.build} onChange={set('build')}>
+        <select aria-label="Telemetry build" value={filter.build} onChange={set('build')}>
           <option value="all">all builds</option>{builds.map((b) => <option key={b} value={b}>{b || '(pre-build)'}</option>)}
         </select>
       )}
@@ -1160,10 +1160,10 @@ function BalanceCanaryCard({ report }: { report: Report | null | 'missing' }) {
         <span className="adm-hint">model cores (cyan) vs live player median (gold)</span>
       </div>
       <div className="adm-canary-controls">
-        <select value={sel.map} onChange={(e) => setSel((s) => ({ ...s, map: e.target.value }))}>
+        <select aria-label="Balance canary sector" value={sel.map} onChange={(e) => setSel((s) => ({ ...s, map: e.target.value }))}>
           {ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-        <select value={sel.diff} onChange={(e) => setSel((s) => ({ ...s, diff: e.target.value }))}>
+        <select aria-label="Balance canary protocol" value={sel.diff} onChange={(e) => setSel((s) => ({ ...s, diff: e.target.value }))}>
           {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <span className="adm-dim">{rows === null ? 'loading runs…' : err ? 'fetch failed' : series ? `${series.runs} live runs · ${series.startingLives} starting cores` : 'no model curve'}</span>
@@ -1887,42 +1887,42 @@ function MetricExplorerTab() {
   return (
     <div className="adm-content">
       <div className="adm-filterbar adm-explorer-filters">
-        <select value={filters.range} onChange={(e) => updateFilters({ range: e.target.value as AnalyticsFilters['range'] })}>
+        <select aria-label="Analytics date range" value={filters.range} onChange={(e) => updateFilters({ range: e.target.value as AnalyticsFilters['range'] })}>
           <option value="all">all time</option><option value="30d">last 30d</option><option value="7d">last 7d</option><option value="24h">last 24h</option>
         </select>
-        <select value={filters.map} onChange={(e) => updateFilters({ map: e.target.value })}>
+        <select aria-label="Analytics sector" value={filters.map} onChange={(e) => updateFilters({ map: e.target.value })}>
           <option value="all">all sectors</option>{ALL_MAPS.map((map) => <option key={map.id} value={map.id}>{map.name}</option>)}
         </select>
-        <select value={filters.diff} onChange={(e) => updateFilters({ diff: e.target.value })}>
+        <select aria-label="Analytics protocol" value={filters.diff} onChange={(e) => updateFilters({ diff: e.target.value })}>
           <option value="all">all protocols</option>{DIFFICULTIES.map((diff) => <option key={diff.id} value={diff.id}>{diff.name}</option>)}
         </select>
-        <select value={filters.mode} onChange={(e) => updateFilters({ mode: e.target.value as AnalyticsFilters['mode'] })}>
+        <select aria-label="Analytics mode" value={filters.mode} onChange={(e) => updateFilters({ mode: e.target.value as AnalyticsFilters['mode'] })}>
           <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
         </select>
-        <select value={filters.outcome} onChange={(e) => updateFilters({ outcome: e.target.value })}>
+        <select aria-label="Analytics outcome" value={filters.outcome} onChange={(e) => updateFilters({ outcome: e.target.value })}>
           <option value="all">all outcomes</option><option value="victory">victory</option><option value="armistice">armistice</option><option value="gameover">gameover</option><option value="abandoned">abandoned</option>
         </select>
-        <select value={filters.waveBucket} onChange={(e) => updateFilters({ waveBucket: e.target.value })}>
+        <select aria-label="Analytics wave bucket" value={filters.waveBucket} onChange={(e) => updateFilters({ waveBucket: e.target.value })}>
           <option value="all">all waves</option>{waveBuckets.map((bucket) => <option key={bucket} value={bucket}>{bucket}</option>)}
         </select>
-        <select value={filters.cohort} onChange={(e) => updateFilters({ cohort: e.target.value as AnalyticsFilters['cohort'] })}>
+        <select aria-label="Analytics cohort" value={filters.cohort} onChange={(e) => updateFilters({ cohort: e.target.value as AnalyticsFilters['cohort'] })}>
           <option value="all">all cohorts</option><option value="first">first run</option><option value="returning">returning</option>
         </select>
-        <select value={filters.schema} onChange={(e) => updateFilters({ schema: e.target.value })}>
+        <select aria-label="Analytics schema" value={filters.schema} onChange={(e) => updateFilters({ schema: e.target.value })}>
           <option value="all">all schemas</option>{schemas.map((schema) => <option key={schema} value={schema}>schema {schema}</option>)}
         </select>
-        <select value={filters.build} onChange={(e) => updateFilters({ build: e.target.value })}>
+        <select aria-label="Analytics build" value={filters.build} onChange={(e) => updateFilters({ build: e.target.value })}>
           <option value="all">all builds</option>{builds.map((build) => <option key={build} value={build}>{build}</option>)}
         </select>
-        <input value={filters.uid} onChange={(e) => updateFilters({ uid: e.target.value })} placeholder="uid or run id" />
+        <input aria-label="Analytics uid or run id" value={filters.uid} onChange={(e) => updateFilters({ uid: e.target.value })} placeholder="uid or run id" />
         <button className="adm-mini" onClick={refresh}>refresh</button>
         <button className="adm-mini" onClick={exportCsv}>CSV</button>
       </div>
       <div className="adm-filterbar adm-explorer-filters">
-        <select value={domain} onChange={(e) => updateDomain(e.target.value as 'all' | MetricDomain)}>
+        <select aria-label="Metric domain" value={domain} onChange={(e) => updateDomain(e.target.value as 'all' | MetricDomain)}>
           {METRIC_DOMAINS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
-        <select value={metric.id} onChange={(e) => updateMetric(e.target.value)}>
+        <select aria-label="Metric" value={metric.id} onChange={(e) => updateMetric(e.target.value)}>
           {metricOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
         <span className="adm-filter-count">{dataset.filtered.length.toLocaleString()} / {data.length.toLocaleString()} runs</span>
@@ -2676,6 +2676,7 @@ function InboxTab({ user }: { user: User }) {
                   <textarea
                     className="adm-reply-box"
                     maxLength={2000}
+                    aria-label={`Reply to ${row.ctx} feedback from ${row.uid}`}
                     placeholder="Write an admin response..."
                     value={draft}
                     onChange={(e) => setDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
