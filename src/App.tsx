@@ -1031,6 +1031,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   const [hostileReveal, setHostileReveal] = useState<EnemyDef | null>(null);
   const hostileRevealRef = useRef<EnemyDef | null>(null);
   const hostileQueueRef = useRef<EnemyDef[]>([]);
+  const revealElapsedRef = useRef(0); // pause-aware real-time accumulator for the reveal toast
+  const [shakeAbility, setShakeAbility] = useState<string | null>(null); // ability id to shake on a failed cast
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
   const selectedRef = useRef<Tower | null>(null);
@@ -1204,7 +1206,13 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       if (!hostileRevealRef.current && hostileQueueRef.current.length) {
         const d = hostileQueueRef.current.shift()!;
         hostileRevealRef.current = d; setHostileReveal(d);
-        window.setTimeout(() => { hostileRevealRef.current = null; setHostileReveal(null); }, 3800);
+        revealElapsedRef.current = 0;
+      }
+      // dismiss the reveal toast after ~3.8s, but only count real time while unpaused
+      // (so a player who pauses to read it keeps it on screen)
+      if (hostileRevealRef.current && !game.paused) {
+        revealElapsedRef.current += dt;
+        if (revealElapsedRef.current > 3.8) { hostileRevealRef.current = null; setHostileReveal(null); }
       }
       // Checkpoint only on MILESTONE build phases (opener + every 10th wave), not every
       // wave + every 30s — that was ~60-90 Firestore writes/run. submitRunCheckpoint
@@ -1388,7 +1396,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
 
   const useAbility = (id: typeof ABILITIES[number]['id']) => {
     const a = ABILITIES.find((x) => x.id === id)!;
-    if (!game.abilityReady(id)) { sfx.error(); return; }
+    if (!game.abilityReady(id)) { sfx.error(); setShakeAbility(null); requestAnimationFrame(() => setShakeAbility(id)); return; }
     if (a.targeted) {
       if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
       setAiming((v) => !v);
@@ -1620,8 +1628,10 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           </div>
         )}
         {game.adaptation.type && (
-          <div className="tb-stat" style={{ color: '#ff9f43' }} title="Apex protocol: the Combine has armored against your most-used damage type for 10 waves">
-            ⛨ {game.adaptation.type} −35%
+          <div key={`${game.adaptation.type}-${Math.floor(game.wave / 10)}`} className="tb-stat tb-adapt" style={{ color: '#ff9f43' }}
+            title={`Apex protocol: the Combine has armored against ${game.adaptation.type} damage for 10 waves — switch up your damage types`}
+            aria-label={`Warning: ${game.adaptation.type} damage resisted ${Math.round(game.adaptation.resist * 100)} percent`}>
+            ⛨ {game.adaptation.type} −{Math.round(game.adaptation.resist * 100)}%
           </div>
         )}
         <div className="tb-spacer" />
@@ -1675,7 +1685,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
               return (
                 <button
                   key={a.def.id}
-                  className={`ability-btn ${ready ? 'ready' : ''} ${aiming && a.def.id === 'strike' ? 'aiming' : ''}`}
+                  className={`ability-btn ${ready ? 'ready' : ''} ${!locked && !ready ? 'cooling' : ''} ${aiming && a.def.id === 'strike' ? 'aiming' : ''} ${shakeAbility === a.def.id ? 'shake' : ''}`}
+                  onAnimationEnd={(e) => { if (e.animationName === 'ability-shake') setShakeAbility((s) => (s === a.def.id ? null : s)); }}
                   disabled={locked}
                   aria-label={locked
                     ? `${a.def.name} locked until wave ${a.def.unlockWave}`

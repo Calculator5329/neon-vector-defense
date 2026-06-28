@@ -717,7 +717,9 @@
 .topbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  row-gap: 6px;
   padding: 8px 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--edge);
@@ -745,6 +747,12 @@
   color: var(--dim);
   margin-left: 5px;
   vertical-align: middle;
+}
+/* adaptation/resist chip flashes when the Combine field-patches a new armor type */
+.tb-adapt { animation: tb-adapt-pulse 0.7s ease-out 3; border-color: rgba(255, 159, 67, 0.55) !important; }
+@keyframes tb-adapt-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 159, 67, 0); }
+  50% { box-shadow: 0 0 16px rgba(255, 159, 67, 0.85); transform: scale(1.05); }
 }
 .tb-stat.ghost {
   display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;
@@ -1958,6 +1966,17 @@ body.game-blocking-overlay .fb-root.on-game {
   animation: pulse-btn 0.8s ease-in-out infinite;
 }
 .ability-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* unlocked but recharging: clearly distinct from ready (no gold) and from locked (still bright icon) */
+.ability-btn.cooling { border-color: var(--edge); filter: saturate(0.6); }
+/* brief shake when a not-ready / uncastable ability is clicked */
+.ability-btn.shake { animation: ability-shake 0.32s ease-in-out; }
+@keyframes ability-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
 .ability-cd {
   position: absolute;
   left: 0;
@@ -1992,10 +2011,14 @@ body.game-blocking-overlay .fb-root.on-game {
   border: 1px solid rgba(255, 211, 42, 0.45);
   border-radius: 8px;
   padding: 8px 22px;
-  white-space: nowrap;
+  /* wrap instead of overflowing the canvas on small / iframe widths */
+  max-width: min(560px, calc(100vw - 32px));
+  text-align: center;
+  line-height: 1.3;
   text-shadow: 0 0 10px rgba(255, 211, 42, 0.6);
   animation: notice-in 0.25s ease-out;
   pointer-events: none;
+  z-index: 9;
 }
 @keyframes notice-in {
   from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
@@ -3741,7 +3764,8 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .bestiary-foot { padding: 10px 20px; border-top: 1px solid var(--edge); font-size: 11px; color: var(--dim); text-align: center; }
 
 .hostile-reveal {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 8;
+  /* offset below .notice (which can now wrap to two lines) so the two top-anchored overlays never collide */
+  position: absolute; top: 78px; left: 50%; transform: translateX(-50%); z-index: 8;
   display: flex; align-items: center; gap: 14px; width: min(460px, calc(100vw - 32px)); pointer-events: none;
   padding: 10px 16px 10px 10px; background: rgba(5, 8, 18, 0.92);
   border: 1px solid rgba(255, 90, 110, 0.5); border-radius: 12px; box-shadow: 0 0 26px rgba(0, 0, 0, 0.55);
@@ -3753,7 +3777,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .hostile-reveal-name { font-family: 'Orbitron', sans-serif; font-size: 16px; line-height: 1.15; margin: 2px 0 3px; overflow-wrap: anywhere; }
 .hostile-reveal-lore { font-size: 11px; color: var(--dim); line-height: 1.35; overflow-wrap: anywhere; }
 @media (max-width: 520px) {
-  .hostile-reveal { top: 52px; gap: 10px; padding: 8px 10px 8px 8px; }
+  .hostile-reveal { top: 72px; gap: 10px; padding: 8px 10px 8px 8px; }
   .hostile-reveal .hostile-reveal-art { width: 56px; height: 56px; min-width: 56px; min-height: 56px; max-width: 56px; max-height: 56px; flex-basis: 56px; }
   .hostile-reveal-eyebrow { font-size: 8px; letter-spacing: 1px; }
   .hostile-reveal-name { font-size: 14px; }
