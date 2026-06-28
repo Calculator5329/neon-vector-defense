@@ -6,11 +6,25 @@
   --panel2: #111a36;
   --edge: #1f2c55;
   --text: #cfd9ff;
-  --dim: #6c7aa6;
+  /* --dim lifted from #6c7aa6 (~4.0:1, failed AA) to pass WCAG AA on dark panels */
+  --dim: #8a99c9;
   --accent: #4bcffa;
+  --accent-2: #7efff5;
+  --violet: #b388ff;
+  --pink: #ff6ec7;
   --gold: #ffd32a;
   --danger: #ff4757;
   --good: #2ed573;
+  /* radius scale */
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+  /* neon glow tiers (keyed to --accent so the Signal Palette cosmetic retints them) */
+  --glow-sm: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-md: 0 0 16px color-mix(in srgb, var(--accent) 40%, transparent);
+  --glow-hero: 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent);
+  --focus: 2px solid var(--accent);
   font-family: 'Rajdhani', 'Segoe UI', sans-serif;
 }
 
@@ -29,6 +43,21 @@ html, body, #root {
 button {
   font-family: inherit;
   cursor: pointer;
+}
+
+/* Global keyboard-focus ring — every interactive control gets a visible focus state
+   (previously only ~6 menu selectors did, so in-game/overlay focus was invisible). */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="slider"]:focus-visible {
+  outline: var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar { width: 8px; }
