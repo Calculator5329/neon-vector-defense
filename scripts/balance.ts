@@ -31,7 +31,9 @@ const GRID_SEEDS = QUICK ? 1 : 2;
 const STRAT_SEEDS = QUICK ? 1 : 2;
 const SOLO_SEEDS = QUICK ? 1 : 2;
 
-// the skill each protocol is BALANCED around — used for the per-wave curve pass
+const CURVE_SKILLS: BotSkill[] = ['rookie', 'standard', 'expert'];
+
+// the skill each protocol is BALANCED around — used by the admin dashboard as context
 const MATCH: Record<string, BotSkill> = {
   easy: 'rookie', normal: 'standard', hard: 'expert', extinction: 'expert', ngplus: 'expert',
 };
@@ -87,23 +89,24 @@ function aggregate(runs: WaveRecord[][]): CurvePoint[] {
 
 function buildCurves(): WaveCurve[] {
   const curves: WaveCurve[] = [];
-  for (const map of ALL_MAPS) {
-    for (const diff of DIFFICULTIES) {
-      const skill = MATCH[diff.id];
-      const runs: WaveRecord[][] = [];
-      let wins = 0, waveSum = 0;
-      for (let s = 0; s < CURVE_SEEDS; s++) {
-        const r = runInstrumented(map, diff, skill);
-        runs.push(r.waves);
-        if (r.won) wins++;
-        waveSum += r.finalWave;
+  for (const skill of CURVE_SKILLS) {
+    for (const map of ALL_MAPS) {
+      for (const diff of DIFFICULTIES) {
+        const runs: WaveRecord[][] = [];
+        let wins = 0, waveSum = 0;
+        for (let s = 0; s < CURVE_SEEDS; s++) {
+          const r = runInstrumented(map, diff, skill);
+          runs.push(r.waves);
+          if (r.won) wins++;
+          waveSum += r.finalWave;
+        }
+        curves.push({
+          map: map.id, diff: diff.id, skill,
+          winRate: round(wins / CURVE_SEEDS, 2),
+          avgFinalWave: round(waveSum / CURVE_SEEDS, 1),
+          points: aggregate(runs),
+        });
       }
-      curves.push({
-        map: map.id, diff: diff.id, skill,
-        winRate: round(wins / CURVE_SEEDS, 2),
-        avgFinalWave: round(waveSum / CURVE_SEEDS, 1),
-        points: aggregate(runs),
-      });
     }
   }
   return curves;
@@ -187,11 +190,17 @@ const report = {
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify(report, null, 2));
 
-// regenerate the bundled bot-ghost asset (src/game/ghostCurveData.ts) from the fresh report
-try {
-  execFileSync(process.execPath, [resolve(__dirname, 'genGhostCurves.mjs')], { stdio: 'inherit' });
-} catch (err) {
-  console.warn('ghost-curve asset regeneration failed (non-fatal):', err);
+// Regenerate the bundled bot-ghost asset only from the full report. Quick reports
+// are useful diagnostics, but their one-seed curves are too noisy for player-facing
+// AI Rival comparisons.
+if (!QUICK) {
+  try {
+    execFileSync(process.execPath, [resolve(__dirname, 'genGhostCurves.mjs')], { stdio: 'inherit' });
+  } catch (err) {
+    console.warn('ghost-curve asset regeneration failed (non-fatal):', err);
+  }
+} else {
+  console.log('skipped bundled ghost-curve regeneration for quick balance report');
 }
 
 // ---------- console summary ----------

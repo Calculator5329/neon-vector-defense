@@ -10,6 +10,9 @@ describe('CI/CD guardrails', () => {
   const workerPackageJson = JSON.parse(fs.readFileSync('worker/package.json', 'utf8'));
   const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
   const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
+  const clientLeaderboard = fs.readFileSync('src/game/leaderboard.ts', 'utf8');
+  const balanceScript = fs.readFileSync('scripts/balance.ts', 'utf8');
+  const ghostGenerator = fs.readFileSync('scripts/genGhostCurves.mjs', 'utf8');
   const adminEmailsSource = fs.readFileSync('functions/src/adminEmails.ts', 'utf8');
   const firestoreRules = fs.readFileSync('firestore.rules', 'utf8');
   const quotedEmails = (text) => [...text.matchAll(/'([^']+@[^']+)'/g)].map((m) => m[1]).sort();
@@ -56,5 +59,19 @@ describe('CI/CD guardrails', () => {
     expect(clientAdminAuth).not.toContain('5329548871,eg@gmail.com');
     const ruleAdminBlock = /function isAdmin\(\) \{[\s\S]*?\n    \}/.exec(firestoreRules)?.[0] ?? '';
     expect(quotedEmails(ruleAdminBlock)).toEqual(quotedEmails(adminEmailsSource));
+  });
+
+  test('client analytics writes stay append-only', () => {
+    const submitRunAnalytics = /export async function submitRunAnalytics[\s\S]*?\n}/.exec(clientLeaderboard)?.[0] ?? '';
+    expect(submitRunAnalytics).toContain("firestoreDoc(db, 'runAnalytics', doc.runId), doc)");
+    expect(submitRunAnalytics).not.toContain('merge: true');
+  });
+
+  test('quick balance reports cannot overwrite shipped ghost curves', () => {
+    expect(balanceScript).toContain('if (!QUICK)');
+    expect(balanceScript).toContain('genGhostCurves.mjs');
+    expect(balanceScript).toContain('skipped bundled ghost-curve regeneration for quick balance report');
+    expect(ghostGenerator).toContain('Refusing to bundle quick/anecdotal ghost curves');
+    expect(ghostGenerator).toContain('NVD_MIN_GHOST_SEEDS');
   });
 });

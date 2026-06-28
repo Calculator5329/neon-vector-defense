@@ -251,6 +251,7 @@ export class Game {
   private queue: SpawnEntry[] = [];
   private segLengths: number[] = [];
   totalKills = 0;
+  readonly startingLives: number;
   private waveStartTotalKills = 0;
   /** guard so a win→freeplay→death session persists its lifetime record only once */
   private finishedPersisted = false;
@@ -267,6 +268,7 @@ export class Game {
     const bdiff = getBalance().diff(diff.id);
     this.credits = Math.round(diff.cash * bdiff.cashMult);
     this.lives = Math.max(1, Math.round(diff.lives * bdiff.livesMult));
+    this.startingLives = this.lives;
     appMetrics.beginRun(map.id, diff.id);
     this.recorder = new RunRecorder({
       map,

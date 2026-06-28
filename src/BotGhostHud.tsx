@@ -45,11 +45,18 @@ function curveStats(curve: GhostCurve) {
   const firstLeak = curve.points.find((p) => p.cores < curve.startingLives);
   let hardestDrop = 0;
   let hardestDropWave = first?.wave ?? 0;
+  let pressureWave = first?.wave ?? 0;
+  let maxPressure = 0;
   for (let i = 1; i < curve.points.length; i++) {
     const drop = curve.points[i - 1].cores - curve.points[i].cores;
     if (drop > hardestDrop) {
       hardestDrop = drop;
       hardestDropWave = curve.points[i].wave;
+    }
+    const pressure = curve.points[i].pressure ?? 0;
+    if (pressure > maxPressure) {
+      maxPressure = pressure;
+      pressureWave = curve.points[i].wave;
     }
   }
   return {
@@ -58,6 +65,8 @@ function curveStats(curve: GhostCurve) {
     minCores: Math.min(curve.startingLives, ...curve.points.map((p) => p.cores)),
     hardestDrop,
     hardestDropWave,
+    maxPressure,
+    pressureWave,
   };
 }
 
@@ -256,10 +265,14 @@ function GhostModal({
           <div><span>Bot cores @ W{wave}</span><b>{botCores}/{selectedCurve.startingLives} ({pct(botPct)})</b></div>
           <div><span>Your cores</span><b style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>{cores}/{currentStartingLives} ({pct(playerPct)})</b></div>
           <div><span>Core delta</span><b style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>{signed(deltaCores)} cores / {signed(Math.round(deltaPct * 100))} pts</b></div>
+          <div><span>Bot credits @ W{wave}</span><b>{g?.creditsStart === undefined ? 'n/a' : Math.round(g.creditsStart).toLocaleString()}</b></div>
+          <div><span>Bot towers @ W{wave}</span><b>{g?.towersStart === undefined ? 'n/a' : g.towersStart.toFixed(1)}</b></div>
+          <div><span>Bot leak pressure @ W{wave}</span><b>{g?.pressure === undefined ? 'n/a' : pct(g.pressure)}</b></div>
           <div><span>Bot usually reaches</span><b>W{Math.round(selectedCurve.avgFinalWave)}</b></div>
           <div><span>Bot win rate</span><b>{pct(selectedCurve.winRate)}</b></div>
           <div><span>First bot leak</span><b>{stats.firstLeakWave ? `W${stats.firstLeakWave}` : 'none seen'}</b></div>
           <div><span>Worst bot drop</span><b>{stats.hardestDrop ? `${stats.hardestDrop} cores @ W${stats.hardestDropWave}` : 'none'}</b></div>
+          <div><span>Worst pressure wave</span><b>{stats.maxPressure ? `${pct(stats.maxPressure)} @ W${stats.pressureWave}` : 'none'}</b></div>
           <div><span>Lowest bot cores</span><b>{stats.minCores}</b></div>
           <div><span>Finish cores</span><b>{stats.finishCores}</b></div>
           <div><span>Comparison profile</span><b style={{ color: selectedColor }}>{profileLabel(selectedCurve)}</b></div>

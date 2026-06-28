@@ -110,13 +110,26 @@ export class Bot {
     return this.planIdx < this.profile.plan.length ? this.profile.plan[this.planIdx] : this.profile.filler;
   }
 
+  private canUseStep(step: PlanStep): boolean {
+    const def = TOWER_MAP[step.tower];
+    return !!def && this.game.towerAvailable(def);
+  }
+
+  private fallbackStep(): PlanStep | null {
+    if (this.canUseStep(this.profile.filler)) return this.profile.filler;
+    const pulse: PlanStep = { tower: 'pulse', a: 0, b: 0 };
+    return this.profile.plan.find((step) => this.canUseStep(step)) ?? (this.canUseStep(pulse) ? pulse : null);
+  }
+
   act(now: number) {
     if (now < this.nextAct) return;
     this.nextAct = now + this.profile.actInterval;
     const g = this.game;
 
     // 1. build toward the plan
-    const step = this.step();
+    const plannedStep = this.step();
+    const step = this.canUseStep(plannedStep) ? plannedStep : this.fallbackStep();
+    if (!step) return;
     const def = TOWER_MAP[step.tower];
     if (def && g.credits >= g.cost(def) * this.profile.reserve) {
       const spot = this.spots.find((p) => g.canPlace(p));
@@ -124,7 +137,7 @@ export class Bot {
         const t = g.placeTower(def, spot);
         if (t) {
           this.placed.push({ tower: t, a: step.a, b: step.b });
-          this.planIdx++;
+          if (step === plannedStep) this.planIdx++;
         }
       }
     }

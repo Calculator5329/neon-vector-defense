@@ -1597,7 +1597,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
         </div>
         {!game.freeplay && (
-          <BotGhostHud curves={ghostCurvesForMap(GHOST_CURVES, map.id)} matchedDiffId={diff.id} wave={game.wave} cores={game.lives} currentStartingLives={diff.lives} phase={game.phase} />
+          <BotGhostHud curves={ghostCurvesForMap(GHOST_CURVES, map.id)} matchedDiffId={diff.id} wave={game.wave} cores={game.lives} currentStartingLives={game.startingLives} phase={game.phase} />
         )}
         {PERF_MAP !== null && (
           <div className="tb-stat" style={{ color: '#7bed9f' }} title="Perf harness: expert bot, 4x, auto-freeplay">

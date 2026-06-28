@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
+import { afterEach, describe, test } from 'node:test';
+import { Bot } from '../../src/game/bot';
+import { setBalanceDoc } from '../../src/game/balanceConfig';
 import { Game } from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
 import { dailyFreeplaySeed } from '../../src/game/freeplay';
-import { buildGhostCurves, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
+import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
-import { normalizeProgress } from '../../src/game/storage';
+import { normalizeProgress, progress } from '../../src/game/storage';
 import type { Enemy, EnemyDef } from '../../src/game/types';
 import { validDeletedRunIds } from '../../functions/src/deleteHelpers';
 
@@ -34,6 +36,11 @@ function makeEnemy(def: EnemyDef): Enemy {
     finished: false,
   };
 }
+
+afterEach(() => {
+  progress.reset();
+  setBalanceDoc(null);
+});
 
 // Mirrors the soft-resistance constants in engine.ts. Resistances reduce
 // damage instead of zeroing it; `shred` strips them entirely.
@@ -149,11 +156,49 @@ describe('bot rival profile helpers', () => {
     const raw: WaveCurveLite[] = [
       { map: 'relay', diff: 'hard', skill: 'expert', winRate: 0.2, avgFinalWave: 42, points: [{ wave: 1, coreFraction: 1 }] },
       { map: 'other', diff: 'easy', skill: 'rookie', winRate: 1, avgFinalWave: 50, points: [{ wave: 1, coreFraction: 1 }] },
+      { map: 'relay', diff: 'normal', skill: 'expert', winRate: 0.6, avgFinalWave: 49, points: [{ wave: 1, coreFraction: 0.8 }] },
       { map: 'relay', diff: 'easy', skill: 'rookie', winRate: 0.8, avgFinalWave: 50, points: [{ wave: 1, coreFraction: 1 }] },
       { map: 'relay', diff: 'normal', skill: 'standard', winRate: 0.5, avgFinalWave: 47, points: [{ wave: 1, coreFraction: 0.5 }] },
+      { map: 'relay', diff: 'normal', skill: 'rookie', winRate: 0.3, avgFinalWave: 39, points: [{ wave: 1, coreFraction: 0.6 }] },
     ];
     const profiles = ghostCurvesForMap(buildGhostCurves(raw), 'relay');
-    assert.deepEqual(profiles.map((curve) => `${curve.diff}:${curve.skill}`), ['easy:rookie', 'normal:standard', 'hard:expert']);
+    assert.deepEqual(profiles.map((curve) => `${curve.diff}:${curve.skill}`), ['easy:rookie', 'normal:rookie', 'normal:standard', 'normal:expert', 'hard:expert']);
     assert.equal(profiles[1].startingLives, DIFFICULTIES.find((diff) => diff.id === 'normal')?.lives);
+  });
+
+  test('wave zero uses a true pre-wave starting point', () => {
+    const [curve] = buildGhostCurves([
+      { map: 'relay', diff: 'normal', skill: 'standard', winRate: 0.5, avgFinalWave: 47, points: [{ wave: 1, coreFraction: 0.5, pressure: 0.25, creditsStart: 120, towersStart: 2 }] },
+    ]);
+    const g = ghostAtWave(curve, 0);
+    assert.deepEqual(g, { wave: 0, cores: curve.startingLives, coreFraction: 1, leakPct: 0 });
+    assert.equal(ghostAtWave(curve, 1)?.pressure, 0.25);
+  });
+});
+
+describe('bot fairness and live run context', () => {
+  test('effective starting lives reflect remote balance overrides', () => {
+    setBalanceDoc({ diffs: { easy: { livesMult: 0.5 } } });
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0]);
+    assert.equal(game.startingLives, Math.round(DIFFICULTIES[0].lives * 0.5));
+    assert.equal(game.lives, game.startingLives);
+  });
+
+  test('bot falls back instead of building locked planned towers', () => {
+    progress.reset();
+    const game = makeGame();
+    game.credits = 10000;
+    const bot = new Bot(game, {
+      actInterval: 0,
+      plan: [{ tower: 'prismarr', a: 0, b: 0 }],
+      filler: { tower: 'prismarr', a: 0, b: 0 },
+      upgradeDiligence: 0,
+      abilityChance: 0,
+      reserve: 0,
+    });
+    bot.act(1);
+    assert.ok(game.towers.length > 0);
+    assert.equal(game.towers.some((tower) => tower.def.id === 'prismarr'), false);
+    assert.equal(game.towers.every((tower) => game.towerAvailable(tower.def)), true);
   });
 });

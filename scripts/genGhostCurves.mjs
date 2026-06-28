@@ -24,6 +24,10 @@ function downsample(points) {
 
 const report = JSON.parse(readFileSync(REPORT, 'utf8'));
 const build = report.meta?.build ?? report.meta?.telemetryBuild ?? 'hollow-1';
+const minSeeds = Number(process.env.NVD_MIN_GHOST_SEEDS ?? 3);
+if (report.meta?.quick || Number(report.meta?.curveSeeds ?? 0) < minSeeds) {
+  throw new Error(`Refusing to bundle quick/anecdotal ghost curves. Run npm run balance without "quick" and use at least ${minSeeds} curve seeds.`);
+}
 
 const lite = (report.curves ?? []).map((c) => ({
   map: c.map,
@@ -31,7 +35,14 @@ const lite = (report.curves ?? []).map((c) => ({
   skill: c.skill,
   winRate: +Number(c.winRate ?? 0).toFixed(4),
   avgFinalWave: +Number(c.avgFinalWave ?? 0).toFixed(2),
-  points: downsample(c.points).map((p) => ({ wave: p.wave, coreFraction: +Number(p.coreFraction ?? 0).toFixed(4) })),
+  points: downsample(c.points).map((p) => ({
+    wave: p.wave,
+    coreFraction: +Number(p.coreFraction ?? 0).toFixed(4),
+    leakPct: +Number(p.leakPct ?? 0).toFixed(4),
+    pressure: +Number(p.pressure ?? 0).toFixed(4),
+    creditsStart: Math.round(Number(p.creditsStart ?? 0)),
+    towersStart: +Number(p.towersStart ?? 0).toFixed(1),
+  })),
 }));
 
 const src = `// AUTO-GENERATED from public/balance-report.json by scripts/genGhostCurves.mjs.

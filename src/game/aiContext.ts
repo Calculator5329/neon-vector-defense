@@ -210,7 +210,7 @@ export function buildAIHelpContext(args: {
       nextWave: nextWaveNumber,
       freeplay: live.freeplay,
       lives: live.lives,
-      startingLives: live.diff.lives,
+      startingLives: live.startingLives,
       credits: Math.floor(live.credits),
       kills: live.totalKills,
       cashEarned: Math.round(live.runStats.cashEarned),

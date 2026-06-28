@@ -478,7 +478,7 @@ export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<b
   if (!canWriteAnalytics() || !isSampledRun(progress.uid, doc.runId)) return false;
   if (!isValidRunId(doc.runId)) return false;
   try {
-    await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc, { merge: true }));
+    await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc));
     return true;
   } catch (error) {
     console.warn('Run analytics submit failed', error);

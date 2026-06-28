@@ -5,7 +5,15 @@
 
 import { DIFFICULTIES } from './maps';
 
-export interface GhostPoint { wave: number; cores: number; coreFraction: number; leakPct: number; }
+export interface GhostPoint {
+  wave: number;
+  cores: number;
+  coreFraction: number;
+  leakPct: number;
+  pressure?: number;
+  creditsStart?: number;
+  towersStart?: number;
+}
 export interface GhostCurve {
   map: string; diff: string; skill: string;
   startingLives: number; avgFinalWave: number; winRate: number;
@@ -13,7 +21,14 @@ export interface GhostCurve {
 }
 
 // Lite subset of a report Curve (what the generated asset carries).
-export interface CurvePointLite { wave: number; coreFraction: number; leakPct?: number; }
+export interface CurvePointLite {
+  wave: number;
+  coreFraction: number;
+  leakPct?: number;
+  pressure?: number;
+  creditsStart?: number;
+  towersStart?: number;
+}
 export interface WaveCurveLite {
   map: string; diff: string; skill: string;
   winRate: number; avgFinalWave: number; points: CurvePointLite[];
@@ -33,6 +48,9 @@ export function buildGhostCurves(curves: WaveCurveLite[]): GhostCurve[] {
         coreFraction: p.coreFraction,
         cores: Math.round(p.coreFraction * startingLives),
         leakPct: p.leakPct ?? 0,
+        pressure: p.pressure,
+        creditsStart: p.creditsStart,
+        towersStart: p.towersStart,
       }))
       .sort((a, b) => a.wave - b.wave);
     return { map: c.map, diff: c.diff, skill: c.skill, startingLives, avgFinalWave: c.avgFinalWave, winRate: c.winRate, points };
@@ -45,13 +63,17 @@ export function ghostCurveFor(curves: GhostCurve[], mapId: string, diffId: strin
 
 export function ghostCurvesForMap(curves: GhostCurve[], mapId: string): GhostCurve[] {
   const order = new Map(DIFFICULTIES.map((d, i) => [d.id, i]));
+  const skillOrder = new Map([['rookie', 0], ['standard', 1], ['expert', 2]]);
   return curves
     .filter((c) => c.map === mapId)
-    .sort((a, b) => (order.get(a.diff) ?? 99) - (order.get(b.diff) ?? 99) || a.skill.localeCompare(b.skill));
+    .sort((a, b) => (order.get(a.diff) ?? 99) - (order.get(b.diff) ?? 99) || (skillOrder.get(a.skill) ?? 99) - (skillOrder.get(b.skill) ?? 99) || a.skill.localeCompare(b.skill));
 }
 
 /** Ghost point at an exact wave, else the nearest prior wave (the curve is post-wave keyframes). */
 export function ghostAtWave(curve: GhostCurve, wave: number): GhostPoint | null {
+  if (wave <= 0) {
+    return { wave: 0, cores: curve.startingLives, coreFraction: 1, leakPct: 0 };
+  }
   let best: GhostPoint | null = null;
   for (const p of curve.points) {
     if (p.wave <= wave) best = p;
