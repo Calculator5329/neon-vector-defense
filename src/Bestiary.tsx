@@ -1,11 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { ENEMY_LIST } from './game/enemies';
 import { progress } from './game/storage';
+import { sfx } from './game/sound';
 import EnemyPortrait from './EnemyPortrait';
+import Modal from './Modal';
 import type { EnemyDef } from './game/types';
 
 // The Combine Bestiary — a browsable codex of every hull. Undiscovered entries show a
-// blacked-out silhouette; an enemy is "identified" the first time it's seen in the field
+// blacked-out silhouette plus a redacted teaser (trait count / capital-class) to create
+// collection tension; an enemy is "identified" the first time it's seen in the field
 // (progress.enemiesSeen, set by the in-game NEW HOSTILE reveal).
 
 function traits(d: EnemyDef): string[] {
@@ -18,55 +21,71 @@ function traits(d: EnemyDef): string[] {
   return t;
 }
 
+type Filter = 'all' | 'found' | 'locked' | 'boss';
+const FILTERS: [Filter, string][] = [['all', 'ALL'], ['found', 'DISCOVERED'], ['locked', 'UNIDENTIFIED'], ['boss', 'CAPITAL']];
+
 export default function Bestiary({ onClose }: { onClose: () => void }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
   const seen = new Set(progress.enemiesSeen);
   const total = ENEMY_LIST.length;
   const found = ENEMY_LIST.filter((d) => seen.has(d.id)).length;
+  const [filter, setFilter] = useState<Filter>('all');
 
-  useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
+  // opening the codex acknowledges every identified hull so the NEW badge clears
+  useEffect(() => { progress.bestiaryAck = found; }, [found]);
+
+  const list = ENEMY_LIST.filter((d) => {
+    if (filter === 'found') return seen.has(d.id);
+    if (filter === 'locked') return !seen.has(d.id);
+    if (filter === 'boss') return d.boss;
+    return true;
+  });
 
   return (
-    <div className="bestiary-overlay" onClick={onClose} data-testid="bestiary">
-      <div
-        className="bestiary"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bestiary-title"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-      >
-        <div className="bestiary-head">
-          <span className="bestiary-title" id="bestiary-title">COMBINE BESTIARY</span>
-          <span className="bestiary-count">{found} / {total} IDENTIFIED</span>
-          <button ref={closeRef} className="bestiary-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div className="bestiary-grid">
-          {ENEMY_LIST.map((d) => {
-            const known = seen.has(d.id);
-            return (
-              <div key={d.id} className={`foe-card ${known ? '' : 'foe-unknown'} ${d.boss ? 'foe-boss' : ''}`}>
-                <div className="foe-portrait">
-                  <EnemyPortrait def={d} unknown={!known} />
-                  {!known && <div className="foe-lock">?</div>}
-                </div>
-                <div className="foe-name" style={known ? { color: d.glow } : undefined}>{known ? d.name : 'UNIDENTIFIED'}</div>
-                {known ? (
-                  <>
-                    <div className="foe-traits">{traits(d).map((t) => <span key={t}>{t}</span>)}</div>
-                    <div className="foe-lore">{d.lore}</div>
-                  </>
-                ) : (
-                  <div className="foe-lore dim">No field data. Engage to identify.</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="bestiary-foot">The Vex Combine — a self-replicating machine collective. Encounter a hull to add it to the codex.</div>
+    <Modal onClose={onClose} overlayClass="bestiary-overlay" boxClass="bestiary" labelledBy="bestiary-title" testId="bestiary">
+      <div className="bestiary-head">
+        <span className="bestiary-title" id="bestiary-title">COMBINE BESTIARY</span>
+        <span className="bestiary-count">{found} / {total} IDENTIFIED</span>
+        <button className="bestiary-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
-    </div>
+      <div className="bestiary-filters" role="tablist" aria-label="Filter hulls">
+        {FILTERS.map(([f, label]) => (
+          <button key={f} role="tab" aria-selected={filter === f}
+            className={`bestiary-filter ${filter === f ? 'on' : ''}`}
+            onClick={() => { setFilter(f); sfx.click(); }}>{label}</button>
+        ))}
+      </div>
+      <div className="bestiary-grid">
+        {list.map((d) => {
+          const known = seen.has(d.id);
+          const tlist = traits(d);
+          return (
+            <div key={d.id} className={`foe-card ${known ? '' : 'foe-unknown'} ${d.boss ? 'foe-boss' : ''}`}>
+              <div className="foe-portrait">
+                <EnemyPortrait def={d} unknown={!known} />
+                {!known && <div className="foe-lock">?</div>}
+              </div>
+              <div className="foe-name" style={known ? { color: d.glow } : undefined}>
+                {known ? d.name : d.boss ? 'CAPITAL-CLASS' : 'UNIDENTIFIED'}
+              </div>
+              {known ? (
+                <>
+                  <div className="foe-traits">{tlist.map((t) => <span key={t}>{t}</span>)}</div>
+                  <div className="foe-lore">{d.lore}</div>
+                </>
+              ) : (
+                <>
+                  <div className="foe-traits redacted">
+                    <span>{tlist.length > 0 ? `${tlist.length} TRAIT${tlist.length > 1 ? 'S' : ''} CLASSIFIED` : 'NO INTEL'}</span>
+                  </div>
+                  <div className="foe-lore dim">{d.boss ? 'Capital-class threat — classified. Engage to declassify.' : 'No field data. Engage to identify.'}</div>
+                </>
+              )}
+            </div>
+          );
+        })}
+        {list.length === 0 && <div className="bestiary-empty">No hulls match this filter yet — engage the Combine to fill the codex.</div>}
+      </div>
+      <div className="bestiary-foot">The Vex Combine — a self-replicating machine collective. Encounter a hull to add it to the codex.</div>
+    </Modal>
   );
 }

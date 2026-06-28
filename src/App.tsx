@@ -4,7 +4,7 @@ import { Game, W, H } from './game/engine';
 import { render, drawTowerBody, setRenderQuality } from './game/render';
 import { TOWERS, TOWERS_BY_UNLOCK, sellValue } from './game/towers';
 import { ALL_MAPS, MAPS, DIFFICULTIES } from './game/maps';
-import { ENEMIES } from './game/enemies';
+import { ENEMIES, ENEMY_LIST } from './game/enemies';
 import { ABILITIES } from './game/abilities';
 import { BRIEFING, LONGWATCH_BRIEFING, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LINES } from './game/lore';
 import { RECEIVER_COST } from './game/engine';
@@ -639,6 +639,10 @@ function MainMenu(props: {
   const ngLocked = !DEMO_MODE && !progress.armisticeSeen;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
+  // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit
+  const claimable = DEMO_MODE ? 0 : meta.claimableCount();
+  const foesSeen = progress.enemiesSeen.length;
+  const foesNew = Math.max(0, foesSeen - progress.bestiaryAck);
 
   return (
     <div className="menu-root">
@@ -652,8 +656,14 @@ function MainMenu(props: {
         <nav className="menu-tabs" aria-label="Main menu sections">
           <button className={tab === 'deploy' ? 'on' : ''} aria-pressed={tab === 'deploy'} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
           <button className={tab === 'board' ? 'on' : ''} aria-pressed={tab === 'board'} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
-          <button className={tab === 'ops' ? 'on' : ''} aria-pressed={tab === 'ops'} onClick={() => { setTab('ops'); sfx.click(); }}>OPERATIONS</button>
-          <button className="menu-tab-help" title="Bestiary" aria-label="Combine Bestiary" onClick={() => { setBestiaryOpen(true); sfx.click(); }}>👾</button>
+          <button className={tab === 'ops' ? 'on' : ''} aria-pressed={tab === 'ops'} onClick={() => { setTab('ops'); sfx.click(); }}>
+            OPERATIONS{claimable > 0 && <span className="tab-badge" aria-label={`${claimable} operations ready to claim`}>{claimable}</span>}
+          </button>
+          <button className="menu-tab-help" title={`Combine Bestiary — ${foesSeen}/${ENEMY_LIST.length} identified`}
+            aria-label={`Combine Bestiary, ${foesSeen} of ${ENEMY_LIST.length} hulls identified${foesNew > 0 ? `, ${foesNew} new` : ''}`}
+            onClick={() => { setBestiaryOpen(true); sfx.click(); }}>
+            👾{foesNew > 0 && <span className="tab-badge new" aria-hidden="true">{foesNew}</span>}
+          </button>
           <button className="menu-tab-help" title="How to play" onClick={() => { setHelp(true); sfx.click(); }}>?</button>
           <button className="menu-tab-help" title="Settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>⚙</button>
         </nav>

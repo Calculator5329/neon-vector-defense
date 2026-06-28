@@ -264,6 +264,9 @@ export const progress = {
     if (c.foes.includes(id)) return false;
     c.foes.push(id); save(); return true;
   },
+  // count of identified hulls the player has already seen in the Bestiary (drives the NEW badge)
+  get bestiaryAck(): number { return (cache as unknown as { foesAck?: number }).foesAck ?? 0; },
+  set bestiaryAck(v: number) { (cache as unknown as { foesAck?: number }).foesAck = v; save(); },
   get tutorialSeen(): boolean { return (cache as unknown as { tut?: boolean }).tut ?? false; },
   set tutorialSeen(v: boolean) { (cache as unknown as { tut?: boolean }).tut = v; save(); },
   blueprint(mapId: string): BlueprintEntry[] {
