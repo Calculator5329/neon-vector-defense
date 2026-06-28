@@ -26,6 +26,30 @@ service cloud.firestore {
       return data.schemaVersion in [1, 2];
     }
 
+    function isRunSummary(summary) {
+      return summary is map
+        && summary.keys().hasAll(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS'])
+        && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'contractId', 'scoreMultiplierEnd'])
+        && summary.callsign is string && summary.callsign.size() <= 20
+        && summary.map is string && summary.map.size() <= 30
+        && summary.mapName is string && summary.mapName.size() <= 80
+        && summary.diff is string && summary.diff.size() <= 30
+        && summary.diffName is string && summary.diffName.size() <= 80
+        && summary.freeplay is bool
+        && summary.outcome in ['victory', 'armistice', 'gameover', 'abandoned']
+        && summary.phase is string && summary.phase.size() <= 30
+        && summary.wave is int && summary.wave >= 0 && summary.wave <= 10000
+        && summary.kills is int && summary.kills >= 0 && summary.kills < 10000000
+        && summary.credits is int && summary.credits >= 0 && summary.credits < 100000000
+        && summary.cashEarned is int && summary.cashEarned >= 0 && summary.cashEarned < 100000000
+        && summary.leaks is int && summary.leaks >= 0 && summary.leaks < 1000000
+        && summary.coresLeft is int && summary.coresLeft >= 0 && summary.coresLeft < 1000000
+        && summary.durationS is int && summary.durationS >= 0 && summary.durationS < 100000
+        && (!('daily' in summary) || isValidDailyBoard(summary.daily))
+        && (!('contractId' in summary) || (summary.contractId is string && summary.contractId.size() <= 30))
+        && (!('scoreMultiplierEnd' in summary) || (summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 100));
+    }
+
     // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore
     // Cloud Function (Admin SDK, which bypasses rules); direct client writes are blocked.
     // This is the leaderboard-integrity lockdown — scores are validated against a replay
@@ -58,7 +82,7 @@ service cloud.firestore {
         && request.resource.data.build is string && request.resource.data.build.size() <= 30
         && request.resource.data.chunkCount is int && request.resource.data.chunkCount >= 0 && request.resource.data.chunkCount <= 100
         && request.resource.data.eventCount is int && request.resource.data.eventCount >= 0 && request.resource.data.eventCount <= 100000
-        && request.resource.data.summary is map
+        && isRunSummary(request.resource.data.summary)
         && request.resource.data.setup is map
         && request.resource.data.final is map
         && request.resource.data.events is list && request.resource.data.events.size() <= 650
@@ -102,7 +126,7 @@ service cloud.firestore {
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
         && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
         && request.resource.data.build is string && request.resource.data.build.size() <= 30
-        && request.resource.data.summary is map
+        && isRunSummary(request.resource.data.summary)
         && request.resource.data.onboarding is map
         && request.resource.data.abandonment is map
         && request.resource.data.difficulty is map
@@ -139,7 +163,7 @@ service cloud.firestore {
           && request.resource.data.reason is string && request.resource.data.reason.size() <= 30
           && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
           && request.resource.data.build is string && request.resource.data.build.size() <= 30
-          && request.resource.data.summary is map
+          && isRunSummary(request.resource.data.summary)
           && request.resource.data.performance is map
           && request.resource.data.attention is map
           && request.resource.data.counters is map

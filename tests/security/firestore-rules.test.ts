@@ -19,6 +19,23 @@ let testEnv: RulesTestEnvironment;
 
 const runId = 'r_rulesTest123';
 const adminToken = { email: '5329548871.eg@gmail.com', email_verified: true };
+const validSummary = {
+  callsign: 'RULES',
+  map: 'orbital',
+  mapName: 'Orbital Relay',
+  diff: 'easy',
+  diffName: 'Recruit',
+  freeplay: false,
+  outcome: 'abandoned',
+  phase: 'gameover',
+  wave: 1,
+  kills: 1,
+  credits: 1,
+  cashEarned: 1,
+  leaks: 0,
+  coresLeft: 99,
+  durationS: 10,
+};
 
 const validRun = {
   schemaVersion: 2,
@@ -29,7 +46,7 @@ const validRun = {
   build: 'test',
   chunkCount: 0,
   eventCount: 1,
-  summary: {},
+  summary: validSummary,
   setup: {},
   events: [],
   snapshots: [],
@@ -73,6 +90,14 @@ describe('public replay rules', () => {
     const malformed = { ...validRun };
     delete (malformed as Partial<typeof validRun>).final;
     await assertFails(setDoc(doc(db, 'runs', runId), malformed));
+  });
+
+  test('deny public replay docs with malformed nested summaries', async () => {
+    const db = anonDb();
+    await assertFails(setDoc(doc(db, 'runs', runId), {
+      ...validRun,
+      summary: { ...validSummary, wave: '1' },
+    }));
   });
 
   test('allow replay chunk create and deny chunk updates', async () => {
@@ -120,7 +145,7 @@ describe('leaderboard and telemetry write rules', () => {
       createdAt: 1,
       endedAt: 2,
       build: 'test',
-      summary: {},
+      summary: validSummary,
       onboarding: {},
       abandonment: {},
       difficulty: {},
@@ -145,7 +170,7 @@ describe('leaderboard and telemetry write rules', () => {
       reason: 'interval',
       createdAt: 1,
       build: 'test',
-      summary: {},
+      summary: validSummary,
       performance: {},
       attention: {},
       counters: {},

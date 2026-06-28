@@ -50,3 +50,14 @@ describe('hosting security headers', () => {
     assert.match(headers.get('Permissions-Policy') ?? '', /geolocation=\(\)/);
   });
 });
+
+describe('firestore security rules', () => {
+  test('validate nested replay and private analytics summaries', () => {
+    const rules = readFileSync('firestore.rules', 'utf8');
+    assert.match(rules, /function isRunSummary\(summary\)/);
+    assert.match(rules, /summary\.keys\(\)\.hasAll\(\['callsign', 'map', 'mapName'/);
+    assert.match(rules, /summary\.wave is int && summary\.wave >= 0 && summary\.wave <= 10000/);
+    assert.equal((rules.match(/isRunSummary\(request\.resource\.data\.summary\)/g) ?? []).length, 3);
+    assert.doesNotMatch(rules, /request\.resource\.data\.summary is map/);
+  });
+});
