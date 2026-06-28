@@ -268,6 +268,23 @@ export const meta = {
     return reward;
   },
 
+  /** How many operations are complete and waiting to be claimed (drives the nav-tab badge). */
+  claimableCount(now = new Date()): number {
+    return this.board(now).filter((q) => q.complete && !q.claimed).length;
+  },
+
+  /** Claim every complete, unclaimed operation at once; returns the aggregate reward. */
+  claimAll(now = new Date()): RunMetaReward {
+    const breakdown: { label: string; xp: number; salvage: number }[] = [];
+    let xp = 0, salvage = 0;
+    for (const q of this.board(now)) {
+      if (!q.complete || q.claimed) continue;
+      const r = this.claimQuest(q.id, now);
+      if (r) { xp += r.xp; salvage += r.salvage; breakdown.push(...r.breakdown); }
+    }
+    return { xp, salvage, breakdown };
+  },
+
   claimQuest(id: string, now = new Date()): RunMetaReward | null {
     const q = operationsBoard(now).find((x) => x.id === id);
     if (!q) return null;

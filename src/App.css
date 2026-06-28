@@ -3591,25 +3591,46 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 
 .ops-tab { display: flex; flex-direction: column; gap: 16px; padding: 4px; overflow-y: auto; width: 100%; max-width: var(--menu-max); margin: 0 auto; }
 .ops-head { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
-.ops-rank { flex: 1; min-width: 260px; padding: 16px 20px; border-radius: 12px; background: var(--panel2); border: 1px solid rgba(75, 207, 250, 0.2); box-shadow: inset 0 0 18px rgba(75, 207, 250, 0.05); display: flex; align-items: center; gap: 16px; }
+.ops-rank { position: relative; flex: 1; min-width: 260px; padding: 16px 20px; border-radius: 12px; background: var(--panel2); border: 1px solid rgba(75, 207, 250, 0.2); box-shadow: inset 0 0 18px rgba(75, 207, 250, 0.05); display: flex; align-items: center; gap: 16px; }
 .ops-rank-crest { width: 72px; height: 72px; flex: 0 0 auto; border-radius: 10px; filter: drop-shadow(0 0 10px rgba(75, 207, 250, 0.4)); }
 .ops-rank-body { flex: 1; min-width: 0; }
 .ops-rank-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .ops-rank-title { font-family: 'Orbitron', sans-serif; font-size: 22px; color: var(--accent); letter-spacing: 1px; text-shadow: 0 0 12px rgba(75, 207, 250, 0.4); }
-.ops-rank-xp { font-size: 12px; color: #9fb2dd; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ops-rank-xp { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ops-rank-bar { height: 12px; border-radius: 6px; background: rgba(0,0,0,0.4); overflow: hidden; margin: 10px 0 8px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
-.ops-rank-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #8e7bef); box-shadow: 0 0 12px rgba(75,207,250,0.5); }
-.ops-rank-sub { font-size: 11px; color: #8295bd; letter-spacing: 1.5px; }
+/* animate the fill so claimed XP visibly fills the bar */
+.ops-rank-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #8e7bef); box-shadow: 0 0 12px rgba(75,207,250,0.5); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.ops-rank-sub { font-size: 11px; color: var(--dim); letter-spacing: 1.5px; }
+/* floating reward when a quest is claimed */
+.xp-float {
+  position: absolute; top: 8px; right: 18px; pointer-events: none;
+  font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 700; color: var(--good);
+  text-shadow: 0 0 12px rgba(46, 213, 115, 0.7); display: flex; align-items: center; gap: 4px;
+  animation: xp-float-up 1.2s ease-out forwards;
+}
+@keyframes xp-float-up {
+  0% { opacity: 0; transform: translateY(6px) scale(0.9); }
+  20% { opacity: 1; transform: translateY(0) scale(1.05); }
+  70% { opacity: 1; transform: translateY(-10px); }
+  100% { opacity: 0; transform: translateY(-26px); }
+}
 .ops-chips { display: flex; gap: 12px; }
 .ops-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 104px; padding: 12px 18px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--edge); }
 .ops-chip-val { font-family: 'Orbitron', sans-serif; font-size: 22px; display: flex; align-items: center; }
-.ops-chip-label { font-size: 10px; letter-spacing: 1.5px; color: #8295bd; margin-top: 4px; }
+.ops-chip-label { font-size: 10px; letter-spacing: 1.5px; color: var(--dim); margin-top: 4px; }
 .ops-chip.salvage { border-color: rgba(142, 245, 217, 0.3); }
 .ops-chip.salvage .ops-chip-val { color: #8ef5d9; }
-.ops-chip.streak .ops-chip-val { color: #9aa6c8; }
+.ops-chip.streak .ops-chip-val { color: var(--dim); }
 .ops-chip.streak.active { border-color: rgba(255, 159, 67, 0.4); }
 .ops-chip.streak.active .ops-chip-val { color: #ff9f43; }
+/* streak at risk: played before but not today */
+.ops-chip.streak.warn { border-color: rgba(255, 211, 42, 0.45); }
+.ops-chip.streak.warn .ops-chip-val { color: var(--gold); }
+.ops-chip.streak.warn .ops-chip-label { color: var(--gold); }
 
+.ops-board-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px; }
+.claim-all { background: linear-gradient(#ffd95e, #ffcf4b); padding: 8px 18px; font-size: 12px; animation: claim-all-pulse 1.8s ease-in-out infinite; }
+@keyframes claim-all-pulse { 0%, 100% { box-shadow: 0 0 0 rgba(255, 211, 42, 0); } 50% { box-shadow: 0 0 16px rgba(255, 211, 42, 0.6); } }
 .ops-board { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 720px) { .ops-board { grid-template-columns: 1fr; } }
 .ops-status {
@@ -3630,6 +3651,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .quest-card.claimed { opacity: 0.55; }
 .quest-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .quest-title { font-size: 14.5px; color: #eaf1ff; }
+.quest-scope { font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 1px; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 4px; padding: 1px 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; }
 .quest-reward { font-size: 11.5px; color: var(--gold); white-space: nowrap; display: flex; align-items: center; }
 .quest-bar { height: 8px; border-radius: 4px; background: rgba(0,0,0,0.4); overflow: hidden; margin: 9px 0 7px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.5); }
 .quest-fill { display: block; height: 100%; background: linear-gradient(90deg, #3ad6ff, #2ed573); }

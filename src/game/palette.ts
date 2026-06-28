@@ -10,6 +10,11 @@ export const PALETTES: AccentPalette[] = [
   { id: 'void', name: 'Void Violet', color: '#b388ff', cost: 400 },
   { id: 'toxin', name: 'Toxin', color: '#7bed9f', cost: 450 },
   { id: 'auric', name: 'Auric', color: '#ffcf4b', cost: 600 },
+  // higher tiers so Salvage keeps a purpose past the first week
+  { id: 'magma', name: 'Magma', color: '#ff4d6d', cost: 750 },
+  { id: 'tidal', name: 'Tidal', color: '#36d1dc', cost: 850 },
+  { id: 'spectral', name: 'Spectral', color: '#ff6ec7', cost: 1000 },
+  { id: 'prestige', name: 'Ascendant Gold', color: '#ffe27a', cost: 1500 },
 ];
 
 export function paletteById(id: string): AccentPalette {

@@ -9,23 +9,37 @@ import { sfx } from './game/sound';
 export default function OperationsBoard() {
   const [, force] = useState(0);
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [flash, setFlash] = useState<{ xp: number; salvage: number; n: number } | null>(null);
   const rerender = () => force((n) => n + 1);
+  const showReward = (xp: number, salvage: number) => setFlash((f) => ({ xp, salvage, n: (f?.n ?? 0) + 1 }));
 
   const rank = meta.rank;
   const streak = meta.streak;
   const board = meta.board();
   const daily = board.filter((q) => q.period === 'daily');
   const weekly = board.filter((q) => q.period === 'weekly');
+  const claimable = board.filter((q) => q.complete && !q.claimed).length;
 
   const claim = (id: string) => {
     const r = meta.claimQuest(id);
     if (r) {
       setStatus({ kind: 'ok', text: `Claimed ${r.breakdown[0]?.label ?? 'operation'}: +${r.xp} XP and +${r.salvage} salvage.` });
+      showReward(r.xp, r.salvage);
       sfx.upgrade();
       rerender();
     } else {
       setStatus({ kind: 'err', text: 'That operation is not ready to claim yet.' });
       sfx.error();
+    }
+  };
+
+  const claimAll = () => {
+    const r = meta.claimAll();
+    if (r.xp > 0 || r.salvage > 0) {
+      setStatus({ kind: 'ok', text: `Claimed ${r.breakdown.length} operations: +${r.xp} XP and +${r.salvage} salvage.` });
+      showReward(r.xp, r.salvage);
+      sfx.upgrade();
+      rerender();
     }
   };
 
@@ -42,15 +56,21 @@ export default function OperationsBoard() {
             <div className="ops-rank-bar"><div className="ops-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></div>
             <div className="ops-rank-sub">WARDEN RANK {rank.rank} · {rank.totalXp.toLocaleString()} lifetime XP</div>
           </div>
+          {flash && (
+            <div key={flash.n} className="xp-float" onAnimationEnd={() => setFlash(null)} aria-hidden="true">
+              +{flash.xp.toLocaleString()} XP{flash.salvage > 0 ? <> · <i className="ico-diamond" />{flash.salvage}</> : ''}
+            </div>
+          )}
         </div>
         <div className="ops-chips">
           <div className="ops-chip salvage" title="Salvage — earned per run, spent on Signal Palettes below">
             <span className="ops-chip-val"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}</span>
             <span className="ops-chip-label">SALVAGE</span>
           </div>
-          <div className={`ops-chip streak ${streak.activeToday ? 'active' : ''}`} title={`Best streak: ${streak.best} days`}>
+          <div className={`ops-chip streak ${streak.activeToday ? 'active' : streak.current > 0 ? 'warn' : ''}`}
+            title={streak.current > 0 && !streak.activeToday ? `Play today to keep your ${streak.current}-day watch alive (best: ${streak.best})` : `Best streak: ${streak.best} days`}>
             <span className="ops-chip-val">🔥 {streak.current}</span>
-            <span className="ops-chip-label">{streak.activeToday ? 'DAY STREAK' : streak.current > 0 ? 'STREAK (PLAY TODAY)' : 'NO STREAK'}</span>
+            <span className="ops-chip-label">{streak.activeToday ? 'DAY STREAK' : streak.current > 0 ? 'PLAY TODAY!' : 'NO STREAK'}</span>
           </div>
         </div>
       </div>
@@ -109,6 +129,12 @@ export default function OperationsBoard() {
         </div>
       )}
 
+      <div className="ops-board-head">
+        <div className="menu-section-label">OPERATIONS BOARD</div>
+        {claimable >= 2 && (
+          <button className="quest-claim claim-all" onClick={claimAll}>CLAIM ALL ({claimable})</button>
+        )}
+      </div>
       <div className="ops-board" data-testid="ops-board">
         <QuestColumn label="DAILY OPERATIONS" quests={daily} onClaim={claim} />
         <QuestColumn label="WEEKLY OPERATIONS" quests={weekly} onClaim={claim} />
@@ -127,7 +153,10 @@ function QuestColumn({ label, quests, onClaim }: { label: string; quests: QuestW
         return (
           <div key={q.id} className={`quest-card ${q.claimed ? 'claimed' : q.complete ? 'complete' : ''}`} data-testid={`quest-card-${q.id}`}>
             <div className="quest-top">
-              <span className="quest-title">{q.title}</span>
+              <span className="quest-title">
+                {q.title}
+                {q.scope?.freeplay === true && <span className="quest-scope" title="Only progresses during Freeplay runs">FREEPLAY</span>}
+              </span>
               <span className="quest-reward">+{q.rewardXp} XP · <i className="ico-diamond" aria-hidden="true" />{q.rewardSalvage}</span>
             </div>
             <div className="quest-bar"><div className="quest-fill" style={{ width: `${pct}%` }} /></div>
