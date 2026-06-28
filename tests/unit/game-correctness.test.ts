@@ -5,6 +5,7 @@ import { setBalanceDoc } from '../../src/game/balanceConfig';
 import { Game } from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
 import { dailyFreeplaySeed } from '../../src/game/freeplay';
+import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { normalizeProgress, progress } from '../../src/game/storage';
@@ -106,6 +107,44 @@ describe('storage normalization', () => {
 });
 
 describe('freeplay correctness guards', () => {
+  test('Firestore sanitizer removes nested undefined from replay upload docs', () => {
+    const dirty = {
+      runId: 'r_test',
+      summary: {
+        map: 'mobius',
+        daily: undefined,
+      },
+      events: [
+        { type: 'run_start', t: 0, optional: undefined },
+        undefined,
+        { type: 'custom', payload: { kept: true, missing: undefined } },
+      ],
+      chunks: [
+        {
+          chunk: 0,
+          events: [{ type: 'wave_start', gap: undefined }],
+        },
+      ],
+    };
+
+    const clean = sanitizeFirestoreData(dirty);
+    assert.deepEqual(clean, {
+      runId: 'r_test',
+      summary: { map: 'mobius' },
+      events: [
+        { type: 'run_start', t: 0 },
+        null,
+        { type: 'custom', payload: { kept: true } },
+      ],
+      chunks: [
+        {
+          chunk: 0,
+          events: [{ type: 'wave_start' }],
+        },
+      ],
+    });
+  });
+
   test('public replay bundles never contain undefined Firestore fields', () => {
     const game = makeGame();
     game.credits = 9999;

@@ -18,6 +18,7 @@ import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
 import { canSubmitScore, canWriteAnalytics } from './consent';
 import { isSampledRun } from './writePolicy';
+import { sanitizeFirestoreData } from './firestoreSanitize';
 import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle, PublicRunDoc } from './runTelemetry';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
@@ -402,17 +403,19 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
   if (!isValidRunId(bundle.run.runId)) return { ok: false };
   const replayToken = replayTokenFor(bundle.run.runId);
   const replayTokenHash = await sha256Hex(replayToken);
-  const run: PublicRunDoc = { ...bundle.run, replayTokenHash };
+  const run: PublicRunDoc = sanitizeFirestoreData({ ...bundle.run, replayTokenHash });
+  const ownerDoc = sanitizeFirestoreData({
+    schemaVersion: 1,
+    uid: progress.uid,
+    runId: run.runId,
+    createdAt: run.createdAt,
+    build: run.build,
+  });
+  const chunks = bundle.chunks.map((chunk) => sanitizeFirestoreData(chunk));
   try {
-    await withTimeout(setDoc(firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId), {
-      schemaVersion: 1,
-      uid: progress.uid,
-      runId: run.runId,
-      createdAt: run.createdAt,
-      build: run.build,
-    }));
+    await withTimeout(setDoc(firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId), ownerDoc));
     await withTimeout(setDoc(firestoreDoc(db, 'runs', run.runId), run));
-    await withTimeout(Promise.all(bundle.chunks.map((chunk) =>
+    await withTimeout(Promise.all(chunks.map((chunk) =>
       setDoc(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk))));
     return { ok: true, runId: run.runId, replayToken };
   } catch (error) {
