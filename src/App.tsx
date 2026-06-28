@@ -1361,7 +1361,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     }
     const found = selectTowerAt(pos, 34);
     setSelectedUid(found ? found.uid : null);
-    if (found) sfx.click();
+    if (found) { if (!sideOpenRef.current) setSideOpen(true); sfx.click(); }
   };
 
   const onCanvasMove = (ev: React.MouseEvent) => { hoverRef.current = toCanvas(ev); };
@@ -1383,7 +1383,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     // select tower under cursor
     const found = selectTowerAt(pos);
     setSelectedUid(found ? found.uid : null);
-    if (found) sfx.click();
+    if (found) { if (!sideOpenRef.current) setSideOpen(true); sfx.click(); }
   };
   const onContext = (ev: React.MouseEvent) => {
     ev.preventDefault();
@@ -2392,6 +2392,19 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
   const next = tier < 6 ? tr.upgrades[tier] : null;
   const cost = game.upgradeCost(tower, track);
   const isBonusNext = tier >= 4;
+  // buying a bonus tier with no track committed locks the OTHER track's bonuses forever
+  const willCommit = isBonusNext && tower.committed === null;
+  const otherTrack = tower.def.tracks[track === 0 ? 1 : 0];
+  const [armed, setArmed] = useState(false);
+  // never carry an armed confirm across a different tower / tier
+  useEffect(() => { setArmed(false); }, [tower.uid, track, tier]);
+  const buy = () => {
+    // on touch (no hover to read the warning) require a confirming second tap before committing
+    const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+    if (willCommit && coarse && !armed) { setArmed(true); sfx.click(); return; }
+    game.upgradeTower(tower, track);
+    setArmed(false);
+  };
   return (
     <div className={`track-col ${track === 1 ? 'track-b' : ''}`}>
       <div className="track-name">{tr.name}</div>
@@ -2404,12 +2417,13 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
       {state === 'locked' && <div className="track-locked">Committed to {tower.def.tracks[tower.committed!].name}</div>}
       {state === 'ok' && next && (
         <button
-          className={`upgrade-btn track-btn ${game.credits >= cost ? '' : 'poor'} ${isBonusNext ? 'bonus-up' : ''}`}
-          title={isBonusNext && tower.committed === null ? 'BONUS TIER — buying this commits the tower to this track!' : next.desc}
-          onClick={() => { game.upgradeTower(tower, track); }}
+          className={`upgrade-btn track-btn ${game.credits >= cost ? '' : 'poor'} ${isBonusNext ? 'bonus-up' : ''} ${armed ? 'armed' : ''}`}
+          title={willCommit ? 'BONUS TIER — buying this commits the tower to this track!' : next.desc}
+          onClick={buy}
         >
-          <div className="up-name"><UpgradeIcon k={upgradeIconKey(next.name, next.desc, isBonusNext)} /> {next.name}</div>
-          <div className="up-desc">{next.desc}</div>
+          <div className="up-name"><UpgradeIcon k={upgradeIconKey(next.name, next.desc, isBonusNext)} /> {armed ? 'TAP AGAIN TO COMMIT' : next.name}</div>
+          <div className="up-desc">{armed ? `Locks the ${otherTrack.name} track's bonus tiers for good` : next.desc}</div>
+          {willCommit && <div className="commit-flag">⚠ COMMITS TO {tr.name.toUpperCase()}</div>}
           <div className="up-cost">⌬{cost}</div>
         </button>
       )}

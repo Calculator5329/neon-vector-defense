@@ -914,6 +914,17 @@ function drawTower(ctx: CanvasRenderingContext2D, t: Tower, time: number, select
     ctx.arc(t.pos.x, t.pos.y, 23, time * 1.5, time * 1.5 + Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+    // name tag so the selection is unmistakable even if the sidebar panel is missed
+    ctx.save();
+    ctx.font = "bold 9px 'Orbitron', sans-serif";
+    ctx.textAlign = 'center';
+    const label = t.def.name.toUpperCase();
+    const w = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(5, 8, 18, 0.82)';
+    ctx.fillRect(t.pos.x - w / 2 - 5, t.pos.y + 26, w + 10, 13);
+    ctx.fillStyle = t.def.glow;
+    ctx.fillText(label, t.pos.x, t.pos.y + 35);
+    ctx.restore();
   }
 }
 

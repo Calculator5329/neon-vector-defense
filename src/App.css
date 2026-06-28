@@ -1454,6 +1454,18 @@
 .track-btn .up-desc { font-size: 11px; }
 .bonus-up { border-color: var(--gold); background: rgba(255, 211, 42, 0.07); }
 .bonus-up .up-name { color: var(--gold); }
+/* persistent (non-tooltip) warning that buying this bonus tier locks the other track */
+.commit-flag {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  margin-top: 3px;
+  opacity: 0.92;
+}
+.track-btn.armed { border-color: var(--danger); background: rgba(255, 71, 87, 0.12); animation: ability-shake 0.32s ease-in-out; }
+.track-btn.armed .up-name { color: var(--danger); }
+.track-btn.armed .commit-flag { color: var(--danger); }
 .track-locked {
   font-size: 10.5px;
   color: var(--dim);
@@ -2411,7 +2423,8 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .ability-bar { bottom: max(10px, env(safe-area-inset-bottom)); left: 8px; gap: 6px; }
   .ability-btn { width: 58px; height: 58px; }
   .ability-btn .ability-icon { font-size: 24px; }
-  .wave-btn { font-size: 14px; padding: 12px 22px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  /* lift above the ability bar (58px buttons at the bottom) so the centered CTA never overlaps it */
+  .wave-btn { font-size: 14px; padding: 12px 22px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 66px); }
   .touch-place-hint { bottom: 78px; }
   .freeplay-build-panel {
     position: relative;
