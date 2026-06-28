@@ -1929,7 +1929,7 @@ function SettingsRow({ name, sub, on, onToggle }: { name: string; sub: string; o
         <div className="privacy-control-name">{name}</div>
         <div className="privacy-control-sub">{sub}</div>
       </div>
-      <button className={`privacy-toggle ${on ? 'on' : ''}`} onClick={onToggle}>{on ? 'ON' : 'OFF'}</button>
+      <button className={`privacy-toggle ${on ? 'on' : ''}`} aria-label={`${name}: ${on ? 'on' : 'off'}`} aria-pressed={on} onClick={onToggle}>{on ? 'ON' : 'OFF'}</button>
     </div>
   );
 }
@@ -1950,10 +1950,10 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
             onToggle={() => { setMusic(!musicOn); rerender(); }} />
           <div className="privacy-control">
             <div>
-              <div className="privacy-control-name">Music pack</div>
+              <div className="privacy-control-name" id="settings-music-pack-label">Music pack</div>
               <div className="privacy-control-sub">Choose the soundtrack.</div>
             </div>
-            <select className="age-gate-select settings-select" value={getMusicPack()}
+            <select className="age-gate-select settings-select" aria-labelledby="settings-music-pack-label" value={getMusicPack()}
               onChange={(e) => { setMusicPack(e.target.value); rerender(); sfx.click(); }}>
               {MUSIC_PACKS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
