@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpsError } from 'firebase-functions/v2/https';
 
 const UID_RE = /^[A-Za-z0-9_-]{6,40}$/;
 const FEEDBACK_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
@@ -27,6 +26,14 @@ export interface RateLimitTransaction {
 export interface RateLimitStore {
   doc(path: string): unknown;
   runTransaction<T>(fn: (tx: RateLimitTransaction) => Promise<T>): Promise<T>;
+}
+
+export class RateLimitUnavailableError extends Error {
+  readonly code = 'unavailable';
+
+  constructor() {
+    super('rate-limit-unavailable');
+  }
 }
 
 function n(v: unknown, fallback = 0): number {
@@ -87,6 +94,6 @@ export async function rateLimitOk(store: RateLimitStore, key: string): Promise<b
       return true;
     });
   } catch {
-    throw new HttpsError('unavailable', 'rate-limit-unavailable');
+    throw new RateLimitUnavailableError();
   }
 }

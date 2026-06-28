@@ -289,6 +289,8 @@ function legalBuilds(def: TowerDef): StaticBuild[] {
   return out;
 }
 
+type TowerVerdict = 'OP' | 'strong' | 'fair' | 'weak' | 'utility/needs-support';
+
 interface TowerSummary {
   id: string;
   name: string;
@@ -309,7 +311,7 @@ interface TowerSummary {
   bestSimProgressPct: number;
   bestSimCorePct: number;
   opScore: number;
-  verdict: 'OP' | 'strong' | 'fair' | 'weak' | 'utility/needs-support';
+  verdict: TowerVerdict;
   strengths: string[];
   weaknesses: string[];
   notableStages: string[];
@@ -352,7 +354,7 @@ function summarizeTowers(staticBuilds: StaticBuild[], sims: SimResult[], medianA
     // Static whole-lane capstones can produce enormous AoE-per-credit ratios.
     // Cap the static contribution so verdicts are led by simulation outcomes.
     const opScore = round(Math.min(staticRatio, 3) * 0.6 + veteranWinRate * 3.5 + apexWinRate * 3 + avgCorePctOnWins * 1.6 + avgProgressPct * 0.7, 3);
-    const verdict =
+    const verdict: TowerVerdict =
       (veteranWinRate >= 0.45 && veteranAvgCorePctOnWins >= 0.85) || (winRate >= 0.35 && avgCorePctOnWins >= 0.75) ? 'OP' :
         winRate >= 0.18 || veteranWinRate >= 0.25 || staticRatio >= 2.4 ? 'strong' :
           def.base.damage === 0 && bestStatic.singleDps <= 0 ? 'utility/needs-support' :

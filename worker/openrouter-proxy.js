@@ -133,6 +133,18 @@ function sanitizeHistory(messages) {
     .map((m) => ({ role: m.role, content: m.content.slice(0, 1400) }));
 }
 
+async function readLimitedJson(request) {
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    return { tooLarge: true, body: {} };
+  }
+  try {
+    return { tooLarge: false, body: raw ? JSON.parse(raw) : {} };
+  } catch {
+    return { tooLarge: false, body: {} };
+  }
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -147,7 +159,9 @@ export default {
       return json({ error: 'ai_not_configured', message: 'AI uplink is not configured yet.' }, 503, cors);
     }
 
-    const body = await request.json().catch(() => ({}));
+    const parsed = await readLimitedJson(request);
+    if (parsed.tooLarge) return json({ error: 'request_too_large' }, 413, cors);
+    const body = parsed.body;
     const message = String(body.message || '').trim().slice(0, MAX_MESSAGE_CHARS);
     if (!message) return json({ error: 'empty_message' }, 400, cors);
 

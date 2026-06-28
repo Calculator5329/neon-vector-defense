@@ -71,6 +71,16 @@ describe('AI worker request gate', () => {
     assert.equal(fetchCalls, 0);
   });
 
+  test('rejects oversized actual bodies even with a small content length', async () => {
+    const res = await worker.fetch(request({
+      body: { message: 'x'.repeat(33_000) },
+      contentLength: '1',
+    }), env);
+    assert.equal(res.status, 413);
+    assert.equal((await res.json()).error, 'request_too_large');
+    assert.equal(fetchCalls, 0);
+  });
+
   test('limits resettable cookie conversations to five', async () => {
     let cookie = '';
     for (let i = 0; i < 5; i++) {

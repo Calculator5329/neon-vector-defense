@@ -23,6 +23,7 @@ import { validDeletedRunIds } from './deleteHelpers.js';
 import {
   feedbackTokenHash,
   newFeedbackToken,
+  RateLimitUnavailableError,
   rateLimitOk,
   replayTokenHash,
   sanitizeFeedbackReceipts,
@@ -208,7 +209,7 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
   if (replay.reason || !replay.canonical) return { accepted: false, reason: replay.reason ?? 'bad-replay', claimed };
   const canonical = replay.canonical;
 
-  if (!(await rateLimitOk(db as unknown as RateLimitStore, claim.uid))) {
+  if (!(await allowRateLimitedAction(claim.uid))) {
     return { accepted: false, reason: 'rate-limited', claimed };
   }
 
@@ -236,6 +237,17 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
     claimed,
     accepted_values: canonical,
   };
+}
+
+async function allowRateLimitedAction(key: string): Promise<boolean> {
+  try {
+    return await rateLimitOk(db as unknown as RateLimitStore, key);
+  } catch (error) {
+    if (error instanceof RateLimitUnavailableError) {
+      throw new HttpsError('unavailable', 'rate-limit-unavailable');
+    }
+    throw error;
+  }
 }
 
 interface FeedbackSubmitResult {
@@ -282,7 +294,7 @@ export const submitFeedback = onCall(
   async (req: CallableRequest): Promise<FeedbackSubmitResult> => {
     const feedback = readFeedbackPayload(req.data);
     if (!feedback) throw new HttpsError('invalid-argument', 'bad-feedback');
-    if (!(await rateLimitOk(db as unknown as RateLimitStore, `feedback_${feedback.uid}`))) {
+    if (!(await allowRateLimitedAction(`feedback_${feedback.uid}`))) {
       return { accepted: false, reason: 'rate-limited' };
     }
 
