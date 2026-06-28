@@ -171,10 +171,26 @@ function Main() {
   const [diff, setDiff] = useState<DifficultyDef>(
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
-  const [dailySeed] = useState(() => dailyFreeplaySeed());
+  const [dailySeed, setDailySeed] = useState(() => dailyFreeplaySeed());
   const [dailyMode, setDailyMode] = useState(false);
   const [comeback, setComeback] = useState(false);
   useEffect(() => { progress.markSession(); }, []);
+  useEffect(() => {
+    if (DEMO_MODE || PERF_MAP !== null) return;
+    const refreshDailySeed = () => {
+      const next = dailyFreeplaySeed();
+      setDailySeed((prev) => (prev.id === next.id ? prev : next));
+    };
+    const onVisibility = () => { if (!document.hidden) refreshDailySeed(); };
+    const timer = window.setInterval(refreshDailySeed, 60_000);
+    window.addEventListener('focus', refreshDailySeed);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDailySeed);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
   useEffect(() => {
     if (DEMO_MODE || PERF_MAP !== null) return;
     const today = new Date().toISOString().slice(0, 10);

@@ -21,6 +21,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { validDeletedRunIds } from './deleteHelpers.js';
 import {
+  canonicalLeaderboardCash,
   feedbackTokenHash,
   newFeedbackToken,
   RateLimitUnavailableError,
@@ -142,7 +143,7 @@ function readClaim(raw: unknown): ClaimedScore | null {
 interface RunSummary {
   wave: number; kills: number; credits: number; cashEarned: number;
   coresLeft: number; durationS: number; freeplay: boolean;
-  map: string; diff: string; outcome: string; daily?: string;
+  map: string; diff: string; outcome: string; daily?: string; scoreMultiplierEnd?: number;
 }
 
 /** Verify runs/{runId} exists and return the replay-derived canonical score. */
@@ -172,12 +173,13 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   const endedAt = n(run.endedAt);
   if (createdAt <= 0 || endedAt < createdAt) return { reason: 'bad-timestamps' };
 
-  const cashCeiling = Math.max(recCashEarned, recCredits) * SCORE_SLACK + 5;
+  const wantFreeplay = isDaily || boardIsFreeplay(board);
+  const canonicalCash = canonicalLeaderboardCash(Math.max(recCashEarned, recCredits), wantFreeplay, summary.scoreMultiplierEnd);
+  const cashCeiling = Math.max(recCashEarned, recCredits, canonicalCash) * SCORE_SLACK + 5;
   if (claim.cash > cashCeiling) return { reason: 'cash-too-high' };
   if (claim.kills > recKills * SCORE_SLACK + 2) return { reason: 'kills-too-high' };
   if (claim.wave > recWave + WAVE_SLACK) return { reason: 'wave-too-high' };
 
-  const wantFreeplay = isDaily || boardIsFreeplay(board);
   if (claim.freeplay !== wantFreeplay) return { reason: 'freeplay-mismatch' };
 
   if (!isDaily) {
@@ -195,7 +197,7 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
 
   return {
     canonical: {
-      cash: Math.max(0, Math.floor(Math.max(recCashEarned, recCredits))),
+      cash: canonicalCash,
       kills: Math.max(0, Math.floor(recKills)),
       wave: Math.max(0, Math.floor(recWave)),
     },

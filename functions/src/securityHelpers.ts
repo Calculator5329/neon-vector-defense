@@ -57,6 +57,14 @@ export function replayTokenHash(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+export function canonicalLeaderboardCash(rawCash: number, freeplay: boolean, scoreMultiplier: unknown): number {
+  const base = Math.max(0, Math.floor(Number.isFinite(rawCash) ? rawCash : 0));
+  if (!freeplay) return base;
+  const mult = typeof scoreMultiplier === 'number' ? scoreMultiplier : Number(scoreMultiplier);
+  const clamped = Number.isFinite(mult) ? Math.max(1, Math.min(100, mult)) : 1;
+  return Math.max(0, Math.floor(base * clamped));
+}
+
 export function sanitizeFeedbackReceipts(raw: unknown, max = 20): FeedbackReceiptInput[] {
   const rows = Array.isArray(raw) ? raw : [];
   const out: FeedbackReceiptInput[] = [];

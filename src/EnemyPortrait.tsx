@@ -33,15 +33,40 @@ export default function EnemyPortrait({
     if (!drawCtx) return;
 
     let raf = 0;
+    let stopped = false;
+    const reduceMotion = document.body.classList.contains('reduced-motion')
+      || (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const draw = (ts: number) => {
       drawEnemyPortrait(drawCtx, def, { time: ts / 1000, corrupted: def.id === 'umbra', unknown });
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, size, size);
       ctx.drawImage(drawCanvas, 0, 0, size, size);
+      if (reduceMotion || document.hidden || stopped) return;
       raf = window.requestAnimationFrame(draw);
     };
-    raf = window.requestAnimationFrame(draw);
-    return () => window.cancelAnimationFrame(raf);
+    const start = () => {
+      if (raf || reduceMotion || document.hidden || stopped) return;
+      raf = window.requestAnimationFrame((ts) => {
+        raf = 0;
+        draw(ts);
+      });
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (raf) window.cancelAnimationFrame(raf);
+        raf = 0;
+      } else {
+        start();
+      }
+    };
+    draw(0);
+    start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      stopped = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
   }, [def, unknown]);
 
   return <canvas ref={canvasRef} className={`enemy-portrait-canvas ${className}`} aria-hidden="true" />;

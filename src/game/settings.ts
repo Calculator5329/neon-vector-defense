@@ -5,10 +5,17 @@
 import { progress } from './storage';
 import { setReducedMotion } from './render';
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export function applyAccessibility(): void {
+  const reduceMotion = progress.reducedMotion || prefersReducedMotion();
   if (typeof document !== 'undefined') {
-    document.body.classList.toggle('reduced-motion', progress.reducedMotion);
+    document.body.classList.toggle('reduced-motion', reduceMotion);
     document.body.classList.toggle('colorblind', progress.colorblind);
   }
-  setReducedMotion(progress.reducedMotion);
+  setReducedMotion(reduceMotion);
 }

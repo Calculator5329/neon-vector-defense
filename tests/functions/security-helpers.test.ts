@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
+  canonicalLeaderboardCash,
   feedbackTokenHash,
   newFeedbackToken,
   rateLimitOk,
@@ -45,6 +46,19 @@ describe('feedback receipt helpers', () => {
       { id: 'feedback_123456', token: 'abcdefghijklmnop' },
       { id: 'feedback_abcdef', token: 'ABCDEFGHIJKLMNOP' },
     ]);
+  });
+});
+
+describe('leaderboard score helpers', () => {
+  test('applies replay-recorded score multipliers only to freeplay cash', () => {
+    assert.equal(canonicalLeaderboardCash(1000.8, false, 3), 1000);
+    assert.equal(canonicalLeaderboardCash(1000, true, 2.5), 2500);
+  });
+
+  test('clamps malformed or extreme freeplay multipliers', () => {
+    assert.equal(canonicalLeaderboardCash(1000, true, 0.2), 1000);
+    assert.equal(canonicalLeaderboardCash(1000, true, 'bad'), 1000);
+    assert.equal(canonicalLeaderboardCash(1000, true, 500), 100_000);
   });
 });
 

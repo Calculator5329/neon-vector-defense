@@ -528,6 +528,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   const lastTsRef = useRef(0);
   const rafRef = useRef(0);
   const lastIdxRef = useRef(-1);
+  const needsDrawRef = useRef(true);
 
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
@@ -655,6 +656,14 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   useEffect(() => {
     const step = (ts: number) => {
       rafRef.current = requestAnimationFrame(step);
+      if (document.hidden) {
+        lastTsRef.current = ts;
+        return;
+      }
+      if (!playingRef.current && !needsDrawRef.current) {
+        lastTsRef.current = ts;
+        return;
+      }
       const last = lastTsRef.current || ts;
       const dt = Math.min(0.1, (ts - last) / 1000);
       lastTsRef.current = ts;
@@ -669,6 +678,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
       }
       const frame = reconstructAt(run, tRef.current);
       draw(frame);
+      needsDrawRef.current = false;
       // move playhead without a React render
       if (playheadRef.current) playheadRef.current.style.left = `${((tRef.current - t0) / span) * 100}%`;
       // only re-render HUD when the active keyframe changes
@@ -686,12 +696,14 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   const seek = (t: number) => {
     tRef.current = Math.max(t0, Math.min(tEnd, t));
     lastIdxRef.current = -1; // force HUD refresh next frame
+    needsDrawRef.current = true;
     if (tRef.current >= tEnd) { playingRef.current = false; setPlaying(false); }
   };
   const togglePlay = () => {
     sfx.click();
     if (!playingRef.current && tRef.current >= tEnd) tRef.current = t0; // replay from start
     playingRef.current = !playingRef.current;
+    needsDrawRef.current = true;
     setPlaying(playingRef.current);
   };
   const stepSnap = (dir: -1 | 1) => {

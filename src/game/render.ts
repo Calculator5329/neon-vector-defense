@@ -1718,7 +1718,7 @@ export function drawReplayEnemy(
   enemyCount: number,
 ) {
   drawEnemy(ctx, enemy, time, map, {
-    enemies: new Array(Math.max(0, enemyCount)) as Enemy[],
+    enemies: { length: Math.max(0, enemyCount) } as Enemy[],
     diff: { id: diffId },
   } as Game);
 }

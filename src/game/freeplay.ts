@@ -161,7 +161,11 @@ export function dailyFreeplaySeed(now = new Date()): DailyFreeplaySeed {
   // content floors (60/62/70), producing flat content-less early waves.
   const diffPool = DIFFICULTIES.filter((d) => d.id !== 'easy' && d.id !== 'ngplus');
   const diff = diffPool[Math.floor(seed / 7) % diffPool.length];
-  const contractIds: FreeplayContractId[] = ['ironcore', 'leanGrid', 'volatile'];
+  const contractIds = pickMany(
+    FREEPLAY_CONTRACTS.filter((c) => c.id !== 'standard').map((c) => c.id),
+    seed + 5,
+    3,
+  );
   const towerIds = [...DAILY_CORE_TOWER_IDS, ...pickMany(DAILY_ROTATING_TOWER_IDS, seed + 47, 5)];
   const relicIds = pickMany(FREEPLAY_RELICS.map((r) => r.id), seed + 11, 5);
   const mutatorBias = pickMany(FREEPLAY_MUTATORS.map((m) => m.id), seed + 23, 4);

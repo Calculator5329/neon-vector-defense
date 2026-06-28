@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { Game } from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
+import { dailyFreeplaySeed } from '../../src/game/freeplay';
 import { buildGhostCurves, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { normalizeProgress } from '../../src/game/storage';
@@ -126,6 +127,14 @@ describe('freeplay correctness guards', () => {
     assert.equal(game.freeplayState.lastCheckpointWave, game.diff.waves + 5);
     assert.equal(game.canBankFreeplay(), false);
     assert.equal(game.markFreeplayCheckpoint(), false);
+  });
+
+  test('daily freeplay rotates the lead contract across seeded dates', () => {
+    const leadContracts = new Set<string>();
+    for (let day = 1; day <= 14; day++) {
+      leadContracts.add(dailyFreeplaySeed(new Date(Date.UTC(2026, 5, day))).contractIds[0]);
+    }
+    assert.ok(leadContracts.size > 1);
   });
 });
 
