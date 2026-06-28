@@ -162,7 +162,7 @@ function GhostModal({
   const ahead = deltaPct >= 0;
   const stats = curveStats(selectedCurve);
 
-  const W = 560, H = 210, padL = 38, padB = 26, padT = 14, padR = 16;
+  const W = 640, H = 238, padL = 46, padB = 34, padT = 22, padR = 46;
   const maxWave = Math.max(1, ...curves.flatMap((curve) => curve.points.map((p) => p.wave)));
   const sx = (w: number) => padL + (w / maxWave) * (W - padL - padR);
   const sy = (frac: number) => padT + (1 - Math.max(0, Math.min(1, frac))) * (H - padT - padB);
@@ -170,6 +170,9 @@ function GhostModal({
     .map((p, i) => `${i ? 'L' : 'M'}${sx(p.wave).toFixed(1)},${sy(p.coreFraction).toFixed(1)}`)
     .join(' ');
   const px = sx(Math.min(wave, maxWave)), py = sy(playerPct);
+  const playerLabelAnchor = px > W - padR - 46 ? 'end' : 'start';
+  const playerLabelX = playerLabelAnchor === 'end' ? px - 10 : px + 10;
+  const playerLabelY = Math.max(padT + 10, Math.min(H - padB - 8, py + 4));
 
   const sortedCurves = curves.length ? curves : [selectedCurve];
   const selectedIndex = Math.max(0, sortedCurves.findIndex((curve) => curveKey(curve) === curveKey(selectedCurve)));
@@ -249,7 +252,15 @@ function GhostModal({
           ))}
           <line x1={px} y1={padT} x2={px} y2={H - padB} stroke="rgba(255,255,255,0.25)" strokeDasharray="3 3" />
           <circle cx={px} cy={py} r="4.8" fill={ahead ? '#2ed573' : '#ff6b81'} />
-          <text x={Math.min(px + 8, W - 28)} y={py + 4} className="gm-axis" fill={ahead ? '#2ed573' : '#ff6b81'} textAnchor="start">YOU</text>
+          <text
+            x={playerLabelX}
+            y={playerLabelY}
+            className="gm-axis gm-player-label"
+            fill={ahead ? '#2ed573' : '#ff6b81'}
+            textAnchor={playerLabelAnchor}
+          >
+            YOU
+          </text>
         </svg>
 
         <div className="ghost-modal-legend">
