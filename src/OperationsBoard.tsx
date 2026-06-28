@@ -96,7 +96,6 @@ export default function OperationsBoard() {
                   if (owned) {
                     meta.equip('accent', p.id);
                     applyAccent();
-                    setStatus({ kind: 'ok', text: `${p.name} palette equipped.` });
                     sfx.click();
                     rerender();
                   }

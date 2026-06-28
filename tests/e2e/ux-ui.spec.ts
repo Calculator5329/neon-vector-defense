@@ -29,6 +29,20 @@ const progressSeed = {
   cloakTip: true,
 };
 
+const metaSeed = {
+  xp: 0,
+  salvage: 0,
+  salvageLifetime: 0,
+  seeded: true,
+  questProgress: {},
+  questClaimed: [],
+  creditedRuns: [],
+  bestStreak: 0,
+  comebackSeenFor: '',
+  cosmetics: [],
+  cosmeticEquipped: {},
+};
+
 async function seedProgress(page: Page, overrides: Record<string, unknown> = {}) {
   await page.addInitScript(([base, patch]) => {
     window.localStorage.setItem('nvd-progress-v1', JSON.stringify({ ...base, ...patch }));
@@ -36,6 +50,12 @@ async function seedProgress(page: Page, overrides: Record<string, unknown> = {})
     // behave like a normal adult player. (?demo=1 also bypasses the gate.)
     window.localStorage.setItem('nvd-consent-v1', JSON.stringify({ ageBand: 'adult', sell: 'ok', gpc: false, ts: 1 }));
   }, [progressSeed, overrides]);
+}
+
+async function seedMeta(page: Page, overrides: Record<string, unknown> = {}) {
+  await page.addInitScript(([base, patch]) => {
+    window.localStorage.setItem('nvd-meta-v2', JSON.stringify({ ...base, ...patch }));
+  }, [metaSeed, overrides]);
 }
 
 async function openDemoMenu(page: Page) {
@@ -47,6 +67,13 @@ async function openConsentedMenu(page: Page) {
   await seedProgress(page);
   await page.goto('/');
   await expect(page.getByTestId('deploy-button')).toBeVisible();
+}
+
+async function openOperationsMenu(page: Page) {
+  await page.goto('/');
+  await expect(page.getByTestId('deploy-button')).toBeVisible();
+  await page.getByRole('button', { name: /^OPERATIONS/ }).click();
+  await expect(page.getByTestId('ops-tab')).toBeVisible();
 }
 
 async function deployFromMenu(page: Page) {
@@ -389,6 +416,51 @@ test.describe('desktop UX layout', () => {
     expect(layout.deployVisible).toBe(true);
     expect(layout.rightEdgesAligned).toBe(true);
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test('owned signal palette equip is silent', async ({ page }) => {
+    await seedProgress(page);
+    await seedMeta(page, {
+      salvage: 400,
+      salvageLifetime: 400,
+      cosmetics: ['palette-void'],
+      cosmeticEquipped: { accent: 'standard' },
+    });
+    await openOperationsMenu(page);
+
+    await page.getByRole('button', { name: 'Equip Void Violet palette' }).click();
+    await expect(page.locator('.ops-status')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Void Violet palette equipped' })).toBeVisible();
+    await expect(page.getByText('Void Violet palette equipped.')).toHaveCount(0);
+  });
+
+  test('signal palette purchase still confirms', async ({ page }) => {
+    await seedProgress(page);
+    await seedMeta(page, {
+      salvage: 400,
+      salvageLifetime: 400,
+      cosmetics: [],
+      cosmeticEquipped: { accent: 'standard' },
+    });
+    await openOperationsMenu(page);
+
+    await page.getByRole('button', { name: 'Buy Void Violet palette for 400 salvage' }).click();
+    await expect(page.locator('.ops-status.ok')).toContainText('Void Violet palette purchased and equipped.');
+  });
+
+  test('unaffordable signal palette keeps its salvage guidance', async ({ page }) => {
+    await seedProgress(page);
+    await seedMeta(page, {
+      salvage: 0,
+      salvageLifetime: 0,
+      cosmetics: [],
+      cosmeticEquipped: { accent: 'standard' },
+    });
+    await openOperationsMenu(page);
+
+    const locked = page.getByRole('button', { name: 'Void Violet palette needs 400 more salvage' });
+    await expect(locked).toBeDisabled();
+    await expect(locked).toContainText('need 400');
   });
 
   test('briefing overlays hide in-game utility widgets, then restore a clean sidebar dock', async ({ page }) => {
