@@ -78,6 +78,14 @@ describe('CI/CD guardrails', () => {
     expect(submitRunAnalytics).not.toContain('merge: true');
   });
 
+  test('leaderboard score timestamps are server-controlled', () => {
+    const processSubmit = /async function processSubmit[\s\S]*?\n}/.exec(functionsIndex)?.[0] ?? '';
+    expect(processSubmit).toContain('const acceptedAt = Date.now()');
+    expect(processSubmit).toContain('ts: acceptedAt');
+    expect(processSubmit).toContain('clientTs: claim.ts');
+    expect(processSubmit).not.toContain('ts: claim.ts');
+  });
+
   test('quick balance reports cannot overwrite shipped ghost curves', () => {
     expect(balanceScript).toContain('if (!QUICK)');
     expect(balanceScript).toContain('genGhostCurves.mjs');

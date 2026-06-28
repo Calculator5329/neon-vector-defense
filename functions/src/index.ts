@@ -207,6 +207,7 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
 
 async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolean): Promise<SubmitResult> {
   const claimed = { cash: claim.cash, kills: claim.kills, wave: claim.wave };
+  const acceptedAt = Date.now();
 
   const replay = await checkReplay(claim, board, isDaily);
   if (replay.reason || !replay.canonical) return { accepted: false, reason: replay.reason ?? 'bad-replay', claimed };
@@ -222,7 +223,8 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
     kills: canonical.kills,
     wave: canonical.wave,
     freeplay: isDaily ? true : boardIsFreeplay(board),
-    ts: claim.ts > 0 ? claim.ts : Date.now(),
+    ts: acceptedAt,
+    clientTs: claim.ts,
     uid: claim.uid,
     runId: claim.runId,
     serverTs: FieldValue.serverTimestamp(),
