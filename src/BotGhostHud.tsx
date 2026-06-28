@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ghostAtWave, type GhostCurve } from './game/ghostCurve';
 import { DIFFICULTIES } from './game/maps';
 import { sfx } from './game/sound';
@@ -141,6 +141,8 @@ function GhostModal({
   onSelect: (key: string) => void;
   onClose: () => void;
 }) {
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const selectedCurve = curves.find((c) => curveKey(c) === selectedKey) ?? curves.find((c) => c.diff === matchedDiffId) ?? curves[0];
   const g = ghostAtWave(selectedCurve, wave);
   const botCores = g?.cores ?? selectedCurve.startingLives;
@@ -164,14 +166,34 @@ function GhostModal({
   const selectedIndex = Math.max(0, sortedCurves.findIndex((curve) => curveKey(curve) === curveKey(selectedCurve)));
   const selectedColor = PROFILE_COLORS[selectedIndex % PROFILE_COLORS.length];
 
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') onCloseRef.current();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div className="ghost-modal-overlay" onClick={onClose}>
-      <div className="ghost-modal ghost-modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="ghost-modal ghost-modal-wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ghost-modal-title"
+        aria-describedby="ghost-modal-desc"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="ghost-modal-head">
-          <span>AI RIVAL - {profileShortLabel(selectedCurve)}</span>
-          <button className="ghost-modal-close" onClick={onClose} aria-label="Close">x</button>
+          <span id="ghost-modal-title">AI RIVAL - {profileShortLabel(selectedCurve)}</span>
+          <button ref={closeRef} className="ghost-modal-close" onClick={onClose} aria-label="Close">x</button>
         </div>
-        <p className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Long Watch starts are comparable.</p>
+        <p id="ghost-modal-desc" className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Long Watch starts are comparable.</p>
 
         <div className="ghost-profile-switch" role="tablist" aria-label="AI rival profile">
           {sortedCurves.map((curve, i) => {
@@ -211,6 +233,7 @@ function GhostModal({
               d={pathFor(curve)}
               fill="none"
               stroke={PROFILE_COLORS[i % PROFILE_COLORS.length]}
+              strokeDasharray={curveKey(curve) === curveKey(selectedCurve) ? undefined : i % 2 === 0 ? '5 4' : '2 3'}
               strokeWidth={curveKey(curve) === curveKey(selectedCurve) ? 2.6 : 1.2}
               opacity={curveKey(curve) === curveKey(selectedCurve) ? 0.95 : 0.28}
             />
@@ -223,8 +246,8 @@ function GhostModal({
         <div className="ghost-modal-legend">
           {sortedCurves.map((curve, i) => (
             <span key={curveKey(curve)} className={curveKey(curve) === curveKey(selectedCurve) ? 'on' : ''}>
-              <i style={{ background: PROFILE_COLORS[i % PROFILE_COLORS.length] }} />
-              {diffName(curve.diff)}
+              <i style={{ background: PROFILE_COLORS[i % PROFILE_COLORS.length] }} data-pattern={i % 2 === 0 ? 'dash' : 'dot'} />
+              {diffName(curve.diff)} / {curve.skill}
             </span>
           ))}
         </div>

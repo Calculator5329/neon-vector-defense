@@ -63,6 +63,11 @@ export interface RankedScoreEntry extends ScoreEntry {
   diffName: string;
 }
 
+export interface LeaderboardFetchResult<T> {
+  rows: T[];
+  error: boolean;
+}
+
 function cloneScores<T extends ScoreEntry>(rows: T[]): T[] {
   return rows.map((row) => ({ ...row }));
 }
@@ -776,37 +781,46 @@ export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]
   }
 }
 
-export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {
+async function readTop(board: string, limit = 10): Promise<ScoreEntry[]> {
   if (!validBoard(board)) return [];
   const cacheKey = `${board}:${limit}`;
   const cached = topCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
+  const fetchLimit = board.endsWith('_fp') ? Math.min(50, Math.max(limit, limit * 4)) : limit;
+  const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(fetchLimit));
+  const snap = await withTimeout(getDocs(q));
+  const rows = snap.docs.map((d) => {
+    const data = d.data() as Partial<ScoreEntry>;
+    return {
+      name: data.name ?? '???',
+      cash: Number(data.cash ?? 0),
+      kills: Number(data.kills ?? 0),
+      wave: Number(data.wave ?? 0),
+      freeplay: data.freeplay ?? false,
+      ts: Number(data.ts ?? 0),
+      uid: data.uid ?? '',
+      runId: data.runId ?? '',
+      meta: data.meta ?? '',
+      daily: data.daily ?? '',
+      checkpoint: data.checkpoint ?? false,
+    };
+  }).filter((row) => !row.daily).slice(0, limit);
+  topCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows });
+  return cloneScores(rows);
+}
+
+export async function fetchTopResult(board: string, limit = 10): Promise<LeaderboardFetchResult<ScoreEntry>> {
   try {
-    const fetchLimit = board.endsWith('_fp') ? Math.min(50, Math.max(limit, limit * 4)) : limit;
-    const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(fetchLimit));
-    const snap = await withTimeout(getDocs(q));
-    const rows = snap.docs.map((d) => {
-      const data = d.data() as Partial<ScoreEntry>;
-      return {
-        name: data.name ?? '???',
-        cash: Number(data.cash ?? 0),
-        kills: Number(data.kills ?? 0),
-        wave: Number(data.wave ?? 0),
-        freeplay: data.freeplay ?? false,
-        ts: Number(data.ts ?? 0),
-        uid: data.uid ?? '',
-        runId: data.runId ?? '',
-        meta: data.meta ?? '',
-        daily: data.daily ?? '',
-        checkpoint: data.checkpoint ?? false,
-      };
-    }).filter((row) => !row.daily).slice(0, limit);
-    topCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows });
-    return cloneScores(rows);
+    return { rows: await readTop(board, limit), error: false };
   } catch {
-    return [];
+    return { rows: [], error: true };
   }
+}
+
+export async function fetchTop(board: string, limit = 10): Promise<ScoreEntry[]> {
+  const result = await fetchTopResult(board, limit);
+  return result.rows;
 }
 
 export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreEntry[]> {
@@ -841,25 +855,34 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
   }
 }
 
-export async function fetchGlobalTop(freeplay: boolean, limit = 20): Promise<RankedScoreEntry[]> {
+export async function fetchGlobalTopResult(freeplay: boolean, limit = 20): Promise<LeaderboardFetchResult<RankedScoreEntry>> {
   const cacheKey = `${freeplay ? 'fp' : 'campaign'}:${limit}`;
   const cached = globalTopCache.get(cacheKey);
-  if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
+  if (cached && cached.expires > Date.now()) return { rows: cloneScores(cached.rows), error: false };
   const boards = ALL_MAPS.flatMap((map) =>
     DIFFICULTIES.map((diff) => boardId(map.id, diff.id, freeplay)));
   const perBoardLimit = Math.max(3, Math.min(10, limit));
-  const rows = await Promise.all(boards.map(async (board) => {
-    const meta = boardMeta(board);
-    if (!meta) return [];
-    const scores = await fetchTop(board, perBoardLimit);
-    return scores.map((score) => ({ ...score, ...meta }));
-  }));
-  const sortField: keyof ScoreEntry = freeplay ? 'wave' : 'cash';
-  const sorted = rows
-    .flat()
-    .sort((a, b) => (Number(b[sortField]) - Number(a[sortField])) || b.kills - a.kills || b.ts - a.ts)
-    .slice(0, limit)
-    .map((row) => ({ ...row }));
-  globalTopCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows: sorted });
-  return cloneScores(sorted);
+  try {
+    const rows = await Promise.all(boards.map(async (board) => {
+      const meta = boardMeta(board);
+      if (!meta) return [];
+      const scores = await readTop(board, perBoardLimit);
+      return scores.map((score) => ({ ...score, ...meta }));
+    }));
+    const sortField: keyof ScoreEntry = freeplay ? 'wave' : 'cash';
+    const sorted = rows
+      .flat()
+      .sort((a, b) => (Number(b[sortField]) - Number(a[sortField])) || b.kills - a.kills || b.ts - a.ts)
+      .slice(0, limit)
+      .map((row) => ({ ...row }));
+    globalTopCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows: sorted });
+    return { rows: cloneScores(sorted), error: false };
+  } catch {
+    return { rows: [], error: true };
+  }
+}
+
+export async function fetchGlobalTop(freeplay: boolean, limit = 20): Promise<RankedScoreEntry[]> {
+  const result = await fetchGlobalTopResult(freeplay, limit);
+  return result.rows;
 }

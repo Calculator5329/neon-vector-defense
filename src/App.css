@@ -780,6 +780,8 @@
 .ghost-modal-legend span { display: inline-flex; align-items: center; gap: 5px; opacity: 0.75; }
 .ghost-modal-legend span.on { color: var(--text); opacity: 1; }
 .ghost-modal-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ghost-modal-legend i[data-pattern="dash"] { box-shadow: 5px 0 0 currentColor; color: rgba(255,255,255,0.28); }
+.ghost-modal-legend i[data-pattern="dot"] { outline: 1px dotted rgba(255,255,255,0.55); outline-offset: 2px; }
 .ghost-modal-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 14px 0 10px; }
 .ghost-modal-rows div { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px; }
 .ghost-modal-rows-deep { grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -2354,7 +2356,10 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
     padding: 6px 8px;
   }
   /* finger-sized controls */
-  .tb-spacer, .tb-stat.kills, .tb-stat.ghost { display: none; }
+  .tb-spacer, .tb-stat.kills { display: none; }
+  .tb-stat.ghost { display: flex; justify-content: center; padding: 7px 4px; gap: 4px; }
+  .tb-stat.ghost .ghost-spark { display: none; }
+  .tb-stat.ghost .ghost-label { font-size: 12px; }
   .tb-btn { min-height: 34px; min-width: 0; font-size: 11px; padding: 6px 4px; }
   .tb-stat { min-width: 0; font-size: 12px; padding: 7px 4px; text-align: center; overflow: hidden; text-overflow: ellipsis; }
   .tb-stat.wave { grid-column: span 2; }
@@ -2600,7 +2605,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
       radial-gradient(circle at 50% 34%, rgba(75, 207, 250, 0.2), transparent 34%),
       rgba(2, 4, 10, 0.88);
     color: var(--text);
-    pointer-events: none;
+    pointer-events: auto;
   }
   .rotate-device-icon {
     width: 62px;
