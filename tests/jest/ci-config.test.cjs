@@ -10,6 +10,9 @@ describe('CI/CD guardrails', () => {
   const workerPackageJson = JSON.parse(fs.readFileSync('worker/package.json', 'utf8'));
   const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
   const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
+  const adminEmailsSource = fs.readFileSync('functions/src/adminEmails.ts', 'utf8');
+  const firestoreRules = fs.readFileSync('firestore.rules', 'utf8');
+  const quotedEmails = (text) => [...text.matchAll(/'([^']+@[^']+)'/g)].map((m) => m[1]).sort();
 
   test('CI runs quick perf and Jest smoke checks', () => {
     expect(packageJson.scripts['test:jest']).toBe('jest --runInBand');
@@ -51,5 +54,7 @@ describe('CI/CD guardrails', () => {
     expect(clientAdminAuth).toContain("from '../../functions/src/adminEmails'");
     expect(functionsIndex).not.toContain('new Set([\'5329548871');
     expect(clientAdminAuth).not.toContain('5329548871,eg@gmail.com');
+    const ruleAdminBlock = /function isAdmin\(\) \{[\s\S]*?\n    \}/.exec(firestoreRules)?.[0] ?? '';
+    expect(quotedEmails(ruleAdminBlock)).toEqual(quotedEmails(adminEmailsSource));
   });
 });
