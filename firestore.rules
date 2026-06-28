@@ -18,6 +18,10 @@ service cloud.firestore {
       return runId.matches('^r_[A-Za-z0-9_-]{8,80}$');
     }
 
+    function isValidUid(uid) {
+      return uid.matches('^[A-Za-z0-9_-]{6,40}$');
+    }
+
     function isTelemetrySchema(data) {
       return data.schemaVersion in [1, 2];
     }
@@ -97,6 +101,22 @@ service cloud.firestore {
           && request.resource.data.chunk is int && request.resource.data.chunk >= 0 && request.resource.data.chunk <= 9999
           && request.resource.data.events is list && request.resource.data.events.size() <= 650;
       }
+    }
+
+    // private replay ownership index: lets operator-run deletion find public
+    // replays even if score submission fails after the replay upload.
+    match /replayOwners/{uid}/runs/{runId} {
+      allow read: if isAdmin();
+      allow update, delete: if false;
+      allow create: if isValidUid(uid)
+        && isValidRunId(runId)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'uid', 'runId', 'createdAt', 'build'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'uid', 'runId', 'createdAt', 'build'])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.uid == uid
+        && request.resource.data.runId == runId
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.build is string && request.resource.data.build.size() <= 30;
     }
 
     // private engagement analytics: players write; only admins can read.

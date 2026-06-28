@@ -751,6 +751,8 @@ export class Game {
       type: entry.group.type,
       count: entry.group.count,
       cloaked: !!entry.group.cloaked,
+      gap: entry.group.gap,
+      delay: entry.group.delay ?? 0,
     })));
     if (this.diff.id === 'ngplus') {
       this.allyTimer = 0;
@@ -838,6 +840,7 @@ export class Game {
       vox('courier');
     }
     this.enemies.push(e);
+    this.recorder.recordEnemySpawn(this.telemetryState(), e);
   }
 
   /** Available once the wave-50 manifest is recovered. */
@@ -866,6 +869,7 @@ export class Game {
       e.wp = parent.wp;
       e.dist = Math.max(0, parent.dist - i * 12);
       this.enemies.push(e);
+      this.recorder.recordEnemySpawn(this.telemetryState(), e, parent.uid);
     }
   }
 
@@ -951,7 +955,7 @@ export class Game {
     }
     e.hp -= dmg;
     if (e.hp <= 0) {
-      this.killEnemy(e);
+      this.killEnemy(e, src);
       if (src) src.kills++;
     }
     return dmg;
@@ -973,13 +977,15 @@ export class Game {
     }
   }
 
-  private killEnemy(e: Enemy) {
+  private killEnemy(e: Enemy, src?: Tower) {
     if (e.dead) return;
     e.dead = true;
-    this.earn(Math.max(1, Math.round(e.def.reward * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
-      (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1))));
+    const reward = Math.max(1, Math.round(e.def.reward * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
+      (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1)));
+    this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
+    this.recorder.recordEnemyKill(this.telemetryState(), e, src, reward);
     this.spawnChildren(e);
     if (e.def.boss) {
       sfx.bossDown();
@@ -1377,7 +1383,7 @@ export class Game {
           revealed: e.revealed,
           armored: e.def.armored,
           boss: e.def.boss,
-        });
+        }, e);
         this.hurtFlash = Math.min(1, this.hurtFlash + 0.55);
         this.shake = Math.min(1, this.shake + (e.def.boss ? 0.8 : 0.25));
         sfx.leak();

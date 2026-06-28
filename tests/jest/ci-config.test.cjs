@@ -25,10 +25,11 @@ describe('CI/CD guardrails', () => {
     expect(packageJson.scripts['sim:quick']).toBe('npm run sim -- quick');
     expect(packageJson.scripts['perf:quick']).toBe('npm run perf -- quick');
     expect(packageJson.scripts.ci).toContain('npm run test:jest');
-    expect(packageJson.scripts.ci).toContain('npm run sim:quick');
+    expect(packageJson.scripts.ci).not.toContain('npm run sim:quick');
     expect(packageJson.scripts.ci).toContain('npm run perf:quick');
     expect(ciWorkflow).toContain('npm run test:jest');
-    expect(ciWorkflow).toContain('npm run sim:quick');
+    expect(ciWorkflow).not.toContain('npm run sim:quick');
+    expect(ciWorkflow).not.toContain('Quick Simulation');
     expect(ciWorkflow).toContain('npm run perf:quick');
     expect(playwrightConfig).toContain('retries: process.env.CI ? 1 : 0');
     expect(playwrightConfig).toContain("['html', { open: 'never' }]");
@@ -76,6 +77,15 @@ describe('CI/CD guardrails', () => {
     const submitRunAnalytics = /export async function submitRunAnalytics[\s\S]*?\n}/.exec(clientLeaderboard)?.[0] ?? '';
     expect(submitRunAnalytics).toContain("firestoreDoc(db, 'runAnalytics', doc.runId), doc)");
     expect(submitRunAnalytics).not.toContain('merge: true');
+  });
+
+  test('public replay deletion has a private ownership index', () => {
+    expect(clientLeaderboard).toContain("firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId)");
+    expect(functionsIndex).toContain("db.collection(`replayOwners/${uid}/runs`).get()");
+    expect(functionsIndex).toContain("db.doc(`replayOwners/${uid}/runs/${runId}`)");
+    expect(firestoreRules).toContain('match /replayOwners/{uid}/runs/{runId}');
+    expect(firestoreRules).toContain('request.resource.data.uid == uid');
+    expect(firestoreRules).toContain('request.resource.data.runId == runId');
   });
 
   test('leaderboard score timestamps are server-controlled', () => {

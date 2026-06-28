@@ -150,6 +150,14 @@ interface Ghost {
   resonance: number;
   burnTimer: number;
   hpPct: number;
+  spawnT: number;
+  endT?: number;
+  endKind?: 'kill' | 'leak';
+  endX?: number;
+  endY?: number;
+  sourceTowerUid?: number;
+  reward?: number;
+  boss?: boolean;
 }
 
 interface ReplayShot {
@@ -161,6 +169,28 @@ interface ReplayShot {
   style: TowerDef['style'];
   tierA: number;
   uid: number;
+}
+
+interface ReplayEnemyRecord {
+  uid: number;
+  def: EnemyDef;
+  wave: number;
+  spawnT: number;
+  spawnDist: number;
+  cloaked: boolean;
+  parentUid?: number;
+  endT?: number;
+  endKind?: 'kill' | 'leak';
+  endDist?: number;
+  endX?: number;
+  endY?: number;
+  sourceTowerUid?: number;
+  reward?: number;
+}
+
+interface ReplayCombatTimeline {
+  enemies: ReplayEnemyRecord[];
+  effects: ReplayEnemyRecord[];
 }
 
 /** The current wave + its start time, from the recorded wave_start snapshots. */
@@ -175,34 +205,198 @@ function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT: numbe
   return { wave: f?.wave ?? run.summary.wave, startT: f?.t ?? 0 };
 }
 
-function reenactEnemies(geom: PathGeom, wave: number, startT: number, t: number, cap = 240): Ghost[] {
-  const out: Ghost[] = [];
-  let groups; try { groups = getWave(wave); } catch { return out; }
-  let seq = 0;
-  for (let gi = 0; gi < groups.length; gi++) {
-    const grp = groups[gi];
-    const def = ENEMIES[grp.type];
-    if (!def) continue;
-    for (let i = 0; i < grp.count; i++) {
-      seq++;
-      const spawnT = startT + (grp.delay ?? 0) + i * grp.gap;
-      const age = t - spawnT;
-      if (age <= 0) continue;
-      const dist = def.speed * age;
-      if (dist >= geom.len) continue; // exited the lane
-      const p = posAtDist(geom, dist);
-      const pulse = 0.5 + 0.5 * Math.sin(t * 1.7 + seq * 0.41);
-      const hpPct = def.boss ? Math.max(0.18, 0.82 - Math.min(0.55, age / 60) + pulse * 0.08) : 1;
-      out.push({
-        x: p.x, y: p.y, angle: p.angle, wp: p.wp, dist: p.dist, uid: wave * 10000 + gi * 500 + i,
-        def, cloaked: grp.cloaked ?? false,
-        slow: 1,
-        resonance: def.id === 'prism' && pulse > 0.86 ? 1 : 0,
-        burnTimer: def.boss && pulse > 0.9 ? 0.6 : 0,
-        hpPct,
+function eventNum(e: RunEvent, key: string, fallback = 0): number {
+  const value = e[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function eventStr(e: RunEvent, key: string, fallback = ''): string {
+  const value = e[key];
+  return typeof value === 'string' ? value : fallback;
+}
+
+interface ReplayWaveGroup { type: string; count: number; gap: number; delay: number; cloaked: boolean; }
+
+function groupsFromWaveEvent(e: RunEvent | undefined): ReplayWaveGroup[] | null {
+  if (!e || !Array.isArray(e.groups)) return null;
+  const groups = e.groups
+    .map((raw): ReplayWaveGroup | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const row = raw as Record<string, unknown>;
+      const type = typeof row.type === 'string' ? row.type : '';
+      const count = typeof row.count === 'number' && Number.isFinite(row.count) ? Math.max(0, Math.floor(row.count)) : 0;
+      const gap = typeof row.gap === 'number' && Number.isFinite(row.gap) ? Math.max(0.03, row.gap) : 0.55;
+      const delay = typeof row.delay === 'number' && Number.isFinite(row.delay) ? Math.max(0, row.delay) : 0;
+      return type && count > 0 ? { type, count, gap, delay, cloaked: !!row.cloaked } : null;
+    })
+    .filter((g): g is ReplayWaveGroup => !!g);
+  return groups.length ? groups : null;
+}
+
+function fallbackGroupsForWave(wave: number): ReplayWaveGroup[] {
+  try {
+    return getWave(wave).map((g) => ({
+      type: g.type,
+      count: g.count,
+      gap: g.gap,
+      delay: g.delay ?? 0,
+      cloaked: !!g.cloaked,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function waveStarts(run: PublicRunDoc): { wave: number; startT: number; event?: RunEvent }[] {
+  const byWave = new Map<number, { wave: number; startT: number; event?: RunEvent }>();
+  for (const s of run.snapshots) {
+    if (s.label === 'wave_start') byWave.set(s.wave, { wave: s.wave, startT: s.t });
+  }
+  for (const e of run.events) {
+    if (e.type !== 'wave_start') continue;
+    const wave = Math.max(0, Math.floor(e.wave));
+    byWave.set(wave, { wave, startT: e.t, event: e });
+  }
+  if (byWave.size === 0 && run.snapshots[0]) byWave.set(run.snapshots[0].wave, { wave: run.snapshots[0].wave, startT: run.snapshots[0].t });
+  return [...byWave.values()].sort((a, b) => a.startT - b.startT || a.wave - b.wave);
+}
+
+function buildReplayCombatTimeline(run: PublicRunDoc): ReplayCombatTimeline {
+  const records = new Map<number, ReplayEnemyRecord>();
+  let syntheticUid = -1;
+  const hasSpawnEvents = run.events.some((e) => e.type === 'enemy_spawn');
+
+  const addRecord = (record: ReplayEnemyRecord) => {
+    records.set(record.uid, record);
+  };
+
+  if (hasSpawnEvents) {
+    for (const e of run.events) {
+      if (e.type !== 'enemy_spawn') continue;
+      const def = ENEMIES[eventStr(e, 'enemyId')];
+      if (!def) continue;
+      const uid = Math.floor(eventNum(e, 'enemyUid', syntheticUid--));
+      addRecord({
+        uid,
+        def,
+        wave: Math.max(0, Math.floor(e.wave)),
+        spawnT: e.t,
+        spawnDist: Math.max(0, eventNum(e, 'dist', 0)),
+        cloaked: !!e.cloaked,
+        parentUid: typeof e.parentUid === 'number' ? Math.floor(e.parentUid) : undefined,
       });
-      if (out.length >= cap) return out;
     }
+  } else {
+    for (const win of waveStarts(run)) {
+      const groups = groupsFromWaveEvent(win.event) ?? fallbackGroupsForWave(win.wave);
+      for (let gi = 0; gi < groups.length; gi++) {
+        const grp = groups[gi];
+        const def = ENEMIES[grp.type];
+        if (!def) continue;
+        for (let i = 0; i < grp.count; i++) {
+          addRecord({
+            uid: syntheticUid--,
+            def,
+            wave: win.wave,
+            spawnT: win.startT + grp.delay + i * grp.gap,
+            spawnDist: 0,
+            cloaked: grp.cloaked,
+          });
+        }
+      }
+    }
+  }
+
+  const assignEnd = (kind: 'kill' | 'leak', t: number, enemyId: string, uid?: number, e?: RunEvent) => {
+    const exact = uid != null ? records.get(uid) : undefined;
+    const candidates = exact ? [exact] : [...records.values()]
+      .filter((r) => !r.endT && r.spawnT <= t && (!enemyId || r.def.id === enemyId))
+      .sort((a, b) => b.spawnT - a.spawnT || b.uid - a.uid);
+    const rec = candidates[0];
+    if (!rec) return;
+    rec.endT = Math.max(rec.spawnT + 0.05, t);
+    rec.endKind = kind;
+    rec.endDist = Math.max(rec.spawnDist, eventNum(e ?? ({} as RunEvent), 'dist', rec.spawnDist + rec.def.speed * (rec.endT - rec.spawnT)));
+    rec.endX = e && typeof e.x === 'number' ? e.x : undefined;
+    rec.endY = e && typeof e.y === 'number' ? e.y : undefined;
+    rec.sourceTowerUid = e && typeof e.towerUid === 'number' ? e.towerUid : undefined;
+    rec.reward = e && typeof e.reward === 'number' ? e.reward : undefined;
+  };
+
+  let hasKillEvents = false;
+  for (const e of run.events) {
+    if (e.type === 'enemy_kill') {
+      hasKillEvents = true;
+      assignEnd('kill', e.t, eventStr(e, 'enemyId'), Math.floor(eventNum(e, 'enemyUid', NaN)), e);
+    } else if (e.type === 'leak') {
+      const uid = typeof e.enemyUid === 'number' ? Math.floor(e.enemyUid) : undefined;
+      assignEnd('leak', e.t, eventStr(e, 'enemyId'), uid, e);
+    }
+  }
+
+  if (!hasKillEvents) {
+    const snaps = [...run.snapshots].sort((a, b) => a.t - b.t);
+    for (let i = 1; i < snaps.length; i++) {
+      const prev = snaps[i - 1];
+      const snap = snaps[i];
+      const dt = Math.max(0.1, snap.t - prev.t);
+      const enemyIds = new Set([...Object.keys(prev.killsByEnemy ?? {}), ...Object.keys(snap.killsByEnemy ?? {})]);
+      for (const enemyId of enemyIds) {
+        const delta = Math.max(0, Math.round((snap.killsByEnemy?.[enemyId] ?? 0) - (prev.killsByEnemy?.[enemyId] ?? 0)));
+        for (let k = 0; k < delta; k++) assignEnd('kill', prev.t + dt * ((k + 1) / (delta + 1)), enemyId);
+      }
+    }
+  }
+
+  const enemies = [...records.values()].sort((a, b) => a.spawnT - b.spawnT || a.uid - b.uid);
+  const effects = enemies
+    .filter((e) => e.endT != null)
+    .sort((a, b) => (a.endT ?? 0) - (b.endT ?? 0) || a.uid - b.uid);
+  return { enemies, effects };
+}
+
+function ghostFromRecord(geom: PathGeom, rec: ReplayEnemyRecord, t: number, chrono: boolean): Ghost | null {
+  if (t < rec.spawnT) return null;
+  if (rec.endT != null && t >= rec.endT) return null;
+  const age = Math.max(0, t - rec.spawnT);
+  let dist = rec.spawnDist + rec.def.speed * age * (chrono ? 0.35 : 1);
+  if (rec.endT != null && rec.endDist != null) {
+    const f = Math.max(0, Math.min(1, (t - rec.spawnT) / Math.max(0.05, rec.endT - rec.spawnT)));
+    dist = rec.spawnDist + (rec.endDist - rec.spawnDist) * f;
+  }
+  if (dist >= geom.len) return null;
+  const p = posAtDist(geom, dist);
+  const pulse = 0.5 + 0.5 * Math.sin(t * 1.7 + rec.uid * 0.041);
+  const endFade = rec.endT == null ? 0 : Math.max(0, Math.min(1, (rec.endT - t) / 0.8));
+  const hpPct = rec.endT != null
+    ? Math.max(0.08, Math.min(1, endFade))
+    : rec.def.boss ? Math.max(0.18, 0.82 - Math.min(0.55, age / 60) + pulse * 0.08) : 1;
+  return {
+    x: p.x, y: p.y, angle: p.angle, wp: p.wp, dist: p.dist, uid: rec.uid,
+    def: rec.def, cloaked: rec.cloaked,
+    slow: chrono ? 0.35 : 1,
+    resonance: rec.def.id === 'prism' && pulse > 0.86 ? 1 : 0,
+    burnTimer: rec.def.boss && pulse > 0.9 ? 0.6 : 0,
+    hpPct,
+    spawnT: rec.spawnT,
+    endT: rec.endT,
+    endKind: rec.endKind,
+    endX: rec.endX,
+    endY: rec.endY,
+    sourceTowerUid: rec.sourceTowerUid,
+    reward: rec.reward,
+    boss: !!rec.def.boss,
+  };
+}
+
+function activeReplayGhosts(geom: PathGeom, timeline: ReplayCombatTimeline, t: number, chrono: boolean, cap = 360): Ghost[] {
+  const out: Ghost[] = [];
+  for (const rec of timeline.enemies) {
+    if (rec.spawnT > t) break;
+    const gh = ghostFromRecord(geom, rec, t, chrono);
+    if (!gh) continue;
+    out.push(gh);
+    if (out.length >= cap) break;
   }
   return out;
 }
@@ -376,6 +570,57 @@ function drawReplayWeaponFire(ctx: CanvasRenderingContext2D, shots: ReplayShot[]
   ctx.restore();
 }
 
+function effectPosition(geom: PathGeom, rec: ReplayEnemyRecord): { x: number; y: number } {
+  if (rec.endX != null && rec.endY != null) return { x: rec.endX, y: rec.endY };
+  const p = posAtDist(geom, Math.max(0, rec.endDist ?? rec.spawnDist));
+  return { x: p.x, y: p.y };
+}
+
+function drawReplayCombatEffects(ctx: CanvasRenderingContext2D, geom: PathGeom | null, timeline: ReplayCombatTimeline, time: number) {
+  if (!geom) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = "700 11px 'Rajdhani', sans-serif";
+  for (const rec of timeline.effects) {
+    if (rec.endT == null) continue;
+    const age = time - rec.endT;
+    if (age < 0) break;
+    if (age > 1.15) continue;
+    const k = 1 - age / 1.15;
+    const p = effectPosition(geom, rec);
+    if (rec.endKind === 'leak') {
+      ctx.strokeStyle = `rgba(255,90,110,${0.35 + k * 0.45})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, rec.def.radius + 10 + age * 46, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = `rgba(255,90,110,${0.12 * k})`;
+      ctx.fillRect(0, 0, W, H);
+      continue;
+    }
+    const color = rec.def.glow;
+    ctx.strokeStyle = rgba(color, 0.25 + k * 0.65);
+    ctx.lineWidth = rec.def.boss ? 4 : 2.4;
+    ctx.beginPath(); ctx.arc(p.x, p.y, rec.def.radius + 8 + age * (rec.def.boss ? 88 : 42), 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = rgba(color, 0.18 * k);
+    ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(6, rec.def.radius * (0.8 + age)), 0, Math.PI * 2); ctx.fill();
+    const sparks = rec.def.boss ? 16 : 7;
+    ctx.fillStyle = rgba('#ffffff', 0.8 * k);
+    for (let i = 0; i < sparks; i++) {
+      const a = (i / sparks) * Math.PI * 2 + rec.uid * 0.13;
+      const d = (rec.def.radius + 8) * (1 + age * 2.1);
+      ctx.fillRect(p.x + Math.cos(a) * d - 1.2, p.y + Math.sin(a) * d - 1.2, 2.4, 2.4);
+    }
+    if (rec.reward != null && rec.reward > 0 && age < 0.9) {
+      ctx.globalAlpha = k;
+      ctx.fillStyle = '#ffd32a';
+      ctx.fillText(`+${rec.reward}`, p.x, p.y - rec.def.radius - 14 - age * 18);
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+}
+
 function drawReplayAbilityEffects(ctx: CanvasRenderingContext2D, events: RunEvent[], t: number) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -537,6 +782,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   const gameMap = useMemo(() => ALL_MAPS.find((m) => m.id === run.setup.map) ?? null, [run.setup.map]);
   const bg = useMemo(() => (gameMap ? buildBackground(gameMap) : null), [gameMap]);
   const geom = useMemo(() => (gameMap ? buildGeom(gameMap.path) : null), [gameMap]);
+  const combatTimeline = useMemo(() => buildReplayCombatTimeline(run), [run]);
   const dossierInput = useMemo(() => buildDossierInputFromRun(run), [run]);
 
   // Snapshot tick marks (positions along the [t0,tEnd] timeline).
@@ -566,8 +812,8 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
     // re-enact the armada streaming down the lane for the active wave
     const win = waveWindow(run, time);
     const activeAbilities = activeAbilityIds(run.events, time);
-    const ghosts = geom ? reenactEnemies(geom, win.wave, win.startT, time) : [];
-    const replayEnemies = ghosts.map((gh) => ghostToEnemy({ ...gh, slow: activeAbilities.has('chrono') ? 0.35 : gh.slow }));
+    const ghosts = geom ? activeReplayGhosts(geom, combatTimeline, time, activeAbilities.has('chrono')) : [];
+    const replayEnemies = ghosts.map((gh) => ghostToEnemy(gh));
 
     // coverage + heat per tower (lighter blend so overlaps glow)
     ctx.save();
@@ -626,6 +872,7 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
 
     // weapon fire (over towers, additive)
     drawReplayWeaponFire(ctx, shots, time);
+    drawReplayCombatEffects(ctx, geom, combatTimeline, time);
     drawReplayAbilityEffects(ctx, run.events, time);
 
     // wave / boss callout (events narration)

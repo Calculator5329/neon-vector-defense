@@ -1537,6 +1537,15 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
     const meta = game.freeplayMeta();
     const replay = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
     game.recorder.recordReplaySubmitResult(replay.ok);
+    if (!replay.ok) {
+      game.freeplayState.lastCheckpointWave = prevCheckpoint;
+      game.recorder.recordScoreSubmitResult(false);
+      void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
+      setCheckpointState('err');
+      sfx.error();
+      setTick((t) => t + 1);
+      return;
+    }
     const scoreEntry = {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
@@ -1544,8 +1553,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: true,
       ts: Date.now(),
-      runId: replay.ok ? replay.runId : undefined,
-      replayToken: replay.ok ? replay.replayToken : undefined,
+      runId: replay.runId,
+      replayToken: replay.replayToken,
       meta: meta.summary,
       daily: meta.daily || undefined,
       checkpoint: true,
@@ -1770,7 +1779,7 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
-                { label: '∞ FREEPLAY', fn: () => { game.paused = true; setContractOpen(true); sfx.click(); } },
+                { label: '∞ FREEPLAY', fn: () => chooseContract('standard') },
                 { label: 'MAIN MENU', fn: onExit },
               ]}
             />
@@ -2171,6 +2180,13 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     game.recorder.recordScoreSubmitAttempt(game.telemetryState());
     const replay = await submitRunReplay(game.buildRunUploadBundle(n, TELEMETRY_BUILD));
     game.recorder.recordReplaySubmitResult(replay.ok);
+    if (!replay.ok) {
+      game.recorder.recordScoreSubmitResult(false);
+      void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
+      setState('err');
+      sfx.error();
+      return;
+    }
     const scoreEntry = {
       name: n,
       cash: Math.round(game.runStats.cashEarned),
@@ -2178,8 +2194,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       wave: game.wave,
       freeplay: game.freeplay,
       ts: Date.now(),
-      runId: replay.ok ? replay.runId : undefined,
-      replayToken: replay.ok ? replay.replayToken : undefined,
+      runId: replay.runId,
+      replayToken: replay.replayToken,
       meta: freeplayMeta?.summary,
       daily: dailyId || undefined,
       checkpoint: false,
@@ -2192,7 +2208,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     if (ok) {
       setTop(dailyId ? await fetchDailyTop(dailyId) : await fetchTop(board));
       try { setDossier(buildDossierInputFromGame(game, n)); } catch (e) { console.warn('dossier build failed', e); }
-      setSharedRunId(replay.ok ? replay.runId : undefined);
+      setSharedRunId(replay.runId);
       setState('done');
       sfx.upgrade();
     } else {

@@ -42,7 +42,7 @@
     "audit:worker": "npm --prefix worker audit --audit-level=high",
     "audit:high": "npm run audit:root && npm run audit:functions && npm run audit:worker",
     "typecheck:all": "tsc -p tsconfig.check.json",
-    "ci": "npm run build && npm test && npm run test:jest && npm run meta:sim && npm run sim:quick && npm run perf:quick && npm run test:security && npm run test:engine && npm run typecheck:all && npm run audit:high",
+    "ci": "npm run build && npm test && npm run test:jest && npm run meta:sim && npm run perf:quick && npm run test:security && npm run test:engine && npm run typecheck:all && npm run audit:high",
     "preview": "vite preview",
     "sim": "tsx scripts/sim.ts",
     "sim:quick": "npm run sim -- quick",

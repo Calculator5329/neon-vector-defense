@@ -1,6 +1,7 @@
 import type {
   AbilityId,
   DifficultyDef,
+  Enemy,
   GameMap,
   PickupKind,
   TargetMode,
@@ -605,7 +606,7 @@ export class RunRecorder {
     this.snapshot('run_start', state);
   }
 
-  recordWaveStart(state: RunTelemetryState, groups: { type: string; count: number; cloaked: boolean }[]): void {
+  recordWaveStart(state: RunTelemetryState, groups: { type: string; count: number; cloaked: boolean; gap?: number; delay?: number }[]): void {
     this.combat.waveStarts++;
     this.combat.currentWaveStartedAt = state.time;
     this.record('wave_start', state, { groups, towerCount: state.towers.length });
@@ -747,6 +748,37 @@ export class RunRecorder {
     });
   }
 
+  recordEnemySpawn(state: RunTelemetryState, enemy: Enemy, parentUid?: number): void {
+    this.record('enemy_spawn', state, {
+      enemyUid: enemy.uid,
+      enemyId: enemy.def.id,
+      x: roundPos(enemy.pos.x),
+      y: roundPos(enemy.pos.y),
+      dist: Math.round(enemy.dist),
+      wp: enemy.wp,
+      hp: Math.round(enemy.maxHp),
+      cloaked: enemy.cloaked,
+      boss: !!enemy.def.boss,
+      parentUid: parentUid ?? null,
+    });
+  }
+
+  recordEnemyKill(state: RunTelemetryState, enemy: Enemy, src: Tower | undefined, reward: number): void {
+    this.record('enemy_kill', state, {
+      enemyUid: enemy.uid,
+      enemyId: enemy.def.id,
+      x: roundPos(enemy.pos.x),
+      y: roundPos(enemy.pos.y),
+      dist: Math.round(enemy.dist),
+      wp: enemy.wp,
+      reward: Math.max(0, Math.round(reward)),
+      boss: !!enemy.def.boss,
+      children: enemy.def.children.slice(0, 12),
+      towerUid: src?.uid ?? null,
+      towerId: src?.def.id ?? null,
+    });
+  }
+
   recordPickupCollect(state: RunTelemetryState, kind: PickupKind, pos: Vec, value: number): void {
     bump(this.towerInterest.pickupCollects, kind);
     this.record('pickup_collect', state, {
@@ -785,6 +817,7 @@ export class RunRecorder {
     enemyId: string,
     coresLost: number,
     traits: { cloaked?: boolean; revealed?: boolean; armored?: boolean; boss?: boolean } = {},
+    enemy?: Enemy,
   ): void {
     this.leaksByEnemy[enemyId] = (this.leaksByEnemy[enemyId] ?? 0) + coresLost;
     if (!this.combat.firstLeakWave) this.combat.firstLeakWave = state.wave;
@@ -796,7 +829,17 @@ export class RunRecorder {
     if (traits.revealed) this.combat.revealedLeakCores += coresLost;
     if (traits.armored) this.combat.armoredLeakCores += coresLost;
     if (traits.boss) this.combat.bossLeakCores += coresLost;
-    this.record('leak', state, { enemyId, coresLost, coresLeft: state.lives });
+    this.record('leak', state, {
+      enemyId,
+      coresLost,
+      coresLeft: state.lives,
+      enemyUid: enemy?.uid ?? null,
+      x: enemy ? roundPos(enemy.pos.x) : null,
+      y: enemy ? roundPos(enemy.pos.y) : null,
+      dist: enemy ? Math.round(enemy.dist) : null,
+      wp: enemy?.wp ?? null,
+      boss: !!enemy?.def.boss,
+    });
   }
 
   recordRunEnd(state: RunTelemetryState, outcome: RunOutcome, reason?: string): void {
@@ -990,14 +1033,14 @@ export class RunRecorder {
     const runEvents = allEvents.slice(0, RUN_EVENT_CHUNK_SIZE);
     const chunks: RunEventChunkDoc[] = [];
     for (let i = RUN_EVENT_CHUNK_SIZE; i < allEvents.length; i += RUN_EVENT_CHUNK_SIZE) {
-      chunks.push({
+      chunks.push(stripUndefined({
         schemaVersion: RUN_TELEMETRY_SCHEMA,
         runId: this.runId,
         chunk: chunks.length,
         events: allEvents.slice(i, i + RUN_EVENT_CHUNK_SIZE),
-      });
+      }));
     }
-    const run: PublicRunDoc = {
+    const run: PublicRunDoc = stripUndefined({
       schemaVersion: RUN_TELEMETRY_SCHEMA,
       runId: this.runId,
       createdAt: this.createdAt,
@@ -1027,7 +1070,7 @@ export class RunRecorder {
         cashEarned: Math.round(state.runStats.cashEarned),
         leaks: Math.round(state.runStats.leaks),
       },
-    };
+    });
     // Hard safety net: Firestore caps a single doc at 1 MB. Even with lean snapshots a very
     // long run could approach it — drop the OLDEST snapshots first (the viewer clamps to the
     // captured window anyway), then trim head events, so score submission never fails on size.
@@ -1408,10 +1451,14 @@ export class RunRecorder {
    *  roster (with upgrades) is stored once in final.towers; duplicating it across ~120
    *  snapshots blew the run doc past Firestore's 1MB limit. */
   private snapshotTowers(state: RunTelemetryState): RunTowerLean[] {
-    return this.finalTowers(state).map((t) => ({
-      towerUid: t.towerUid, towerId: t.towerId, x: t.x, y: t.y,
-      placedAtS: t.placedAtS, soldAtS: t.soldAtS, tierA: t.tierA, tierB: t.tierB, damage: t.damage,
-    }));
+    return this.finalTowers(state).map((t) => {
+      const tower: RunTowerLean = {
+        towerUid: t.towerUid, towerId: t.towerId, x: t.x, y: t.y,
+        placedAtS: t.placedAtS, tierA: t.tierA, tierB: t.tierB, damage: t.damage,
+      };
+      if (t.soldAtS !== undefined) tower.soldAtS = t.soldAtS;
+      return tower;
+    });
   }
 
   private withSyntheticEnd(state: RunTelemetryState): RunEvent[] {
@@ -1565,4 +1612,18 @@ function hashMap(map: GameMap): string {
 
 function sanitizeCallsign(name: string): string {
   return (name.trim() || 'WARDEN').slice(0, 20);
+}
+
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => item === undefined ? null : stripUndefined(item)) as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (entry !== undefined) out[key] = stripUndefined(entry);
+    }
+    return out as T;
+  }
+  return value;
 }

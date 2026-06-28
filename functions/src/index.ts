@@ -375,6 +375,7 @@ interface DeleteResult {
     telemetry: number;
     runAnalytics: number;
     runCheckpoints: number;
+    replayOwners: number;
     boardScores: number;
     feedback: number;
     runs: number;
@@ -404,8 +405,11 @@ async function collectLeaderboardRunIds(uid: string): Promise<string[]> {
   return validDeletedRunIds(snap.docs.map((d) => d.get('runId')));
 }
 
-async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = []): Promise<{ runCheckpoints: number; runs: number }> {
+async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = []): Promise<{ runCheckpoints: number; replayOwners: number; runs: number }> {
   const runIds = new Set<string>(validDeletedRunIds([...knownRunIds]));
+
+  const owners = await db.collection(`replayOwners/${uid}/runs`).get();
+  owners.docs.forEach((d) => runIds.add(d.id));
 
   const ra = await db.collection('runAnalytics').where('uid', '==', uid).get();
   ra.docs.forEach((d) => runIds.add(d.id));
@@ -421,6 +425,7 @@ async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = [
   }
 
   let runCheckpoints = 0;
+  let replayOwners = 0;
   let runs = 0;
   for (const runId of runIds) {
     runCheckpoints += await deleteByQuery(() => db.collection(`runCheckpoints/${runId}/chunks`));
@@ -428,8 +433,10 @@ async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = [
     await deleteByQuery(() => db.collection(`runs/${runId}/chunks`));
     const runRef = db.doc(`runs/${runId}`);
     if ((await runRef.get()).exists) { await runRef.delete().catch(() => undefined); runs++; }
+    const ownerRef = db.doc(`replayOwners/${uid}/runs/${runId}`);
+    if ((await ownerRef.get()).exists) { await ownerRef.delete().catch(() => undefined); replayOwners++; }
   }
-  return { runCheckpoints, runs };
+  return { runCheckpoints, replayOwners, runs };
 }
 
 // Admins (the operator) only — NOT public. uids appear in public leaderboard reads,
@@ -448,7 +455,7 @@ export const deleteMyData = onCall(
 
     const deleted = {
       telemetry: 0, runAnalytics: 0, runCheckpoints: 0,
-      boardScores: 0, feedback: 0, runs: 0, rateLimits: 0,
+      replayOwners: 0, boardScores: 0, feedback: 0, runs: 0, rateLimits: 0,
     };
     const errors: string[] = [];
     // Each phase is independent + idempotent so a partial failure (e.g. a missing
@@ -462,7 +469,7 @@ export const deleteMyData = onCall(
     await phase('telemetry', async () => { deleted.telemetry = await deleteByQuery(() => db.collection('telemetry').where('uid', '==', uid)); });
     await phase('feedback', async () => { deleted.feedback = await deleteByQuery(() => db.collection('feedback').where('uid', '==', uid)); });
     await phase('boardScores', async () => { deleted.boardScores = await deleteByQuery(() => db.collectionGroup('scores').where('uid', '==', uid)); });
-    await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.runs = r.runs; });
+    await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.replayOwners = r.replayOwners; deleted.runs = r.runs; });
     await phase('runAnalytics', async () => { deleted.runAnalytics = await deleteByQuery(() => db.collection('runAnalytics').where('uid', '==', uid)); });
     await phase('rateLimits', async () => {
       for (const key of [uid, `feedback_${uid}`]) {

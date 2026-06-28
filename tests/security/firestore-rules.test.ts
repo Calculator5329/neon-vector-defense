@@ -106,6 +106,32 @@ describe('public replay rules', () => {
     await assertSucceeds(setDoc(ref, { schemaVersion: 2, runId, chunk: 0, events: [] }));
     await assertFails(updateDoc(ref, { chunk: 1 }));
   });
+
+  test('allow private replay owner index creates and deny public reads or updates', async () => {
+    const db = anonDb();
+    const ref = doc(db, 'replayOwners', 'w_rules1', 'runs', runId);
+    await assertSucceeds(setDoc(ref, {
+      schemaVersion: 1,
+      uid: 'w_rules1',
+      runId,
+      createdAt: 1,
+      build: 'test',
+    }));
+    await assertFails(getDoc(ref));
+    await assertSucceeds(getDoc(doc(adminDb(), 'replayOwners', 'w_rules1', 'runs', runId)));
+    await assertFails(updateDoc(ref, { build: 'changed' }));
+  });
+
+  test('deny malformed replay owner index docs', async () => {
+    const db = anonDb();
+    await assertFails(setDoc(doc(db, 'replayOwners', 'w_rules1', 'runs', runId), {
+      schemaVersion: 1,
+      uid: 'other_uid',
+      runId,
+      createdAt: 1,
+      build: 'test',
+    }));
+  });
 });
 
 describe('leaderboard and telemetry write rules', () => {

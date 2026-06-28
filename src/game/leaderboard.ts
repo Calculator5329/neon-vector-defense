@@ -404,6 +404,13 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
   const replayTokenHash = await sha256Hex(replayToken);
   const run: PublicRunDoc = { ...bundle.run, replayTokenHash };
   try {
+    await withTimeout(setDoc(firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId), {
+      schemaVersion: 1,
+      uid: progress.uid,
+      runId: run.runId,
+      createdAt: run.createdAt,
+      build: run.build,
+    }));
     await withTimeout(setDoc(firestoreDoc(db, 'runs', run.runId), run));
     await withTimeout(Promise.all(bundle.chunks.map((chunk) =>
       setDoc(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk))));
@@ -423,9 +430,7 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
 
 const replayCache = new Map<string, { expires: number; doc: PublicRunDoc | null }>();
 
-/** Read a run replay by id (public get). The head doc holds all per-wave snapshots +
- *  summary + final state — everything the Battle Plan viewer needs; event-overflow
- *  chunks are not required for the snapshot reconstruction. Returns null if missing. */
+/** Read a run replay by id (public get), reassembling overflow event chunks. */
 export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null> {
   if (!isValidRunId(runId)) return null;
   const cached = replayCache.get(runId);
@@ -433,11 +438,26 @@ export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null
   try {
     const snap = await withTimeout(getDoc(firestoreDoc(db, 'runs', runId)));
     const doc = snap.exists() ? (snap.data() as PublicRunDoc) : null;
+    let events = Array.isArray(doc?.events) ? doc.events : [];
+    const chunkCount = Math.max(0, Math.min(100, Math.floor(Number(doc?.chunkCount ?? 0))));
+    if (doc && chunkCount > 0) {
+      const chunkSnaps = await withTimeout(Promise.all(
+        Array.from({ length: chunkCount }, (_, i) => getDoc(firestoreDoc(db, 'runs', runId, 'chunks', `c${i}`))),
+      ));
+      const chunkEvents = chunkSnaps
+        .map((chunkSnap, i) => {
+          const data = chunkSnap.exists() ? chunkSnap.data() as { chunk?: number; events?: unknown } : null;
+          return { i, events: Array.isArray(data?.events) ? data.events as PublicRunDoc['events'] : [] };
+        })
+        .sort((a, b) => a.i - b.i)
+        .flatMap((chunk) => chunk.events);
+      events = [...events, ...chunkEvents];
+    }
     // light defensive normalization so a partial/legacy doc can't crash the viewer
     const safe = doc && doc.summary && doc.setup ? {
       ...doc,
       snapshots: Array.isArray(doc.snapshots) ? doc.snapshots : [],
-      events: Array.isArray(doc.events) ? doc.events : [],
+      events,
       final: doc.final ?? { towers: [], damageByTower: {}, killsByEnemy: {}, abilitiesCast: 0, cashEarned: 0, leaks: 0 },
     } : null;
     replayCache.set(runId, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, doc: safe });

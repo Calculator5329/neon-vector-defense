@@ -162,7 +162,7 @@ function GhostModal({
   const ahead = deltaPct >= 0;
   const stats = curveStats(selectedCurve);
 
-  const W = 640, H = 238, padL = 46, padB = 34, padT = 22, padR = 46;
+  const W = 640, H = 214, padL = 46, padB = 30, padT = 22, padR = 46;
   const maxWave = Math.max(1, ...curves.flatMap((curve) => curve.points.map((p) => p.wave)));
   const sx = (w: number) => padL + (w / maxWave) * (W - padL - padR);
   const sy = (frac: number) => padT + (1 - Math.max(0, Math.min(1, frac))) * (H - padT - padB);
@@ -172,7 +172,11 @@ function GhostModal({
   const px = sx(Math.min(wave, maxWave)), py = sy(playerPct);
   const playerLabelAnchor = px > W - padR - 46 ? 'end' : 'start';
   const playerLabelX = playerLabelAnchor === 'end' ? px - 10 : px + 10;
-  const playerLabelY = Math.max(padT + 10, Math.min(H - padB - 8, py + 4));
+  const playerLabelY = py < padT + 18
+    ? py + 18
+    : py > H - padB - 18
+      ? py - 10
+      : py + 4;
 
   const sortedCurves = curves.length ? curves : [selectedCurve];
   const selectedIndex = Math.max(0, sortedCurves.findIndex((curve) => curveKey(curve) === curveKey(selectedCurve)));

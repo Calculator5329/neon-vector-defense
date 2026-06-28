@@ -8,6 +8,7 @@ import { dailyFreeplaySeed } from '../../src/game/freeplay';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { normalizeProgress, progress } from '../../src/game/storage';
+import { TOWERS } from '../../src/game/towers';
 import type { Enemy, EnemyDef } from '../../src/game/types';
 import { validDeletedRunIds } from '../../functions/src/deleteHelpers';
 
@@ -105,6 +106,36 @@ describe('storage normalization', () => {
 });
 
 describe('freeplay correctness guards', () => {
+  test('public replay bundles never contain undefined Firestore fields', () => {
+    const game = makeGame();
+    game.credits = 9999;
+    for (let y = 90; y <= 630 && game.towers.length === 0; y += 36) {
+      for (let x = 90; x <= 1190 && game.towers.length === 0; x += 36) {
+        game.placeTower(TOWERS[0], { x, y });
+      }
+    }
+
+    assert.equal(game.towers.length, 1);
+    const bundle = game.buildRunUploadBundle('TEST', 'test-build');
+    const findUndefined = (value: unknown, path = '$'): string | null => {
+      if (value === undefined) return path;
+      if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++) {
+          const found = findUndefined(value[i], `${path}[${i}]`);
+          if (found) return found;
+        }
+      } else if (value && typeof value === 'object') {
+        for (const [key, entry] of Object.entries(value)) {
+          const found = findUndefined(entry, `${path}.${key}`);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    assert.equal(findUndefined(bundle), null);
+  });
+
   test('risk packets cannot be accepted unless they were actually offered', () => {
     const game = makeGame();
     game.phase = 'victory';
