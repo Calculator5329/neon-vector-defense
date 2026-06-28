@@ -8,6 +8,8 @@ describe('CI/CD guardrails', () => {
   const deployWorkflow = fs.readFileSync('.github/workflows/firebase-deploy.yml', 'utf8');
   const functionsDeployWorkflow = fs.readFileSync('.github/workflows/firebase-functions-deploy.yml', 'utf8');
   const workerPackageJson = JSON.parse(fs.readFileSync('worker/package.json', 'utf8'));
+  const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
+  const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
 
   test('CI runs quick perf and Jest smoke checks', () => {
     expect(packageJson.scripts['test:jest']).toBe('jest --runInBand');
@@ -42,5 +44,12 @@ describe('CI/CD guardrails', () => {
     expect(deployWorkflow).not.toMatch(/\npull_request:|\nschedule:/);
     expect(functionsDeployWorkflow).not.toMatch(/\npull_request:|\nschedule:/);
     expect(workerPackageJson.devDependencies.wrangler).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  test('admin allowlist is shared by backend and admin UI', () => {
+    expect(functionsIndex).toContain("from './adminEmails.js'");
+    expect(clientAdminAuth).toContain("from '../../functions/src/adminEmails'");
+    expect(functionsIndex).not.toContain('new Set([\'5329548871');
+    expect(clientAdminAuth).not.toContain('5329548871,eg@gmail.com');
   });
 });

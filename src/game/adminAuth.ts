@@ -18,12 +18,8 @@ import {
   updateDoc,
   type Timestamp,
 } from 'firebase/firestore';
+import { isAdminEmail } from '../../functions/src/adminEmails';
 import { app, db } from './firebaseClient';
-
-const ADMIN_EMAILS = [
-  '5329548871,eg@gmail.com',
-  '5329548871.eg@gmail.com',
-].map((e) => e.toLowerCase());
 
 export const auth = getAuth(app);
 
@@ -47,7 +43,7 @@ function millis(v: Timestamp | number | undefined): number {
 }
 
 export function isAllowedAdminEmail(user: User | null): boolean {
-  return !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  return isAdminEmail(user?.email);
 }
 
 export function watchAdminAuth(cb: (user: User | null, allowed: boolean) => void): () => void {

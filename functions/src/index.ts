@@ -19,6 +19,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
+import { isAdminEmail } from './adminEmails.js';
 import { validDeletedRunIds } from './deleteHelpers.js';
 import {
   canonicalLeaderboardCash,
@@ -433,13 +434,11 @@ async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = [
 // so a public delete-by-uid endpoint would let anyone grief-delete other players'
 // data. Players' own PII lives in localStorage and is cleared client-side; server
 // records are anonymous + TTL-expiring. Server deletion-on-request is operator-run.
-const ADMIN_EMAILS = new Set(['5329548871.eg@gmail.com', '5329548871,eg@gmail.com']);
-
 export const deleteMyData = onCall(
   callableOptions(5, 300),
   async (req: CallableRequest): Promise<DeleteResult> => {
     const email = String(req.auth?.token?.email ?? '').toLowerCase();
-    if (!req.auth || req.auth.token?.email_verified !== true || !ADMIN_EMAILS.has(email)) {
+    if (!req.auth || req.auth.token?.email_verified !== true || !isAdminEmail(email)) {
       throw new HttpsError('permission-denied', 'admin-only');
     }
     const uid = String((req.data as Record<string, unknown> | undefined)?.uid ?? '');
