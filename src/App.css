@@ -1121,16 +1121,21 @@
 .aar-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+  grid-template-areas: "reward action" "detail action";
   gap: 18px;
   align-items: start;
   margin-top: 16px;
 }
-.aar-layout .aar-left, .aar-layout .aar-right { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.aar-layout .aar-reward { grid-area: reward; }
+.aar-layout .aar-action { grid-area: action; }
+.aar-layout .aar-detail { grid-area: detail; }
+.aar-layout .aar-reward, .aar-layout .aar-action, .aar-layout .aar-detail { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .aar-layout .aar { margin-top: 0; }
 .aar-layout .aar-title { border-top: none; padding-top: 0; }
 @media (max-width: 820px) {
   .overlay-box.result { max-width: 620px; padding: 18px; }
-  .aar-layout { grid-template-columns: 1fr; gap: 12px; }
+  /* stack reward -> submit -> after-action so the primary action stays above the fold */
+  .aar-layout { grid-template-columns: 1fr; grid-template-areas: "reward" "action" "detail"; gap: 12px; }
   .aar-cols { grid-template-columns: 1fr; }
   .submit-row { grid-template-columns: 1fr; }
   .submit-row .start-btn { width: 100%; }
@@ -2309,7 +2314,8 @@ body.game-blocking-overlay .fb-root.on-game {
   text-transform: uppercase;
 }
 .name-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px rgba(75, 207, 250, 0.3); }
-.submit-stats { font-size: 12px; color: #8fa0c8; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.submit-stats { font-size: 12px; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.submit-hint { font-size: 11px; color: var(--dim); margin: 6px 0 0; line-height: 1.35; }
 @media (max-width: 820px) {
   .submit-row { grid-template-columns: 1fr; }
   .submit-row .start-btn { width: 100%; }
@@ -3798,6 +3804,30 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 }
 @keyframes hostile-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translateX(-50%); } }
 .reduced-motion .hostile-reveal { animation: none; }
+
+/* non-blocking phase-cloak explainer toast (replaces the old pause-the-wave modal) */
+.cloak-toast {
+  position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 8;
+  width: min(440px, calc(100vw - 32px));
+  padding: 12px 16px 12px 14px;
+  background: rgba(5, 8, 18, 0.94);
+  border: 1px solid rgba(255, 110, 199, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 0 26px rgba(0, 0, 0, 0.6);
+  animation: hostile-in 0.4s ease-out;
+}
+.cloak-toast .cloak-toast-title { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1px; margin-bottom: 6px; }
+.cloak-toast p { font-size: 12px; line-height: 1.4; color: var(--text); margin: 0 0 6px; }
+.cloak-toast p:last-child { margin-bottom: 0; }
+.cloak-toast-x {
+  position: absolute; top: 6px; right: 8px;
+  width: 26px; height: 26px; min-width: 26px;
+  background: transparent; border: none; color: var(--dim); font-size: 14px; line-height: 1;
+  border-radius: 6px;
+}
+.cloak-toast-x:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+.reduced-motion .cloak-toast { animation: none; }
+@media (max-width: 520px) { .cloak-toast { bottom: 150px; } }
 
 /* rank crest in the menu dossier strip + rival face in the freeplay panel */
 .menu-rank-crest { width: 28px; height: 28px; flex: 0 0 auto; filter: drop-shadow(0 0 5px rgba(75, 207, 250, 0.4)); }

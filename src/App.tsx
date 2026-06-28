@@ -1045,7 +1045,8 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
   // unlock modals must never stack on the briefing / tutorial overlays
   const relicOfferOpen = game.phase === 'build' && game.freeplayState.nextRelicOffer.length > 0;
   overlayRef.current = tutorial || !briefed || contractOpen || relicOfferOpen;
-  const blockingOverlay = tutorial || !briefed || cloakTip || unlockModal !== null || contractOpen || relicOfferOpen ||
+  // cloakTip is a non-blocking toast, so it is intentionally NOT part of blockingOverlay
+  const blockingOverlay = tutorial || !briefed || unlockModal !== null || contractOpen || relicOfferOpen ||
     game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice';
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
@@ -1276,11 +1277,12 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
       if (uiTimer > 0.12) {
         uiTimer = 0;
         setTick((t) => t + 1);
-        // first-cloaked-hull explainer
+        // first-cloaked-hull explainer — a non-blocking toast (does NOT pause the wave)
         if (game.cloakTipPending) {
           game.cloakTipPending = false;
-          game.paused = true;
+          progress.cloakTipSeen = true;
           setCloakTip(true);
+          window.setTimeout(() => setCloakTip(false), 14000);
         }
         // tower-unlock modal (BTD-style): first time a tower's kill threshold is crossed.
         // Only during BUILD — a kill threshold is almost always crossed mid-combat, and a
@@ -1750,20 +1752,18 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
             />
           )}
           {cloakTip && (
-            <div className="cutscene-overlay" onClick={() => { setCloakTip(false); progress.cloakTipSeen = true; game.paused = false; sfx.click(); }}>
-              <div className="cutscene-box tip-box">
-                <div className="cutscene-title" style={{ color: '#ff6ec7' }}>⚠ PHASE-CLOAKED HOSTILES</div>
-                <p className="tip-text">
-                  The shimmering, translucent hulls entering the corridor are <b>phase-cloaked</b> —
-                  your towers cannot see them without sensor coverage, and they will walk straight through your defense.
-                </p>
-                <p className="tip-text">
-                  Counter them with the <b style={{ color: '#54a0ff' }}>EMP Spire</b> (reveals cloaks for every tower in its aura),
-                  or towers with their own sensors: <b style={{ color: '#ffa8a8' }}>Railgun · Spotter Uplink</b>,{' '}
-                  <b style={{ color: '#8ef5d9' }}>Drone Carrier · Sensor Suite</b>, or the <b style={{ color: '#9ffff5' }}>Oracle Lens</b>.
-                </p>
-                <button className="start-btn small">UNDERSTOOD</button>
-              </div>
+            <div className="cloak-toast" role="status" aria-live="polite">
+              <button className="cloak-toast-x" aria-label="Dismiss" onClick={() => { setCloakTip(false); sfx.click(); }}>✕</button>
+              <div className="cloak-toast-title" style={{ color: '#ff6ec7' }}>⚠ PHASE-CLOAKED HOSTILES</div>
+              <p>
+                The shimmering, translucent hulls are <b>phase-cloaked</b> — towers can't target them without
+                sensor coverage, and they walk straight through your defense.
+              </p>
+              <p>
+                Counter them with the <b style={{ color: '#54a0ff' }}>EMP Spire</b> (reveals cloaks in its aura),
+                or sensor towers: <b style={{ color: '#ffa8a8' }}>Railgun · Spotter Uplink</b>,{' '}
+                <b style={{ color: '#8ef5d9' }}>Drone Carrier · Sensor Suite</b>, or the <b style={{ color: '#9ffff5' }}>Oracle Lens</b>.
+              </p>
             </div>
           )}
           {unlockModal && (
@@ -2058,13 +2058,11 @@ function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff
   const ghost = game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id);
   return (
     <div className="aar-layout">
-      <div className="aar-left">
-        <MetaReward reward={reward} />
-        <AfterAction game={game} ghost={ghost} />
-      </div>
-      <div className="aar-right">
-        <SubmitScore game={game} map={map} diff={diff} />
-      </div>
+      <div className="aar-reward"><MetaReward reward={reward} /></div>
+      {/* on mobile this sits directly under the reward so the primary action (submit
+          your score) is reachable without scrolling past the whole after-action report */}
+      <div className="aar-action"><SubmitScore game={game} map={map} diff={diff} /></div>
+      <div className="aar-detail"><AfterAction game={game} ghost={ghost} /></div>
     </div>
   );
 }
@@ -2233,14 +2231,17 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     <div className="submit-score">
       <div className="aar-title">{leaderboardTitle}</div>
       {state !== 'done' && (
-        <div className="submit-row">
-          <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
-            value={name} onChange={(e) => setName(e.target.value)} />
-          <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{game.freeplay ? ` · W${game.wave}` : ''}</span>
-          <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
-            {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
-          </button>
-        </div>
+        <>
+          <div className="submit-row">
+            <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
+              value={name} onChange={(e) => setName(e.target.value)} />
+            <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{game.freeplay ? ` · W${game.wave}` : ''}</span>
+            <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
+              {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
+            </button>
+          </div>
+          <p className="submit-hint">Your callsign and score appear on the public global leaderboard.</p>
+        </>
       )}
       {state === 'done' && top && (
         <div className="lb-table">
