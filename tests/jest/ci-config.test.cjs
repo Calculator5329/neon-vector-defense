@@ -11,6 +11,7 @@ describe('CI/CD guardrails', () => {
   const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
   const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
   const clientLeaderboard = fs.readFileSync('src/game/leaderboard.ts', 'utf8');
+  const privacyView = fs.readFileSync('src/PrivacyView.tsx', 'utf8');
   const balanceScript = fs.readFileSync('scripts/balance.ts', 'utf8');
   const ghostGenerator = fs.readFileSync('scripts/genGhostCurves.mjs', 'utf8');
   const adminEmailsSource = fs.readFileSync('functions/src/adminEmails.ts', 'utf8');
@@ -73,5 +74,12 @@ describe('CI/CD guardrails', () => {
     expect(balanceScript).toContain('skipped bundled ghost-curve regeneration for quick balance report');
     expect(ghostGenerator).toContain('Refusing to bundle quick/anecdotal ghost curves');
     expect(ghostGenerator).toContain('NVD_MIN_GHOST_SEEDS');
+  });
+
+  test('privacy copy discloses AI helper provider flow', () => {
+    expect(privacyView).toContain('AI help');
+    expect(privacyView).toContain('Cloudflare Worker');
+    expect(privacyView).toContain('OpenRouter');
+    expect(privacyView).toContain('gameplay context');
   });
 });

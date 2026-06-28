@@ -106,9 +106,14 @@ export default function PrivacyView() {
               study and improve game balance.</li>
             <li>Any <b>feedback</b> you send us. Your browser keeps a private reply receipt so
               only this browser can fetch the admin reply without exposing your message publicly.</li>
+            <li>If you use the optional <b>AI help</b> widget, the message you type, recent chat
+              history, and a compact gameplay context are sent through our Cloudflare Worker to
+              OpenRouter so the assistant can answer.</li>
           </ul>
           <p>We use Google Firebase (Firestore) to store this. There are no third-party advertising
             cookies and no cross-site tracking.</p>
+          <p>The AI help path is separate from gameplay telemetry and leaderboard submission. It is
+            only used when you open the widget and send a message.</p>
         </section>
 
         <section>
