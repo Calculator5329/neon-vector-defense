@@ -736,6 +736,16 @@
 .tb-stat.credits { color: var(--gold); border-color: rgba(255, 211, 42, 0.4); }
 .tb-stat.wave { color: var(--accent); }
 .tb-stat.kills { color: var(--danger); font-size: 13px; }
+/* small visible label so new/touch players can decode the economy glyphs without hover */
+.tb-tag {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  margin-left: 5px;
+  vertical-align: middle;
+}
 .tb-stat.ghost {
   display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;
   color: var(--dim); border-color: rgba(120, 150, 255, 0.3); padding: 4px 10px;

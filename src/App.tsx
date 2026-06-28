@@ -336,7 +336,7 @@ function AIHelpWidget({
             <span>WARDEN AI</span>
             <div className="ai-head-actions">
               <button className="ai-new" aria-label="Start new Warden AI chat" onClick={startNew}>NEW</button>
-              <button className="ai-x" aria-label="Close Warden AI" onClick={() => { setOpen(false); sfx.click(); }}>x</button>
+              <button className="ai-x" aria-label="Close Warden AI" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
             </div>
           </div>
           <div className="ai-log">
@@ -789,6 +789,7 @@ function MainMenu(props: {
                     >
                       {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
                       <div className="diff-name">{d.name}</div>
+                      <div className="diff-desc">{d.desc}</div>
                     </button>
                   );
                 })}
@@ -829,7 +830,9 @@ function MainMenu(props: {
             <span className="dbar-diff">{props.diff.name}</span>
           </div>
           <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked}
-            onClick={() => { appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked); props.onStart(); }}>▶ DEPLOY</button>
+            onClick={() => { appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked); props.onStart(); }}>
+            {firstTime ? '▶ START MISSION' : '▶ DEPLOY'}
+          </button>
         </div>
       </div>
     </div>
@@ -1599,8 +1602,12 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
         >
           {abortConfirm ? 'CONFIRM' : '✕ ABORT'}
         </button>
-        <div className="tb-stat lives" title="Reactor cores (lives)" aria-label={`Reactor cores ${game.lives}`}>⬢ {game.lives}</div>
-        <div className="tb-stat credits" title="Credits" aria-label={`Credits ${Math.floor(game.credits)}`}>⌬ {Math.floor(game.credits)}</div>
+        <div className="tb-stat lives" title="Reactor cores — your lives. Lose them all and the lighthouse falls." aria-label={`Reactor cores ${game.lives}`}>
+          <span className="tb-glyph" aria-hidden="true">⬢</span> {game.lives}<span className="tb-tag">CORES</span>
+        </div>
+        <div className="tb-stat credits" title="Credits — earned per kill, spent on towers & upgrades." aria-label={`Credits ${Math.floor(game.credits)}`}>
+          <span className="tb-glyph" aria-hidden="true">⌬</span> {Math.floor(game.credits)}<span className="tb-tag">CR</span>
+        </div>
         <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : diff.waves}` : ''}`}>
           WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
         </div>
@@ -1618,7 +1625,9 @@ function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: Diff
           </div>
         )}
         <div className="tb-spacer" />
-        <div className="tb-stat kills" title="Hostiles destroyed" aria-label={`Hostiles destroyed ${game.totalKills}`}>☠ {game.totalKills}</div>
+        <div className="tb-stat kills" title="Hostiles destroyed" aria-label={`Hostiles destroyed ${game.totalKills}`}>
+          <span className="tb-glyph" aria-hidden="true">☠</span> {game.totalKills}<span className="tb-tag">KILLS</span>
+        </div>
         <button
           className={`tb-btn ${game.autoNext ? 'on' : ''}`}
           title="Auto-start next wave"
