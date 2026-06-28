@@ -2401,8 +2401,22 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .upgrade-btn,
   .sell-btn,
   .target-row .tb-btn,
-  .panel-collapse {
+  .panel-collapse,
+  .menu-tab-help,
+  .ghost-modal-close,
+  .bestiary-close,
+  .freeplay-close,
+  .daily-freeplay-card .tb-btn,
+  .replay-of-day-watch,
+  .board-watch,
+  .quest-claim {
     min-height: 44px;
+  }
+  .menu-tab-help,
+  .ghost-modal-close,
+  .bestiary-close,
+  .freeplay-close {
+    min-width: 44px;
   }
   .shop-item {
     min-height: 104px;
