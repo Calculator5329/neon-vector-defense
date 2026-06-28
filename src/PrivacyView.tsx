@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { consentState, setSell, gpcActive, resetConsent } from './game/consent';
-import { requestDataDeletion } from './game/leaderboard';
 import { sfx } from './game/sound';
-import { progress } from './game/storage';
 
 /** /privacy route check, mirroring the admin pathname fork. */
 export function isPrivacyRoute(): boolean {
@@ -47,7 +45,6 @@ export default function PrivacyView() {
   const gpc = gpcActive();
   const [cleared, setCleared] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [serverDeleted, setServerDeleted] = useState<boolean | null>(null);
   const [notice, setNotice] = useState('');
   const sold = state.sell === 'optout' || gpc;
 
@@ -68,15 +65,11 @@ export default function PrivacyView() {
     if (!confirm('Delete all the data this game stored on this device (progress, settings, callsign, privacy choices)? This cannot be undone.')) return;
     sfx.click();
     setDeleting(true);
-    const remoteOk = await requestDataDeletion(progress.uid);
     clearLocalData();
     resetConsent();
-    setServerDeleted(remoteOk);
     setDeleting(false);
     setCleared(true);
-    setNotice(remoteOk
-      ? 'Local data erased and server deletion request accepted.'
-      : 'Local data erased. Server deletion request could not be confirmed.');
+    setNotice('Local data erased from this browser.');
   };
 
   return (
@@ -154,8 +147,8 @@ export default function PrivacyView() {
                 <div className="privacy-control-name">Delete my data</div>
                 <div className="privacy-control-sub">
                   {cleared
-                    ? `Done — local data for this device has been erased. ${serverDeleted ? 'Server deletion request was accepted.' : 'Server deletion request could not be confirmed; local data is gone.'}`
-                    : 'Erase all local game data, including progress, rank, cosmetics, privacy choices, and private feedback reply receipts. This also requests deletion of anonymous server records for this device id.'}
+                    ? 'Done — local data for this browser has been erased.'
+                    : 'Erase all local game data, including progress, rank, cosmetics, privacy choices, and private feedback reply receipts. For anonymous server-record deletion, send a request with the in-game feedback button.'}
                 </div>
               </div>
               <button className="privacy-toggle danger" disabled={cleared || deleting} onClick={doDelete}>
