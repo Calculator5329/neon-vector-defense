@@ -32,11 +32,13 @@ procedural audio, and Firebase-backed leaderboards.
 - **Meta loop** — Warden Rank, Salvage wallet, daily/weekly Operations Board
   quests, and Watch Streak (cosmetic/QoL only — never affects run balance).
 - **Battle Plan replays** — watch any run via `/?run=<runId>`; leaderboard rows
-  link to reconstructions built from uploaded wave snapshots.
+  link to reconstructions built from uploaded wave snapshots and public replay
+  event chunks.
 - **Bot-rival ghosts** — in-run pacing curve compares your cores/cash to the
-  expert bot's curve for the same map and protocol.
+  bundled rookie/standard/expert bot profiles for the same sector.
 - **Leaderboards and feedback** — server-validated Firestore scoreboards and
-  anonymous feedback submission.
+  anonymous feedback submission. Scores require a matching public replay and are
+  ordered by server time.
 - **AI field assistant** — an optional helper backed by the included
   Cloudflare Worker proxy, OpenRouter, and server-side usage limits.
 
@@ -109,6 +111,9 @@ npm run balance -- quick
 npm run perf       # headless engine stress timing
 npm run perf:browser  # live FPS sampling via /?perf= route
 npm run meta:sim   # guard that meta.ts stays off the score/engine path
+npm run test:engine # engine/unit correctness tests
+npm run test:security # rules, worker, and Functions security suite
+npm run ci         # local approximation of the GitHub Actions gate
 npm run check:deploy-env  # verify Node, Java, and Firebase project before emulator/deploy work
 ```
 
@@ -136,6 +141,7 @@ reserved project assets. See [docs/asset_provenance.md](docs/asset_provenance.md
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | Module map, layer model, runtime flow |
 | [docs/tech_spec.md](docs/tech_spec.md) | Firestore schema, Cloud Functions, env vars |
+| [docs/decision_log.md](docs/decision_log.md) | Current source-of-truth design decisions |
 | [docs/roadmap.md](docs/roadmap.md) | Shipped features and next priorities |
 | [docs/idea_backlog.md](docs/idea_backlog.md) | Full 80-idea audit backlog |
 | [docs/changelog.md](docs/changelog.md) | Session-by-session change log |
@@ -162,13 +168,17 @@ public identifiers, not server secrets, so the protection layer is
 
 The intended rules model is:
 
-- Leaderboards are public read; writes go through the `submitScore` Cloud Function
-  (direct client writes are blocked).
+- Leaderboards are public read; writes go through the `submitScore` and
+  `submitDailyScore` Cloud Functions (direct client writes are blocked). The
+  functions require a matching public replay token, canonicalize values from the
+  replay summary, and stamp accepted entries with server time.
 - Feedback is append-only for anonymously authenticated visitors, and
   readable/repliable only by allowlisted Google admin accounts.
 - Telemetry is append-only for anonymously authenticated visitors with
   admin-only reads.
-- Updates/deletes are denied.
+- Updates/deletes are denied for normal clients.
+- Privacy deletion of server records is operator-run through an admin-only
+  callable, because anonymous uid values appear in public leaderboard rows.
 - The unlinked owner console uses Firebase Auth with Google sign-in plus the
   same admin email allowlist in `firestore.rules` and
   `src/game/firebaseClient.ts`. Keep both allowlists synchronized.

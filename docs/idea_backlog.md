@@ -2,6 +2,15 @@
 
 > Full 80-idea audit (8 dimensions) + code-grounded planning pass. Generated 2026-06.
 
+**2026-06-28 source-truth note:** The long-form audit below intentionally
+preserves older observations for context. Several statements in the original
+"State of the Game" are now obsolete: Battle Plan replay read paths and
+`fetchRunReplay` exist, replay rows can be watched, Replay-of-the-Day ships,
+reduced-motion/colorblind/focus-visible/contrast work exists, responsive and
+touch support is partially implemented, Phase Anchor uses the gravity path, and
+soft damage resistances are implemented. Use this file as a backlog/idea archive,
+not as a current status report.
+
 **For current shipped status and next priorities, see [roadmap.md](./roadmap.md).** This file is the historical idea catalog; many top bets and quick wins listed below are now shipped.
 
 ## Build status (historical snapshot — mostly superseded)

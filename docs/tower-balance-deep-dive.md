@@ -9,6 +9,11 @@ Stages: base, a2, b2, a4, b4, split44, a6, b6, a6b4, a4b6
 Simulation rows: 1520
 Median static AoE per credit: 0.011617
 
+Audit note (2026-06-28): this is a generated snapshot from the tower deep-dive
+harness, not a hand-maintained live balance document. Regenerate it with
+`npm run tower:deep-dive` after intentional tower/enemy/resistance tuning before
+using the rankings for release decisions.
+
 ## Headline
 
 Likely OP: Cinder Mortar (OP, score 6.449), Flak Battery (OP, score 5.907).
@@ -265,4 +270,3 @@ Strengths: crowd/AoE scaling, cloak detection option, lane control.
 Weaknesses: needs external detection for cloaks, low/no direct damage.
 
 Notable stages: base: 0% wins, 9% avg progress | a2: 0% wins, 9% avg progress | b2: 0% wins, 9% avg progress | a4: 0% wins, 9% avg progress.
-

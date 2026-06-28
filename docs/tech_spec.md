@@ -53,20 +53,37 @@ Key fields (`PublicRunDoc`):
 {
   schemaVersion: number;
   runId: string;
+  replayTokenHash?: string;
+  createdAt: number;
+  endedAt: number;
   build: string;
-  setup: { map, diff, protocol, balanceVersion, ... };
-  summary: { callsign, wave, kills, cash, outcome, durationS, ... };
+  chunkCount: number;
+  eventCount: number;
+  setup: { map, mapName, mapHash, diff, diffName, startingCash, startingLives, availableTowerIds, balanceVersion };
+  summary: { callsign, map, diff, freeplay, wave, kills, credits, cashEarned, outcome, durationS, ... };
   snapshots: RunWaveSnapshot[];  // lean tower rows per wave
-  events: RunEvent[];            // may be chunked under runCheckpoints
+  events: RunEvent[];            // first public event window
   final: { towers, damageByTower, killsByEnemy, ... };
 }
 ```
 
-Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit.
+Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
+
+### `runs/{runId}/chunks/c{n}`
+
+Public overflow replay event chunks. `ReplayViewer` reads these after loading the
+main run doc when `chunkCount > 0`.
+
+### `replayOwners/{uid}/runs/{runId}`
+
+Small replay ownership index used for admin/operator deletion. It stores the
+anonymous uid, run id, creation time, and build tag.
 
 ### `runCheckpoints/{runId}/chunks/{chunkId}`
 
-Append-only event chunks for long runs. Flushed at wave end, 30 s intervals, terminal state, and visibility hide.
+Private live/diagnostic checkpoint chunks for long runs. Flushed at wave end,
+30 s intervals, score attempts, freeplay bank events, aborts, terminal state,
+and visibility hide. These are not the public Battle Plan replay chunks.
 
 ### `runAnalytics/{id}`
 
@@ -106,9 +123,16 @@ Region: `us-central1`
 | `submitDailyScore` | Same for daily freeplay boards |
 | `submitFeedback` | Rate-limit feedback, write server-only feedback doc, return private reply receipt token |
 | `fetchFeedbackReplies` | Return admin replies only when the browser presents the matching private receipt token |
-| `deleteMyData` | Cascade-delete all docs keyed by anonymous uid |
+| `deleteMyData` | Admin-only cascade delete for docs keyed by anonymous uid |
 
-**Trust model:** Anonymous uid in payload is for rate-limit bucketing only, not authenticated identity. A hand-crafted fake replay can still pass — accepted MVP posture. Full re-simulation is deferred (see roadmap).
+Score submit contract:
+
+1. Client uploads a public replay with `submitRunReplay`.
+2. Client keeps a private replay token in localStorage and sends it with the score claim.
+3. The callable hashes the token, checks `runs/{runId}.replayTokenHash`, verifies map/diff/freeplay/daily consistency, sanity-bounds duration and claimed stats, then canonicalizes accepted values from the replay summary.
+4. Accepted leaderboard rows include `serverTs` for ordering and retain client time as `clientTs`.
+
+**Trust model:** Anonymous uid in payload is for rate-limit bucketing only, not authenticated identity. A hand-crafted fake replay can still pass if it is internally consistent. Full re-simulation is deferred (see roadmap).
 
 Deploy:
 
@@ -120,10 +144,11 @@ firebase deploy --only functions
 
 - Leaderboards: public read, **no client writes**
 - Runs: append-only public replay upload; public get, admin list
+- Replay owners: owner-scoped write/read for the browser's anonymous uid
 - Feedback: server-only create/read helpers; admin read/update
 - Telemetry / analytics: bounded client append or merge; admin read
 - Admin gate: verified Google email in allowlist (sync `firestore.rules` ↔ `src/game/firebaseClient.ts`)
-- Updates and deletes denied except admin feedback replies and `deleteMyData`
+- Updates and deletes denied except admin feedback replies and admin-only deletion tooling
 
 Deploy rules before release:
 
@@ -138,6 +163,7 @@ firebase deploy --only firestore:rules
 | `nvd-progress-v1` | `storage.ts` | Progression, settings, blueprints, session days |
 | `nvd-meta-v2` | `meta.ts` | Rank XP, Salvage, quests, streak, cosmetics |
 | `nvd-consent-v1` | `consent.ts` | Age band, analytics consent, GPC |
+| `nvd-replay-tokens-v1` | `leaderboard.ts` | Private replay tokens for score submit/retry |
 | `nvd-feedback-receipts-v2` | `App.tsx` | Private feedback reply receipts and local submitted-message quotes |
 
 Demo mode (`?demo=1`) skips meta and progression writes.

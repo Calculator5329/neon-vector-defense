@@ -2,29 +2,48 @@
 
 Running log of notable changes. Most recent first.
 
-## 2026-06-27 — Documentation audit
+## 2026-06-28 - Source-of-truth documentation audit
 
-- Added `docs/architecture.md`, `docs/tech_spec.md`, `docs/roadmap.md`, `docs/changelog.md`
-- Renamed `docs/ROADMAP.md` → `docs/idea_backlog.md` (full 80-idea audit; status header updated)
-- Consolidated root docs into `docs/`: `performance_audit.md`, `asset_provenance.md` (removed root copies)
-- Updated `README.md`: 8 sectors, 19 towers, shipped features (Battle Plan, meta, ghosts, remote balance), docs index
+- Added `docs/decision_log.md` for replay, score, freeplay, privacy, AI, meta,
+  and accessibility decisions.
+- Updated `README.md`, `architecture.md`, `tech_spec.md`, and `roadmap.md` to
+  match current source behavior.
+- Reconciled the current branch timeline from recent commits after the prior
+  documentation audit.
 
-## 2026-06 (recent feature commits)
+## 2026-06-28 - Recent branch timeline
 
-- **2faf856** — 2-col end screen, bot-rival modal, procedural upgrade icons
-- **8d17a2c** — Freeplay panel dismiss, equal upgrade boxes, replay events + daily skip
-- **c4662eb** — Replay doc size fix (stay under Firestore 1 MB limit)
-- **41abb25** — Replay re-enactment: enemies, tower fire, wave callouts; dossier rebalance
-- **2e80e4c** — Menu landing redesign, rank-seed bug fix, ops legibility
-- **1481475** — Meta loop: Warden Rank, Salvage, Operations Board, Watch Streak
-- **9512422** — Live balance canary in admin TELEMETRY
-- **626b866** — Bot-rival ghost HUD + out-warded-the-AI badge
-- **4ea7b2b** — Mission Dossier share cards
-- **af83ba4** — Battle Plan replay viewer (`?run=` deep links)
-- **f0792c8** — Remote balance config (Firestore hot-patch)
-- **ae42f5e** — Phase Anchor gravity control tower
-- **ddfc732** — Quick wins: a11y settings, smart FF, music packs, progress bar
+| Commit | Theme | Documentation impact |
+| --- | --- | --- |
+| `8a2a214` | Design tokens, AA contrast, global focus-visible ring | Accessibility baseline is now a shipped platform feature, not only a roadmap item. |
+| `932fdfe` | Replay fidelity | Public Battle Plan replays include richer event data/chunks; replay docs must stay compact and Firestore-safe. |
+| `8290fbb` | AI-rival modal layout | Bot-rival ghosts are polished user-facing telemetry, including modal comparison views. |
+| `4a04390` | Server time for score ordering | Leaderboards order by server-written timestamps; client time is retained only as metadata. |
+| `d46caa7` | Deploy verification gates | Release docs should mention Node/Java/Firebase preflight and CI guardrails. |
+| `dd890bb` | AI helper privacy flow | AI help docs must describe compact gameplay context, optional Worker endpoint, and privacy posture. |
+| `52da266` | Deeper AI-rival comparisons | Rival docs should reference bundled profiles rather than one expert-only curve. |
 
-## 2026-06-17 — Performance audit
+## 2026-06-27 - Documentation audit
 
-See [performance_audit.md](./performance_audit.md). Engine stress passes under 8 ms budget on all 8 maps; main bundle size remains a deferred risk.
+- Added `docs/architecture.md`, `docs/tech_spec.md`, `docs/roadmap.md`, `docs/changelog.md`.
+- Renamed `docs/ROADMAP.md` to `docs/idea_backlog.md` (full 80-idea audit; status header updated).
+- Consolidated root docs into `docs/`: `performance_audit.md`, `asset_provenance.md`.
+- Updated `README.md`: 8 sectors, 19 towers, shipped features (Battle Plan, meta, ghosts, remote balance), docs index.
+
+## 2026-06 - Feature buildout before the audit
+
+- Battle Plan replay viewer and `?run=` deep links.
+- Mission Dossier share cards.
+- Warden Rank, Salvage, Operations Board, and Watch Streak.
+- Remote balance config via Firestore `config/balance`.
+- Bot-rival ghost HUD and "out-warded the AI" result badge.
+- Phase Anchor tower and broader tower roster additions.
+- Server-side score gate through Cloud Functions.
+- Admin telemetry/balance views and live balance canary.
+- Accessibility settings, smart fast-forward, music packs, and unlock progress surfaces.
+
+## 2026-06-17 - Performance audit
+
+See [performance_audit.md](./performance_audit.md). Engine stress passed under
+the update budget on all eight maps; the main bundle remained the primary
+deferred performance risk.

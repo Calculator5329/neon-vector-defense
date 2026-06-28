@@ -1,0 +1,75 @@
+# Decision Log
+
+Source-of-truth decisions for the current app. This file summarizes why the code
+is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
+
+## 2026-06-28 - Replay-backed scores stay pragmatic, not fully deterministic
+
+- Scores are accepted only through Cloud Functions (`submitScore` and
+  `submitDailyScore`), not through direct client writes.
+- A score must reference a public `runs/{runId}` replay and present the matching
+  private replay token. The function hashes the token and checks the uploaded run.
+- The function canonicalizes leaderboard values from the replay summary and writes
+  `serverTs` for ordering. Client `ts` is retained only as `clientTs`.
+- This is a launch posture, not a full anti-cheat system. A forged replay can
+  still pass if it is internally consistent. Full server-side replay simulation is
+  deferred until traffic and incentives justify the complexity.
+
+## 2026-06-28 - Public replays are for viewing; checkpoints are for operations
+
+- `runs/{runId}` is the public Battle Plan document. It contains the compact run
+  summary, setup, recent events, wave snapshots, final tower rows, and a
+  `replayTokenHash`.
+- Long public event streams spill into `runs/{runId}/chunks/cN`.
+- `runCheckpoints/{runId}/chunks/{chunkId}` is private operational telemetry used
+  for long-run recovery/analytics and is not the Battle Plan read path.
+- Per-wave snapshots intentionally omit heavy tower fields; full tower details
+  live once in `final.towers`. This keeps replay docs below Firestore's 1 MB cap.
+- Public replay bundles must not contain `undefined`, because Firestore rejects
+  those writes. Optional fields should be omitted or set to `null`.
+
+## 2026-06-28 - Freeplay is part of the same run lineage
+
+- A campaign clear can continue into freeplay on the same `Game` instance.
+- Campaign progress is persisted once on the initial terminal win; the later
+  freeplay death/bank is tracked separately so runs, kills, and unlocks do not
+  double-count.
+- Freeplay scoring is contract/relic/risk/rival driven. Contracts set the base
+  multiplier; relics, risk packets, and rivals can alter income, pressure, and
+  score multiplier.
+- Daily Freeplay uses a deterministic daily seed with a fixed tower pool and does
+  not mutate campaign progress.
+
+## 2026-06-28 - Meta progression must remain off the combat path
+
+- `meta.ts` owns Warden Rank, Salvage, quests, and Watch Streak.
+- Meta rewards are cosmetic/retention/QoL only. They must not feed tower stats,
+  enemy stats, unlock thresholds, score math, or bot simulation.
+- `npm run meta:sim` exists to guard this boundary.
+
+## 2026-06-28 - Privacy deletion is operator-run
+
+- Public leaderboard rows expose anonymous uid values, so a public delete-by-uid
+  callable would let one player delete another player's anonymous records.
+- `deleteMyData` is therefore admin-only and intended for operator-run deletion
+  requests. Local privacy controls clear localStorage and local receipts on the
+  player's device.
+
+## 2026-06-28 - Spark-friendly AI help stays behind a Worker
+
+- The game can run on Firebase Spark for Hosting/Auth/Firestore.
+- AI help is optional and hidden when `VITE_AI_HELP_URL` is missing.
+- The Cloudflare Worker holds the OpenRouter key, signs visitor cookies, and
+  rate-limits conversations. The client sends compact gameplay context instead
+  of raw local history.
+- Worker KV quota is optional; without KV, cookie-based limits are still useful
+  but resettable by the visitor.
+
+## 2026-06-28 - Accessibility and contrast are baseline UI infrastructure
+
+- The app now carries global focus-visible styling and design tokens for
+  legibility/contrast.
+- Reduced-motion and colorblind settings remain user-facing controls, not only
+  CSS affordances.
+- Modal and overlay work should preserve keyboard access, visible focus, and
+  non-overlapping text at desktop and mobile viewport sizes.

@@ -2,6 +2,14 @@
 
 Date: 2026-06-17
 
+Current doc-audit note (2026-06-28): the measured tables below are historical
+baselines, not a fresh rerun. Since this audit, replay rendering, public replay
+chunks, server-side score validation, design tokens, and broader CI/security
+checks have shipped. The current verification surface is `npm run ci`, with
+focused local checks available through `npm run build`, `npm test`,
+`npm run test:engine`, `npm run test:security`, `npm run perf:quick`, and
+`npm run perf:browser`.
+
 ## Measured Baselines
 
 Required verification:
@@ -45,7 +53,8 @@ Browser throat/hard pass from `npm.cmd run perf:browser`:
 
 ## Deferred Risks
 
-- The main bundle is still large. A later pass should code-split admin, AI/help, and freeplay-heavy UI so first load is smaller.
+- The main bundle is still large. Admin, privacy, and replay surfaces are
+  lazy-loaded, but a later pass should continue trimming the first-play path.
 - Browser perf currently samples early throat/hard stress. A longer late-freeplay browser run would be useful once checkpoint writes are deployed and admin data starts showing real device pressure.
 - Checkpoint writes use normal Firestore writes, so `pagehide` is best effort. A future sendBeacon or server endpoint could improve final background delivery.
 - Service worker caching is intentionally conservative. Static app-shell caching should stay boring until telemetry confirms no stale-build confusion after deploys.
