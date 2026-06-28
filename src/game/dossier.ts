@@ -7,9 +7,20 @@ import { TOWER_MAP } from './towers';
 import { ALL_MAPS } from './maps';
 import { drawTowerBody } from './render';
 import { TELEMETRY_BUILD } from './leaderboard';
+import { meta } from './meta';
+import { paletteById } from './palette';
 import type { Game } from './engine';
 import type { PublicRunDoc, RunOutcome } from './runTelemetry';
 import type { TowerDef } from './types';
+
+/** hex (#rgb/#rrggbb) → rgba() string for translucent accent fills. */
+function hexA(hex: string, a: number): string {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return `rgba(75,207,250,${a})`;
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
 
 export interface DossierTower { id: string; name: string; color: string; glow: string; damage: number; pct: number; tierA: number; tierB: number; }
 export interface DossierPlacement { x: number; y: number; def: TowerDef; }
@@ -90,6 +101,8 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   const map = ALL_MAPS.find((m) => m.id === input.mapId);
   const th = map?.theme ?? { bg1: '#0a1030', bg2: '#04060f', path: '#2a3a7a', pathEdge: '#4bcffa' };
   const oc = OUTCOME[input.outcome];
+  // tint the card's neon identity with the player's equipped Signal Palette (cosmetic = social proof)
+  const accent = paletteById(meta.equippedPalette).color;
 
   // backdrop
   const bg = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
@@ -111,13 +124,13 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   ctx.fillStyle = '#9fb2dd'; ctx.font = "13px 'Orbitron', sans-serif";
   ctx.fillText('BATTLE MAP', panel.x + 2, panel.y - 8);
 
-  // neon frame
-  ctx.strokeStyle = '#4bcffa'; ctx.lineWidth = 4; ctx.strokeRect(14, 14, CARD_W - 28, CARD_H - 28);
-  ctx.strokeStyle = 'rgba(75,207,250,0.25)'; ctx.lineWidth = 1; ctx.strokeRect(22, 22, CARD_W - 44, CARD_H - 44);
+  // neon frame (palette-tinted)
+  ctx.strokeStyle = accent; ctx.lineWidth = 4; ctx.strokeRect(14, 14, CARD_W - 28, CARD_H - 28);
+  ctx.strokeStyle = hexA(accent, 0.25); ctx.lineWidth = 1; ctx.strokeRect(22, 22, CARD_W - 44, CARD_H - 44);
 
   // header band
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(75,207,250,0.85)';
+  ctx.fillStyle = hexA(accent, 0.85);
   ctx.font = "16px 'Orbitron', sans-serif";
   ctx.fillText('LANTERN SEVEN · MISSION DOSSIER', 48, 64);
   ctx.fillStyle = oc.color;
@@ -141,17 +154,22 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
     { g: '⬢', label: 'CORES', v: `${input.coresLeft}` },
     { g: '⏱', label: 'TIME', v: fmtDur(input.durationS) },
   ];
-  let sx = 48; const sy = 238;
+  const sxStart = 48; const sy = 238;
+  // keep the strip clear of the BATTLE MAP panel (x=700); compress the gaps if huge
+  // (7-digit) numbers would otherwise overrun into it
+  const avail = 700 - sxStart - 12;
   ctx.font = "700 30px 'Orbitron', sans-serif";
-  for (const st of stats) {
-    ctx.fillStyle = '#eaf2ff';
-    const txt = st.v;
-    ctx.fillText(txt, sx, sy + 26);
-    const w = ctx.measureText(txt).width;
+  const advances = stats.map((st) => Math.max(ctx.measureText(st.v).width + 36, 104));
+  const total = advances.reduce((a, b) => a + b, 0);
+  const k = total > avail ? avail / total : 1;
+  let sx = sxStart;
+  for (let i = 0; i < stats.length; i++) {
+    const st = stats[i];
+    ctx.fillStyle = '#eaf2ff'; ctx.font = "700 30px 'Orbitron', sans-serif";
+    ctx.fillText(st.v, sx, sy + 26);
     ctx.fillStyle = '#7f93c2'; ctx.font = "12px 'Orbitron', sans-serif";
     ctx.fillText(st.label, sx, sy - 6);
-    ctx.font = "700 30px 'Orbitron', sans-serif";
-    sx += Math.max(w + 44, 110);
+    sx += advances[i] * k;
   }
 
   // top-3 carrying towers — full-width bars (the map now lives top-right)
@@ -183,14 +201,21 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
     ty += 72;
   }
 
-  // footer — single line, clear of the border (brand left, lore tagline right)
+  // footer — single line, clear of the border (brand left; watch-URL or tagline right)
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(75,207,250,0.95)'; ctx.font = "700 18px 'Orbitron', sans-serif";
+  ctx.fillStyle = hexA(accent, 0.95); ctx.font = "700 18px 'Orbitron', sans-serif";
   ctx.fillText('NEON VECTOR DEFENSE', 48, CARD_H - 30);
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#8295bd'; ctx.font = "15px system-ui, -apple-system, sans-serif";
-  ctx.fillText('Hold the last lighthouse.', CARD_W - 48, CARD_H - 30);
+  if (input.runId) {
+    // stamp the deep-link so the image alone routes viewers back to the replay
+    const url = dossierShareUrl(input.runId).replace(/^https?:\/\//, '');
+    ctx.fillStyle = hexA(accent, 0.9); ctx.font = "15px 'Orbitron', sans-serif";
+    ctx.fillText(`▶ WATCH  ${url}`, CARD_W - 48, CARD_H - 30);
+  } else {
+    ctx.fillStyle = '#8295bd'; ctx.font = "15px system-ui, -apple-system, sans-serif";
+    ctx.fillText('Hold the last lighthouse.', CARD_W - 48, CARD_H - 30);
+  }
   ctx.textAlign = 'left';
 
   return cv;
