@@ -34,8 +34,12 @@ jobs:
           java-version: 21
       - name: Install Dependencies
         run: npm ci
+      - name: Install Browser
+        run: npx playwright install --with-deps chromium
       - name: Build App
         run: npm run build
+      - name: Playwright E2E
+        run: npm test
       - name: CI Guardrails
         run: npm run test:jest
       - name: Engine Unit Tests
@@ -50,6 +54,7 @@ jobs:
         shell: bash
         run: |
           test -n "$FIREBASE_PROJECT_ID"
+          test "$FIREBASE_PROJECT_ID" = "neon-vector-defense-7"
           test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-sa.json"
       - name: Deploy Hosting and Firestore Rules

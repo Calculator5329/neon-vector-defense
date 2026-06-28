@@ -36,8 +36,12 @@ jobs:
         run: npm ci
       - name: Install Functions Dependencies
         run: npm --prefix functions ci
+      - name: Install Browser
+        run: npx playwright install --with-deps chromium
       - name: Build App
         run: npm run build
+      - name: Playwright E2E
+        run: npm test
       - name: Build Functions
         run: npm --prefix functions run build
       - name: CI Guardrails
@@ -54,6 +58,7 @@ jobs:
         shell: bash
         run: |
           test -n "$FIREBASE_PROJECT_ID"
+          test "$FIREBASE_PROJECT_ID" = "neon-vector-defense-7"
           test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-sa.json"
       - name: Deploy Functions
