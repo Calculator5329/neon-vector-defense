@@ -1974,18 +1974,21 @@ body.game-blocking-overlay .fb-root.on-game {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
   background: rgba(2, 3, 8, 0.94);
   cursor: pointer;
+  overflow-y: auto;
 }
 .cutscene-box {
   text-align: center;
   max-width: 860px;
   width: 94%;
-  max-height: 96vh;
+  max-height: min(96vh, calc(100dvh - 24px));
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  margin: auto;
 }
 .cutscene-title {
   font-family: 'Orbitron', sans-serif;
@@ -2018,6 +2021,9 @@ body.game-blocking-overlay .fb-root.on-game {
 
 .freeplay-modal {
   max-width: 920px;
+  width: min(920px, 100%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   cursor: default;
   background: rgba(5, 8, 18, 0.96);
   border: 1px solid rgba(75, 207, 250, 0.38);
@@ -2028,6 +2034,7 @@ body.game-blocking-overlay .fb-root.on-game {
 .contract-grid,
 .relic-grid {
   width: 100%;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
@@ -2050,6 +2057,15 @@ body.game-blocking-overlay .fb-root.on-game {
   border-color: var(--gold);
   box-shadow: 0 0 18px rgba(255, 211, 42, 0.18);
   transform: translateY(-1px);
+}
+@media (max-width: 560px), (max-height: 620px) {
+  .cutscene-box { width: 100%; max-height: calc(100dvh - 24px); gap: 10px; }
+  .freeplay-modal { padding: 16px; }
+  .freeplay-modal .cutscene-title { margin-bottom: 6px; font-size: 14px; letter-spacing: 3px; }
+  .contract-grid,
+  .relic-grid { grid-template-columns: 1fr; }
+  .contract-card,
+  .relic-card { min-height: 118px; }
 }
 .contract-card b,
 .relic-card b {
