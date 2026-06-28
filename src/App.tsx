@@ -632,10 +632,10 @@ function MainMenu(props: {
           <span className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</span>
           <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
         </div>
-        <nav className="menu-tabs">
-          <button className={tab === 'deploy' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
-          <button className={tab === 'board' ? 'on' : ''} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
-          <button className={tab === 'ops' ? 'on' : ''} onClick={() => { setTab('ops'); sfx.click(); }}>OPERATIONS</button>
+        <nav className="menu-tabs" aria-label="Main menu sections">
+          <button className={tab === 'deploy' ? 'on' : ''} aria-pressed={tab === 'deploy'} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
+          <button className={tab === 'board' ? 'on' : ''} aria-pressed={tab === 'board'} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
+          <button className={tab === 'ops' ? 'on' : ''} aria-pressed={tab === 'ops'} onClick={() => { setTab('ops'); sfx.click(); }}>OPERATIONS</button>
           <button className="menu-tab-help" title="Bestiary" aria-label="Combine Bestiary" onClick={() => { setBestiaryOpen(true); sfx.click(); }}>👾</button>
           <button className="menu-tab-help" title="How to play" onClick={() => { setHelp(true); sfx.click(); }}>?</button>
           <button className="menu-tab-help" title="Settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>⚙</button>
