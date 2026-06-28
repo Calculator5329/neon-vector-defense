@@ -27,7 +27,7 @@ function pct(n: number): string {
 }
 
 function signed(n: number): string {
-  if (n === 0) return '+/-0';
+  if (n === 0) return '±0';
   return n > 0 ? `+${n}` : `${n}`;
 }
 
@@ -206,8 +206,8 @@ function GhostModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="ghost-modal-head">
-          <span id="ghost-modal-title">AI RIVAL - {profileShortLabel(selectedCurve)}</span>
-          <button ref={closeRef} className="ghost-modal-close" onClick={onClose} aria-label="Close">x</button>
+          <span id="ghost-modal-title">AI RIVAL · {profileShortLabel(selectedCurve)}</span>
+          <button ref={closeRef} className="ghost-modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <p id="ghost-modal-desc" className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Long Watch starts are comparable.</p>
 
@@ -227,7 +227,7 @@ function GhostModal({
                 onClick={() => { sfx.click(); onSelect(key); }}
               >
                 <b>{curve.skill}</b>
-                <span>{diffName(curve.diff)}{matched ? ' - matched' : ''}</span>
+                <span>{diffName(curve.diff)}{matched ? ' · matched' : ''}</span>
               </button>
             );
           })}
@@ -294,7 +294,7 @@ function GhostModal({
         </div>
 
         <div className="ghost-modal-verdict" style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>
-          {ahead ? 'You are ahead of this rival profile - hold the pace.' : 'This rival profile is ahead on core percentage - tighten the defense.'}
+          {ahead ? 'You are ahead of this rival profile — hold the pace.' : 'This rival profile is ahead on core percentage — tighten the defense.'}
         </div>
       </div>
     </div>
