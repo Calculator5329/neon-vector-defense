@@ -40,6 +40,20 @@ function request({ origin = env.APP_URL, cookie = '', body = { message: 'What no
   });
 }
 
+function quotaKv({ fail = false } = {}) {
+  const rows = new Map();
+  return {
+    async get(key) {
+      if (fail) throw new Error('kv unavailable');
+      return rows.get(key) ?? null;
+    },
+    async put(key, value) {
+      if (fail) throw new Error('kv unavailable');
+      rows.set(key, value);
+    },
+  };
+}
+
 describe('AI worker request gate', () => {
   test('allows the configured app origin and returns CORS headers', async () => {
     const res = await worker.fetch(request(), env);
@@ -92,5 +106,24 @@ describe('AI worker request gate', () => {
     assert.equal(limited.status, 429);
     assert.equal((await limited.json()).error, 'conversation_limit');
     assert.equal(fetchCalls, 5);
+  });
+
+  test('enforces optional KV quota even when cookies are reset', async () => {
+    const quotaEnv = { ...env, AI_QUOTA: quotaKv(), AI_DAILY_LIMIT: '2' };
+    for (let i = 0; i < 2; i++) {
+      const res = await worker.fetch(request(), quotaEnv);
+      assert.equal(res.status, 200);
+    }
+    const limited = await worker.fetch(request(), quotaEnv);
+    assert.equal(limited.status, 429);
+    assert.equal((await limited.json()).error, 'quota_limit');
+    assert.equal(fetchCalls, 2);
+  });
+
+  test('fails closed when configured KV quota is unavailable', async () => {
+    const res = await worker.fetch(request(), { ...env, AI_QUOTA: quotaKv({ fail: true }) });
+    assert.equal(res.status, 503);
+    assert.equal((await res.json()).error, 'quota_unavailable');
+    assert.equal(fetchCalls, 0);
   });
 });

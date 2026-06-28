@@ -3,6 +3,8 @@ const MAX_MESSAGE_CHARS = 900;
 const MAX_REQUEST_BYTES = 32_000;
 const MAX_TURNS_PER_CONVERSATION = 5;
 const MAX_CONVERSATIONS_PER_VISITOR = 5;
+const MAX_DAILY_REQUESTS_PER_CLIENT = 30;
+const QUOTA_TTL_SECONDS = 60 * 60 * 48;
 
 const GAME_KNOWLEDGE = `
 You are Lantern Seven's field assistant for Neon Vector Defense.
@@ -80,6 +82,11 @@ async function sign(text, secret) {
   return base64url(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
 }
 
+async function hashKey(text) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return base64url(digest);
+}
+
 function parseCookie(header, name) {
   for (const part of String(header || '').split(';')) {
     const [k, ...rest] = part.trim().split('=');
@@ -145,6 +152,37 @@ async function readLimitedJson(request) {
   }
 }
 
+function quotaStore(env) {
+  return env.AI_QUOTA
+    && typeof env.AI_QUOTA.get === 'function'
+    && typeof env.AI_QUOTA.put === 'function'
+    ? env.AI_QUOTA
+    : null;
+}
+
+function dailyLimit(env) {
+  const configured = Number(env.AI_DAILY_LIMIT || MAX_DAILY_REQUESTS_PER_CLIENT);
+  return Number.isFinite(configured) ? Math.max(1, Math.min(200, Math.floor(configured))) : MAX_DAILY_REQUESTS_PER_CLIENT;
+}
+
+async function checkDailyQuota(request, env) {
+  const store = quotaStore(env);
+  if (!store) return { ok: true };
+  try {
+    const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown').split(',')[0].trim();
+    const ua = request.headers.get('User-Agent') || 'unknown';
+    const day = new Date().toISOString().slice(0, 10);
+    const salt = env.AI_QUOTA_SALT || env.AI_COOKIE_SECRET || 'nvd-ai';
+    const key = `ai:${day}:${await hashKey(`${salt}|${ip}|${ua}`)}`;
+    const current = Math.max(0, Number(await store.get(key) || 0));
+    if (current >= dailyLimit(env)) return { ok: false, status: 429, error: 'quota_limit' };
+    await store.put(key, String(current + 1), { expirationTtl: QUOTA_TTL_SECONDS });
+    return { ok: true };
+  } catch {
+    return { ok: false, status: 503, error: 'quota_unavailable' };
+  }
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -164,6 +202,15 @@ export default {
     const body = parsed.body;
     const message = String(body.message || '').trim().slice(0, MAX_MESSAGE_CHARS);
     if (!message) return json({ error: 'empty_message' }, 400, cors);
+    const dailyQuota = await checkDailyQuota(request, env);
+    if (!dailyQuota.ok) {
+      return json({
+        error: dailyQuota.error,
+        message: dailyQuota.error === 'quota_limit'
+          ? 'This network has reached today\'s AI uplink limit.'
+          : 'AI quota check is unavailable. Try again later.',
+      }, dailyQuota.status, cors);
+    }
 
     const state = await readState(request, env);
     const requestedId = String(body.conversationId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);

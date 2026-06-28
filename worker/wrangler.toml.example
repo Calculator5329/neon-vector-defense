@@ -5,7 +5,16 @@ compatibility_date = "2026-06-14"
 [vars]
 APP_URL = "https://neon-vector-defense-7.web.app"
 OPENROUTER_MODEL = "google/gemini-3-flash-preview"
+# Optional: lower for tests/staging, omit for default production limit.
+# AI_DAILY_LIMIT = "30"
+
+# Optional but recommended: bind a KV namespace named AI_QUOTA to rate-limit
+# network/user-agent pairs even when cookies are cleared.
+# [[kv_namespaces]]
+# binding = "AI_QUOTA"
+# id = "your-kv-namespace-id"
 
 # Set secrets with:
 # wrangler secret put OPENROUTER_API_KEY
 # wrangler secret put AI_COOKIE_SECRET
+# wrangler secret put AI_QUOTA_SALT
