@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { meta, rankBandKey, type QuestWithProgress } from './game/meta';
+import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from './game/meta';
 import { PALETTES, applyAccent } from './game/palette';
 import { sfx } from './game/sound';
 
@@ -12,6 +12,14 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
   const [flash, setFlash] = useState<{ xp: number; salvage: number; n: number } | null>(null);
   const rerender = () => force((n) => n + 1);
   const showReward = (xp: number, salvage: number) => setFlash((f) => ({ xp, salvage, n: (f?.n ?? 0) + 1 }));
+  // shared success epilogue for claim() and claimAll()
+  const grant = (r: RunMetaReward, text: string) => {
+    setStatus({ kind: 'ok', text });
+    showReward(r.xp, r.salvage);
+    sfx.upgrade();
+    rerender();
+    onClaimed?.();
+  };
 
   const rank = meta.rank;
   const streak = meta.streak;
@@ -23,11 +31,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
   const claim = (id: string) => {
     const r = meta.claimQuest(id);
     if (r) {
-      setStatus({ kind: 'ok', text: `Claimed ${r.breakdown[0]?.label ?? 'operation'}: +${r.xp} XP and +${r.salvage} salvage.` });
-      showReward(r.xp, r.salvage);
-      sfx.upgrade();
-      rerender();
-      onClaimed?.();
+      grant(r, `Claimed ${r.breakdown[0]?.label ?? 'operation'}: +${r.xp} XP and +${r.salvage} salvage.`);
     } else {
       setStatus({ kind: 'err', text: 'That operation is not ready to claim yet.' });
       sfx.error();
@@ -37,11 +41,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
   const claimAll = () => {
     const r = meta.claimAll();
     if (r.xp > 0 || r.salvage > 0) {
-      setStatus({ kind: 'ok', text: `Claimed ${r.breakdown.length} operations: +${r.xp} XP and +${r.salvage} salvage.` });
-      showReward(r.xp, r.salvage);
-      sfx.upgrade();
-      rerender();
-      onClaimed?.();
+      grant(r, `Claimed ${r.breakdown.length} operations: +${r.xp} XP and +${r.salvage} salvage.`);
     }
   };
 

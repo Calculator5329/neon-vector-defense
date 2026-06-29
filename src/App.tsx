@@ -852,6 +852,31 @@ function MainMenu(props: {
   );
 }
 
+// Shared leaderboard cells — the callsign (name + YOU + freeplay meta tags) and the WATCH
+// deep-link render identically in the global and local boards.
+function BoardName({ r, mine, fp }: { r: ScoreEntry; mine: boolean; fp: boolean }) {
+  return (
+    <span className="board-name">
+      <span>{r.name}</span>
+      {mine && <em className="board-you">YOU</em>}
+      {fp && (r.meta || r.daily || r.checkpoint) && (
+        <span className="board-meta-tags">
+          {r.checkpoint && <b>CHECKPOINT</b>}
+          {r.daily && <b>DAILY</b>}
+          {r.meta && <em>{r.meta}</em>}
+        </span>
+      )}
+    </span>
+  );
+}
+function WatchCell({ runId }: { runId?: string }) {
+  return (
+    <span className="board-watch">
+      {isRunId(runId) ? <a className="watch-btn" href={`/?run=${runId}`} title="Watch this battle plan">▶ WATCH</a> : null}
+    </span>
+  );
+}
+
 function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
   const [fp, setFp] = useState(false);
   const [globalRows, setGlobalRows] = useState<RankedScoreEntry[] | null>(null);
@@ -905,27 +930,13 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           globalRows.map((r, i) => (
             <div key={`${r.board}-${i}`} className={`board-row ${r.uid === myUid ? 'me' : ''}`}>
               <span className="board-rank">{i + 1}</span>
-              <span className="board-name">
-                <span>{r.name}</span>
-                {r.uid === myUid && <em className="board-you">YOU</em>}
-                {fp && (r.meta || r.daily || r.checkpoint) && (
-                  <span className="board-meta-tags">
-                    {r.checkpoint && <b>CHECKPOINT</b>}
-                    {r.daily && <b>DAILY</b>}
-                    {r.meta && <em>{r.meta}</em>}
-                  </span>
-                )}
-              </span>
+              <BoardName r={r} mine={r.uid === myUid} fp={fp} />
               <span className="board-context">{r.mapName}</span>
               <span className="board-context">{r.diffName}</span>
               {fp && <span className="board-wave">{r.wave}</span>}
               <span className="board-kills">{r.kills.toLocaleString()}</span>
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
-              <span className="board-watch">
-                {isRunId(r.runId)
-                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">▶ WATCH</a>
-                  : null}
-              </span>
+              <WatchCell runId={r.runId} />
             </div>
           ))
         )}
@@ -952,24 +963,10 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
           localRows.map((r, i) => (
             <div key={i} className={`board-row ${r.uid === myUid ? 'me' : ''}`}>
               <span className="board-rank">{i + 1}</span>
-              <span className="board-name">
-                <span>{r.name}</span>
-                {r.uid === myUid && <em className="board-you">YOU</em>}
-                {fp && (r.meta || r.daily || r.checkpoint) && (
-                  <span className="board-meta-tags">
-                    {r.checkpoint && <b>CHECKPOINT</b>}
-                    {r.daily && <b>DAILY</b>}
-                    {r.meta && <em>{r.meta}</em>}
-                  </span>
-                )}
-              </span>
+              <BoardName r={r} mine={r.uid === myUid} fp={fp} />
               {fp && <span className="board-wave">{r.wave}</span>}
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
-              <span className="board-watch">
-                {isRunId(r.runId)
-                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">▶ WATCH</a>
-                  : null}
-              </span>
+              <WatchCell runId={r.runId} />
             </div>
           ))
         )}
@@ -2017,26 +2014,26 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} boxClass="overlay-box settings-box" labelledBy="settings-title" style={{ borderColor: 'var(--accent)' }}>
       <h2 id="settings-title" style={{ color: 'var(--accent)' }}>SETTINGS</h2>
       <div className="privacy-controls">
-          <SettingsRow name="Sound effects" sub="Procedural combat audio." on={sfxOn}
-            onToggle={() => { setMuted(sfxOn); rerender(); if (!sfxOn) sfx.click(); }} />
-          <SettingsRow name="Music" sub="Generative score." on={musicOn}
-            onToggle={() => { setMusic(!musicOn); rerender(); }} />
-          <div className="privacy-control">
-            <div>
-              <div className="privacy-control-name" id="settings-music-pack-label">Music pack</div>
-              <div className="privacy-control-sub">Choose the soundtrack.</div>
-            </div>
-            <select className="age-gate-select settings-select" aria-labelledby="settings-music-pack-label" value={getMusicPack()}
-              onChange={(e) => { setMusicPack(e.target.value); rerender(); sfx.click(); }}>
-              {MUSIC_PACKS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+        <SettingsRow name="Sound effects" sub="Procedural combat audio." on={sfxOn}
+          onToggle={() => { setMuted(sfxOn); rerender(); if (!sfxOn) sfx.click(); }} />
+        <SettingsRow name="Music" sub="Generative score." on={musicOn}
+          onToggle={() => { setMusic(!musicOn); rerender(); }} />
+        <div className="privacy-control">
+          <div>
+            <div className="privacy-control-name" id="settings-music-pack-label">Music pack</div>
+            <div className="privacy-control-sub">Choose the soundtrack.</div>
           </div>
-          <SettingsRow name="Reduced motion" sub="Turns off screen shake and the red damage flash." on={progress.reducedMotion}
-            onToggle={() => { progress.reducedMotion = !progress.reducedMotion; applyAccessibility(); rerender(); sfx.click(); }} />
-          <SettingsRow name="Colorblind palette" sub="Colorblind-safe damage-type colors (kinetic/energy/cryo/blast)." on={progress.colorblind}
-            onToggle={() => { progress.colorblind = !progress.colorblind; applyAccessibility(); rerender(); sfx.click(); }} />
+          <select className="age-gate-select settings-select" aria-labelledby="settings-music-pack-label" value={getMusicPack()}
+            onChange={(e) => { setMusicPack(e.target.value); rerender(); sfx.click(); }}>
+            {MUSIC_PACKS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
         </div>
-        <div className="overlay-btns"><button className="start-btn small" onClick={onClose}>DONE ▸</button></div>
+        <SettingsRow name="Reduced motion" sub="Turns off screen shake and the red damage flash." on={progress.reducedMotion}
+          onToggle={() => { progress.reducedMotion = !progress.reducedMotion; applyAccessibility(); rerender(); sfx.click(); }} />
+        <SettingsRow name="Colorblind palette" sub="Colorblind-safe damage-type colors (kinetic/energy/cryo/blast)." on={progress.colorblind}
+          onToggle={() => { progress.colorblind = !progress.colorblind; applyAccessibility(); rerender(); sfx.click(); }} />
+      </div>
+      <div className="overlay-btns"><button className="start-btn small" onClick={onClose}>DONE ▸</button></div>
     </Modal>
   );
 }
@@ -2075,8 +2072,7 @@ function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff
   return (
     <div className="aar-layout">
       <div className="aar-reward"><MetaReward reward={reward} /></div>
-      {/* on mobile this sits directly under the reward so the primary action (submit
-          your score) is reachable without scrolling past the whole after-action report */}
+      {/* mobile order (reward → action → detail) is set by grid-template-areas; see .aar-layout @820px in App.css */}
       <div className="aar-action"><SubmitScore game={game} map={map} diff={diff} /></div>
       <div className="aar-detail"><AfterAction game={game} ghost={ghost} /></div>
     </div>
@@ -2281,10 +2277,9 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
   const style = { '--overlay-accent': props.color } as React.CSSProperties;
   // run-end is a decision screen: no backdrop dismiss AND no Esc-to-close. The callsign input
   // autofocuses here, so Esc-to-exit would kick a player typing their name back to the menu and
-  // lose the unsubmitted score. Players leave via the explicit buttons.
-  const safeExit = props.buttons.find((b) => /menu/i.test(b.label)) ?? props.buttons[props.buttons.length - 1];
+  // lose the unsubmitted score. Players leave via the explicit buttons (onClose is unreachable).
   return (
-    <Modal onClose={() => safeExit?.fn()} closeOnBackdrop={false} closeOnEsc={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
+    <Modal onClose={() => {}} closeOnBackdrop={false} closeOnEsc={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
       {props.art && <img className="overlay-art" src={props.art} alt="" />}
       <h2 id="result-overlay-title">{props.title}</h2>
       <div className="overlay-copy">

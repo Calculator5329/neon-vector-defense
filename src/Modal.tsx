@@ -10,7 +10,6 @@ const FOCUSABLE = 'a[href], button:not(:disabled), select:not(:disabled), textar
 export default function Modal({
   onClose,
   children,
-  label,
   labelledBy,
   describedBy,
   overlayClass = 'overlay',
@@ -22,7 +21,6 @@ export default function Modal({
 }: {
   onClose: () => void;
   children: ReactNode;
-  label?: string;
   labelledBy?: string;
   describedBy?: string;
   overlayClass?: string;
@@ -64,7 +62,6 @@ export default function Modal({
         style={style}
         role="dialog"
         aria-modal="true"
-        aria-label={!labelledBy ? label : undefined}
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         tabIndex={-1}

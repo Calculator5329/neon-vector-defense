@@ -1043,7 +1043,7 @@ export class RunRecorder {
         events: allEvents.slice(i, i + RUN_EVENT_CHUNK_SIZE),
       }));
     }
-    const retainedEvents = runEvents.length + chunks.reduce((n, c) => n + c.events.length, 0);
+    const chunkEvents = chunks.reduce((n, c) => n + c.events.length, 0);
     const run: PublicRunDoc = stripUndefined({
       schemaVersion: RUN_TELEMETRY_SCHEMA,
       runId: this.runId,
@@ -1051,7 +1051,7 @@ export class RunRecorder {
       endedAt: this.endedAt || Date.now(),
       build,
       chunkCount: chunks.length,
-      eventCount: retainedEvents,
+      eventCount: runEvents.length + chunkEvents,
       summary: this.summary(state, callsign),
       setup: {
         map: this.start.map.id,
@@ -1087,7 +1087,7 @@ export class RunRecorder {
       run.events = run.events.slice(0, Math.floor(run.events.length * 0.6));
     }
     // keep eventCount honest after any head-event trim (it was computed pre-trim)
-    run.eventCount = run.events.length + chunks.reduce((n, c) => n + c.events.length, 0);
+    run.eventCount = run.events.length + chunkEvents;
     return { run, chunks };
   }
 
