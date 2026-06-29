@@ -2642,11 +2642,8 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .fb-root.on-menu {
     bottom: 88px;
   }
-  /* long wave/mutator advisories must wrap, not overflow the letterboxed canvas */
+  /* phone-size type/padding for the advisory toast (wrap + centering inherited from the base rule) */
   .notice {
-    white-space: normal;
-    max-width: calc(100vw - 32px);
-    text-align: center;
     font-size: 12px;
     padding: 6px 12px;
   }
@@ -3921,7 +3918,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .cloak-toast p:last-child { margin-bottom: 0; }
 .cloak-toast-x {
   position: absolute; top: 6px; right: 8px;
-  width: 26px; height: 26px; min-width: 26px;
+  width: 26px; height: 26px;
   background: transparent; border: none; color: var(--dim); font-size: 14px; line-height: 1;
   border-radius: 6px;
 }
