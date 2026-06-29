@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ghostAtWave, type GhostCurve } from './game/ghostCurve';
 import { DIFFICULTIES } from './game/maps';
 import { sfx } from './game/sound';
+import Modal from './Modal';
 
 type BotGhostHudProps = {
   curves: GhostCurve[];
@@ -150,8 +151,6 @@ function GhostModal({
   onSelect: (key: string) => void;
   onClose: () => void;
 }) {
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-  const onCloseRef = useRef(onClose);
   const selectedCurve = curves.find((c) => curveKey(c) === selectedKey) ?? curves.find((c) => c.diff === matchedDiffId) ?? curves[0];
   const g = ghostAtWave(selectedCurve, wave);
   const botCores = g?.cores ?? selectedCurve.startingLives;
@@ -182,33 +181,13 @@ function GhostModal({
   const selectedIndex = Math.max(0, sortedCurves.findIndex((curve) => curveKey(curve) === curveKey(selectedCurve)));
   const selectedColor = PROFILE_COLORS[selectedIndex % PROFILE_COLORS.length];
 
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') onCloseRef.current();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   return (
-    <div className="ghost-modal-overlay" onClick={onClose}>
-      <div
-        className="ghost-modal ghost-modal-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="ghost-modal-title"
-        aria-describedby="ghost-modal-desc"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="ghost-modal-head">
-          <span id="ghost-modal-title">AI RIVAL · {profileShortLabel(selectedCurve)}</span>
-          <button ref={closeRef} className="ghost-modal-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
+    <Modal onClose={onClose} overlayClass="ghost-modal-overlay" boxClass="ghost-modal ghost-modal-wide"
+      labelledBy="ghost-modal-title" describedBy="ghost-modal-desc">
+      <div className="ghost-modal-head">
+        <span id="ghost-modal-title">AI RIVAL · {profileShortLabel(selectedCurve)}</span>
+        <button className="ghost-modal-close" onClick={onClose} aria-label="Close">✕</button>
+      </div>
         <p id="ghost-modal-desc" className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Long Watch starts are comparable.</p>
 
         <div className="ghost-profile-switch" role="tablist" aria-label="AI rival profile">
@@ -296,7 +275,6 @@ function GhostModal({
         <div className="ghost-modal-verdict" style={{ color: ahead ? '#2ed573' : '#ff6b81' }}>
           {ahead ? 'You are ahead of this rival profile — hold the pace.' : 'This rival profile is ahead on core percentage — tighten the defense.'}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

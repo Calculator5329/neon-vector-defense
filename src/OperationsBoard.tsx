@@ -6,7 +6,7 @@ import { sfx } from './game/sound';
 // Third menu tab: Warden Rank + Salvage wallet + Watch Streak + the daily/weekly
 // Operations Board. All reads come from the `meta` singleton (localStorage); claiming a
 // completed quest grants XP/salvage. Cosmetic/QoL only — never touches run balance.
-export default function OperationsBoard() {
+export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void } = {}) {
   const [, force] = useState(0);
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [flash, setFlash] = useState<{ xp: number; salvage: number; n: number } | null>(null);
@@ -27,6 +27,7 @@ export default function OperationsBoard() {
       showReward(r.xp, r.salvage);
       sfx.upgrade();
       rerender();
+      onClaimed?.();
     } else {
       setStatus({ kind: 'err', text: 'That operation is not ready to claim yet.' });
       sfx.error();
@@ -40,6 +41,7 @@ export default function OperationsBoard() {
       showReward(r.xp, r.salvage);
       sfx.upgrade();
       rerender();
+      onClaimed?.();
     }
   };
 

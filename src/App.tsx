@@ -630,6 +630,7 @@ function MainMenu(props: {
   onStartDaily: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
+  const [, bumpClaim] = useState(0); // re-read meta.claimableCount() for the nav badge after a claim
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bestiaryOpen, setBestiaryOpen] = useState(false);
@@ -639,9 +640,11 @@ function MainMenu(props: {
   const ngLocked = !DEMO_MODE && !progress.armisticeSeen;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
-  // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit
+  // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
+  // foesSeen must use the SAME basis the Bestiary acks with (ENEMY_LIST intersection, not the
+  // raw persisted list) or a stale/removed enemy id would make the NEW badge stick forever.
   const claimable = DEMO_MODE ? 0 : meta.claimableCount();
-  const foesSeen = progress.enemiesSeen.length;
+  const foesSeen = ENEMY_LIST.filter((d) => progress.enemiesSeen.includes(d.id)).length;
   const foesNew = Math.max(0, foesSeen - progress.bestiaryAck);
 
   return (
@@ -823,7 +826,7 @@ function MainMenu(props: {
         ) : tab === 'board' ? (
           <LeaderboardTab map={props.map} diff={props.diff} />
         ) : (
-          <OperationsBoard />
+          <OperationsBoard onClaimed={() => bumpClaim((n) => n + 1)} />
         )}
       </div>
 
@@ -2276,10 +2279,12 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 
 function Overlay(props: { title: string; color: string; lines: string[]; buttons: { label: string; fn: () => void }[]; art?: string; report?: ReactNode }) {
   const style = { '--overlay-accent': props.color } as React.CSSProperties;
-  // run-end is a decision screen: no backdrop dismiss, but Esc triggers the safe exit (MAIN MENU)
+  // run-end is a decision screen: no backdrop dismiss AND no Esc-to-close. The callsign input
+  // autofocuses here, so Esc-to-exit would kick a player typing their name back to the menu and
+  // lose the unsubmitted score. Players leave via the explicit buttons.
   const safeExit = props.buttons.find((b) => /menu/i.test(b.label)) ?? props.buttons[props.buttons.length - 1];
   return (
-    <Modal onClose={() => safeExit?.fn()} closeOnBackdrop={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
+    <Modal onClose={() => safeExit?.fn()} closeOnBackdrop={false} closeOnEsc={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
       {props.art && <img className="overlay-art" src={props.art} alt="" />}
       <h2 id="result-overlay-title">{props.title}</h2>
       <div className="overlay-copy">

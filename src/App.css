@@ -2652,8 +2652,9 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   }
 }
 
-/* Mid / iframe band (561–900px): the full 7–8 column global board is far too dense,
-   so apply the same readable stacked rows used on phones instead of crushing columns. */
+/* Mid / iframe band (561–900px): the full 7–8 column global board is far too dense, so apply
+   the same readable stacked rows used on phones — including the trailing wave/kills/cash/WATCH
+   cells, which must all be reset to auto-flow or they land in the wrong grid cells. */
 @media (min-width: 561px) and (max-width: 900px) {
   .board-row-head { display: none; }
   .board-global { max-height: none; overflow-y: visible; }
@@ -2661,15 +2662,18 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .board-global.fp .board-row,
   .board-local .board-row,
   .board-local.fp .board-row {
-    grid-template-columns: 32px minmax(0, 1fr) auto auto;
-    gap: 4px 12px; align-items: center; padding: 10px 14px; font-size: 13px;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 5px 10px; align-items: start; padding: 11px 14px; font-size: 13px;
   }
-  .board-global .board-rank, .board-local .board-rank { grid-row: 1 / span 2; align-self: center; }
-  .board-global .board-name, .board-local .board-name { grid-column: 2 / -1; white-space: normal; }
-  .board-global .board-context { grid-column: 2 / -1; font-size: 11px; line-height: 1.2; }
-  .board-global .board-wave, .board-global .board-kills,
-  .board-local .board-wave { align-self: center; }
-  .board-global .board-cash, .board-local .board-cash { justify-self: end; }
+  .board-global .board-rank, .board-local .board-rank { grid-row: 1 / span 3; padding-top: 1px; }
+  .board-global .board-name, .board-local .board-name { grid-column: 2 / 4; white-space: normal; }
+  .board-global .board-context { grid-column: 2 / 4; white-space: normal; font-size: 11px; line-height: 1.25; }
+  .board-global .board-wave, .board-global .board-kills, .board-global .board-cash, .board-global .board-watch,
+  .board-local .board-wave, .board-local .board-kills, .board-local .board-cash, .board-local .board-watch {
+    grid-column: auto; align-self: center; min-width: 0; text-align: left;
+  }
+  .board-global .board-cash, .board-local .board-cash { justify-self: end; text-align: right; }
+  .board-global .board-watch, .board-local .board-watch { justify-content: flex-start; }
 }
 
 @media (pointer: coarse) {

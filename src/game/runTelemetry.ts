@@ -1086,6 +1086,8 @@ export class RunRecorder {
     while (size() > DOC_LIMIT && run.events.length > 40) {
       run.events = run.events.slice(0, Math.floor(run.events.length * 0.6));
     }
+    // keep eventCount honest after any head-event trim (it was computed pre-trim)
+    run.eventCount = run.events.length + chunks.reduce((n, c) => n + c.events.length, 0);
     return { run, chunks };
   }
 
