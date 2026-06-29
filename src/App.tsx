@@ -904,6 +904,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
               <span className="board-rank">{i + 1}</span>
               <span className="board-name">
                 <span>{r.name}</span>
+                {r.uid === myUid && <em className="board-you">YOU</em>}
                 {fp && (r.meta || r.daily || r.checkpoint) && (
                   <span className="board-meta-tags">
                     {r.checkpoint && <b>CHECKPOINT</b>}
@@ -919,7 +920,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
               <span className="board-watch">
                 {isRunId(r.runId)
-                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">\u25b6 WATCH</a>
+                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">▶ WATCH</a>
                   : null}
               </span>
             </div>
@@ -950,6 +951,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
               <span className="board-rank">{i + 1}</span>
               <span className="board-name">
                 <span>{r.name}</span>
+                {r.uid === myUid && <em className="board-you">YOU</em>}
                 {fp && (r.meta || r.daily || r.checkpoint) && (
                   <span className="board-meta-tags">
                     {r.checkpoint && <b>CHECKPOINT</b>}
@@ -962,7 +964,7 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
               <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
               <span className="board-watch">
                 {isRunId(r.runId)
-                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">\u25b6 WATCH</a>
+                  ? <a className="watch-btn" href={`/?run=${r.runId}`} title="Watch this battle plan">▶ WATCH</a>
                   : null}
               </span>
             </div>

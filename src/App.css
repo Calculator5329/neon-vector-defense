@@ -188,6 +188,17 @@
   margin-top: clamp(18px, 4vh, 38px);
 }
 .menu-col { display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 1.3vh, 14px); }
+/* short / landscape iframe: the menu is vertically centered and the root clips overflow,
+   so on short viewports the content would hide behind the fixed deploy bar with no scroll.
+   Anchor to the top and let it scroll instead. */
+@media (max-height: 640px) {
+  .menu-content, .menu-content:has(.board-tab) {
+    justify-content: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+}
 
 /* sticky launch bar */
 .deploy-bar {
@@ -669,8 +680,12 @@
 .board-wave { color: var(--accent); font-variant-numeric: tabular-nums; }
 .board-kills { color: var(--dim); font-variant-numeric: tabular-nums; }
 .board-cash { color: var(--gold); font-variant-numeric: tabular-nums; min-width: 84px; text-align: right; }
-.board-row.me { background: rgba(75, 207, 250, 0.1); }
+.board-row.me { background: rgba(75, 207, 250, 0.14); box-shadow: inset 3px 0 0 var(--accent); }
 .board-row.me .board-rank, .board-row.me .board-name { color: var(--accent); }
+.board-you {
+  font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 1px; font-style: normal;
+  color: #021018; background: var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle;
+}
 .board-empty { padding: 30px 18px; text-align: center; color: var(--dim); font-size: 13px; line-height: 1.5; }
 .board-empty.compact { padding: 16px; }
 .board-local-head {
@@ -2635,6 +2650,26 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
     font-size: 12px;
     padding: 6px 12px;
   }
+}
+
+/* Mid / iframe band (561–900px): the full 7–8 column global board is far too dense,
+   so apply the same readable stacked rows used on phones instead of crushing columns. */
+@media (min-width: 561px) and (max-width: 900px) {
+  .board-row-head { display: none; }
+  .board-global { max-height: none; overflow-y: visible; }
+  .board-global .board-row,
+  .board-global.fp .board-row,
+  .board-local .board-row,
+  .board-local.fp .board-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto auto;
+    gap: 4px 12px; align-items: center; padding: 10px 14px; font-size: 13px;
+  }
+  .board-global .board-rank, .board-local .board-rank { grid-row: 1 / span 2; align-self: center; }
+  .board-global .board-name, .board-local .board-name { grid-column: 2 / -1; white-space: normal; }
+  .board-global .board-context { grid-column: 2 / -1; font-size: 11px; line-height: 1.2; }
+  .board-global .board-wave, .board-global .board-kills,
+  .board-local .board-wave { align-self: center; }
+  .board-global .board-cash, .board-local .board-cash { justify-self: end; }
 }
 
 @media (pointer: coarse) {
