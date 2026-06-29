@@ -47,7 +47,10 @@ service cloud.firestore {
         && summary.durationS is int && summary.durationS >= 0 && summary.durationS < 100000
         && (!('daily' in summary) || isValidDailyBoard(summary.daily))
         && (!('contractId' in summary) || (summary.contractId is string && summary.contractId.size() <= 30))
-        && (!('scoreMultiplierEnd' in summary) || (summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 100));
+        // freeplay score multiplier compounds across waves/risks/relics; it is a display-only
+        // stat (ranking is verified server-side against the replay), so the bound is generous —
+        // capping it at 100 used to reject deep freeplay runs and block their score submission.
+        && (!('scoreMultiplierEnd' in summary) || (summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 1000000000));
     }
 
     // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore

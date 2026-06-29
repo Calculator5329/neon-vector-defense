@@ -100,6 +100,24 @@ describe('public replay rules', () => {
     }));
   });
 
+  test('allow deep-freeplay runs whose compounded score multiplier exceeds 100', async () => {
+    // regression: scoreMultiplierEnd compounds across waves/risks/relics and used to be
+    // capped at 100, which rejected the whole replay and blocked the score submission.
+    const db = anonDb();
+    await assertSucceeds(setDoc(doc(db, 'runs', runId), {
+      ...validRun,
+      summary: { ...validSummary, freeplay: true, scoreMultiplierEnd: 873.45 },
+    }));
+  });
+
+  test('still reject an absurd (garbage) score multiplier', async () => {
+    const db = anonDb();
+    await assertFails(setDoc(doc(db, 'runs', runId), {
+      ...validRun,
+      summary: { ...validSummary, freeplay: true, scoreMultiplierEnd: 5000000000 },
+    }));
+  });
+
   test('allow replay chunk create and deny chunk updates', async () => {
     const db = anonDb();
     const ref = doc(db, 'runs', runId, 'chunks', 'c0');

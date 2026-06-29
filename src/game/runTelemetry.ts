@@ -1029,10 +1029,13 @@ export class RunRecorder {
   }
 
   makePublicRun(state: RunTelemetryState, callsign: string, build: string): RunUploadBundle {
+    // Firestore rules cap chunkCount <= 100 and eventCount <= 100000; stop emitting overflow
+    // chunks at the ceiling so a marathon run's replay (and its score) never gets rejected.
+    const MAX_CHUNKS = 100;
     const allEvents = this.withSyntheticEnd(state);
     const runEvents = allEvents.slice(0, RUN_EVENT_CHUNK_SIZE);
     const chunks: RunEventChunkDoc[] = [];
-    for (let i = RUN_EVENT_CHUNK_SIZE; i < allEvents.length; i += RUN_EVENT_CHUNK_SIZE) {
+    for (let i = RUN_EVENT_CHUNK_SIZE; i < allEvents.length && chunks.length < MAX_CHUNKS; i += RUN_EVENT_CHUNK_SIZE) {
       chunks.push(stripUndefined({
         schemaVersion: RUN_TELEMETRY_SCHEMA,
         runId: this.runId,
@@ -1040,6 +1043,7 @@ export class RunRecorder {
         events: allEvents.slice(i, i + RUN_EVENT_CHUNK_SIZE),
       }));
     }
+    const retainedEvents = runEvents.length + chunks.reduce((n, c) => n + c.events.length, 0);
     const run: PublicRunDoc = stripUndefined({
       schemaVersion: RUN_TELEMETRY_SCHEMA,
       runId: this.runId,
@@ -1047,7 +1051,7 @@ export class RunRecorder {
       endedAt: this.endedAt || Date.now(),
       build,
       chunkCount: chunks.length,
-      eventCount: allEvents.length,
+      eventCount: retainedEvents,
       summary: this.summary(state, callsign),
       setup: {
         map: this.start.map.id,
@@ -1479,6 +1483,10 @@ export class RunRecorder {
 
   private summary(state: RunTelemetryState, callsign: string): PublicRunDoc['summary'] {
     const outcome = this.outcome ?? this.inferOutcome(state);
+    // Clamp every numeric to the Firestore-rules ceiling. The rules reject the whole replay
+    // doc (and thus block score submission) if any value overruns its bound — a marathon
+    // freeplay run can realistically exceed these — so a display stat must never cost a score.
+    const clampInt = (n: number, max: number) => Math.max(0, Math.min(max, Math.round(n) || 0));
     const summary: PublicRunDoc['summary'] = {
       callsign: sanitizeCallsign(callsign),
       map: this.start.map.id,
@@ -1488,17 +1496,19 @@ export class RunRecorder {
       freeplay: state.freeplay,
       outcome,
       phase: state.phase,
-      wave: state.wave,
-      kills: Math.round(state.totalKills),
-      credits: Math.max(0, Math.floor(state.credits)),
-      cashEarned: Math.max(0, Math.round(state.runStats.cashEarned)),
-      leaks: Math.max(0, Math.round(state.runStats.leaks)),
-      coresLeft: Math.max(0, Math.round(state.lives)),
-      durationS: Math.max(0, Math.round(state.time)),
+      wave: clampInt(state.wave, 10000),
+      kills: clampInt(state.totalKills, 9999999),
+      credits: clampInt(state.credits, 99999999),
+      cashEarned: clampInt(state.runStats.cashEarned, 99999999),
+      leaks: clampInt(state.runStats.leaks, 999999),
+      coresLeft: clampInt(state.lives, 999999),
+      durationS: clampInt(state.time, 99999),
     };
-    if (this.freeplay.dailyId) summary.daily = this.freeplay.dailyId;
-    if (this.freeplay.contractId) summary.contractId = this.freeplay.contractId;
-    if (Number.isFinite(this.freeplay.scoreMultiplierEnd)) summary.scoreMultiplierEnd = this.freeplay.scoreMultiplierEnd;
+    if (this.freeplay.dailyId && /^daily-\d{4}-\d{2}-\d{2}$/.test(this.freeplay.dailyId)) summary.daily = this.freeplay.dailyId;
+    if (this.freeplay.contractId) summary.contractId = this.freeplay.contractId.slice(0, 30);
+    if (Number.isFinite(this.freeplay.scoreMultiplierEnd)) {
+      summary.scoreMultiplierEnd = Math.max(0, Math.min(1000000000, Math.round(this.freeplay.scoreMultiplierEnd * 100) / 100));
+    }
     return summary;
   }
 
