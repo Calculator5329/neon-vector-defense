@@ -11,6 +11,7 @@ import {
   orderBy,
   query,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, db } from './firebaseClient';
@@ -413,10 +414,16 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
   });
   const chunks = bundle.chunks.map((chunk) => sanitizeFirestoreData(chunk));
   try {
-    await withTimeout(setDoc(firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId), ownerDoc));
-    await withTimeout(setDoc(firestoreDoc(db, 'runs', run.runId), run));
-    await withTimeout(Promise.all(chunks.map((chunk) =>
-      setDoc(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk))));
+    // ONE atomic batch (single round-trip) instead of N parallel setDoc()s. Firing every chunk
+    // write concurrently used to overrun Firestore's write stream ("resource-exhausted: Write
+    // stream exhausted maximum allowed queued writes") and time out the whole submit.
+    const batch = writeBatch(db);
+    batch.set(firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId), ownerDoc);
+    batch.set(firestoreDoc(db, 'runs', run.runId), run);
+    for (const chunk of chunks) {
+      batch.set(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk);
+    }
+    await withTimeout(batch.commit());
     return { ok: true, runId: run.runId, replayToken };
   } catch (error) {
     console.warn('Run replay submit failed', error);
