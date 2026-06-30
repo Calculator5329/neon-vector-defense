@@ -840,7 +840,6 @@ export class Game {
       vox('courier');
     }
     this.enemies.push(e);
-    this.recorder.recordEnemySpawn(this.telemetryState(), e);
   }
 
   /** Available once the wave-50 manifest is recovered. */
@@ -869,7 +868,6 @@ export class Game {
       e.wp = parent.wp;
       e.dist = Math.max(0, parent.dist - i * 12);
       this.enemies.push(e);
-      this.recorder.recordEnemySpawn(this.telemetryState(), e, parent.uid);
     }
   }
 
@@ -955,7 +953,7 @@ export class Game {
     }
     e.hp -= dmg;
     if (e.hp <= 0) {
-      this.killEnemy(e, src);
+      this.killEnemy(e);
       if (src) src.kills++;
     }
     return dmg;
@@ -977,7 +975,7 @@ export class Game {
     }
   }
 
-  private killEnemy(e: Enemy, src?: Tower) {
+  private killEnemy(e: Enemy) {
     if (e.dead) return;
     e.dead = true;
     const reward = Math.max(1, Math.round(e.def.reward * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
@@ -985,7 +983,6 @@ export class Game {
     this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
-    this.recorder.recordEnemyKill(this.telemetryState(), e, src, reward);
     this.spawnChildren(e);
     if (e.def.boss) {
       sfx.bossDown();

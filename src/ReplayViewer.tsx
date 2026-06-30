@@ -753,15 +753,15 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
   const progressRef = useRef<HTMLDivElement>(null);
   const [hintOpen, setHintOpen] = useState(true);
 
-  // The writer keeps only the last ~80 snapshots, so a long run's earliest keyframe
-  // can be deep into the game (no wave-1 data). Clamp the scrub domain to the captured
-  // window [t0, tEnd] instead of [0, durationS] so there's no dead lead-in.
+  // Snapshots now span the whole run (wave 1 → end), so the scrub domain is just the captured
+  // window [t0, tEnd]. Clamp to it (not [0, durationS]) so there's no dead lead-in.
   const { t0, tEnd, span, fade } = useMemo(() => {
     const snaps = run.snapshots.length ? run.snapshots : [reconstructAt(run, 0).snap];
     let a = snaps[0].t;
-    // Freeplay (incl. Daily) opens deep into the run (~wave 50); skip the warmup so the
-    // replay starts at the first "real" round (~wave 60) instead of the trivial opener.
-    if (run.summary.freeplay && snaps.length > 1) {
+    // A PURE Freeplay/Daily run opens deep (~wave 50) on a trivial opener — skip ~10 waves of
+    // warmup. Guarded on a deep first keyframe so a campaign-that-continued-into-freeplay (whose
+    // snapshots start at wave 1) still plays back from wave 1.
+    if (run.summary.freeplay && snaps.length > 1 && snaps[0].wave > 5) {
       const skip = snaps.find((s) => s.wave >= snaps[0].wave + 10);
       if (skip) a = skip.t;
     }

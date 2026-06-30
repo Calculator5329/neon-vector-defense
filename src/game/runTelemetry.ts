@@ -14,8 +14,21 @@ import { balanceVersion } from './balanceConfig';
 
 export const RUN_TELEMETRY_SCHEMA = 2;
 export const RUN_EVENT_CHUNK_SIZE = 650;
+const SNAP_DOC_CAP = 115; // uploaded snapshot keyframes — under the firestore.rules snapshots<=120 bound
+const SNAP_MEM_CAP = 360; // in-memory keyframes before downsampling at upload (covers very long runs)
 const IDLE_AFTER_S = 25;
 const QUICK_SELL_S = 30;
+
+/** Evenly thin a keyframe list to at most `cap`, always preserving the first and last entry so the
+ *  replay timeline still spans the whole run (start → end), not just a slice of it. */
+function downsampleSnapshots<T>(snaps: T[], cap: number): T[] {
+  if (snaps.length <= cap || cap < 2) return snaps;
+  const out: T[] = [];
+  const step = (snaps.length - 1) / (cap - 1);
+  for (let i = 0; i < cap; i++) out.push(snaps[Math.round(i * step)]);
+  // Math.round can land on the same index twice at the tail; de-dup while keeping order.
+  return out.filter((s, i) => i === 0 || s !== out[i - 1]);
+}
 
 export type RunOutcome = 'victory' | 'armistice' | 'gameover' | 'abandoned';
 export type RunPanelKind = 'none' | 'shop' | 'upgrade';
@@ -625,7 +638,8 @@ export class RunRecorder {
       towerCount: state.towers.length,
     });
     if (!this.funnel.firstWaveSurvivedAt) this.funnel.firstWaveSurvivedAt = roundS(state.time);
-    this.snapshot('wave_end', state);
+    // NOTE: no wave_end snapshot — the replay keeps ONE keyframe per wave (wave_start) so the
+    // doc spans the whole run within the snapshot cap instead of only the last ~40 waves.
   }
 
   recordCampaignClear(state: RunTelemetryState): void {
@@ -748,36 +762,10 @@ export class RunRecorder {
     });
   }
 
-  recordEnemySpawn(state: RunTelemetryState, enemy: Enemy, parentUid?: number): void {
-    this.record('enemy_spawn', state, {
-      enemyUid: enemy.uid,
-      enemyId: enemy.def.id,
-      x: roundPos(enemy.pos.x),
-      y: roundPos(enemy.pos.y),
-      dist: Math.round(enemy.dist),
-      wp: enemy.wp,
-      hp: Math.round(enemy.maxHp),
-      cloaked: enemy.cloaked,
-      boss: !!enemy.def.boss,
-      parentUid: parentUid ?? null,
-    });
-  }
-
-  recordEnemyKill(state: RunTelemetryState, enemy: Enemy, src: Tower | undefined, reward: number): void {
-    this.record('enemy_kill', state, {
-      enemyUid: enemy.uid,
-      enemyId: enemy.def.id,
-      x: roundPos(enemy.pos.x),
-      y: roundPos(enemy.pos.y),
-      dist: Math.round(enemy.dist),
-      wp: enemy.wp,
-      reward: Math.max(0, Math.round(reward)),
-      boss: !!enemy.def.boss,
-      children: enemy.def.children.slice(0, 12),
-      towerUid: src?.uid ?? null,
-      towerId: src?.def.id ?? null,
-    });
-  }
+  // Per-enemy spawn/kill events are intentionally NOT recorded: a long run produces
+  // hundreds of thousands of them, which blew past the chunk cap and truncated the replay
+  // mid-run. The viewer reconstructs the armada deterministically from each wave's authored
+  // composition (wave_start groups / getWave) plus per-wave kill deltas from the snapshots.
 
   recordPickupCollect(state: RunTelemetryState, kind: PickupKind, pos: Vec, value: number): void {
     bump(this.towerInterest.pickupCollects, kind);
@@ -1065,7 +1053,9 @@ export class RunRecorder {
         balanceVersion: balanceVersion() || build,
       },
       events: runEvents,
-      snapshots: this.snapshots.slice(-80),
+      // Evenly downsample to the rules cap while ALWAYS keeping the first + last keyframe, so the
+      // replay spans the whole run (wave 1 → end) instead of only the tail.
+      snapshots: downsampleSnapshots(this.snapshots, SNAP_DOC_CAP),
       final: {
         towers: this.finalTowers(state),
         damageByTower: intRecord(state.runStats.dmg),
@@ -1076,12 +1066,12 @@ export class RunRecorder {
       },
     });
     // Hard safety net: Firestore caps a single doc at 1 MB. Even with lean snapshots a very
-    // long run could approach it — drop the OLDEST snapshots first (the viewer clamps to the
-    // captured window anyway), then trim head events, so score submission never fails on size.
+    // long run could approach it — thin snapshots EVENLY (keeping first + last so the replay
+    // still spans the whole run), then trim head events, so score submission never fails on size.
     const DOC_LIMIT = 900_000;
     const size = () => JSON.stringify(run).length;
     while (size() > DOC_LIMIT && run.snapshots.length > 12) {
-      run.snapshots = run.snapshots.slice(Math.ceil(run.snapshots.length * 0.2));
+      run.snapshots = downsampleSnapshots(run.snapshots, Math.floor(run.snapshots.length * 0.8));
     }
     while (size() > DOC_LIMIT && run.events.length > 40) {
       run.events = run.events.slice(0, Math.floor(run.events.length * 0.6));
@@ -1410,7 +1400,7 @@ export class RunRecorder {
       killsByEnemy: intRecord(state.runStats.kills),
       towers: this.snapshotTowers(state),
     });
-    if (this.snapshots.length > 120) this.snapshots.splice(0, this.snapshots.length - 120);
+    if (this.snapshots.length > SNAP_MEM_CAP) this.snapshots.splice(0, this.snapshots.length - SNAP_MEM_CAP);
   }
 
   private ensureTower(tower: Tower, state: RunTelemetryState): TowerLedger {
