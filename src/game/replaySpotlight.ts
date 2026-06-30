@@ -1,3 +1,5 @@
+import { doc as firestoreDoc, getDoc } from 'firebase/firestore';
+import { db } from './firebaseClient';
 import { fetchGlobalTop, type RankedScoreEntry } from './leaderboard';
 
 export interface ReplaySpotlight {
@@ -11,6 +13,26 @@ export interface ReplaySpotlight {
 
 // Matches the replay deep-link id shape used by the viewer (?run=<runId>).
 const RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
+
+/** An admin-pinned spotlight (config/spotlight), if one is set and well-formed. */
+async function fetchPinnedSpotlight(): Promise<ReplaySpotlight | null> {
+  try {
+    const snap = await getDoc(firestoreDoc(db, 'config', 'spotlight'));
+    if (!snap.exists()) return null;
+    const d = snap.data() as Partial<ReplaySpotlight>;
+    if (!d.runId || !RUN_ID_RE.test(d.runId)) return null;
+    return {
+      runId: d.runId,
+      callsign: typeof d.callsign === 'string' ? d.callsign : 'WARDEN',
+      wave: typeof d.wave === 'number' ? d.wave : 0,
+      mapName: typeof d.mapName === 'string' ? d.mapName : '',
+      diffName: typeof d.diffName === 'string' ? d.diffName : '',
+      freeplay: !!d.freeplay,
+    };
+  } catch {
+    return null;
+  }
+}
 
 // FNV-1a, replicated from the daily-seed hash in freeplay.ts so we don't have to
 // import/edit that module. Stable for a given input across runs.
@@ -41,6 +63,10 @@ const TOP_N = 8;
  */
 export async function fetchReplayOfTheDay(now = new Date()): Promise<ReplaySpotlight | null> {
   try {
+    // An admin pin (set from the dashboard) overrides the automatic daily pick.
+    const pinned = await fetchPinnedSpotlight();
+    if (pinned) return pinned;
+
     const [campaign, freeplay] = await Promise.all([
       fetchGlobalTop(false, 20),
       fetchGlobalTop(true, 20),

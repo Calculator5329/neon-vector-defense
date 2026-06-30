@@ -239,6 +239,25 @@ service cloud.firestore {
         && (!('build' in request.resource.data) || (request.resource.data.build is string && request.resource.data.build.size() <= 30));
     }
 
+    // admin-pinned "Replay of the Day": public read (the menu spotlight), admin write only.
+    // Stores a denormalized snapshot of the chosen run so the menu needs no extra lookup.
+    match /config/spotlight {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin(); // clear the pin → menu reverts to the automatic pick
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['runId', 'callsign', 'wave', 'mapName', 'diffName', 'freeplay', 'pinnedAt', 'pinnedBy'])
+        && request.resource.data.keys().hasAll(['runId', 'wave', 'freeplay'])
+        && request.resource.data.runId is string && request.resource.data.runId.matches('^r_[A-Za-z0-9_-]{8,80}$')
+        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 100000
+        && request.resource.data.freeplay is bool
+        && (!('callsign' in request.resource.data) || (request.resource.data.callsign is string && request.resource.data.callsign.size() <= 40))
+        && (!('mapName' in request.resource.data) || (request.resource.data.mapName is string && request.resource.data.mapName.size() <= 80))
+        && (!('diffName' in request.resource.data) || (request.resource.data.diffName is string && request.resource.data.diffName.size() <= 80))
+        && (!('pinnedAt' in request.resource.data) || request.resource.data.pinnedAt is int)
+        && (!('pinnedBy' in request.resource.data) || (request.resource.data.pinnedBy is string && request.resource.data.pinnedBy.size() <= 120));
+    }
+
     // remote balance overrides: public read (PII-free gameplay tuning), admin write only.
     // The client clamps every value to [0.25, 4] and falls back to identity, so rules only
     // gate WHO writes + the coarse shape.

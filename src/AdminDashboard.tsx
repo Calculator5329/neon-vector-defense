@@ -8,7 +8,9 @@ import './App.css';
 import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWER_MAP } from './game/towers';
 import { clearAdmin } from './game/admin';
-import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow } from './game/leaderboard';
+import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry } from './game/leaderboard';
+import { fetchPinnedSpotlightAdmin, pinReplayOfTheDay, unpinReplayOfTheDay, spotlightFromRunId, type PinnedSpotlight } from './game/adminSpotlight';
+import type { ReplaySpotlight } from './game/replaySpotlight';
 import { buildGhostCurves, ghostCurveFor } from './game/ghostCurve';
 import { computeCanary, type CanarySeries } from './game/adminCanary';
 import { analyzeDifficulty, DIFFICULTY_TARGETS, type WaveDifficulty } from './game/difficulty';
@@ -2546,6 +2548,119 @@ function FreeplayLabTab() {
   );
 }
 
+// ---------------- replay of the day ----------------
+
+const SPOT_RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
+
+function SpotlightTab({ user }: { user: User }) {
+  const [pinned, setPinned] = useState<PinnedSpotlight | null>(null);
+  const [candidates, setCandidates] = useState<RankedScoreEntry[] | null>(null);
+  const [manualId, setManualId] = useState('');
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      const [pin, campaign, freeplay] = await Promise.all([
+        fetchPinnedSpotlightAdmin(),
+        fetchGlobalTop(false, 20),
+        fetchGlobalTop(true, 20),
+      ]);
+      setPinned(pin);
+      const seen = new Set<string>();
+      const dedup = [...campaign, ...freeplay]
+        .filter((r) => r.runId && SPOT_RUN_ID_RE.test(r.runId) && !seen.has(r.runId) && (seen.add(r.runId), true))
+        .sort((a, b) => b.wave - a.wave)
+        .slice(0, 24);
+      setCandidates(dedup);
+    } catch (e) {
+      setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Load failed.' });
+    }
+  };
+  useEffect(() => { void load(); }, []);
+
+  const doPin = async (s: ReplaySpotlight) => {
+    setBusy(true); setStatus(null);
+    try {
+      await pinReplayOfTheDay(s, user.email);
+      setStatus({ kind: 'ok', text: `Pinned ${s.callsign} · Wave ${s.wave}. (Live on the menu within ~1 min.)` });
+      await load();
+    } catch (e) { setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Pin failed.' }); }
+    finally { setBusy(false); }
+  };
+  const pinManual = async () => {
+    const id = manualId.trim();
+    if (!SPOT_RUN_ID_RE.test(id)) { setStatus({ kind: 'err', text: 'Not a valid run id (expected r_…).' }); return; }
+    setBusy(true); setStatus(null);
+    try {
+      const s = await spotlightFromRunId(id);
+      if (!s) { setStatus({ kind: 'err', text: 'No replay found for that run id.' }); return; }
+      await pinReplayOfTheDay(s, user.email);
+      setManualId('');
+      setStatus({ kind: 'ok', text: `Pinned ${s.callsign} · Wave ${s.wave}.` });
+      await load();
+    } catch (e) { setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Pin failed.' }); }
+    finally { setBusy(false); }
+  };
+  const clear = async () => {
+    setBusy(true); setStatus(null);
+    try { await unpinReplayOfTheDay(); setStatus({ kind: 'ok', text: 'Cleared — reverted to the automatic daily pick.' }); await load(); }
+    catch (e) { setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Clear failed.' }); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="adm-spotlight">
+      <div className="adm-filterbar">
+        <span className="adm-filter-count">REPLAY OF THE DAY</span>
+        <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+      </div>
+      <p className="adm-spot-help">Pin a run to feature on the menu spotlight, or clear to use the automatic daily pick (strongest recent run).</p>
+
+      <div className="adm-spot-current">
+        {pinned ? (
+          <>
+            <div><b>Pinned:</b> {pinned.callsign} · Wave {pinned.wave} · {pinned.mapName} {pinned.diffName}{pinned.freeplay ? ' · FREEPLAY' : ''}</div>
+            <div className="adm-spot-dim">{pinned.runId}{pinned.pinnedBy ? ` · by ${pinned.pinnedBy}` : ''}</div>
+            <div className="adm-spot-row">
+              <a className="adm-mini" href={`/?run=${pinned.runId}`} target="_blank" rel="noreferrer">▶ watch</a>
+              <button className="adm-mini" disabled={busy} onClick={() => void clear()}>clear (use automatic)</button>
+            </div>
+          </>
+        ) : (
+          <div className="adm-spot-dim">No pin set — the menu shows the automatic daily pick.</div>
+        )}
+      </div>
+
+      {status && <div className={`adm-spot-status ${status.kind}`}>{status.text}</div>}
+
+      <div className="adm-spot-manual">
+        <input className="adm-spot-input" placeholder="paste run id (r_…)" value={manualId} onChange={(e) => setManualId(e.target.value)} />
+        <button className="adm-mini" disabled={busy || !manualId.trim()} onClick={() => void pinManual()}>pin by id</button>
+      </div>
+
+      <div className="adm-spot-listhead">Top runs with replays</div>
+      {candidates === null ? <div className="adm-spot-dim">Loading…</div>
+        : candidates.length === 0 ? <div className="adm-spot-dim">No runs with replays yet.</div>
+        : (
+          <div className="adm-spot-list">
+            {candidates.map((r) => (
+              <div key={r.runId} className={`adm-spot-cand ${pinned?.runId === r.runId ? 'on' : ''}`}>
+                <span className="adm-spot-cn">{r.name}</span>
+                <span className="adm-spot-dim">W{r.wave} · {r.mapName} {r.diffName}{r.freeplay ? ' · FP' : ''}</span>
+                <a className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
+                <button className="adm-mini" disabled={busy || pinned?.runId === r.runId}
+                  onClick={() => void doPin({ runId: r.runId!, callsign: r.name, wave: r.wave, mapName: r.mapName, diffName: r.diffName, freeplay: r.freeplay })}>
+                  {pinned?.runId === r.runId ? 'pinned' : 'pin'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+    </div>
+  );
+}
+
 // ---------------- shell ----------------
 
 function AdminGate({ user, allowed, loading, error, onSignIn, onSignOut }: {
@@ -2703,11 +2818,11 @@ function InboxTab({ user }: { user: User }) {
 }
 
 export default function AdminDashboard() {
-  type AdminTab = 'inbox' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf';
+  type AdminTab = 'inbox' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf' | 'spotlight';
   const [tab, setTabState] = useState<AdminTab>(() => {
     const t = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('tab') : null;
     return t === 'balance' || t === 'towers' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
-      || t === 'combat' || t === 'systems' || t === 'freeplay' || t === 'uxperf' ? t : 'inbox';
+      || t === 'combat' || t === 'systems' || t === 'freeplay' || t === 'uxperf' || t === 'spotlight' ? t : 'inbox';
   });
   const setTab = (t: AdminTab) => {
     setTabState(t);
@@ -2765,6 +2880,7 @@ export default function AdminDashboard() {
         </div>
         <nav className="adm-tabs">
           <button className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
+          <button className={tab === 'spotlight' ? 'on' : ''} onClick={() => setTab('spotlight')}>SPOTLIGHT</button>
           <button className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
           <button className={tab === 'towers' ? 'on' : ''} onClick={() => setTab('towers')}>TOWERS</button>
           <button className={tab === 'telemetry' ? 'on' : ''} onClick={() => setTab('telemetry')}>TELEMETRY</button>
@@ -2783,7 +2899,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {tab === 'inbox' ? <InboxTab user={user} /> : tab === 'balance' ? (
+      {tab === 'inbox' ? <InboxTab user={user} /> : tab === 'spotlight' ? <SpotlightTab user={user} /> : tab === 'balance' ? (
         report === null ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">Loading balance report…</div></div></div>
           : report === 'missing'
             ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">
