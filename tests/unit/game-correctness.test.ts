@@ -12,6 +12,7 @@ import { normalizeProgress, progress } from '../../src/game/storage';
 import { TOWERS } from '../../src/game/towers';
 import type { Enemy, EnemyDef } from '../../src/game/types';
 import { partitionRunDeletions, validDeletedRunIds } from '../../functions/src/deleteHelpers';
+import { isStaleBuild } from '../../src/buildFreshness';
 
 function makeGame(): Game {
   return new Game(ALL_MAPS[0], DIFFICULTIES[0]);
@@ -355,6 +356,16 @@ describe('deterministic simulation hooks', () => {
     assert.equal(game.time, 0, 'sub-step remainder is banked, not stepped');
     game.update(0.01);
     assert.ok(Math.abs(game.time - Game.SIM_STEP) < 1e-9, 'exactly one fixed step after 20ms');
+  });
+});
+
+describe('build freshness', () => {
+  test('stale only when a real differing tag arrives, never in dev', () => {
+    assert.equal(isStaleBuild('abc', { tag: 'xyz' }), true);
+    assert.equal(isStaleBuild('abc', { tag: 'abc' }), false);
+    assert.equal(isStaleBuild('abc', {}), false);
+    assert.equal(isStaleBuild('abc', null), false);
+    assert.equal(isStaleBuild('dev', { tag: 'xyz' }), false);
   });
 });
 

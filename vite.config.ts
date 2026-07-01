@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 
+// Build-freshness tag: baked into the bundle as __BUILD_TAG__ AND emitted as
+// /build-tag.json. Installed/PWA clients compare the two on focus and offer a
+// reload toast when a newer deploy exists (see src/buildFreshness.ts).
+const BUILD_TAG = Date.now().toString(36);
+
 // Split stable vendor code into its own long-cached chunks so a game-code change
 // doesn't bust the React/Firestore cache, and the player's first load can fetch in
 // parallel. firebase/auth is deliberately NOT merged into the eager firebase chunk:
@@ -8,7 +13,18 @@ import react from '@vitejs/plugin-react-swc';
 // dynamic import in src/game/anonAuth.ts (player sign-in right before the first
 // server write), so players never download it on first paint.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'nvd-build-tag',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'build-tag.json', source: JSON.stringify({ tag: BUILD_TAG }) });
+      },
+    },
+  ],
+  define: {
+    __BUILD_TAG__: JSON.stringify(BUILD_TAG),
+  },
   build: {
     rollupOptions: {
       output: {

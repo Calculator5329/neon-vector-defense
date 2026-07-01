@@ -16,6 +16,17 @@ test.describe('production bundle', () => {
     });
   });
 
+  test('emits a build tag and shows no stale toast on a fresh bundle', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    const tagInfo = await page.evaluate(async () => {
+      const res = await fetch('/build-tag.json', { cache: 'no-store' });
+      return res.ok ? await res.json() as { tag?: string } : null;
+    });
+    expect(typeof tagInfo?.tag).toBe('string');
+    await expect(page.getByTestId('update-toast')).toBeHidden();
+  });
+
   test('boots the built app and registers the service worker', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });

@@ -8,6 +8,7 @@ import { appMetrics } from './game/metrics';
 import { dailyFreeplaySeed } from './game/freeplay';
 
 import { sfx } from './game/sound';
+import { watchBuildFreshness } from './buildFreshness';
 import Modal from './Modal';
 import { meta } from './game/meta';
 import type { GameMap, DifficultyDef } from './game/types';
@@ -89,7 +90,11 @@ function Main() {
   const [dailySeed, setDailySeed] = useState(() => dailyFreeplaySeed());
   const [dailyMode, setDailyMode] = useState(false);
   const [comeback, setComeback] = useState(false);
+  const [staleBuild, setStaleBuild] = useState(false);
   useEffect(() => { progress.markSession(); }, []);
+  // Installed/PWA users can linger on a stale cached bundle; offer a reload
+  // when a newer deploy is detected. Shown on the menu only — never mid-run.
+  useEffect(() => watchBuildFreshness(() => setStaleBuild(true)), []);
   useEffect(() => {
     if (DEMO_MODE || PERF_MAP !== null) return;
     const refreshDailySeed = () => {
@@ -150,6 +155,13 @@ function Main() {
       {screen === 'menu' && <FeedbackWidget ctx="menu" />}
       {comeback && screen === 'menu' && (
         <ComebackPrompt onClose={() => { meta.markComebackSeen(new Date().toISOString().slice(0, 10)); setComeback(false); sfx.click(); }} />
+      )}
+      {staleBuild && screen === 'menu' && (
+        <div className="update-toast" role="status" aria-live="polite" data-testid="update-toast">
+          <span>A new build of Lantern Seven is live.</span>
+          <button className="start-btn small" onClick={() => window.location.reload()}>RELOAD ▸</button>
+          <button className="update-toast-x" aria-label="Dismiss update notice" onClick={() => setStaleBuild(false)}>✕</button>
+        </div>
       )}
     </>
   );

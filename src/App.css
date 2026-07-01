@@ -3191,3 +3191,34 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .palette-name { font-size: 12px; }
 .palette-tag { font-size: 10px; letter-spacing: 1px; color: var(--gold); display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; }
 .palette-chip.equipped .palette-tag { color: var(--accent); }
+
+/* build-freshness reload toast (menu only) */
+.update-toast {
+  position: fixed;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(4, 10, 22, 0.95);
+  border: 1px solid rgba(255, 211, 42, 0.5);
+  box-shadow: 0 0 22px rgba(255, 211, 42, 0.18);
+  color: var(--text);
+  font-size: 14px;
+  z-index: 220;
+  max-width: min(520px, calc(100% - 24px));
+}
+.update-toast-x {
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  min-width: 30px;
+  min-height: 30px;
+}
+.update-toast-x:hover { color: var(--text); }
