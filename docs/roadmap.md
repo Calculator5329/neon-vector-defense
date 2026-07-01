@@ -30,15 +30,36 @@ Last updated: 2026-06-28 (audit backlog implementation pass)
 - Operations palette re-equips are now silent while purchase/error feedback remains visible.
 - Leaderboard rows can highlight the current browser's anonymous uid, and privacy export/delete includes replay score tokens.
 
+## Shipped 2026-07-01 (review-plan implementation pass)
+
+- **Security tier**: Firebase Anonymous Auth required on every player write
+  (uid binding in rules; rate limits keyed to verified identity); operator
+  deletion corroborates ownership; Worker quota keyed by IP; TTL retention
+  with real Timestamp fields; allowlist single-sourced.
+- **Gameplay correctness audit fixes** (was #2): cloaked-reveal collision,
+  burn attribution/stacking, same-tick terminal leaks, engine-enforced
+  campaign unlocks — all fixed with regression tests.
+- **Deterministic simulation**: seeded RNG recorded in replay setup, true
+  fixed timestep, per-Game uids, save-file decoupling — unblocks server
+  re-simulation.
+- **Touch-first game surface** (was #3): short-landscape command layout,
+  pause-behind-rotate-overlay, pinch-zoom allowed.
+- **Guided first build** (was #4): action-gated coach (place → launch →
+  upgrade) replaces the tutorial modal wall; skip/completion recorded.
+- **PWA build freshness** (was #7): build-tag reload toast + 192/512
+  maskable icons; production-bundle + service-worker e2e in the deploy gate.
+- **Perf/cost**: Firestore SDK lazy (−55KB gzip first paint), art WebP
+  (63.7MB → 3.2MB), fonts self-hosted, global-top aggregate doc (1 read vs
+  ~400), 11MB internal report evicted, perf smoke is a real CI gate.
+
 ## Near-term priorities
 
 1. **Replay and score integrity** - add replay completion manifests, chunk hashes/count validation, malformed replay hardening, and server-side freeplay/mode validation before leaderboard incentives grow.
-2. **Gameplay correctness audit fixes** - close cloaked-reveal projectile collision, burn attribution/stacking, same-tick terminal leaks, campaign unlock enforcement, and immutable checkpoint replay links.
-3. **Touch-first game surface** - finish the mobile landscape command layout: bottom-dock arsenal, upgrade sheet, safe-area controls, and coarse-pointer hit targets.
-4. **Guided first build** - replace the static tutorial with an action-gated first run that teaches placement, wave launch, upgrades, and cloak detection.
-5. **Balance CI gate** - wire a semantic `public/balance-report.json` diff into CI so unintentional dead/op tower swings fail before release.
-6. **Production release hardening** - deploy preflights for production Vite flags, App Check enforcement, branch/tag guards, Worker dry-runs, callable integration tests, and production-bundle smoke checks.
-7. **PWA build freshness** - add conservative chunk precache plus a build-tag reload toast so installed users do not linger on stale bundles.
+2. **App Check enforcement** - staged rollout in production (plumbing is in place; flip `ENFORCE_APP_CHECK` + console enforcement after verifying token flow).
+3. **Balance CI gate** - wire a semantic `public/balance-report.json` diff into CI so unintentional dead/op tower swings fail before release.
+4. **Production release hardening** - callable integration tests, Worker deploy dry-runs, branch/tag guards.
+5. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
+6. **Audio diet** - briefing.wav → compressed (needs ffmpeg locally).
 
 ## Deferred / bigger bets
 

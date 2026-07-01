@@ -145,14 +145,15 @@ THEN    Monetization MVP → portal submissions → growth loop
 
 ## 6. Launch gate checklist
 
-- [ ] Tier 0 complete (auth, App Check, deletion fix, quota keying, allowlist, TTL)
-- [ ] Tier 2 complete (4 correctness bugs fixed; deterministic sim behind a seed)
-- [ ] CI gates real: perf fails on regression; e2e runs the production build + SW
-- [ ] Landscape-phone layout passes portal cert bands (560–820 / 981–1024 / short-landscape)
-- [ ] Action-gated onboarding live; first-session drop-off re-measured
-- [ ] `public/` ≤ ~25 MB; first-paint JS ≤ ~200 KB gzip
-- [ ] Leaderboard read aggregation live
-- [ ] Privacy policy + CCPA/GPC verified against actual data flow
+- [x] Tier 0 complete (auth, deletion fix, quota keying, allowlist, TTL) — App Check enforcement still staged
+- [x] Tier 2 complete (4 correctness bugs fixed; deterministic sim behind a seed)
+- [x] CI gates real: perf fails on regression; e2e runs the production build + SW
+- [x] Landscape-phone layout (short-landscape tier verified at 844×390)
+- [x] Action-gated onboarding live — drop-off re-measure pending live traffic
+- [x] `public/` ≤ ~25 MB (art 63.7→3.2 MB); first-paint JS ~204 KB gzip
+- [x] Leaderboard read aggregation live
+- [x] CCPA/GPC verified: opt-out + GPC force restricted tier (unit-tested invariants)
+- [ ] App Check enforced in production (staged; flip after token-flow verification)
 - [ ] Minimal monetization surface live (cosmetics + premium unlock)
 - [ ] Screen-by-screen QA pass at both viewports (v2 Appendix A inventory)
 

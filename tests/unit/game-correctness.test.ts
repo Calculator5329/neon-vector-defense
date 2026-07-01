@@ -13,6 +13,7 @@ import { TOWERS } from '../../src/game/towers';
 import type { Enemy, EnemyDef } from '../../src/game/types';
 import { partitionRunDeletions, validDeletedRunIds } from '../../functions/src/deleteHelpers';
 import { isStaleBuild } from '../../src/buildFreshness';
+import { canSubmitScore, canWriteAnalytics, optOutOfSale, resetConsent, setAgeFromBirthDate } from '../../src/game/consent';
 
 function makeGame(): Game {
   return new Game(ALL_MAPS[0], DIFFICULTIES[0]);
@@ -356,6 +357,29 @@ describe('deterministic simulation hooks', () => {
     assert.equal(game.time, 0, 'sub-step remainder is banked, not stepped');
     game.update(0.01);
     assert.ok(Math.abs(game.time - Game.SIM_STEP) < 1e-9, 'exactly one fixed step after 20ms');
+  });
+});
+
+describe('consent privacy invariants (CCPA/GPC)', () => {
+  test('sale opt-out forces the restricted tier but never blocks adult scores', () => {
+    resetConsent();
+    assert.equal(canWriteAnalytics(), false, 'unknown age is restricted');
+    assert.equal(canSubmitScore(), false);
+    setAgeFromBirthDate(1990, 1);
+    assert.equal(canSubmitScore(), true);
+    assert.equal(canWriteAnalytics(), true, 'adult without opt-out gets the full tier');
+    optOutOfSale();
+    assert.equal(canWriteAnalytics(), false, 'CCPA opt-out must gate all analytics writes');
+    assert.equal(canSubmitScore(), true, 'a privacy-conscious adult can still post a verifiable score');
+    resetConsent();
+  });
+
+  test('under-13 is a permanent restricted path: may play, never post', () => {
+    resetConsent();
+    setAgeFromBirthDate(new Date().getFullYear() - 8, 1);
+    assert.equal(canSubmitScore(), false);
+    assert.equal(canWriteAnalytics(), false);
+    resetConsent();
   });
 });
 
