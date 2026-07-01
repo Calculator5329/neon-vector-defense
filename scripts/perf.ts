@@ -16,6 +16,7 @@ const FRAME_DT = 1 / 60;
 
 const maps = process.argv.includes('quick') ? ALL_MAPS.slice(0, 1) : ALL_MAPS;
 const diff = DIFFICULTIES[1]; // Veteran
+let regressions = 0;
 
 console.log(`PERF STRESS — expert bot · ${diff.name} · 4x speed · freeplay to wave ${WAVE_CAP}`);
 console.log('map               | wave | end       | avg ms | p99 ms | max ms | peak hulls | peak fx | sim s/wall s');
@@ -57,5 +58,15 @@ for (const map of maps) {
   console.log(
     `${map.name.padEnd(17)} | ${String(g.wave).padStart(4)} | ${end.padEnd(9)} | ${avg.toFixed(2).padStart(6)} | ${p99.toFixed(2).padStart(6)} | ${max.toFixed(1).padStart(6)} | ${String(peakEnemies).padStart(10)} | ${String(peakFx).padStart(7)} | ${(simS / wallS).toFixed(0).padStart(6)}x`,
   );
-  if (avg > 8) console.log(`  ⚠ ${map.name}: avg update ${avg.toFixed(2)}ms leaves <8ms for rendering at 60fps`);
+  if (avg > 8) {
+    console.log(`  ⚠ ${map.name}: avg update ${avg.toFixed(2)}ms leaves <8ms for rendering at 60fps`);
+    regressions++;
+  }
+}
+
+// A perf gate that can't fail is theater: CI runs this as "Performance Smoke",
+// so a budget regression must produce a non-zero exit, not a log line.
+if (regressions > 0) {
+  console.error(`PERF GATE FAILED — ${regressions} map(s) over the 8ms average update budget`);
+  process.exit(1);
 }
