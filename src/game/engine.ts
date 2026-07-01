@@ -1,6 +1,6 @@
 import type {
   AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, Enemy, EnemyDef, GameMap,
-  Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, Vec, WaveGroup,
+  Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, TowerStats, Vec, WaveGroup,
 } from './types';
 import { ENEMIES, rbe } from './enemies';
 import { ABILITIES } from './abilities';
@@ -1562,35 +1562,8 @@ export class Game {
       t.recoil = Math.max(0, t.recoil - dt * 5);
       if (t.def.style === 'support') continue;
 
-      // Watchfire Beacon: a continuously rotating sweep — runs every tick, no cooldown
       if (t.def.style === 'sweep') {
-        const st = t.stats;
-        const range = st.range * t.rangeBuff * this.rangeFactor(t.pos);
-        t.angle += st.fireRate * globalRate * t.rateBuff * dt;
-        t.flash = 0.12;
-        const beams = Math.max(1, st.count);
-        let any = false;
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-          if (e.dead || e.finished || e.courier) return;
-          const dx = e.pos.x - t.pos.x, dy = e.pos.y - t.pos.y;
-          const d = Math.hypot(dx, dy);
-          if (d > range + e.def.radius || !this.visibleTo(t, e)) return;
-          const bearing = Math.atan2(dy, dx);
-          // wider angular tolerance up close so the beam root isn't a dead zone
-          const tol = 0.16 + Math.min(0.55, (e.def.radius + 14) / Math.max(20, d));
-          for (let k = 0; k < beams; k++) {
-            let delta = bearing - (t.angle + (k * Math.PI * 2) / beams);
-            delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-            if (Math.abs(delta) <= tol) {
-              any = true;
-              this.damageEnemy(e, st.damage * dt, st.damageType, false, t);
-              if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-              if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
-              break;
-            }
-          }
-        });
-        if (any) sfx.beamHum();
+        this.updateSweepTower(t, dt, globalRate);
         continue;
       }
 
@@ -1600,184 +1573,32 @@ export class Game {
       const range = st.range * t.rangeBuff * this.rangeFactor(t.pos);
 
       if (t.def.style === 'pulse') {
-        // cryo / locust cloud: hit everything in range
-        let any = false;
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-          if (e.dead || e.finished || e.courier) return;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
-          if (!this.visibleTo(t, e)) return;
-          any = true;
-          if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-          if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
-          if (st.damage > 0) this.damageEnemy(e, st.damage, st.damageType, false, t);
-        });
-        if (any) {
-          t.cooldown = 1 / st.fireRate;
-          t.flash = 0.2;
-          sfx.cryo();
-          this.ring(t.pos, t.def.glow, range);
-        }
+        this.updatePulseTower(t, st, range);
         continue;
       }
 
       if (t.def.style === 'nova') {
-        // drowned star: exhale an expanding requiem wave
-        let inRange = false;
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 40, (e) => {
-          if (!e.dead && !e.finished && !e.courier &&
-            Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + 40) inRange = true;
-        });
-        if (inRange) {
-          this.novas.push({
-            pos: { ...t.pos }, r: 12, maxR: range, damage: st.damage,
-            slowPower: st.slowPower, slowDuration: st.slowDuration,
-            color: t.def.glow, hit: new Set(), src: t,
-          });
-          t.cooldown = 1 / st.fireRate;
-          t.flash = 0.4;
-          sfx.gravity();
-        }
+        this.updateNovaTower(t, st, range);
         continue;
       }
 
       if (t.def.style === 'gravity') {
-        // drag every hostile in range backward along the path, crush hulls
-        let any = false;
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-          if (e.dead || e.finished || e.courier) return;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
-          if (!this.visibleTo(t, e)) return;
-          any = true;
-          // drag > 0 = pull backward (hold); drag < 0 = push forward (repel). The leak
-          // check lives only in the movement block, so clamp forward pushes to a safe
-          // margin before the exit — a hull must never be shoved into the core here.
-          const drag = st.drag * (e.def.boss ? 0.22 : 1);
-          let nd = Math.max(0, e.dist - drag);
-          if (drag < 0) nd = Math.min(nd, Math.max(0, this.pathLength() - SAFE_EXIT_MARGIN));
-          e.dist = nd;
-          const at = this.posAtDist(e.dist);
-          e.pos = at.pos;
-          e.wp = at.wp;
-          if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-          this.damageEnemy(e, st.damage, 'energy', true, t);
-        });
-        if (any) {
-          t.cooldown = 1 / st.fireRate;
-          t.flash = 0.25;
-          sfx.gravity();
-          this.ring(t.pos, t.def.glow, range);
-          this.burstFx(t.pos, t.def.glow, 5);
-        }
+        this.updateGravityTower(t, st, range);
         continue;
       }
 
       if (t.def.style === 'resonance') {
-        // mark up to `count` hulls with resonance stacks
-        const marked: Enemy[] = [];
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-          if (marked.length >= st.count) return;
-          if (e.dead || e.finished || e.courier || marked.includes(e)) return;
-          if (!this.visibleTo(t, e)) return;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
-          marked.push(e);
-          const dur = st.burnDuration > 0 ? 9999 : 4;
-          e.resonance = Math.min(5, e.resonance + 1);
-          e.resonanceTimer = Math.max(e.resonanceTimer, dur);
-          this.damageEnemy(e, st.damage, st.damageType, false, t);
-          this.addBeam(t.pos, e.pos, t.def.glow, 2.5, 0.22);
-        });
-        if (marked.length > 0) {
-          t.angle = Math.atan2(marked[0].pos.y - t.pos.y, marked[0].pos.x - t.pos.x);
-          t.cooldown = 1 / st.fireRate;
-          t.flash = 0.2;
-          sfx.resonance();
-        }
+        this.updateResonanceTower(t, st, range);
         continue;
       }
 
       if (t.def.style === 'rift') {
-        // Abyss Gate: open one or more breaches on target clusters.
-        const first = this.pickTarget(t, range);
-        if (!first) continue;
-        const centers: Enemy[] = [first];
-        const gates = Math.max(1, st.count);
-        for (let i = 1; i < gates; i++) {
-          let next: Enemy | null = null;
-          this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
-            if (next || e.dead || e.finished || e.courier || centers.includes(e)) return;
-            if (!this.visibleTo(t, e)) return;
-            if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
-            if (!centers.every((c) => Math.hypot(e.pos.x - c.pos.x, e.pos.y - c.pos.y) > st.splash * 1.2)) return;
-            next = e;
-          });
-          if (next) centers.push(next);
-        }
-        const hit = new Set<number>();
-        for (const center of centers) {
-          const cpos = { ...center.pos };
-          this.addBeam(t.pos, cpos, t.def.glow, 5.5, 0.2);
-          this.addBeam({ x: cpos.x, y: cpos.y - st.splash * 0.65 }, { x: cpos.x, y: cpos.y + st.splash * 0.65 }, '#ffffff', 2, 0.18);
-          this.grid.forEachInRadius(cpos.x, cpos.y, st.splash + 20, (e) => {
-            if (e.dead || e.finished || e.courier || hit.has(e.uid)) return;
-            if (!this.visibleTo(t, e)) return;
-            if (Math.hypot(e.pos.x - cpos.x, e.pos.y - cpos.y) > st.splash + e.def.radius) return;
-            hit.add(e.uid);
-            const drag = st.drag * (e.def.boss ? 0.18 : 1);
-            if (drag > 0) {
-              e.dist = Math.max(0, e.dist - drag);
-              const at = this.posAtDist(e.dist);
-              e.pos = at.pos;
-              e.wp = at.wp;
-            }
-            if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-            if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
-            this.damageEnemy(e, st.damage, st.damageType, true, t);
-          });
-          this.ring(cpos, t.def.glow, st.splash);
-          this.burstFx(cpos, t.def.glow, 9);
-        }
-        t.angle = Math.atan2(first.pos.y - t.pos.y, first.pos.x - t.pos.x);
-        t.cooldown = 1 / st.fireRate;
-        t.flash = 0.45;
-        t.recoil = 1;
-        sfx.gravity();
+        this.updateRiftTower(t, st, range);
         continue;
       }
 
       if (t.def.style === 'arc') {
-        // tesla: zap up to `count` enemies in range, chain jumps extra
-        const targets: Enemy[] = [];
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-          if (targets.length >= st.count) return;
-          if (e.dead || e.finished || e.courier) return;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
-          if (!this.visibleTo(t, e)) return;
-          targets.push(e);
-        });
-        if (targets.length === 0) continue;
-        for (const e of targets) {
-          this.addBeam(t.pos, e.pos, t.def.glow, 2, 0.12);
-          if (st.drag > 0 && !e.def.boss) { // Magnetar Cage
-            e.dist = Math.max(0, e.dist - st.drag);
-            const at = this.posAtDist(e.dist);
-            e.pos = at.pos; e.wp = at.wp;
-          }
-          if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-          this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
-          let from = e;
-          for (let j = 0; j < st.chain; j++) {
-            const next = this.nearestEnemy(from.pos, 90, targets.concat([from]), st.detection);
-            if (!next) break;
-            this.addBeam(from.pos, next.pos, t.def.glow, 1.5, 0.1);
-            this.damageEnemy(next, st.damage, st.damageType, st.shred, t);
-            from = next;
-          }
-        }
-        const first = targets[0];
-        t.angle = Math.atan2(first.pos.y - t.pos.y, first.pos.x - t.pos.x);
-        t.cooldown = 1 / st.fireRate;
-        t.flash = 0.15;
-        sfx.zap();
+        this.updateArcTower(t, st, range);
         continue;
       }
 
@@ -1789,113 +1610,332 @@ export class Game {
       t.recoil = 1;
 
       if (t.def.style === 'rail') {
-        // hitscan along the line through the target; oracle variants also execute
-        const shots: Enemy[] = [target];
-        for (let i = 1; i < st.count; i++) {
-          let next: Enemy | null = null;
-          this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
-            if (next || e.dead || e.finished || e.courier || shots.includes(e)) return;
-            if (!this.visibleTo(t, e)) return;
-            if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
-            next = e;
-          });
-          if (next) shots.push(next);
-        }
-        for (const tgt of shots) {
-          const dir = norm({ x: tgt.pos.x - t.pos.x, y: tgt.pos.y - t.pos.y });
-          const end = { x: t.pos.x + dir.x * 1600, y: t.pos.y + dir.y * 1600 };
-          this.addBeam(t.pos, end, t.def.glow, 3, 0.15);
-          let hits = 0;
-          // collect only enemies near the firing line, then sort that short list
-          const onLine: { enemy: Enemy; d2: number }[] = [];
-          this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 32, (e) => {
-            if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) return;
-            if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 4) onLine.push({ enemy: e, d2: sqDist(t.pos, e.pos) });
-          });
-          onLine.sort((a, b) =>
-            a.d2 - b.d2);
-          for (const { enemy: e } of onLine) {
-            {
-              if (st.execute > 0 && !e.def.boss && e.hp / e.maxHp <= st.execute) {
-                this.burstFx(e.pos, '#ffffff', 10);
-                this.trueDamage(e, e.hp);
-                t.kills++;
-              } else {
-                this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
-              }
-              this.burstFx(e.pos, t.def.glow, 3);
-              if (++hits >= st.pierce) break;
-            }
-          }
-        }
-        sfx.rail();
+        this.updateRailTower(t, target, st, range);
         continue;
       }
 
       if (t.def.style === 'beam') {
-        const dir = norm({ x: target.pos.x - t.pos.x, y: target.pos.y - t.pos.y });
-        const end = { x: t.pos.x + dir.x * range, y: t.pos.y + dir.y * range };
-        this.addBeam(t.pos, end, t.def.glow, 4, 0.1);
-        let hits = 0;
-        for (const e of this.enemies) {
-          if (e.dead || e.finished || !this.visibleTo(t, e)) continue;
-          if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 6) {
-            this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
-            if (++hits >= st.pierce) break;
-          }
-        }
-        sfx.laser();
+        this.updateBeamTower(t, target, st, range);
         continue;
       }
 
-      // bolt & missile: spawn projectiles. Drone Carrier uses many weaker
-      // interceptors that split across targets instead of one pulse-like burst.
-      const isDrone = t.def.id === 'drone';
-      const launchCount = Math.max(1, st.count) * (isDrone ? Math.max(1, st.droneSwarm) : 1);
-      const droneTargets: Enemy[] = isDrone ? [] : [target];
-      if (isDrone) {
-        this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-          if (droneTargets.length >= launchCount) return;
-          if (e.dead || e.finished || e.courier || droneTargets.includes(e)) return;
-          if (!this.visibleTo(t, e)) return;
-          if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius) droneTargets.push(e);
-        });
-        if (droneTargets.length === 0) droneTargets.push(target);
-      }
-      for (let i = 0; i < launchCount; i++) {
-        const shotTarget = isDrone ? droneTargets[i % droneTargets.length] : target;
-        const spread = launchCount > 1 ? (i - (launchCount - 1) / 2) * (isDrone ? 0.075 : 0.12) : 0;
-        const lead = t.def.style === 'missile' ? shotTarget.pos : predict(shotTarget, this.map.path, t.pos, st.projectileSpeed);
-        const ang = Math.atan2(lead.y - t.pos.y, lead.x - t.pos.x) + spread;
-        const muzzle = isDrone ? 11 + (i % Math.max(1, st.droneSwarm)) * 2 : 14;
-        this.projectiles.push({
-          uid: this.uidSeq++,
-          src: t,
-          kind: t.def.style === 'missile' ? 'missile' : isDrone ? 'drone' : 'bolt',
-          pos: { x: t.pos.x + Math.cos(ang) * muzzle, y: t.pos.y + Math.sin(ang) * muzzle },
-          vel: { x: Math.cos(ang) * st.projectileSpeed, y: Math.sin(ang) * st.projectileSpeed },
-          damage: isDrone ? st.damage * 0.72 : st.damage,
-          damageType: st.damageType,
-          pierce: st.pierce,
-          splash: st.splash,
-          speed: st.projectileSpeed,
-          targetUid: shotTarget.uid,
-          life: isDrone ? 2.8 : 2.2,
-          color: t.def.glow,
-          hit: new Set(),
-          burnDps: st.burnDps,
-          burnDuration: st.burnDuration,
-          burnZoneRadius: st.burnZoneRadius,
-          burnZoneDps: st.burnZoneDps,
-          burnZoneDuration: st.burnZoneDuration,
-          shred: st.shred,
-          detection: st.detection || !shotTarget.cloaked ? true : false,
-        });
-      }
-      if (t.def.style === 'missile') sfx.missile();
-      else if (st.damageType === 'energy') sfx.laser();
-      else sfx.shoot();
+      this.updateBoltTower(t, target, st, range);
     }
+  }
+
+  // Watchfire Beacon: a continuously rotating sweep — runs every tick, no cooldown
+  private updateSweepTower(t: Tower, dt: number, globalRate: number): void {
+    const st = t.stats;
+    const range = st.range * t.rangeBuff * this.rangeFactor(t.pos);
+    t.angle += st.fireRate * globalRate * t.rateBuff * dt;
+    t.flash = 0.12;
+    const beams = Math.max(1, st.count);
+    let any = false;
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (e.dead || e.finished || e.courier) return;
+      const dx = e.pos.x - t.pos.x, dy = e.pos.y - t.pos.y;
+      const d = Math.hypot(dx, dy);
+      if (d > range + e.def.radius || !this.visibleTo(t, e)) return;
+      const bearing = Math.atan2(dy, dx);
+      // wider angular tolerance up close so the beam root isn't a dead zone
+      const tol = 0.16 + Math.min(0.55, (e.def.radius + 14) / Math.max(20, d));
+      for (let k = 0; k < beams; k++) {
+        let delta = bearing - (t.angle + (k * Math.PI * 2) / beams);
+        delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+        if (Math.abs(delta) <= tol) {
+          any = true;
+          this.damageEnemy(e, st.damage * dt, st.damageType, false, t);
+          if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+          if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
+          break;
+        }
+      }
+    });
+    if (any) sfx.beamHum();
+  }
+
+  private updatePulseTower(t: Tower, st: TowerStats, range: number): void {
+    // cryo / locust cloud: hit everything in range
+    let any = false;
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (e.dead || e.finished || e.courier) return;
+      if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+      if (!this.visibleTo(t, e)) return;
+      any = true;
+      if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+      if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
+      if (st.damage > 0) this.damageEnemy(e, st.damage, st.damageType, false, t);
+    });
+    if (any) {
+      t.cooldown = 1 / st.fireRate;
+      t.flash = 0.2;
+      sfx.cryo();
+      this.ring(t.pos, t.def.glow, range);
+    }
+  }
+
+  private updateNovaTower(t: Tower, st: TowerStats, range: number): void {
+    // drowned star: exhale an expanding requiem wave
+    let inRange = false;
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 40, (e) => {
+      if (!e.dead && !e.finished && !e.courier &&
+        Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + 40) inRange = true;
+    });
+    if (inRange) {
+      this.novas.push({
+        pos: { ...t.pos }, r: 12, maxR: range, damage: st.damage,
+        slowPower: st.slowPower, slowDuration: st.slowDuration,
+        color: t.def.glow, hit: new Set(), src: t,
+      });
+      t.cooldown = 1 / st.fireRate;
+      t.flash = 0.4;
+      sfx.gravity();
+    }
+  }
+
+  private updateGravityTower(t: Tower, st: TowerStats, range: number): void {
+    // drag every hostile in range backward along the path, crush hulls
+    let any = false;
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (e.dead || e.finished || e.courier) return;
+      if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+      if (!this.visibleTo(t, e)) return;
+      any = true;
+      // drag > 0 = pull backward (hold); drag < 0 = push forward (repel). The leak
+      // check lives only in the movement block, so clamp forward pushes to a safe
+      // margin before the exit — a hull must never be shoved into the core here.
+      const drag = st.drag * (e.def.boss ? 0.22 : 1);
+      let nd = Math.max(0, e.dist - drag);
+      if (drag < 0) nd = Math.min(nd, Math.max(0, this.pathLength() - SAFE_EXIT_MARGIN));
+      e.dist = nd;
+      const at = this.posAtDist(e.dist);
+      e.pos = at.pos;
+      e.wp = at.wp;
+      if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+      this.damageEnemy(e, st.damage, 'energy', true, t);
+    });
+    if (any) {
+      t.cooldown = 1 / st.fireRate;
+      t.flash = 0.25;
+      sfx.gravity();
+      this.ring(t.pos, t.def.glow, range);
+      this.burstFx(t.pos, t.def.glow, 5);
+    }
+  }
+
+  private updateResonanceTower(t: Tower, st: TowerStats, range: number): void {
+    // mark up to `count` hulls with resonance stacks
+    const marked: Enemy[] = [];
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (marked.length >= st.count) return;
+      if (e.dead || e.finished || e.courier || marked.includes(e)) return;
+      if (!this.visibleTo(t, e)) return;
+      if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+      marked.push(e);
+      const dur = st.burnDuration > 0 ? 9999 : 4;
+      e.resonance = Math.min(5, e.resonance + 1);
+      e.resonanceTimer = Math.max(e.resonanceTimer, dur);
+      this.damageEnemy(e, st.damage, st.damageType, false, t);
+      this.addBeam(t.pos, e.pos, t.def.glow, 2.5, 0.22);
+    });
+    if (marked.length > 0) {
+      t.angle = Math.atan2(marked[0].pos.y - t.pos.y, marked[0].pos.x - t.pos.x);
+      t.cooldown = 1 / st.fireRate;
+      t.flash = 0.2;
+      sfx.resonance();
+    }
+  }
+
+  private updateRiftTower(t: Tower, st: TowerStats, range: number): void {
+    // Abyss Gate: open one or more breaches on target clusters.
+    const first = this.pickTarget(t, range);
+    if (!first) return;
+    const centers: Enemy[] = [first];
+    const gates = Math.max(1, st.count);
+    for (let i = 1; i < gates; i++) {
+      let next: Enemy | null = null;
+      this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
+        if (next || e.dead || e.finished || e.courier || centers.includes(e)) return;
+        if (!this.visibleTo(t, e)) return;
+        if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+        if (!centers.every((c) => Math.hypot(e.pos.x - c.pos.x, e.pos.y - c.pos.y) > st.splash * 1.2)) return;
+        next = e;
+      });
+      if (next) centers.push(next);
+    }
+    const hit = new Set<number>();
+    for (const center of centers) {
+      const cpos = { ...center.pos };
+      this.addBeam(t.pos, cpos, t.def.glow, 5.5, 0.2);
+      this.addBeam({ x: cpos.x, y: cpos.y - st.splash * 0.65 }, { x: cpos.x, y: cpos.y + st.splash * 0.65 }, '#ffffff', 2, 0.18);
+      this.grid.forEachInRadius(cpos.x, cpos.y, st.splash + 20, (e) => {
+        if (e.dead || e.finished || e.courier || hit.has(e.uid)) return;
+        if (!this.visibleTo(t, e)) return;
+        if (Math.hypot(e.pos.x - cpos.x, e.pos.y - cpos.y) > st.splash + e.def.radius) return;
+        hit.add(e.uid);
+        const drag = st.drag * (e.def.boss ? 0.18 : 1);
+        if (drag > 0) {
+          e.dist = Math.max(0, e.dist - drag);
+          const at = this.posAtDist(e.dist);
+          e.pos = at.pos;
+          e.wp = at.wp;
+        }
+        if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+        if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
+        this.damageEnemy(e, st.damage, st.damageType, true, t);
+      });
+      this.ring(cpos, t.def.glow, st.splash);
+      this.burstFx(cpos, t.def.glow, 9);
+    }
+    t.angle = Math.atan2(first.pos.y - t.pos.y, first.pos.x - t.pos.x);
+    t.cooldown = 1 / st.fireRate;
+    t.flash = 0.45;
+    t.recoil = 1;
+    sfx.gravity();
+  }
+
+  private updateArcTower(t: Tower, st: TowerStats, range: number): void {
+    // tesla: zap up to `count` enemies in range, chain jumps extra
+    const targets: Enemy[] = [];
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (targets.length >= st.count) return;
+      if (e.dead || e.finished || e.courier) return;
+      if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+      if (!this.visibleTo(t, e)) return;
+      targets.push(e);
+    });
+    if (targets.length === 0) return;
+    for (const e of targets) {
+      this.addBeam(t.pos, e.pos, t.def.glow, 2, 0.12);
+      if (st.drag > 0 && !e.def.boss) { // Magnetar Cage
+        e.dist = Math.max(0, e.dist - st.drag);
+        const at = this.posAtDist(e.dist);
+        e.pos = at.pos; e.wp = at.wp;
+      }
+      if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+      this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
+      let from = e;
+      for (let j = 0; j < st.chain; j++) {
+        const next = this.nearestEnemy(from.pos, 90, targets.concat([from]), st.detection);
+        if (!next) break;
+        this.addBeam(from.pos, next.pos, t.def.glow, 1.5, 0.1);
+        this.damageEnemy(next, st.damage, st.damageType, st.shred, t);
+        from = next;
+      }
+    }
+    const first = targets[0];
+    t.angle = Math.atan2(first.pos.y - t.pos.y, first.pos.x - t.pos.x);
+    t.cooldown = 1 / st.fireRate;
+    t.flash = 0.15;
+    sfx.zap();
+  }
+
+  private updateRailTower(t: Tower, target: Enemy, st: TowerStats, range: number): void {
+    // hitscan along the line through the target; oracle variants also execute
+    const shots: Enemy[] = [target];
+    for (let i = 1; i < st.count; i++) {
+      let next: Enemy | null = null;
+      this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
+        if (next || e.dead || e.finished || e.courier || shots.includes(e)) return;
+        if (!this.visibleTo(t, e)) return;
+        if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+        next = e;
+      });
+      if (next) shots.push(next);
+    }
+    for (const tgt of shots) {
+      const dir = norm({ x: tgt.pos.x - t.pos.x, y: tgt.pos.y - t.pos.y });
+      const end = { x: t.pos.x + dir.x * 1600, y: t.pos.y + dir.y * 1600 };
+      this.addBeam(t.pos, end, t.def.glow, 3, 0.15);
+      let hits = 0;
+      // collect only enemies near the firing line, then sort that short list
+      const onLine: { enemy: Enemy; d2: number }[] = [];
+      this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 32, (e) => {
+        if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) return;
+        if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 4) onLine.push({ enemy: e, d2: sqDist(t.pos, e.pos) });
+      });
+      onLine.sort((a, b) =>
+        a.d2 - b.d2);
+      for (const { enemy: e } of onLine) {
+        {
+          if (st.execute > 0 && !e.def.boss && e.hp / e.maxHp <= st.execute) {
+            this.burstFx(e.pos, '#ffffff', 10);
+            this.trueDamage(e, e.hp);
+            t.kills++;
+          } else {
+            this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
+          }
+          this.burstFx(e.pos, t.def.glow, 3);
+          if (++hits >= st.pierce) break;
+        }
+      }
+    }
+    sfx.rail();
+  }
+
+  private updateBeamTower(t: Tower, target: Enemy, st: TowerStats, range: number): void {
+    const dir = norm({ x: target.pos.x - t.pos.x, y: target.pos.y - t.pos.y });
+    const end = { x: t.pos.x + dir.x * range, y: t.pos.y + dir.y * range };
+    this.addBeam(t.pos, end, t.def.glow, 4, 0.1);
+    let hits = 0;
+    for (const e of this.enemies) {
+      if (e.dead || e.finished || !this.visibleTo(t, e)) continue;
+      if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 6) {
+        this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
+        if (++hits >= st.pierce) break;
+      }
+    }
+    sfx.laser();
+  }
+
+  private updateBoltTower(t: Tower, target: Enemy, st: TowerStats, range: number): void {
+    // bolt & missile: spawn projectiles. Drone Carrier uses many weaker
+    // interceptors that split across targets instead of one pulse-like burst.
+    const isDrone = t.def.id === 'drone';
+    const launchCount = Math.max(1, st.count) * (isDrone ? Math.max(1, st.droneSwarm) : 1);
+    const droneTargets: Enemy[] = isDrone ? [] : [target];
+    if (isDrone) {
+      this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+        if (droneTargets.length >= launchCount) return;
+        if (e.dead || e.finished || e.courier || droneTargets.includes(e)) return;
+        if (!this.visibleTo(t, e)) return;
+        if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius) droneTargets.push(e);
+      });
+      if (droneTargets.length === 0) droneTargets.push(target);
+    }
+    for (let i = 0; i < launchCount; i++) {
+      const shotTarget = isDrone ? droneTargets[i % droneTargets.length] : target;
+      const spread = launchCount > 1 ? (i - (launchCount - 1) / 2) * (isDrone ? 0.075 : 0.12) : 0;
+      const lead = t.def.style === 'missile' ? shotTarget.pos : predict(shotTarget, this.map.path, t.pos, st.projectileSpeed);
+      const ang = Math.atan2(lead.y - t.pos.y, lead.x - t.pos.x) + spread;
+      const muzzle = isDrone ? 11 + (i % Math.max(1, st.droneSwarm)) * 2 : 14;
+      this.projectiles.push({
+        uid: this.uidSeq++,
+        src: t,
+        kind: t.def.style === 'missile' ? 'missile' : isDrone ? 'drone' : 'bolt',
+        pos: { x: t.pos.x + Math.cos(ang) * muzzle, y: t.pos.y + Math.sin(ang) * muzzle },
+        vel: { x: Math.cos(ang) * st.projectileSpeed, y: Math.sin(ang) * st.projectileSpeed },
+        damage: isDrone ? st.damage * 0.72 : st.damage,
+        damageType: st.damageType,
+        pierce: st.pierce,
+        splash: st.splash,
+        speed: st.projectileSpeed,
+        targetUid: shotTarget.uid,
+        life: isDrone ? 2.8 : 2.2,
+        color: t.def.glow,
+        hit: new Set(),
+        burnDps: st.burnDps,
+        burnDuration: st.burnDuration,
+        burnZoneRadius: st.burnZoneRadius,
+        burnZoneDps: st.burnZoneDps,
+        burnZoneDuration: st.burnZoneDuration,
+        shred: st.shred,
+        detection: st.detection || !shotTarget.cloaked ? true : false,
+      });
+    }
+    if (t.def.style === 'missile') sfx.missile();
+    else if (st.damageType === 'energy') sfx.laser();
+    else sfx.shoot();
   }
 
   private nearestEnemy(pos: Vec, maxDist: number, exclude: Enemy[], detection = false): Enemy | null {
