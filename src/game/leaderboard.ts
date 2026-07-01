@@ -11,6 +11,7 @@ import {
   orderBy,
   query,
   setDoc,
+  Timestamp,
   writeBatch,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -36,6 +37,15 @@ const globalTopCache = new Map<string, { expires: number; rows: RankedScoreEntry
 // just hangs forever, freezing any UI that awaits it. Race every network call
 // against a timeout so callers always settle into their existing catch/empty path.
 const NET_TIMEOUT_MS = 8000;
+
+// Retention: expiresAt drives Firestore TTL policies (see docs/tech_spec.md).
+// TTL requires a real Timestamp field — plain number `ts` fields are invisible
+// to TTL, which is why raw streams never expired before this.
+const CHECKPOINT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // live diagnostics: 30 days
+const TELEMETRY_TTL_MS = 180 * 24 * 60 * 60 * 1000; // compact outcome rows: 180 days
+function ttlTimestamp(ms: number): Timestamp {
+  return Timestamp.fromMillis(Date.now() + ms);
+}
 function withTimeout<T>(p: Promise<T>, ms = NET_TIMEOUT_MS): Promise<T> {
   return Promise.race([
     p,
@@ -391,6 +401,7 @@ export function logTelemetry(e: TelemetryEvent): void {
         dmg: (e.dmg ?? '').slice(0, 120),
         abilities: Math.max(0, Math.floor(e.abilities ?? 0)),
         build: TELEMETRY_BUILD.slice(0, 30),
+        expiresAt: ttlTimestamp(TELEMETRY_TTL_MS),
       });
     } catch (error) {
       console.warn('Telemetry log failed', error);
@@ -539,7 +550,11 @@ export async function submitRunCheckpoint(doc: RunCheckpointDoc): Promise<boolea
   if (!serverUid) return false;
   try {
     const chunkId = `c${String(Math.max(0, Math.floor(doc.chunk))).padStart(6, '0')}`;
-    await withTimeout(setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), { ...doc, uid: serverUid.slice(0, 40) }));
+    await withTimeout(setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), {
+      ...doc,
+      uid: serverUid.slice(0, 40),
+      expiresAt: ttlTimestamp(CHECKPOINT_TTL_MS),
+    }));
     return true;
   } catch (error) {
     console.warn('Run checkpoint submit failed', error);

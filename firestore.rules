@@ -191,7 +191,8 @@ service cloud.firestore {
           && isValidRunId(runId)
           && chunkId.matches('^c[0-9]{1,6}$')
           && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
-          && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot', 'expiresAt'])
+          && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp)
           && isTelemetrySchema(request.resource.data)
           && request.resource.data.runId == runId
           && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
@@ -236,8 +237,9 @@ service cloud.firestore {
       allow update, delete: if false;
       allow create: if isPlayer()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build'])
+        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build', 'expiresAt'])
         && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
+        && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp)
         && request.resource.data.uid is string
         && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
         && request.resource.data.ts is int && request.resource.data.ts > 0

@@ -160,6 +160,28 @@ Deploy rules before release:
 firebase deploy --only firestore:rules
 ```
 
+## Retention / TTL policies
+
+Raw streams carry an `expiresAt` **Timestamp** field (Firestore TTL ignores
+plain-number fields like `ts`):
+
+| Data | Field | Retention |
+| --- | --- | --- |
+| `runCheckpoints/{runId}/chunks` | `expiresAt` | 30 days (live diagnostics) |
+| `telemetry/{id}` | `expiresAt` | 180 days (compact outcome rows) |
+| `rateLimits/{key}` | `expiresAt` | 24 hours (server-written) |
+
+Public replays (`runs` + chunks) are NOT expired — they back leaderboard
+verification and WATCH links. TTL policies are configured once per
+collection group (the `chunks` policy only affects docs that carry the
+field, so public replay chunks are untouched):
+
+```bash
+gcloud firestore fields ttls update expiresAt --collection-group=chunks --enable-ttl
+gcloud firestore fields ttls update expiresAt --collection-group=telemetry --enable-ttl
+gcloud firestore fields ttls update expiresAt --collection-group=rateLimits --enable-ttl
+```
+
 ## Client localStorage keys
 
 Keys that store player state, consent, score retry state, or private reply

@@ -208,6 +208,7 @@ describe('leaderboard and telemetry write rules', () => {
       won: false,
       freeplay: false,
       durationS: 10,
+      expiresAt: new Date(4102444800000), // TTL Timestamp field
     }));
     await assertFails(updateDoc(ref, { wave: 2 }));
   });
@@ -271,6 +272,7 @@ describe('leaderboard and telemetry write rules', () => {
       counters: {},
       recentEvents: [],
       latestSnapshot: null,
+      expiresAt: new Date(4102444800000), // TTL Timestamp field
     }));
     await assertFails(getDoc(ref));
     await assertSucceeds(getDoc(doc(adminDb(), 'runCheckpoints', runId, 'chunks', 'c0')));
