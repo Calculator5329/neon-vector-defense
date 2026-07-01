@@ -904,7 +904,7 @@ test.describe('run telemetry model', () => {
       game.queue = [];
       game.enemies = [];
       game.wave = 50;
-      game.update(0.016);
+      game.update(0.05); // >= one full fixed sim step (1/60) — 0.016 banks in the accumulator and may run zero ticks
       game.finishRun(false, 'gameover');
       const after = window.localStorage.getItem('nvd-progress-v1');
       return {
@@ -936,7 +936,7 @@ test.describe('run telemetry model', () => {
       game.queue = [];
       game.enemies = [];
       game.wave = game.diff.waves;
-      game.update(0.016);
+      game.update(0.05); // >= one full fixed sim step (1/60) — 0.016 banks in the accumulator and may run zero ticks
       game.enterFreeplay('standard');
       game.wave = 65;
       game.totalKills = 123;
