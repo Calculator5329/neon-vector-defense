@@ -56,6 +56,18 @@ process.env.VITE_AI_HELP_URL = aiHelpUrl;
 const previewMode = process.argv.includes('--preview');
 process.argv = process.argv.filter((a) => a !== '--preview');
 
+const explicitTestSelection = process.argv.slice(2).some((arg, index, all) => {
+  const prev = all[index - 1];
+  return arg.includes('tests/')
+    || arg.includes('tests\\')
+    || arg.endsWith('.spec.ts')
+    || prev === '-g'
+    || prev === '--grep';
+});
+if (previewMode && !explicitTestSelection) {
+  process.argv.push('tests/e2e/production-build.spec.ts');
+}
+
 let exitCode = 1;
 
 if (previewMode) {
