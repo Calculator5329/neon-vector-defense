@@ -28,11 +28,12 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-function request({ origin = env.APP_URL, cookie = '', body = { message: 'What now?' }, contentLength = '' } = {}) {
+function request({ origin = env.APP_URL, cookie = '', body = { message: 'What now?' }, contentLength = '', userAgent = '' } = {}) {
   const headers = new Headers({ 'Content-Type': 'application/json' });
   if (origin) headers.set('Origin', origin);
   if (cookie) headers.set('Cookie', cookie);
   if (contentLength) headers.set('Content-Length', contentLength);
+  if (userAgent) headers.set('User-Agent', userAgent);
   return new Request('https://ai.test/help', {
     method: 'POST',
     headers,
@@ -115,6 +116,18 @@ describe('AI worker request gate', () => {
       assert.equal(res.status, 200);
     }
     const limited = await worker.fetch(request(), quotaEnv);
+    assert.equal(limited.status, 429);
+    assert.equal((await limited.json()).error, 'quota_limit');
+    assert.equal(fetchCalls, 2);
+  });
+
+  test('KV quota bucket ignores User-Agent rotation', async () => {
+    const quotaEnv = { ...env, AI_QUOTA: quotaKv(), AI_DAILY_LIMIT: '2' };
+    for (let i = 0; i < 2; i++) {
+      const res = await worker.fetch(request({ userAgent: `bot-agent/${i}` }), quotaEnv);
+      assert.equal(res.status, 200);
+    }
+    const limited = await worker.fetch(request({ userAgent: 'bot-agent/fresh' }), quotaEnv);
     assert.equal(limited.status, 429);
     assert.equal((await limited.json()).error, 'quota_limit');
     assert.equal(fetchCalls, 2);

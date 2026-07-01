@@ -95,11 +95,18 @@ function parseCookie(header, name) {
   return '';
 }
 
+async function timingSafeEqual(a, b) {
+  // Compare digests instead of the raw strings so the comparison cost does
+  // not leak how many leading characters of the signature matched.
+  const [da, db] = await Promise.all([hashKey(`cmp|${a}`), hashKey(`cmp|${b}`)]);
+  return da === db && a.length === b.length;
+}
+
 async function readState(request, env) {
   const raw = parseCookie(request.headers.get('Cookie'), 'nvd_ai');
   const [payload, sig] = raw.split('.');
   if (!payload || !sig) return freshState();
-  if (await sign(payload, env.AI_COOKIE_SECRET) !== sig) return freshState();
+  if (!(await timingSafeEqual(await sign(payload, env.AI_COOKIE_SECRET), sig))) return freshState();
   try {
     const jsonText = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
     const state = JSON.parse(jsonText);
@@ -169,11 +176,12 @@ async function checkDailyQuota(request, env) {
   const store = quotaStore(env);
   if (!store) return { ok: true };
   try {
+    // Key by IP only: including User-Agent would hand every UA rotation a
+    // fresh daily bucket, making the quota trivially bypassable.
     const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown').split(',')[0].trim();
-    const ua = request.headers.get('User-Agent') || 'unknown';
     const day = new Date().toISOString().slice(0, 10);
     const salt = env.AI_QUOTA_SALT || env.AI_COOKIE_SECRET || 'nvd-ai';
-    const key = `ai:${day}:${await hashKey(`${salt}|${ip}|${ua}`)}`;
+    const key = `ai:${day}:${await hashKey(`${salt}|${ip}`)}`;
     const current = Math.max(0, Number(await store.get(key) || 0));
     if (current >= dailyLimit(env)) return { ok: false, status: 429, error: 'quota_limit' };
     await store.put(key, String(current + 1), { expirationTtl: QUOTA_TTL_SECONDS });
