@@ -9,7 +9,7 @@ describe('CI/CD guardrails', () => {
   const functionsDeployWorkflow = fs.readFileSync('.github/workflows/firebase-functions-deploy.yml', 'utf8');
   const playwrightConfig = fs.readFileSync('playwright.config.ts', 'utf8');
   const workerPackageJson = JSON.parse(fs.readFileSync('worker/package.json', 'utf8'));
-  const appTsx = fs.readFileSync('src/App.tsx', 'utf8');
+  const leaderboardTab = fs.readFileSync('src/menu/LeaderboardTab.tsx', 'utf8');
   const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
   const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
   const clientLeaderboard = fs.readFileSync('src/game/leaderboard.ts', 'utf8');
@@ -76,7 +76,7 @@ describe('CI/CD guardrails', () => {
 
   test('client analytics writes stay append-only', () => {
     const submitRunAnalytics = /export async function submitRunAnalytics[\s\S]*?\n}/.exec(clientLeaderboard)?.[0] ?? '';
-    expect(submitRunAnalytics).toContain("firestoreDoc(db, 'runAnalytics', doc.runId)");
+    expect(submitRunAnalytics).toContain("fs.doc(db, 'runAnalytics', doc.runId)");
     expect(submitRunAnalytics).not.toContain('merge: true');
   });
 
@@ -91,7 +91,7 @@ describe('CI/CD guardrails', () => {
   });
 
   test('public replay deletion has a private ownership index', () => {
-    expect(clientLeaderboard).toContain("firestoreDoc(db, 'replayOwners', serverUid, 'runs', run.runId)");
+    expect(clientLeaderboard).toContain("fs.doc(db, 'replayOwners', serverUid, 'runs', run.runId)");
     expect(functionsIndex).toContain("db.collection(`replayOwners/${uid}/runs`).get()");
     expect(functionsIndex).toContain("db.doc(`replayOwners/${uid}/runs/${runId}`)");
     expect(firestoreRules).toContain('match /replayOwners/{uid}/runs/{runId}');
@@ -128,7 +128,7 @@ describe('CI/CD guardrails', () => {
   });
 
   test('leaderboard rows can highlight the current player', () => {
-    expect(appTsx).toContain('const myUid = cachedServerUid() ?? progress.uid');
-    expect(appTsx).toContain("r.uid === myUid ? 'me' : ''");
+    expect(leaderboardTab).toContain('const myUid = cachedServerUid() ?? progress.uid');
+    expect(leaderboardTab).toContain("r.uid === myUid ? 'me' : ''");
   });
 });
