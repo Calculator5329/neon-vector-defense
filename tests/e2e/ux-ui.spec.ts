@@ -1004,6 +1004,63 @@ test.describe('browser perf harness', () => {
   });
 });
 
+test.describe('first-run coach', () => {
+  test('action-gated funnel: place, launch, upgrade, done', async ({ page }) => {
+    await seedProgress(page, { tut: false, runs: 0 });
+    await page.goto('/');
+    await deployFromMenu(page);
+
+    // briefing first, then the non-blocking coach chip at stage 1
+    await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
+    const chip = page.getByTestId('coach-chip');
+    await expect(chip).toContainText('1/3');
+
+    // stage 1 → 2: place a tower (canvas click path)
+    await page.getByTestId('tower-pulse').click();
+    const point = await page.evaluate(() => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+      const rect = canvas.getBoundingClientRect();
+      const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
+      const scale = Math.min(rect.width / 1280, rect.height / 720);
+      const ox = rect.left + (rect.width - 1280 * scale) / 2;
+      const oy = rect.top + (rect.height - 720 * scale) / 2;
+      for (let y = 90; y <= 630; y += 36) {
+        for (let x = 90; x <= 1190; x += 36) {
+          if (game.canPlace({ x, y })) return { x: ox + x * scale, y: oy + y * scale };
+        }
+      }
+      throw new Error('no valid placement point');
+    });
+    await page.mouse.click(point.x, point.y);
+    await expect(chip).toContainText('2/3');
+
+    // stage 2 → 3: launch the wave
+    await page.getByTestId('launch-wave').click();
+    await expect(chip).toContainText('3/3');
+
+    // stage 3 → done: buy an upgrade; chip clears and completion persists
+    await page.evaluate(() => {
+      const game = (window as unknown as { game: { credits: number; towers: { uid: number }[]; upgradeTower: (t: unknown, track: 0 | 1) => boolean } }).game;
+      game.credits = 10_000;
+      game.upgradeTower(game.towers[0], 0);
+    });
+    await expect(chip).toBeHidden();
+    await expect.poll(() => page.evaluate(() =>
+      JSON.parse(window.localStorage.getItem('nvd-progress-v1') ?? '{}').tut)).toBe(true);
+  });
+
+  test('skip guide dismisses the coach and persists', async ({ page }) => {
+    await seedProgress(page, { tut: false, runs: 0 });
+    await page.goto('/');
+    await deployFromMenu(page);
+    await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
+    await page.getByRole('button', { name: 'SKIP GUIDE' }).click();
+    await expect(page.getByTestId('coach-chip')).toBeHidden();
+    await expect.poll(() => page.evaluate(() =>
+      JSON.parse(window.localStorage.getItem('nvd-progress-v1') ?? '{}').tut)).toBe(true);
+  });
+});
+
 test.describe('mobile UX layout', () => {
   test.skip(({ isMobile }) => !isMobile, 'mobile-only layout expectations');
 

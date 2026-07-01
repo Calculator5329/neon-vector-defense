@@ -50,7 +50,6 @@ import { AIHelpWidget } from '../widgets/AIHelpWidget';
 import { FeedbackWidget } from '../widgets/FeedbackWidget';
 import { PERF_MAP, DEMO_MODE, AI_HELP_ENABLED, WIDGET_OPEN_EVENT } from '../appShared';
 import { utilityWidgetOpen, isTypingTarget } from '../uiShared';
-import { HowToPlay } from './HowToPlay';
 
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
 const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
@@ -100,7 +99,11 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
   const [muted, setMutedState] = useState(isMuted());
   const [aiming, setAiming] = useState(false);
-  const [tutorial, setTutorial] = useState(PERF_MAP === null && !DEMO_MODE && !progress.tutorialSeen);
+  // Action-gated first-run coach: new players learn by DOING (place → launch →
+  // upgrade) via a non-blocking chip instead of the old HowToPlay modal wall.
+  // The full reference card stays available behind the menu's "?" help.
+  const [coachStage, setCoachStage] = useState<'place' | 'launch' | 'upgrade' | null>(
+    PERF_MAP === null && !DEMO_MODE && !dailySeed && !progress.tutorialSeen ? 'place' : null);
   const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE || !!dailySeed);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
@@ -129,11 +132,12 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   placingRef.current = placing;
   aimingRef.current = aiming;
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
-  // unlock modals must never stack on the briefing / tutorial overlays
+  // unlock modals must never stack on the briefing overlay
   const relicOfferOpen = game.phase === 'build' && game.freeplayState.nextRelicOffer.length > 0;
-  overlayRef.current = tutorial || !briefed || contractOpen || relicOfferOpen;
-  // cloakTip is a non-blocking toast, so it is intentionally NOT part of blockingOverlay
-  const blockingOverlay = tutorial || !briefed || unlockModal !== null || contractOpen || relicOfferOpen ||
+  overlayRef.current = !briefed || contractOpen || relicOfferOpen;
+  // cloakTip and the first-run coach are non-blocking, so they are
+  // intentionally NOT part of blockingOverlay
+  const blockingOverlay = !briefed || unlockModal !== null || contractOpen || relicOfferOpen ||
     game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice';
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
@@ -141,11 +145,32 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   blockingOverlayRef.current = blockingOverlay;
 
   useEffect(() => {
-    if (tutorial) game.recorder.recordControl(METRIC_EVENTS.TUTORIAL_VIEW);
-  }, [game, tutorial]);
+    if (coachStage !== null) game.recorder.recordControl(METRIC_EVENTS.TUTORIAL_VIEW);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- record once per run, not per stage
+  }, [game]);
   useEffect(() => {
-    if (!tutorial && !briefed) game.recorder.recordControl(METRIC_EVENTS.BRIEFING_VIEW);
-  }, [briefed, game, tutorial]);
+    if (!briefed) game.recorder.recordControl(METRIC_EVENTS.BRIEFING_VIEW);
+  }, [briefed, game]);
+  // Coach advancement — checked on the normal ~8Hz UI tick; each gate is the
+  // real action, not a "next" click.
+  useEffect(() => {
+    if (!coachStage) return;
+    if (coachStage === 'place' && game.towers.length > 0) {
+      setCoachStage('launch');
+    } else if (coachStage === 'launch' && game.wave >= 1) {
+      setCoachStage('upgrade');
+    } else if (coachStage === 'upgrade' && game.towers.some((t) => t.tierA + t.tierB > 0)) {
+      setCoachStage(null);
+      progress.tutorialSeen = true;
+      game.recorder.recordCustom('tutorial_coach_complete', game.telemetryState(), { wave: game.wave });
+    }
+  });
+  const dismissCoach = () => {
+    game.recorder.recordCustom('tutorial_coach_skip', game.telemetryState(), { stage: coachStage });
+    setCoachStage(null);
+    progress.tutorialSeen = true;
+    sfx.click();
+  };
   useEffect(() => {
     if (cloakTip) game.recorder.recordControl(METRIC_EVENTS.CLOAK_TIP_VIEW);
   }, [cloakTip, game]);
@@ -840,10 +865,18 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
             </button>
           )}
           {game.paused && <div className="overlay-label">PAUSED</div>}
-          {tutorial && (
-            <HowToPlay onDone={() => { setTutorial(false); progress.tutorialSeen = true; sfx.click(); }} />
+          {coachStage && briefed && (
+            <div className="coach-chip" role="status" aria-live="polite" data-testid="coach-chip">
+              <span className="coach-step" aria-hidden="true">{coachStage === 'place' ? '1/3' : coachStage === 'launch' ? '2/3' : '3/3'}</span>
+              <span className="coach-text">
+                {coachStage === 'place' && <>Pick a turret from the <b>ARSENAL</b>, then tap open ground beside the lane.</>}
+                {coachStage === 'launch' && <>Defenses online — hit <b>▶ LAUNCH WAVE</b> (or SPACE) when ready.</>}
+                {coachStage === 'upgrade' && <>Tap your turret and buy an <b>UPGRADE</b> — two tracks, pick a doctrine.</>}
+              </span>
+              <button className="coach-skip" onClick={dismissCoach}>SKIP GUIDE</button>
+            </div>
           )}
-          {!tutorial && !briefed && (
+          {!briefed && (
             <BriefingOverlay
               lines={diff.id === 'ngplus' ? LONGWATCH_BRIEFING : BRIEFING}
               portrait={diff.id === 'ngplus' ? '/art/hollow.webp' : '/art/briefing.webp'}

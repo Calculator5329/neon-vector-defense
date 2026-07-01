@@ -893,6 +893,50 @@
   display: none;
 }
 
+/* First-run coach chip — non-blocking, sits above the wave button. */
+.coach-chip {
+  position: absolute;
+  bottom: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(4, 10, 22, 0.92);
+  border: 1px solid rgba(75, 207, 250, 0.55);
+  box-shadow: 0 0 22px rgba(75, 207, 250, 0.22);
+  z-index: 30;
+}
+.coach-step {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #021018;
+  background: var(--accent);
+  border-radius: 6px;
+  padding: 4px 7px;
+  flex: 0 0 auto;
+}
+.coach-text { font-size: 14px; line-height: 1.35; color: var(--text); }
+.coach-text b { color: var(--accent); }
+.coach-skip {
+  flex: 0 0 auto;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  min-height: 30px;
+}
+.coach-skip:hover { color: var(--text); border-color: var(--accent); }
+
 .touch-place-hint {
   position: absolute;
   left: 50%;
@@ -2352,6 +2396,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .ability-btn .ability-icon { font-size: 24px; }
   /* lift above the ability bar (58px buttons at the bottom) so the centered CTA never overlaps it */
   .wave-btn { font-size: 14px; padding: 12px 22px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 66px); }
+  .coach-chip { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 130px); }
   .touch-place-hint { bottom: 78px; }
   .freeplay-build-panel {
     position: relative;
@@ -2458,6 +2503,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .ability-btn { width: 46px; height: 46px; }
   .ability-btn .ability-icon { font-size: 19px; }
   .wave-btn { font-size: 13px; padding: 10px 18px; bottom: 62px; }
+  .coach-chip { bottom: 112px; max-width: min(440px, calc(100% - 16px)); }
   .freeplay-build-panel {
     position: absolute;
     left: 10px;
