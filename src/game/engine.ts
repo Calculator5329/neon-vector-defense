@@ -7,10 +7,9 @@ import { ABILITIES } from './abilities';
 import { ARCHIVE } from './lore';
 import { getBalance } from './balanceConfig';
 import { progress } from './storage';
-import { computeStats, sellValue, TOWER_MAP } from './towers';
+import { computeStats, sellValue, TOWER_MAP, TOWERS } from './towers';
 import { getWave, waveBonus, incomeMult } from './waves';
 import { sfx, vox, playStinger, setBossMusic } from './sound';
-import { TOWERS } from './towers';
 import {
   RunRecorder,
   type PrivateRunAnalyticsDoc,
@@ -68,14 +67,6 @@ function compact<T>(arr: T[], keep: (v: T) => boolean): void {
     if (keep(arr[i])) { if (w !== i) arr[w] = arr[i]; w++; }
   }
   arr.length = w;
-}
-
-function distToSegment(p: Vec, a: Vec, b: Vec): number {
-  const vx = b.x - a.x, vy = b.y - a.y;
-  const len2 = vx * vx + vy * vy;
-  if (len2 <= 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2));
-  return Math.hypot(p.x - (a.x + vx * t), p.y - (a.y + vy * t));
 }
 
 interface SpawnEntry {
@@ -1845,7 +1836,9 @@ export class Game {
     }
     for (const tgt of shots) {
       const dir = norm({ x: tgt.pos.x - t.pos.x, y: tgt.pos.y - t.pos.y });
-      const end = { x: t.pos.x + dir.x * 1600, y: t.pos.y + dir.y * 1600 };
+      // beam is drawn to the HIT envelope (range), not an arbitrary 1600px —
+      // the old full-screen visual implied hits far beyond where they landed
+      const end = { x: t.pos.x + dir.x * (range + 24), y: t.pos.y + dir.y * (range + 24) };
       this.addBeam(t.pos, end, t.def.glow, 3, 0.15);
       let hits = 0;
       // collect only enemies near the firing line, then sort that short list
@@ -1854,20 +1847,17 @@ export class Game {
         if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) return;
         if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 4) onLine.push({ enemy: e, d2: sqDist(t.pos, e.pos) });
       });
-      onLine.sort((a, b) =>
-        a.d2 - b.d2);
+      onLine.sort((a, b) => a.d2 - b.d2);
       for (const { enemy: e } of onLine) {
-        {
-          if (st.execute > 0 && !e.def.boss && e.hp / e.maxHp <= st.execute) {
-            this.burstFx(e.pos, '#ffffff', 10);
-            this.trueDamage(e, e.hp);
-            t.kills++;
-          } else {
-            this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
-          }
-          this.burstFx(e.pos, t.def.glow, 3);
-          if (++hits >= st.pierce) break;
+        if (st.execute > 0 && !e.def.boss && e.hp / e.maxHp <= st.execute) {
+          this.burstFx(e.pos, '#ffffff', 10);
+          this.trueDamage(e, e.hp);
+          t.kills++;
+        } else {
+          this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
         }
+        this.burstFx(e.pos, t.def.glow, 3);
+        if (++hits >= st.pierce) break;
       }
     }
     sfx.rail();
@@ -1879,7 +1869,8 @@ export class Game {
     this.addBeam(t.pos, end, t.def.glow, 4, 0.1);
     let hits = 0;
     for (const e of this.enemies) {
-      if (e.dead || e.finished || !this.visibleTo(t, e)) continue;
+      // couriers are untargetable — crossing the beam must not eat a pierce slot
+      if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) continue;
       if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 6) {
         this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
         if (++hits >= st.pierce) break;
@@ -1994,7 +1985,7 @@ export class Game {
         // hittable by ANY tower's bolts — non-detector shots used to pass through it
         if (e.cloaked && !e.revealed && !p.detection) return;
         const hitR = e.def.radius + (p.kind === 'missile' ? 6 : 4);
-        if (distToSegment(e.pos, prevPos, p.pos) <= hitR) {
+        if (distToSeg(e.pos, prevPos, p.pos) <= hitR) {
           if (p.kind === 'missile') {
             this.explode(p);
             p.life = 0;
