@@ -13,8 +13,7 @@
 //     enemies?:{ [enemyId]:{hpMult?,rewardMult?} },
 //     towers?:{ [towerId]:{costMult?,damageMult?,rangeMult?,fireRateMult?} } }
 
-import { db } from './firebaseClient';
-import { doc as firestoreDoc, getDoc } from 'firebase/firestore';
+import { firestore } from './firestoreLazy';
 
 export interface BalanceConfigDoc {
   version?: string;
@@ -103,8 +102,9 @@ export function balanceVersion(): string { return current.version; }
  *  Firestore promise can't hang. Any failure leaves identity balance in place. */
 export async function loadRemoteBalance(): Promise<void> {
   try {
+    const { fs, db } = await firestore();
     const snap = await Promise.race([
-      getDoc(firestoreDoc(db, 'config', 'balance')),
+      fs.getDoc(fs.doc(db, 'config', 'balance')),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
     ]);
     if (snap.exists()) setBalanceDoc(snap.data() as BalanceConfigDoc);

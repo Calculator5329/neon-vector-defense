@@ -15,6 +15,9 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('/@firebase/auth') || id.includes('/firebase/auth')) return undefined;
+          // firestore is reached only via the dynamic import in firestoreLazy.ts;
+          // merging it into the eager 'firebase' chunk would defeat that laziness
+          if (id.includes('/@firebase/firestore') || id.includes('/firebase/firestore')) return undefined;
           if (id.includes('/@firebase/') || id.includes('/firebase/')) return 'firebase';
           if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) return 'react';
           return undefined;

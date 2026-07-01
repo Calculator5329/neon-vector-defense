@@ -1,10 +1,14 @@
 // Admin-only writes for the pinned "Replay of the Day" (config/spotlight). Imported ONLY by the
 // lazy-loaded AdminDashboard so no admin-write code lands on the player path. Public reads live in
 // replaySpotlight.ts. Rules gate WHO can write (isAdmin) + the doc shape.
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebaseClient';
+import { deleteDoc, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
+import { app } from './firebaseClient';
 import { fetchRunReplay } from './leaderboard';
 import type { ReplaySpotlight } from './replaySpotlight';
+
+// Static firestore import is fine here: this module is only reachable through
+// the lazy admin chunk, never the player's first paint.
+const db = getFirestore(app);
 
 export interface PinnedSpotlight extends ReplaySpotlight {
   pinnedAt?: number;

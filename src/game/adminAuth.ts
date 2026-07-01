@@ -11,6 +11,7 @@ import {
 import {
   collection,
   doc,
+  getFirestore,
   limit,
   onSnapshot,
   orderBy,
@@ -19,9 +20,12 @@ import {
   type Timestamp,
 } from 'firebase/firestore';
 import { isAdminEmail } from '../../functions/src/adminEmails';
-import { app, db } from './firebaseClient';
+import { app } from './firebaseClient';
 
 export const auth = getAuth(app);
+// Static firestore import is fine here: this module lives in the lazy admin
+// chunk, so it never adds SDK weight to the player's first paint.
+const db = getFirestore(app);
 
 export interface FeedbackMessage {
   id: string;

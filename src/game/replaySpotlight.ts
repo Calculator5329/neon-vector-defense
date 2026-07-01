@@ -1,5 +1,4 @@
-import { doc as firestoreDoc, getDoc } from 'firebase/firestore';
-import { db } from './firebaseClient';
+import { firestore } from './firestoreLazy';
 import { fetchGlobalTop, type RankedScoreEntry } from './leaderboard';
 
 export interface ReplaySpotlight {
@@ -17,7 +16,8 @@ const RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
 /** An admin-pinned spotlight (config/spotlight), if one is set and well-formed. */
 async function fetchPinnedSpotlight(): Promise<ReplaySpotlight | null> {
   try {
-    const snap = await getDoc(firestoreDoc(db, 'config', 'spotlight'));
+    const { fs, db } = await firestore();
+    const snap = await fs.getDoc(fs.doc(db, 'config', 'spotlight'));
     if (!snap.exists()) return null;
     const d = snap.data() as Partial<ReplaySpotlight>;
     if (!d.runId || !RUN_ID_RE.test(d.runId)) return null;

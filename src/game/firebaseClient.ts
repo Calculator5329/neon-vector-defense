@@ -1,10 +1,11 @@
-// Firestore client on the PLAYER path. Deliberately imports only firebase/app +
-// firebase/firestore — the (heavy) firebase/auth SDK lives in ./adminAuth and is
-// pulled in only by the lazy-loaded admin dashboard, keeping it off every player's
-// download. Firebase web config is public by design; access control is in firestore.rules.
+// Firebase app bootstrap on the PLAYER path. Deliberately imports only
+// firebase/app (+ optional app-check) — the heavy SDKs load lazily elsewhere:
+// firebase/firestore through ./firestoreLazy on first data access, and
+// firebase/auth through ./anonAuth (player sign-in) / ./adminAuth (admin
+// chunk). Firebase web config is public by design; access control is in
+// firestore.rules.
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
-import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAxKfk-rZAFLS7OeqCqIFEzNYKlv3tdrhs',
@@ -28,4 +29,3 @@ if (appCheckSiteKey) {
   });
 }
 
-export const db = getFirestore(app);

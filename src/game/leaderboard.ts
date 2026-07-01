@@ -1,21 +1,11 @@
 // Global leaderboards, feedback, and telemetry on Firestore.
 // Firebase web config is public by design; access control lives in firestore.rules.
 
-import {
-  addDoc,
-  collection,
-  doc as firestoreDoc,
-  getDoc,
-  getDocs,
-  limit as limitResults,
-  orderBy,
-  query,
-  setDoc,
-  Timestamp,
-  writeBatch,
-} from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app, db } from './firebaseClient';
+import { app } from './firebaseClient';
+// The Firestore SDK (~88KB gzip) loads lazily on first data access — every
+// entry point below is already async, so each grabs { fs, db } on demand.
+import { firestore, type FirestoreNS } from './firestoreLazy';
 import { ensureServerUid } from './anonAuth';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
@@ -43,8 +33,8 @@ const NET_TIMEOUT_MS = 8000;
 // to TTL, which is why raw streams never expired before this.
 const CHECKPOINT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // live diagnostics: 30 days
 const TELEMETRY_TTL_MS = 180 * 24 * 60 * 60 * 1000; // compact outcome rows: 180 days
-function ttlTimestamp(ms: number): Timestamp {
-  return Timestamp.fromMillis(Date.now() + ms);
+function ttlTimestamp(fs: FirestoreNS, ms: number) {
+  return fs.Timestamp.fromMillis(Date.now() + ms);
 }
 function withTimeout<T>(p: Promise<T>, ms = NET_TIMEOUT_MS): Promise<T> {
   return Promise.race([
@@ -383,7 +373,8 @@ export function logTelemetry(e: TelemetryEvent): void {
     try {
       const serverUid = await ensureServerUid();
       if (!serverUid) return;
-      await addDoc(collection(db, 'telemetry'), {
+      const { fs, db } = await firestore();
+      await fs.addDoc(fs.collection(db, 'telemetry'), {
         uid: serverUid,
         ts: Date.now(),
         kind: e.kind.slice(0, 30),
@@ -401,7 +392,7 @@ export function logTelemetry(e: TelemetryEvent): void {
         dmg: (e.dmg ?? '').slice(0, 120),
         abilities: Math.max(0, Math.floor(e.abilities ?? 0)),
         build: TELEMETRY_BUILD.slice(0, 30),
-        expiresAt: ttlTimestamp(TELEMETRY_TTL_MS),
+        expiresAt: ttlTimestamp(fs, TELEMETRY_TTL_MS),
       });
     } catch (error) {
       console.warn('Telemetry log failed', error);
@@ -437,22 +428,23 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
     build: run.build,
   });
   const chunks = bundle.chunks.map((chunk) => sanitizeFirestoreData(chunk));
+  const { fs, db } = await firestore();
   try {
     // ONE atomic batch (single round-trip) instead of N parallel setDoc()s. Firing every chunk
     // write concurrently used to overrun Firestore's write stream ("resource-exhausted: Write
     // stream exhausted maximum allowed queued writes") and time out the whole submit.
-    const batch = writeBatch(db);
-    batch.set(firestoreDoc(db, 'replayOwners', serverUid, 'runs', run.runId), ownerDoc);
-    batch.set(firestoreDoc(db, 'runs', run.runId), run);
+    const batch = fs.writeBatch(db);
+    batch.set(fs.doc(db, 'replayOwners', serverUid, 'runs', run.runId), ownerDoc);
+    batch.set(fs.doc(db, 'runs', run.runId), run);
     for (const chunk of chunks) {
-      batch.set(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk);
+      batch.set(fs.doc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk);
     }
     await withTimeout(batch.commit());
     return { ok: true, runId: run.runId, replayToken };
   } catch (error) {
     console.warn('Run replay submit failed', error);
     try {
-      const snap = await withTimeout(getDoc(firestoreDoc(db, 'runs', run.runId)));
+      const snap = await withTimeout(fs.getDoc(fs.doc(db, 'runs', run.runId)));
       const existing = snap.exists() ? (snap.data() as PublicRunDoc) : null;
       if (sameReplayDoc(existing, run)) return { ok: true, runId: run.runId, replayToken };
     } catch {
@@ -470,13 +462,14 @@ export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null
   const cached = replayCache.get(runId);
   if (cached && cached.expires > Date.now()) return cached.doc;
   try {
-    const snap = await withTimeout(getDoc(firestoreDoc(db, 'runs', runId)));
+    const { fs, db } = await firestore();
+    const snap = await withTimeout(fs.getDoc(fs.doc(db, 'runs', runId)));
     const doc = snap.exists() ? (snap.data() as PublicRunDoc) : null;
     let events = Array.isArray(doc?.events) ? doc.events : [];
     const chunkCount = Math.max(0, Math.min(100, Math.floor(Number(doc?.chunkCount ?? 0))));
     if (doc && chunkCount > 0) {
       const chunkSnaps = await withTimeout(Promise.all(
-        Array.from({ length: chunkCount }, (_, i) => getDoc(firestoreDoc(db, 'runs', runId, 'chunks', `c${i}`))),
+        Array.from({ length: chunkCount }, (_, i) => fs.getDoc(fs.doc(db, 'runs', runId, 'chunks', `c${i}`))),
       ));
       const chunkEvents = chunkSnaps
         .map((chunkSnap, i) => {
@@ -512,8 +505,9 @@ export interface RunSnapshotRow {
  *  snapshots are embedded in each doc, so no chunk/subcollection reads. */
 export async function fetchRunSnapshots(max = 300): Promise<RunSnapshotRow[]> {
   try {
-    const q = query(collection(db, 'runs'), orderBy('endedAt', 'desc'), limitResults(max));
-    const snap = await withTimeout(getDocs(q));
+    const { fs, db } = await firestore();
+    const q = fs.query(fs.collection(db, 'runs'), fs.orderBy('endedAt', 'desc'), fs.limit(max));
+    const snap = await withTimeout(fs.getDocs(q));
     return snap.docs.map((d) => {
       const r = d.data() as PublicRunDoc;
       return {
@@ -535,7 +529,8 @@ export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<b
   const serverUid = await ensureServerUid();
   if (!serverUid) return false;
   try {
-    await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), { ...doc, uid: serverUid.slice(0, 40) }));
+    const { fs, db } = await firestore();
+    await withTimeout(fs.setDoc(fs.doc(db, 'runAnalytics', doc.runId), { ...doc, uid: serverUid.slice(0, 40) }));
     return true;
   } catch (error) {
     console.warn('Run analytics submit failed', error);
@@ -549,11 +544,12 @@ export async function submitRunCheckpoint(doc: RunCheckpointDoc): Promise<boolea
   const serverUid = await ensureServerUid();
   if (!serverUid) return false;
   try {
+    const { fs, db } = await firestore();
     const chunkId = `c${String(Math.max(0, Math.floor(doc.chunk))).padStart(6, '0')}`;
-    await withTimeout(setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), {
+    await withTimeout(fs.setDoc(fs.doc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), {
       ...doc,
       uid: serverUid.slice(0, 40),
-      expiresAt: ttlTimestamp(CHECKPOINT_TTL_MS),
+      expiresAt: ttlTimestamp(fs, CHECKPOINT_TTL_MS),
     }));
     return true;
   } catch (error) {
@@ -786,8 +782,9 @@ function normalizeRunAnalytics(id: string, data: Partial<PrivateRunAnalyticsDoc>
 /** Admin-only: read recent telemetry events for the dashboard. */
 export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
   try {
-    const q = query(collection(db, 'telemetry'), orderBy('ts', 'desc'), limitResults(limit));
-    const snap = await withTimeout(getDocs(q));
+    const { fs, db } = await firestore();
+    const q = fs.query(fs.collection(db, 'telemetry'), fs.orderBy('ts', 'desc'), fs.limit(limit));
+    const snap = await withTimeout(fs.getDocs(q));
     return snap.docs.map((d) => {
       const data = d.data() as Partial<TelemetryData>;
       return {
@@ -817,8 +814,9 @@ export async function fetchTelemetry(limit = 1000): Promise<TelemetryRow[]> {
 
 export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]> {
   try {
-    const q = query(collection(db, 'runAnalytics'), orderBy('endedAt', 'desc'), limitResults(limit));
-    const snap = await withTimeout(getDocs(q));
+    const { fs, db } = await firestore();
+    const q = fs.query(fs.collection(db, 'runAnalytics'), fs.orderBy('endedAt', 'desc'), fs.limit(limit));
+    const snap = await withTimeout(fs.getDocs(q));
     return snap.docs.map((d) => normalizeRunAnalytics(d.id, d.data() as Partial<PrivateRunAnalyticsDoc>));
   } catch {
     return [];
@@ -832,8 +830,9 @@ async function readTop(board: string, limit = 10): Promise<ScoreEntry[]> {
   if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   const sortField = board.endsWith('_fp') ? 'wave' : 'cash';
   const fetchLimit = board.endsWith('_fp') ? Math.min(50, Math.max(limit, limit * 4)) : limit;
-  const q = query(collection(db, 'boards', board, 'scores'), orderBy(sortField, 'desc'), limitResults(fetchLimit));
-  const snap = await withTimeout(getDocs(q));
+  const { fs, db } = await firestore();
+  const q = fs.query(fs.collection(db, 'boards', board, 'scores'), fs.orderBy(sortField, 'desc'), fs.limit(fetchLimit));
+  const snap = await withTimeout(fs.getDocs(q));
   const rows = snap.docs.map((d) => {
     const data = d.data() as Partial<ScoreEntry>;
     return {
@@ -874,8 +873,9 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
   const cached = topCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
   try {
-    const q = query(collection(db, 'dailyBoards', board, 'scores'), orderBy('wave', 'desc'), limitResults(limit));
-    const snap = await withTimeout(getDocs(q));
+    const { fs, db } = await firestore();
+    const q = fs.query(fs.collection(db, 'dailyBoards', board, 'scores'), fs.orderBy('wave', 'desc'), fs.limit(limit));
+    const snap = await withTimeout(fs.getDocs(q));
     const rows = snap.docs.map((d) => {
       const data = d.data() as Partial<ScoreEntry>;
       return {
