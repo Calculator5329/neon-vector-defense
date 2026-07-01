@@ -2416,6 +2416,61 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .commander-dossier .menu-rank-strip, .commander-dossier .menu-next-unlock { flex: none; }
 }
 
+/* Short-landscape phones (the recommended play orientation): the <=980px
+   stacked layout above would push the arsenal below the fold and enable page
+   scroll. Restore the desktop ROW layout instead — full-height canvas on the
+   left, a slim scrollable command sidebar on the right — so the whole command
+   view fits the viewport with no scrolling. */
+@media (orientation: landscape) and (max-height: 500px) {
+  html, body, #root { overflow: hidden; }
+  .game-root { height: 100%; min-height: 0; }
+  .game-body { flex-direction: row; padding: 6px; gap: 6px; }
+  .canvas-wrap { flex-direction: row; min-height: 0; }
+  .canvas-wrap canvas { height: 100%; width: 100%; }
+  .sidebar {
+    width: min(300px, 42vw);
+    max-height: none;
+    border-radius: 10px;
+    padding-bottom: 0;
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+  .sidebar.collapsed { width: 38px; max-height: none; }
+  .side-rail {
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    padding: 14px 0;
+  }
+  .side-rail-label { writing-mode: vertical-rl; letter-spacing: 3px; }
+  .topbar {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 5px;
+    padding: 4px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+  }
+  .tb-stat { font-size: 11px; padding: 4px 8px; flex: 0 0 auto; }
+  .tb-stat.wave { grid-column: auto; }
+  .tb-btn { min-height: 28px; font-size: 10px; padding: 4px 8px; flex: 0 0 auto; }
+  .tb-spacer { display: block; flex: 1 1 auto; }
+  .ability-bar { left: max(8px, env(safe-area-inset-left)); bottom: 8px; gap: 5px; }
+  .ability-btn { width: 46px; height: 46px; }
+  .ability-btn .ability-icon { font-size: 19px; }
+  .wave-btn { font-size: 13px; padding: 10px 18px; bottom: 62px; }
+  .freeplay-build-panel {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    width: min(430px, 60vw);
+    margin: 0;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+  }
+  .daily-freeplay-card, .replay-of-day-card { margin-bottom: 8px; }
+  .menu-root { padding-bottom: 84px; }
+}
+
 @media (max-width: 560px) {
   .map-grid {
     display: flex;
