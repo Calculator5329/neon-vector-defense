@@ -899,10 +899,56 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
   }
 }
 
+interface GlobalTopAggregateRow extends ScoreEntry {
+  board?: string;
+}
+
+/** Read the server-maintained aggregates/globalTop doc; null when absent (pre-migration). */
+async function readGlobalTopAggregate(freeplay: boolean, limit: number): Promise<RankedScoreEntry[] | null> {
+  const { fs, db } = await firestore();
+  const snap = await withTimeout(fs.getDoc(fs.doc(db, 'aggregates', 'globalTop')));
+  if (!snap.exists()) return null;
+  const data = snap.data() as { campaign?: GlobalTopAggregateRow[]; freeplay?: GlobalTopAggregateRow[] };
+  const list = freeplay ? data.freeplay : data.campaign;
+  if (!Array.isArray(list)) return null;
+  return list
+    .map((row): RankedScoreEntry | null => {
+      const meta = row.board ? boardMeta(row.board) : null;
+      if (!meta) return null;
+      return {
+        name: String(row.name ?? '???'),
+        cash: Number(row.cash ?? 0),
+        kills: Number(row.kills ?? 0),
+        wave: Number(row.wave ?? 0),
+        freeplay: !!row.freeplay,
+        ts: Number(row.ts ?? 0),
+        uid: String(row.uid ?? ''),
+        runId: String(row.runId ?? ''),
+        checkpoint: row.checkpoint ?? false,
+        ...meta,
+      };
+    })
+    .filter((row): row is RankedScoreEntry => row !== null)
+    .slice(0, limit);
+}
+
 export async function fetchGlobalTopResult(freeplay: boolean, limit = 20): Promise<LeaderboardFetchResult<RankedScoreEntry>> {
   const cacheKey = `${freeplay ? 'fp' : 'campaign'}:${limit}`;
   const cached = globalTopCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) return { rows: cloneScores(cached.rows), error: false };
+  // Fast path: ONE aggregate-doc read, maintained by the score functions.
+  try {
+    const aggregated = await readGlobalTopAggregate(freeplay, limit);
+    if (aggregated) {
+      globalTopCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows: aggregated });
+      return { rows: cloneScores(aggregated), error: false };
+    }
+  } catch {
+    // fall through to the legacy fan-out below
+  }
+  // Legacy fallback (aggregate doc absent — no scores accepted since the
+  // migration): 40-board fan-out, up to ~400 reads. Goes away naturally once
+  // the first post-migration score lands.
   const boards = ALL_MAPS.flatMap((map) =>
     DIFFICULTIES.map((diff) => boardId(map.id, diff.id, freeplay)));
   const perBoardLimit = Math.max(3, Math.min(10, limit));

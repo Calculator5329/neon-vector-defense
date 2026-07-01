@@ -352,4 +352,10 @@ describe('feedback and config rules', () => {
     await assertFails(setDoc(doc(db, 'config', 'balance'), { version: 'test' }));
     await assertSucceeds(setDoc(doc(adminDb(), 'config', 'balance'), { version: 'test' }));
   });
+
+  test('global-top aggregate is public read, server-only write', async () => {
+    await assertSucceeds(getDoc(doc(anonDb(), 'aggregates', 'globalTop')));
+    await assertFails(setDoc(doc(playerDb(), 'aggregates', 'globalTop'), { campaign: [], freeplay: [] }));
+    await assertFails(setDoc(doc(adminDb(), 'aggregates', 'globalTop'), { campaign: [], freeplay: [] }));
+  });
 });

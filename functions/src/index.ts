@@ -21,6 +21,7 @@ import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firesto
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
+import { mergeGlobalTopRows, type GlobalTopRow } from './aggregateHelpers.js';
 import { partitionRunDeletions, validDeletedRunIds } from './deleteHelpers.js';
 import {
   canonicalLeaderboardCash,
@@ -245,11 +246,52 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
   const docId = `${claim.uid}_${claim.runId}${claim.checkpoint ? `_w${canonical.wave}` : ''}`.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 180);
   await db.collection(collPath).doc(docId).set(stored, { merge: false });
 
+  // Maintain the single-doc global-top aggregate (campaign + freeplay lists)
+  // so the client menu reads ONE doc instead of fanning out 40 board queries.
+  // Daily boards are their own surface and stay out of the global view.
+  // Best-effort: an aggregate failure must never reject an accepted score.
+  if (!isDaily) {
+    try {
+      await updateGlobalTop({
+        name: claim.name,
+        cash: canonical.cash,
+        kills: canonical.kills,
+        wave: canonical.wave,
+        freeplay: boardIsFreeplay(board),
+        ts: acceptedAt,
+        uid: claim.uid,
+        runId: claim.runId,
+        board,
+        ...(claim.checkpoint !== undefined ? { checkpoint: claim.checkpoint } : {}),
+      });
+    } catch (error) {
+      console.warn('globalTop aggregate update failed', error);
+    }
+  }
+
   return {
     accepted: true,
     claimed,
     accepted_values: canonical,
   };
+}
+
+const GLOBAL_TOP_PATH = 'aggregates/globalTop';
+
+async function updateGlobalTop(entry: GlobalTopRow): Promise<void> {
+  await db.runTransaction(async (tx) => {
+    const ref = db.doc(GLOBAL_TOP_PATH);
+    const snap = await tx.get(ref);
+    const data = (snap.exists ? snap.data() : {}) as { campaign?: GlobalTopRow[]; freeplay?: GlobalTopRow[] };
+    const listKey = entry.freeplay ? 'freeplay' : 'campaign';
+    const current = Array.isArray(data[listKey]) ? data[listKey]! : [];
+    tx.set(ref, {
+      schemaVersion: 1,
+      campaign: listKey === 'campaign' ? mergeGlobalTopRows(current, entry) : (data.campaign ?? []),
+      freeplay: listKey === 'freeplay' ? mergeGlobalTopRows(current, entry) : (data.freeplay ?? []),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: false });
+  });
 }
 
 async function allowRateLimitedAction(key: string): Promise<boolean> {

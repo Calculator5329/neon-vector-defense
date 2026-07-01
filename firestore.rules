@@ -294,6 +294,15 @@ service cloud.firestore {
         && (!('towers' in request.resource.data) || request.resource.data.towers is map);
     }
 
+    // server-maintained global-top aggregate: one public doc replaces the
+    // 40-query per-menu-view board fan-out. Written only by the score
+    // functions (Admin SDK bypasses rules).
+    match /aggregates/globalTop {
+      allow get: if true;
+      allow list: if false;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
