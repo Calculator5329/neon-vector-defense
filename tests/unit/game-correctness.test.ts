@@ -11,7 +11,7 @@ import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { normalizeProgress, progress } from '../../src/game/storage';
 import { TOWERS } from '../../src/game/towers';
 import type { Enemy, EnemyDef } from '../../src/game/types';
-import { validDeletedRunIds } from '../../functions/src/deleteHelpers';
+import { partitionRunDeletions, validDeletedRunIds } from '../../functions/src/deleteHelpers';
 
 function makeGame(): Game {
   return new Game(ALL_MAPS[0], DIFFICULTIES[0]);
@@ -218,6 +218,23 @@ describe('freeplay correctness guards', () => {
 describe('server deletion helpers', () => {
   test('keeps unique valid run ids from leaderboard score rows', () => {
     assert.deepEqual(validDeletedRunIds(['r_abcdefgh', 'bad', 'r_abcdefgh', null, 'r_ijklmnop']), ['r_abcdefgh', 'r_ijklmnop']);
+  });
+
+  test('public run deletion requires corroboration beyond the owner index', () => {
+    // r_plantedxx simulates a forged legacy replayOwners row pointing at another
+    // player's replay: it must be skipped, not deleted.
+    const { deletable, skipped } = partitionRunDeletions(
+      ['r_ownedrun1', 'r_plantedxx'],
+      ['r_ownedrun1', 'r_boardonly'],
+    );
+    assert.deepEqual([...deletable].sort(), ['r_boardonly', 'r_ownedrun1']);
+    assert.deepEqual(skipped, ['r_plantedxx']);
+  });
+
+  test('corroborated-only run ids are deletable even without an owner row', () => {
+    const { deletable, skipped } = partitionRunDeletions([], ['r_boardonly', 'bad-id']);
+    assert.deepEqual(deletable, ['r_boardonly']);
+    assert.deepEqual(skipped, []);
   });
 });
 

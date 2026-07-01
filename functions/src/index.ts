@@ -21,7 +21,7 @@ import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firesto
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
-import { validDeletedRunIds } from './deleteHelpers.js';
+import { partitionRunDeletions, validDeletedRunIds } from './deleteHelpers.js';
 import {
   canonicalLeaderboardCash,
   feedbackTokenHash,
@@ -392,6 +392,8 @@ interface DeleteResult {
     feedback: number;
     runs: number;
     rateLimits: number;
+    /** owner-index runIds with no corroborating signal — left for manual review */
+    skippedRuns: number;
   };
   errors?: string[];
 }
@@ -417,38 +419,47 @@ async function collectLeaderboardRunIds(uid: string): Promise<string[]> {
   return validDeletedRunIds(snap.docs.map((d) => d.get('runId')));
 }
 
-async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = []): Promise<{ runCheckpoints: number; replayOwners: number; runs: number }> {
-  const runIds = new Set<string>(validDeletedRunIds([...knownRunIds]));
-
-  const owners = await db.collection(`replayOwners/${uid}/runs`).get();
-  owners.docs.forEach((d) => runIds.add(d.id));
+async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = []): Promise<{ runCheckpoints: number; replayOwners: number; runs: number; skippedRuns: number }> {
+  // Corroborated signals: server-written board rows (knownRunIds) and
+  // uid-matching runAnalytics / runCheckpoints docs.
+  const corroborated = new Set<string>(validDeletedRunIds([...knownRunIds]));
 
   const ra = await db.collection('runAnalytics').where('uid', '==', uid).get();
-  ra.docs.forEach((d) => runIds.add(d.id));
+  ra.docs.forEach((d) => corroborated.add(d.id));
 
   try {
     const cg = await db.collectionGroup('chunks').where('uid', '==', uid).get();
     cg.docs.forEach((d) => {
       const parent = d.ref.parent.parent;
-      if (parent && parent.parent.id === 'runCheckpoints') runIds.add(parent.id);
+      if (parent && parent.parent.id === 'runCheckpoints') corroborated.add(parent.id);
     });
   } catch {
     // collection-group index may not be built yet; fall back to runAnalytics-derived runIds.
   }
 
+  const owners = await db.collection(`replayOwners/${uid}/runs`).get();
+  const ownerIds = owners.docs.map((d) => d.id);
+  // Owner-index rows alone must not delete public replays: legacy (pre-auth)
+  // rows were client-claimed, so a forged row could point at another player's
+  // run. Skipped ids are reported for manual operator review.
+  const { deletable, skipped } = partitionRunDeletions(ownerIds, corroborated);
+
   let runCheckpoints = 0;
   let replayOwners = 0;
   let runs = 0;
-  for (const runId of runIds) {
-    runCheckpoints += await deleteByQuery(() => db.collection(`runCheckpoints/${runId}/chunks`));
+  for (const runId of new Set([...deletable, ...skipped])) {
+    // Private, uid-scoped artifacts are always safe to delete for this uid.
+    runCheckpoints += await deleteByQuery(() => db.collection(`runCheckpoints/${runId}/chunks`).where('uid', '==', uid));
+    const ownerRef = db.doc(`replayOwners/${uid}/runs/${runId}`);
+    if ((await ownerRef.get()).exists) { await ownerRef.delete().catch(() => undefined); replayOwners++; }
+  }
+  for (const runId of deletable) {
     await db.doc(`runCheckpoints/${runId}`).delete().catch(() => undefined);
     await deleteByQuery(() => db.collection(`runs/${runId}/chunks`));
     const runRef = db.doc(`runs/${runId}`);
     if ((await runRef.get()).exists) { await runRef.delete().catch(() => undefined); runs++; }
-    const ownerRef = db.doc(`replayOwners/${uid}/runs/${runId}`);
-    if ((await ownerRef.get()).exists) { await ownerRef.delete().catch(() => undefined); replayOwners++; }
   }
-  return { runCheckpoints, replayOwners, runs };
+  return { runCheckpoints, replayOwners, runs, skippedRuns: skipped.length };
 }
 
 // Admins (the operator) only — NOT public. uids appear in public leaderboard reads,
@@ -468,6 +479,7 @@ export const deleteMyData = onCall(
     const deleted = {
       telemetry: 0, runAnalytics: 0, runCheckpoints: 0,
       replayOwners: 0, boardScores: 0, feedback: 0, runs: 0, rateLimits: 0,
+      skippedRuns: 0,
     };
     const errors: string[] = [];
     // Each phase is independent + idempotent so a partial failure (e.g. a missing
@@ -481,7 +493,7 @@ export const deleteMyData = onCall(
     await phase('telemetry', async () => { deleted.telemetry = await deleteByQuery(() => db.collection('telemetry').where('uid', '==', uid)); });
     await phase('feedback', async () => { deleted.feedback = await deleteByQuery(() => db.collection('feedback').where('uid', '==', uid)); });
     await phase('boardScores', async () => { deleted.boardScores = await deleteByQuery(() => db.collectionGroup('scores').where('uid', '==', uid)); });
-    await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.replayOwners = r.replayOwners; deleted.runs = r.runs; });
+    await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.replayOwners = r.replayOwners; deleted.runs = r.runs; deleted.skippedRuns = r.skippedRuns; });
     await phase('runAnalytics', async () => { deleted.runAnalytics = await deleteByQuery(() => db.collection('runAnalytics').where('uid', '==', uid)); });
     await phase('rateLimits', async () => {
       for (const key of [uid, `feedback_${uid}`]) {
