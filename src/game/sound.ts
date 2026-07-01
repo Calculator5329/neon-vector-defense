@@ -205,7 +205,7 @@ export function vox(name: string) {
   lastVox = now;
   let el = voxCache[name];
   if (!el) {
-    el = new Audio(`/audio/vox/${name}.wav`);
+    el = new Audio(`/audio/vox/${name}.mp3`);
     el.volume = 0.8;
     voxCache[name] = el;
   }
@@ -214,7 +214,7 @@ export function vox(name: string) {
 }
 
 /** voiced transmission; returns a stopper */
-export function playBriefing(src = '/audio/briefing.wav'): () => void {
+export function playBriefing(src = '/audio/briefing.mp3'): () => void {
   if (!sfxOn || typeof Audio === 'undefined') return () => {};
   const el = new Audio(src);
   el.volume = 0.85;
@@ -235,7 +235,7 @@ let narrationEl: HTMLAudioElement | null = null;
 export function playNarration(index: number): () => void {
   if (typeof Audio === 'undefined') return () => {};
   narrationEl?.pause();
-  const el = new Audio(`/audio/vox/frag-read-${index}.wav`);
+  const el = new Audio(`/audio/vox/frag-read-${index}.mp3`);
   el.volume = 0.85;
   narrationEl = el;
   void el.play().catch(() => {});

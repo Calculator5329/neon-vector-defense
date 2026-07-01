@@ -880,7 +880,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
             <BriefingOverlay
               lines={diff.id === 'ngplus' ? LONGWATCH_BRIEFING : BRIEFING}
               portrait={diff.id === 'ngplus' ? '/art/hollow.webp' : '/art/briefing.webp'}
-              audio={diff.id === 'ngplus' ? '/audio/vox/longwatch-brief.wav' : '/audio/briefing.wav'}
+              audio={diff.id === 'ngplus' ? '/audio/vox/longwatch-brief.mp3' : '/audio/briefing.mp3'}
               onDone={() => { setBriefed(true); sfx.waveStart(); }}
             />
           )}
