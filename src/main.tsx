@@ -5,10 +5,12 @@ import App from './App';
 import { applyAccessibility } from './game/settings';
 import { applyAccent } from './game/palette';
 import { loadRemoteBalance } from './game/balanceConfig';
+import { pruneStaleLocalData } from './game/localDataCleanup';
 
 // apply persisted accessibility prefs + cosmetic accent palette before first paint
 applyAccessibility();
 applyAccent();
+pruneStaleLocalData();
 // fetch remote balance overrides (fire-and-forget; identity fallback until it resolves)
 void loadRemoteBalance();
 
