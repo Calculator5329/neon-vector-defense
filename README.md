@@ -140,6 +140,7 @@ reserved project assets. See [docs/asset_provenance.md](docs/asset_provenance.md
 | Doc | Contents |
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | Module map, layer model, runtime flow |
+| [docs/business_plan.md](docs/business_plan.md) | Strategy, execution order, KPIs, launch gate |
 | [docs/tech_spec.md](docs/tech_spec.md) | Firestore schema, Cloud Functions, env vars |
 | [docs/decision_log.md](docs/decision_log.md) | Current source-of-truth design decisions |
 | [docs/roadmap.md](docs/roadmap.md) | Shipped features and next priorities |
