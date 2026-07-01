@@ -68,8 +68,15 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
+const playerUid = 'w_rules1';
+
 function anonDb() {
   return testEnv.unauthenticatedContext().firestore();
+}
+
+/** Signed-in anonymous player — the normal client write identity. */
+function playerDb(uid = playerUid) {
+  return testEnv.authenticatedContext(uid).firestore();
 }
 
 function adminDb() {
@@ -77,23 +84,29 @@ function adminDb() {
 }
 
 describe('public replay rules', () => {
-  test('allow create and public get, but deny updates', async () => {
-    const db = anonDb();
+  test('allow signed-in create and public get, but deny updates', async () => {
+    const db = playerDb();
     const ref = doc(db, 'runs', runId);
     await assertSucceeds(setDoc(ref, validRun));
-    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(getDoc(doc(anonDb(), 'runs', runId)));
     await assertFails(updateDoc(ref, { eventCount: 2 }));
   });
 
-  test('deny malformed public replay docs', async () => {
+  test('deny unauthenticated replay and chunk creates', async () => {
     const db = anonDb();
+    await assertFails(setDoc(doc(db, 'runs', runId), validRun));
+    await assertFails(setDoc(doc(db, 'runs', runId, 'chunks', 'c0'), { schemaVersion: 2, runId, chunk: 0, events: [] }));
+  });
+
+  test('deny malformed public replay docs', async () => {
+    const db = playerDb();
     const malformed = { ...validRun };
     delete (malformed as Partial<typeof validRun>).final;
     await assertFails(setDoc(doc(db, 'runs', runId), malformed));
   });
 
   test('deny public replay docs with malformed nested summaries', async () => {
-    const db = anonDb();
+    const db = playerDb();
     await assertFails(setDoc(doc(db, 'runs', runId), {
       ...validRun,
       summary: { ...validSummary, wave: '1' },
@@ -103,7 +116,7 @@ describe('public replay rules', () => {
   test('allow deep-freeplay runs whose compounded score multiplier exceeds 100', async () => {
     // regression: scoreMultiplierEnd compounds across waves/risks/relics and used to be
     // capped at 100, which rejected the whole replay and blocked the score submission.
-    const db = anonDb();
+    const db = playerDb();
     await assertSucceeds(setDoc(doc(db, 'runs', runId), {
       ...validRun,
       summary: { ...validSummary, freeplay: true, scoreMultiplierEnd: 873.45 },
@@ -111,7 +124,7 @@ describe('public replay rules', () => {
   });
 
   test('still reject an absurd (garbage) score multiplier', async () => {
-    const db = anonDb();
+    const db = playerDb();
     await assertFails(setDoc(doc(db, 'runs', runId), {
       ...validRun,
       summary: { ...validSummary, freeplay: true, scoreMultiplierEnd: 5000000000 },
@@ -119,30 +132,50 @@ describe('public replay rules', () => {
   });
 
   test('allow replay chunk create and deny chunk updates', async () => {
-    const db = anonDb();
+    const db = playerDb();
     const ref = doc(db, 'runs', runId, 'chunks', 'c0');
     await assertSucceeds(setDoc(ref, { schemaVersion: 2, runId, chunk: 0, events: [] }));
     await assertFails(updateDoc(ref, { chunk: 1 }));
   });
 
   test('allow private replay owner index creates and deny public reads or updates', async () => {
-    const db = anonDb();
-    const ref = doc(db, 'replayOwners', 'w_rules1', 'runs', runId);
+    const db = playerDb();
+    const ref = doc(db, 'replayOwners', playerUid, 'runs', runId);
     await assertSucceeds(setDoc(ref, {
       schemaVersion: 1,
-      uid: 'w_rules1',
+      uid: playerUid,
       runId,
       createdAt: 1,
       build: 'test',
     }));
     await assertFails(getDoc(ref));
-    await assertSucceeds(getDoc(doc(adminDb(), 'replayOwners', 'w_rules1', 'runs', runId)));
+    await assertSucceeds(getDoc(doc(adminDb(), 'replayOwners', playerUid, 'runs', runId)));
     await assertFails(updateDoc(ref, { build: 'changed' }));
   });
 
+  test('deny replay owner entries planted under another uid', async () => {
+    // the grief-deletion vector: player A must not be able to register
+    // ownership rows under player B's uid to poison operator-run deletion.
+    const victimUid = 'w_victim9';
+    await assertFails(setDoc(doc(playerDb(), 'replayOwners', victimUid, 'runs', runId), {
+      schemaVersion: 1,
+      uid: victimUid,
+      runId,
+      createdAt: 1,
+      build: 'test',
+    }));
+    await assertFails(setDoc(doc(anonDb(), 'replayOwners', victimUid, 'runs', runId), {
+      schemaVersion: 1,
+      uid: victimUid,
+      runId,
+      createdAt: 1,
+      build: 'test',
+    }));
+  });
+
   test('deny malformed replay owner index docs', async () => {
-    const db = anonDb();
-    await assertFails(setDoc(doc(db, 'replayOwners', 'w_rules1', 'runs', runId), {
+    const db = playerDb();
+    await assertFails(setDoc(doc(db, 'replayOwners', playerUid, 'runs', runId), {
       schemaVersion: 1,
       uid: 'other_uid',
       runId,
@@ -161,10 +194,10 @@ describe('leaderboard and telemetry write rules', () => {
   });
 
   test('allow bounded telemetry creates and deny updates', async () => {
-    const db = anonDb();
+    const db = playerDb();
     const ref = doc(db, 'telemetry', 't1');
     await assertSucceeds(setDoc(ref, {
-      uid: 'w_rules1',
+      uid: playerUid,
       ts: 1,
       kind: 'final',
       map: 'orbital',
@@ -179,13 +212,31 @@ describe('leaderboard and telemetry write rules', () => {
     await assertFails(updateDoc(ref, { wave: 2 }));
   });
 
+  test('deny telemetry writes that are unauthenticated or spoof another uid', async () => {
+    const row = {
+      uid: playerUid,
+      ts: 1,
+      kind: 'final',
+      map: 'orbital',
+      diff: 'easy',
+      wave: 1,
+      kills: 1,
+      cash: 1,
+      won: false,
+      freeplay: false,
+      durationS: 10,
+    };
+    await assertFails(setDoc(doc(anonDb(), 'telemetry', 't1'), row));
+    await assertFails(setDoc(doc(playerDb(), 'telemetry', 't2'), { ...row, uid: 'w_victim9' }));
+  });
+
   test('allow private run analytics create and deny public updates', async () => {
-    const db = anonDb();
+    const db = playerDb();
     const ref = doc(db, 'runAnalytics', runId);
     await assertSucceeds(setDoc(ref, {
       schemaVersion: 1,
       runId,
-      uid: 'w_rules1',
+      uid: playerUid,
       createdAt: 1,
       endedAt: 2,
       build: 'test',
@@ -204,12 +255,12 @@ describe('leaderboard and telemetry write rules', () => {
   });
 
   test('allow checkpoint chunk creates and keep reads admin-only', async () => {
-    const db = anonDb();
+    const db = playerDb();
     const ref = doc(db, 'runCheckpoints', runId, 'chunks', 'c0');
     await assertSucceeds(setDoc(ref, {
       schemaVersion: 2,
       runId,
-      uid: 'w_rules1',
+      uid: playerUid,
       chunk: 0,
       reason: 'interval',
       createdAt: 1,
@@ -223,6 +274,43 @@ describe('leaderboard and telemetry write rules', () => {
     }));
     await assertFails(getDoc(ref));
     await assertSucceeds(getDoc(doc(adminDb(), 'runCheckpoints', runId, 'chunks', 'c0')));
+  });
+
+  test('deny analytics and checkpoint writes that spoof another uid', async () => {
+    const db = playerDb();
+    await assertFails(setDoc(doc(db, 'runAnalytics', runId), {
+      schemaVersion: 1,
+      runId,
+      uid: 'w_victim9',
+      createdAt: 1,
+      endedAt: 2,
+      build: 'test',
+      summary: validSummary,
+      onboarding: {},
+      abandonment: {},
+      difficulty: {},
+      economy: {},
+      towerInterest: {},
+      progression: {},
+      leaderboard: {},
+      attention: {},
+      performance: {},
+    }));
+    await assertFails(setDoc(doc(db, 'runCheckpoints', runId, 'chunks', 'c0'), {
+      schemaVersion: 2,
+      runId,
+      uid: 'w_victim9',
+      chunk: 0,
+      reason: 'interval',
+      createdAt: 1,
+      build: 'test',
+      summary: validSummary,
+      performance: {},
+      attention: {},
+      counters: {},
+      recentEvents: [],
+      latestSnapshot: null,
+    }));
   });
 });
 

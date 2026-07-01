@@ -63,6 +63,53 @@ async function openDemoMenu(page: Page) {
   await expect(page.getByTestId('deploy-button')).toBeVisible();
 }
 
+/**
+ * Player writes require Firebase Anonymous Auth (src/game/anonAuth.ts), so tests
+ * that exercise a write path must answer the identitytoolkit sign-in locally —
+ * otherwise the client signs in against production (or fails) before ever
+ * reaching the mocked callable/Firestore routes.
+ */
+const E2E_ANON_UID = 'e2e_anon_uid_1';
+async function mockAnonAuth(page: Page, uid = E2E_ANON_UID) {
+  const b64url = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  // Static unsigned JWT: the SDK only parses the payload for expiry/uid locally.
+  const fakeIdToken = [
+    b64url({ alg: 'none', typ: 'JWT' }),
+    b64url({ sub: uid, user_id: uid, iat: 1_750_000_000, exp: 4_102_444_800, firebase: { sign_in_provider: 'anonymous' } }),
+    'sig',
+  ].join('.');
+  const fulfillJson = async (route: Route, body: unknown) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-headers': '*',
+          'access-control-allow-methods': 'POST, OPTIONS',
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify(body),
+    });
+  };
+  await page.route('**/accounts:signUp**', (route) => fulfillJson(route, {
+    kind: 'identitytoolkit#SignupNewUserResponse',
+    idToken: fakeIdToken,
+    refreshToken: 'fake-refresh-token',
+    expiresIn: '3600',
+    localId: uid,
+  }));
+  await page.route('**/accounts:lookup**', (route) => fulfillJson(route, {
+    kind: 'identitytoolkit#GetAccountInfoResponse',
+    users: [{ localId: uid, lastLoginAt: '1750000000000', createdAt: '1750000000000' }],
+  }));
+}
+
 async function openConsentedMenu(page: Page) {
   await seedProgress(page);
   await page.goto('/');
@@ -566,6 +613,7 @@ test.describe('feedback privacy flow', () => {
       });
     });
 
+    await mockAnonAuth(page);
     await openConsentedMenu(page);
     await page.getByRole('button', { name: 'Messages' }).click();
     await page.getByLabel('Message to the developer').fill('hello privately');
@@ -676,7 +724,8 @@ test.describe('run telemetry model', () => {
     expect(rules).toContain('isTelemetrySchema(request.resource.data)');
     expect(rules).toContain('match /runCheckpoints/{runId}');
     expect(rules).toContain('match /dailyBoards/{daily}/scores/{id}');
-    expect(rules).toContain('allow create: if isValidRunId(runId)');
+    expect(rules).toContain('allow create: if isPlayer()');
+    expect(rules).toContain('isValidRunId(runId)');
     expect(rules).toContain('allow update, delete: if false');
   });
 

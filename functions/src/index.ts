@@ -8,11 +8,12 @@
  *
  * deleteMyData: cascade-delete all docs keyed by a given anonymous uid.
  *
- * Trust model: the player uid is anonymous and supplied in the payload — NOT an
- * authenticated identity. Used only for rate-limit bucketing and the stored `uid`.
- * Casual cheating is stopped (a forged score with no real replay, or one wildly
- * inconsistent with its replay, is rejected). A hand-crafted fake replay can still
- * pass — accepted launch posture (pragmatic MVP).
+ * Trust model: the player uid is the Firebase Anonymous Auth uid from the
+ * callable auth context — payload uids are ignored. Rate limits key on that
+ * verified identity, so an attacker can no longer mint a fresh bucket per
+ * request. Casual cheating is stopped (a forged score with no real replay, or
+ * one wildly inconsistent with its replay, is rejected). A hand-crafted fake
+ * replay can still pass — accepted launch posture (pragmatic MVP).
  */
 
 import { initializeApp } from 'firebase-admin/app';
@@ -101,6 +102,13 @@ interface CanonicalScore {
 function n(v: unknown, fallback = 0): number {
   const x = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(x) ? x : fallback;
+}
+
+/** Verified anonymous identity for player callables. Payload uids are never trusted. */
+function requireAuthUid(req: CallableRequest): string {
+  const uid = String(req.auth?.uid ?? '');
+  if (!uid || !UID_RE.test(uid)) throw new HttpsError('unauthenticated', 'auth-required');
+  return uid;
 }
 
 function validBoard(board: string): boolean {
@@ -297,8 +305,10 @@ function millis(v: unknown): number {
 export const submitFeedback = onCall(
   callableOptions(10),
   async (req: CallableRequest): Promise<FeedbackSubmitResult> => {
-    const feedback = readFeedbackPayload(req.data);
-    if (!feedback) throw new HttpsError('invalid-argument', 'bad-feedback');
+    const authUid = requireAuthUid(req);
+    const payload = readFeedbackPayload(req.data);
+    if (!payload) throw new HttpsError('invalid-argument', 'bad-feedback');
+    const feedback = { ...payload, uid: authUid };
     if (!(await allowRateLimitedAction(`feedback_${feedback.uid}`))) {
       return { accepted: false, reason: 'rate-limited' };
     }
@@ -346,23 +356,25 @@ export const fetchFeedbackReplies = onCall(
 export const submitScore = onCall(
   callableOptions(10),
   async (req: CallableRequest): Promise<SubmitResult> => {
+    const authUid = requireAuthUid(req);
     const board = String((req.data as Record<string, unknown> | undefined)?.board ?? '');
     if (!validBoard(board)) throw new HttpsError('invalid-argument', 'bad-board');
     const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
     if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
     if (claim.daily) throw new HttpsError('invalid-argument', 'daily-on-board');
-    return processSubmit(claim, board, false);
+    return processSubmit({ ...claim, uid: authUid }, board, false);
   },
 );
 
 export const submitDailyScore = onCall(
   callableOptions(10),
   async (req: CallableRequest): Promise<SubmitResult> => {
+    const authUid = requireAuthUid(req);
     const dailyId = String((req.data as Record<string, unknown> | undefined)?.dailyId ?? '');
     if (!DAILY_BOARD_RE.test(dailyId)) throw new HttpsError('invalid-argument', 'bad-daily');
     const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
     if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
-    return processSubmit({ ...claim, freeplay: true, daily: dailyId }, dailyId, true);
+    return processSubmit({ ...claim, uid: authUid, freeplay: true, daily: dailyId }, dailyId, true);
   },
 );
 

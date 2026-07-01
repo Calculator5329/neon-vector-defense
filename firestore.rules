@@ -9,6 +9,13 @@ service cloud.firestore {
         ];
     }
 
+    // Player writes require Firebase Anonymous Auth. This is the flood gate:
+    // without it, any REST client holding the public web config could write
+    // 1MB replay docs in a loop and burn the daily write quota in minutes.
+    function isPlayer() {
+      return request.auth != null;
+    }
+
     function isValidDailyBoard(daily) {
       return daily.matches('^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
@@ -73,7 +80,8 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdmin();
       allow delete: if false;
-      allow create: if isValidRunId(runId)
+      allow create: if isPlayer()
+        && isValidRunId(runId)
         && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && isTelemetrySchema(request.resource.data)
@@ -94,7 +102,8 @@ service cloud.firestore {
         allow get: if true;
         allow list: if isAdmin();
         allow delete: if false;
-        allow create: if isValidRunId(runId)
+        allow create: if isPlayer()
+          && isValidRunId(runId)
           && chunkId.matches('^c[0-9]{1,4}$')
           && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'chunk', 'events'])
           && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'chunk', 'events'])
@@ -110,7 +119,12 @@ service cloud.firestore {
     match /replayOwners/{uid}/runs/{runId} {
       allow read: if isAdmin();
       allow update, delete: if false;
-      allow create: if isValidUid(uid)
+      // uid is bound to the authenticated identity: this is what stops one
+      // player from planting ownership entries under a victim's uid to
+      // weaponize operator-run deletions against other players' replays.
+      allow create: if isPlayer()
+        && request.auth.uid == uid
+        && isValidUid(uid)
         && isValidRunId(runId)
         && request.resource.data.keys().hasAll(['schemaVersion', 'uid', 'runId', 'createdAt', 'build'])
         && request.resource.data.keys().hasOnly(['schemaVersion', 'uid', 'runId', 'createdAt', 'build'])
@@ -125,7 +139,9 @@ service cloud.firestore {
     match /runAnalytics/{runId} {
       allow read: if isAdmin();
       allow update, delete: if false;
-      allow create: if isValidRunId(runId)
+      allow create: if isPlayer()
+        && request.resource.data.uid == request.auth.uid
+        && isValidRunId(runId)
         && isTelemetrySchema(request.resource.data)
         && (
           (
@@ -170,7 +186,9 @@ service cloud.firestore {
       match /chunks/{chunkId} {
         allow read: if isAdmin();
         allow update, delete: if false;
-        allow create: if isValidRunId(runId)
+        allow create: if isPlayer()
+          && request.resource.data.uid == request.auth.uid
+          && isValidRunId(runId)
           && chunkId.matches('^c[0-9]{1,6}$')
           && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
           && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
@@ -216,7 +234,9 @@ service cloud.firestore {
     match /telemetry/{id} {
       allow read: if isAdmin();
       allow update, delete: if false;
-      allow create: if request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build'])
+      allow create: if isPlayer()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build'])
         && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
         && request.resource.data.uid is string
         && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40

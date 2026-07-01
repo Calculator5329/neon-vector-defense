@@ -3,8 +3,10 @@ import react from '@vitejs/plugin-react-swc';
 
 // Split stable vendor code into its own long-cached chunks so a game-code change
 // doesn't bust the React/Firestore cache, and the player's first load can fetch in
-// parallel. firebase/auth is deliberately NOT chunked here — it must stay in the
-// lazy admin chunk (see src/game/adminAuth.ts) so players never download it.
+// parallel. firebase/auth is deliberately NOT merged into the eager firebase chunk:
+// it is reached only via the lazy admin chunk (src/game/adminAuth.ts) and the
+// dynamic import in src/game/anonAuth.ts (player sign-in right before the first
+// server write), so players never download it on first paint.
 export default defineConfig({
   plugins: [react()],
   build: {

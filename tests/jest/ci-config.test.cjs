@@ -76,12 +76,22 @@ describe('CI/CD guardrails', () => {
 
   test('client analytics writes stay append-only', () => {
     const submitRunAnalytics = /export async function submitRunAnalytics[\s\S]*?\n}/.exec(clientLeaderboard)?.[0] ?? '';
-    expect(submitRunAnalytics).toContain("firestoreDoc(db, 'runAnalytics', doc.runId), doc)");
+    expect(submitRunAnalytics).toContain("firestoreDoc(db, 'runAnalytics', doc.runId)");
     expect(submitRunAnalytics).not.toContain('merge: true');
   });
 
+  test('player writes require the authenticated anonymous identity', () => {
+    expect(firestoreRules).toContain('function isPlayer()');
+    expect(firestoreRules).toContain('request.auth.uid == uid');
+    expect(firestoreRules).toContain('request.resource.data.uid == request.auth.uid');
+    expect(functionsIndex).toContain('function requireAuthUid');
+    expect(functionsIndex).toContain("HttpsError('unauthenticated', 'auth-required')");
+    expect(clientLeaderboard).toContain('await ensureServerUid()');
+    expect(clientLeaderboard).not.toContain('uid: progress.uid');
+  });
+
   test('public replay deletion has a private ownership index', () => {
-    expect(clientLeaderboard).toContain("firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId)");
+    expect(clientLeaderboard).toContain("firestoreDoc(db, 'replayOwners', serverUid, 'runs', run.runId)");
     expect(functionsIndex).toContain("db.collection(`replayOwners/${uid}/runs`).get()");
     expect(functionsIndex).toContain("db.doc(`replayOwners/${uid}/runs/${runId}`)");
     expect(firestoreRules).toContain('match /replayOwners/{uid}/runs/{runId}');
@@ -118,7 +128,7 @@ describe('CI/CD guardrails', () => {
   });
 
   test('leaderboard rows can highlight the current player', () => {
-    expect(appTsx).toContain('const myUid = progress.uid');
+    expect(appTsx).toContain('const myUid = cachedServerUid() ?? progress.uid');
     expect(appTsx).toContain("r.uid === myUid ? 'me' : ''");
   });
 });

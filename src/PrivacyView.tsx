@@ -11,6 +11,7 @@ const LOCAL_KEYS = [
   'nvd-progress-v1',
   'nvd-meta-v2',
   'nvd-consent-v1',
+  'nvd-server-uid-v1',
   'nvd-replay-tokens-v1',
   'nvd-feedback-ids-v1',
   'nvd-feedback-receipts-v2',

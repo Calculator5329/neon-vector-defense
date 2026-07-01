@@ -9,6 +9,7 @@ import { ABILITIES } from './game/abilities';
 import { BRIEFING, LONGWATCH_BRIEFING, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LINES } from './game/lore';
 import { RECEIVER_COST } from './game/engine';
 import { progress } from './game/storage';
+import { cachedServerUid } from './game/anonAuth';
 import { Bot } from './game/bot';
 import { isMilestoneWave } from './game/writePolicy';
 import { canSubmitScore, needsAgeGate } from './game/consent';
@@ -884,7 +885,9 @@ function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
   const [globalError, setGlobalError] = useState(false);
   const [localError, setLocalError] = useState(false);
   const board = boardId(map.id, diff.id, fp);
-  const myUid = progress.uid;
+  // Server rows carry the authenticated anonymous uid; fall back to the legacy
+  // local uid so rows written before the auth migration still highlight.
+  const myUid = cachedServerUid() ?? progress.uid;
   useEffect(() => {
     let live = true;
     setGlobalRows(null);

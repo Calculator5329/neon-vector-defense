@@ -132,7 +132,7 @@ Score submit contract:
 3. The callable hashes the token, checks `runs/{runId}.replayTokenHash`, verifies map/diff/freeplay/daily consistency, sanity-bounds duration and claimed stats, then canonicalizes accepted values from the replay summary.
 4. Accepted leaderboard rows include `serverTs` for ordering and retain client time as `clientTs`.
 
-**Trust model:** Anonymous uid in payload is for rate-limit bucketing only, not authenticated identity. A hand-crafted fake replay can still pass if it is internally consistent. Full re-simulation is deferred (see roadmap).
+**Trust model:** Player callables (`submitScore`, `submitDailyScore`, `submitFeedback`) require Firebase Anonymous Auth; the uid comes from the verified callable auth context and payload uids are ignored. Rate limits key on that verified identity. A hand-crafted fake replay can still pass if it is internally consistent. Full re-simulation is deferred (see roadmap).
 
 Deploy:
 
@@ -142,9 +142,13 @@ firebase deploy --only functions
 
 ## Security rules summary
 
+- All player creates require Firebase Anonymous Auth (`isPlayer()`); uid-carrying
+  docs bind `uid == request.auth.uid`. Enable the **Anonymous** sign-in provider
+  in the Firebase console before deploying these rules.
 - Leaderboards: public read, **no client writes**
-- Runs: append-only public replay upload; public get, admin list
-- Replay owners: owner-scoped write/read for the browser's anonymous uid
+- Runs: append-only public replay upload (signed-in only); public get, admin list
+- Replay owners: creates bound to the authenticated uid (blocks planting
+  ownership rows under a victim's uid)
 - Feedback: server-only create/read helpers; admin read/update
 - Telemetry / analytics: bounded client append or merge; admin read
 - Admin gate: verified Google email in allowlist (sync `firestore.rules` ↔ `src/game/firebaseClient.ts`)

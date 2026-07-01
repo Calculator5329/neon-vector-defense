@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, db } from './firebaseClient';
+import { ensureServerUid } from './anonAuth';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { progress } from './storage';
 import { canSubmitScore, canWriteAnalytics } from './consent';
@@ -174,7 +175,7 @@ function boardMeta(board: string): Omit<RankedScoreEntry, keyof ScoreEntry> | nu
   };
 }
 
-function scorePayload(entry: ScoreEntry): ScoreEntry {
+function scorePayload(entry: ScoreEntry, serverUid: string): ScoreEntry {
   const payload: ScoreEntry = {
     name: entry.name.slice(0, 20),
     cash: Math.max(0, Math.floor(entry.cash)),
@@ -182,7 +183,9 @@ function scorePayload(entry: ScoreEntry): ScoreEntry {
     wave: Math.max(0, Math.floor(entry.wave)),
     freeplay: entry.freeplay,
     ts: Math.floor(entry.ts),
-    uid: (entry.uid ?? progress.uid).slice(0, 40),
+    // Identity is the authenticated anonymous uid; the server re-derives it
+    // from the callable auth context anyway, this just keeps the claim honest.
+    uid: serverUid.slice(0, 40),
   };
   if (entry.runId && isValidRunId(entry.runId)) payload.runId = entry.runId;
   if (entry.replayToken && isValidReplayToken(entry.replayToken)) payload.replayToken = entry.replayToken;
@@ -244,7 +247,9 @@ const callFetchFeedbackReplies =
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!canSubmitScore()) return false; // under-13 / pre-gate may play, never post
   if (!validBoard(board) || entry.daily) return false;
-  const payload = scorePayload(entry);
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
+  const payload = scorePayload(entry, serverUid);
   try {
     const res = await withTimeout(callSubmitScore({ board, entry: payload }));
     if (res.data?.accepted) { invalidateBoardCache(board); return true; }
@@ -261,7 +266,9 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
   if (!canSubmitScore()) return false;
   const board = dailyBoardId(dailyId);
   if (!validDailyBoard(board)) return false;
-  const payload = scorePayload({ ...entry, freeplay: true, daily: board });
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
+  const payload = scorePayload({ ...entry, freeplay: true, daily: board }, serverUid);
   try {
     const res = await withTimeout(callSubmitDailyScore({ dailyId: board, entry: payload }));
     if (res.data?.accepted) { invalidateDailyBoardCache(board); return true; }
@@ -275,9 +282,11 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
 /** player feedback -> callable. A local private token correlates replies without login. */
 export async function submitFeedback(text: string, ctx: string): Promise<FeedbackReceipt | null> {
   if (!canSubmitScore()) return null;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return null;
   try {
     const res = await withTimeout(callSubmitFeedback({
-      uid: progress.uid,
+      uid: serverUid,
       text: text.slice(0, 1000),
       ctx: ctx.slice(0, 200),
     }));
@@ -362,8 +371,10 @@ export function logTelemetry(e: TelemetryEvent): void {
   if (!canWriteAnalytics()) return; // restricted tier (under-13 / opted-out / GPC) writes nothing
   void (async () => {
     try {
+      const serverUid = await ensureServerUid();
+      if (!serverUid) return;
       await addDoc(collection(db, 'telemetry'), {
-        uid: progress.uid,
+        uid: serverUid,
         ts: Date.now(),
         kind: e.kind.slice(0, 30),
         map: e.map.slice(0, 30),
@@ -402,12 +413,14 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
   // not analytics-tier — a privacy-conscious adult must still produce a verifiable replay.
   if (!canSubmitScore()) return { ok: false };
   if (!isValidRunId(bundle.run.runId)) return { ok: false };
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return { ok: false };
   const replayToken = replayTokenFor(bundle.run.runId);
   const replayTokenHash = await sha256Hex(replayToken);
   const run: PublicRunDoc = sanitizeFirestoreData({ ...bundle.run, replayTokenHash });
   const ownerDoc = sanitizeFirestoreData({
     schemaVersion: 1,
-    uid: progress.uid,
+    uid: serverUid,
     runId: run.runId,
     createdAt: run.createdAt,
     build: run.build,
@@ -418,7 +431,7 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
     // write concurrently used to overrun Firestore's write stream ("resource-exhausted: Write
     // stream exhausted maximum allowed queued writes") and time out the whole submit.
     const batch = writeBatch(db);
-    batch.set(firestoreDoc(db, 'replayOwners', progress.uid, 'runs', run.runId), ownerDoc);
+    batch.set(firestoreDoc(db, 'replayOwners', serverUid, 'runs', run.runId), ownerDoc);
     batch.set(firestoreDoc(db, 'runs', run.runId), run);
     for (const chunk of chunks) {
       batch.set(firestoreDoc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk);
@@ -505,10 +518,13 @@ export async function fetchRunSnapshots(max = 300): Promise<RunSnapshotRow[]> {
 }
 
 export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<boolean> {
+  // Sampling stays keyed on the LOCAL uid so unsampled runs never trigger a sign-in.
   if (!canWriteAnalytics() || !isSampledRun(progress.uid, doc.runId)) return false;
   if (!isValidRunId(doc.runId)) return false;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
   try {
-    await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), doc));
+    await withTimeout(setDoc(firestoreDoc(db, 'runAnalytics', doc.runId), { ...doc, uid: serverUid.slice(0, 40) }));
     return true;
   } catch (error) {
     console.warn('Run analytics submit failed', error);
@@ -519,9 +535,11 @@ export async function submitRunAnalytics(doc: PrivateRunAnalyticsDoc): Promise<b
 export async function submitRunCheckpoint(doc: RunCheckpointDoc): Promise<boolean> {
   if (!canWriteAnalytics() || !isSampledRun(progress.uid, doc.runId)) return false;
   if (!isValidRunId(doc.runId)) return false;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
   try {
     const chunkId = `c${String(Math.max(0, Math.floor(doc.chunk))).padStart(6, '0')}`;
-    await withTimeout(setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), doc));
+    await withTimeout(setDoc(firestoreDoc(db, 'runCheckpoints', doc.runId, 'chunks', chunkId), { ...doc, uid: serverUid.slice(0, 40) }));
     return true;
   } catch (error) {
     console.warn('Run checkpoint submit failed', error);
