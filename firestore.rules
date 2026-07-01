@@ -29,7 +29,7 @@ service cloud.firestore {
     }
 
     function isTelemetrySchema(data) {
-      return data.schemaVersion in [1, 2];
+      return data.schemaVersion == 2;
     }
 
     function isRunSummary(summary) {
@@ -156,18 +156,8 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && isValidRunId(runId)
         && isTelemetrySchema(request.resource.data)
-        && (
-          (
-            request.resource.data.schemaVersion == 1
-            && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
-            && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
-          )
-          || (
-            request.resource.data.schemaVersion == 2
-            && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
-            && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
-          )
-        )
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
         && request.resource.data.runId == runId
         && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
         && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
@@ -178,12 +168,12 @@ service cloud.firestore {
         && request.resource.data.abandonment is map
         && request.resource.data.difficulty is map
         && request.resource.data.economy is map
-        && (!('menu' in request.resource.data) || request.resource.data.menu is map)
-        && (!('controls' in request.resource.data) || request.resource.data.controls is map)
-        && (!('combat' in request.resource.data) || request.resource.data.combat is map)
-        && (!('placement' in request.resource.data) || request.resource.data.placement is map)
-        && (!('assistance' in request.resource.data) || request.resource.data.assistance is map)
-        && (!('freeplay' in request.resource.data) || request.resource.data.freeplay is map)
+        && request.resource.data.menu is map
+        && request.resource.data.controls is map
+        && request.resource.data.combat is map
+        && request.resource.data.placement is map
+        && request.resource.data.assistance is map
+        && request.resource.data.freeplay is map
         && request.resource.data.towerInterest is map
         && request.resource.data.progression is map
         && request.resource.data.leaderboard is map

@@ -480,7 +480,9 @@ async function collectLeaderboardRunIds(uid: string): Promise<string[]> {
 
 async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = []): Promise<{ runCheckpoints: number; replayOwners: number; runs: number; skippedRuns: number }> {
   // Corroborated signals: server-written board rows (knownRunIds) and
-  // uid-matching runAnalytics / runCheckpoints docs.
+  // uid-matching runAnalytics / runCheckpoints docs. After the production
+  // reset, skippedRuns should be 0 in practice; corroboration stays as defense
+  // in depth for any imported or hand-authored owner-index rows.
   const corroborated = new Set<string>(validDeletedRunIds([...knownRunIds]));
 
   const ra = await db.collection('runAnalytics').where('uid', '==', uid).get();
@@ -498,9 +500,9 @@ async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = [
 
   const owners = await db.collection(`replayOwners/${uid}/runs`).get();
   const ownerIds = owners.docs.map((d) => d.id);
-  // Owner-index rows alone must not delete public replays: legacy (pre-auth)
-  // rows were client-claimed, so a forged row could point at another player's
-  // run. Skipped ids are reported for manual operator review.
+  // Owner-index rows alone must not delete public replays. Clean-slate rows are
+  // uid-bound by rules, but this extra corroboration makes retries/imports safe.
+  // Skipped ids are reported for manual operator review.
   const { deletable, skipped } = partitionRunDeletions(ownerIds, corroborated);
 
   let runCheckpoints = 0;

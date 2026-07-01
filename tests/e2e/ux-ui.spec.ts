@@ -406,7 +406,7 @@ test.describe('admin analytics model', () => {
         id: 'r_fp',
         runId: 'r_fp',
         uid: 'w_return_fp',
-        schemaVersion: 1,
+        schemaVersion: 2,
         build: 'older-build',
         summary: { map: 'reactor', diff: 'hard', freeplay: true, outcome: 'abandoned', phase: 'build', wave: 76, durationS: 900 },
         freeplay: { ...analyticsRow().freeplay, entered: true, contractSelections: { leanGrid: 1 }, relicSelections: { beaconChoir: 1 }, riskAccepted: { cloakSurge: 1 }, checkpointSubmits: 1 },

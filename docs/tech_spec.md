@@ -51,7 +51,7 @@ Key fields (`PublicRunDoc`):
 
 ```typescript
 {
-  schemaVersion: number;
+  schemaVersion: 2;
   runId: string;
   replayTokenHash?: string;
   createdAt: number;
@@ -72,12 +72,14 @@ Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB docume
 ### `runs/{runId}/chunks/c{n}`
 
 Public overflow replay event chunks. `ReplayViewer` reads these after loading the
-main run doc when `chunkCount > 0`.
+main run doc when `chunkCount > 0`. Replay docs and chunks use telemetry schema
+version 2.
 
 ### `replayOwners/{uid}/runs/{runId}`
 
 Small replay ownership index used for admin/operator deletion. It stores the
-anonymous uid, run id, creation time, and build tag.
+anonymous uid, run id, creation time, and build tag. This index has its own
+small schema and is separate from telemetry schema versions.
 
 ### `runCheckpoints/{runId}/chunks/{chunkId}`
 
@@ -87,7 +89,9 @@ and visibility hide. These are not the public Battle Plan replay chunks.
 
 ### `runAnalytics/{id}`
 
-Private per-run analytics (consent-gated writes, admin-only reads).
+Private per-run analytics (consent-gated writes, admin-only reads). New writes
+must use schema version 2 and include the `menu`, `controls`, `combat`,
+`placement`, `assistance`, and `freeplay` sections.
 
 ### `feedback/{id}`
 

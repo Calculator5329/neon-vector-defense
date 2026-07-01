@@ -58,6 +58,34 @@ const validRun = {
   final: {},
 };
 
+function validAnalytics(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 2,
+    runId,
+    uid: playerUid,
+    createdAt: 1,
+    endedAt: 2,
+    build: 'test',
+    summary: validSummary,
+    onboarding: {},
+    abandonment: {},
+    difficulty: {},
+    economy: {},
+    menu: {},
+    controls: {},
+    combat: {},
+    placement: {},
+    assistance: {},
+    freeplay: {},
+    towerInterest: {},
+    progression: {},
+    leaderboard: {},
+    attention: {},
+    performance: {},
+    ...overrides,
+  };
+}
+
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: 'neon-vector-defense-rules-test',
@@ -257,25 +285,23 @@ describe('leaderboard and telemetry write rules', () => {
   test('allow private run analytics create and deny public updates', async () => {
     const db = playerDb();
     const ref = doc(db, 'runAnalytics', runId);
-    await assertSucceeds(setDoc(ref, {
-      schemaVersion: 1,
-      runId,
-      uid: playerUid,
-      createdAt: 1,
-      endedAt: 2,
-      build: 'test',
-      summary: validSummary,
-      onboarding: {},
-      abandonment: {},
-      difficulty: {},
-      economy: {},
-      towerInterest: {},
-      progression: {},
-      leaderboard: {},
-      attention: {},
-      performance: {},
-    }));
+    await assertSucceeds(setDoc(ref, validAnalytics()));
     await assertFails(updateDoc(ref, { endedAt: 3 }));
+  });
+
+  test('deny legacy v1 private run analytics creates', async () => {
+    const db = playerDb();
+    const {
+      menu,
+      controls,
+      combat,
+      placement,
+      assistance,
+      freeplay,
+      ...legacyAnalytics
+    } = validAnalytics({ schemaVersion: 1 });
+    void menu; void controls; void combat; void placement; void assistance; void freeplay;
+    await assertFails(setDoc(doc(db, 'runAnalytics', runId), legacyAnalytics));
   });
 
   test('allow checkpoint chunk creates and keep reads admin-only', async () => {
@@ -303,24 +329,7 @@ describe('leaderboard and telemetry write rules', () => {
 
   test('deny analytics and checkpoint writes that spoof another uid', async () => {
     const db = playerDb();
-    await assertFails(setDoc(doc(db, 'runAnalytics', runId), {
-      schemaVersion: 1,
-      runId,
-      uid: 'w_victim9',
-      createdAt: 1,
-      endedAt: 2,
-      build: 'test',
-      summary: validSummary,
-      onboarding: {},
-      abandonment: {},
-      difficulty: {},
-      economy: {},
-      towerInterest: {},
-      progression: {},
-      leaderboard: {},
-      attention: {},
-      performance: {},
-    }));
+    await assertFails(setDoc(doc(db, 'runAnalytics', runId), validAnalytics({ uid: 'w_victim9' })));
     await assertFails(setDoc(doc(db, 'runCheckpoints', runId, 'chunks', 'c0'), {
       schemaVersion: 2,
       runId,

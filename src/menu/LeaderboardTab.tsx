@@ -39,8 +39,8 @@ export function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDe
   const [globalError, setGlobalError] = useState(false);
   const [localError, setLocalError] = useState(false);
   const board = boardId(map.id, diff.id, fp);
-  // Server rows carry the authenticated anonymous uid; fall back to the legacy
-  // local uid so rows written before the auth migration still highlight.
+  // Server rows carry the authenticated anonymous uid; the local uid fallback
+  // only covers browsers that read boards before anonymous sign-in has warmed.
   const myUid = cachedServerUid() ?? progress.uid;
   useEffect(() => {
     let live = true;

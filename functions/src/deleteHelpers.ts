@@ -7,12 +7,11 @@ export function validDeletedRunIds(values: unknown[]): string[] {
 /**
  * Split candidate runIds into publicly-deletable vs skipped.
  *
- * Public runs/{runId} docs are deleted ONLY when a corroborating signal ties
+ * Public runs/{runId} docs are deleted only when a corroborating signal ties
  * the run to the uid being deleted: a server-written board row or a
  * uid-matching runAnalytics/runCheckpoints doc. replayOwners entries created
- * since the auth migration are uid-bound by rules, but LEGACY rows were
- * client-claimed and forgeable — an owner-index row alone must not be enough
- * to destroy another player's public replay.
+ * since the auth migration are uid-bound by rules; the extra check stays as
+ * defense in depth and should leave skippedRuns at 0 after the production reset.
  */
 export function partitionRunDeletions(
   ownerIndexRunIds: Iterable<string>,

@@ -109,6 +109,13 @@ describe('CI/CD guardrails', () => {
     expect(clientLeaderboard).not.toContain('uid: progress.uid');
   });
 
+  test('private analytics rules require the clean-slate v2 schema', () => {
+    expect(firestoreRules).toContain('return data.schemaVersion == 2');
+    expect(firestoreRules).not.toContain('schemaVersion in [1, 2]');
+    expect(firestoreRules).not.toContain("request.resource.data.schemaVersion == 1\n            && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid'");
+    expect(firestoreRules).toContain("'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay'");
+  });
+
   test('public replay deletion has a private ownership index', () => {
     expect(clientLeaderboard).toContain("fs.doc(db, 'replayOwners', serverUid, 'runs', run.runId)");
     expect(functionsIndex).toContain("db.collection(`replayOwners/${uid}/runs`).get()");
