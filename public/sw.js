@@ -1,9 +1,11 @@
-const CACHE_VERSION = 'nvd-shell-v3';
+const CACHE_VERSION = 'nvd-shell-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/site.webmanifest',
   '/favicon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
