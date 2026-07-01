@@ -44,6 +44,16 @@ jobs:
         run: npm run meta:sim
       - name: Performance Smoke
         run: npm run perf:quick
+      # Intentional balance changes: regenerate the full baseline with `npm run balance`,
+      # review and commit public/balance-report.json, then include [balance-intended]
+      # in the commit message to skip this quick drift gate.
+      - name: Balance Gate
+        run: |
+          if git log -1 --pretty=%B | grep -Fq '[balance-intended]'; then
+            echo "Skipping balance gate because [balance-intended] was found in the commit message."
+            exit 0
+          fi
+          npm run balance:gate
       - name: Security Tests
         run: npm run test:security
       - name: Engine Unit Tests

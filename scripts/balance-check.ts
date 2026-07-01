@@ -23,6 +23,9 @@ const REPORT_GIT_PATH = 'public/balance-report.json';
 export const WIN_RATE_FAIL_DELTA = 0.15;
 /** A grid cell avgWave change beyond this (waves) is reported as a WARNING. */
 export const AVG_WAVE_WARN_DELTA = 3;
+/** A tower/upgrade efficiency ratio movement beyond this relative delta FAILS. */
+export const EFFICIENCY_RATIO_FAIL_DELTA = 0.35;
+const MIN_RATIO_BASELINE = 0.0005;
 
 /** Flags whose flip between each other is a hard fail. */
 const HARD_FLAGS = new Set(['dead', 'op']);
@@ -31,7 +34,9 @@ const HARD_FLAGS = new Set(['dead', 'op']);
 
 export interface BalanceDiff {
   flagFlips: { tower: string; step: string; from: string; to: string }[]; // dead<->op only (FAIL)
-  winRateSwings: { cell: string; from: number; to: number; delta: number }[]; // |delta| > WIN_RATE_FAIL_DELTA (FAIL)
+  winRateSwings: { cell: string; from: number; to: number; delta: number }[]; // |delta| > WIN_RATE_FAIL_DELTA plus avgWave drift (FAIL)
+  efficiencySwings: { tower: string; step: string; from: number; to: number; delta: number }[]; // relative |delta| > threshold (FAIL)
+  soloViability: { tower: string; from: string; to: string }[]; // viable tower became non-viable, or one tower becomes sole viable (FAIL)
   avgWaveSwings: { cell: string; from: number; to: number; delta: number }[]; // |delta| > AVG_WAVE_WARN_DELTA (warn)
   softFlags: { tower: string; step: string; from: string; to: string }[]; // any other flag change (warn)
   info: string[]; // added/removed towers, cells, steps — informational only
@@ -40,8 +45,9 @@ export interface BalanceDiff {
 // loose shapes — we are deliberately defensive about partial / evolving reports
 interface GridCell { map?: string; diff?: string; skill?: string; avgWave?: number; winRate?: number; avgLives?: number }
 interface EffStep { track?: number; tier?: number; name?: string; flag?: string; valuePerCredit?: number }
-interface TowerEff { id?: string; name?: string; steps?: EffStep[] }
-interface Report { grid?: GridCell[]; efficiency?: TowerEff[] }
+interface TowerEff { id?: string; name?: string; dpsPerCreditT4?: number; steps?: EffStep[] }
+interface SoloCell { id?: string; name?: string; winRate?: number; avgWave?: number }
+interface Report { grid?: GridCell[]; efficiency?: TowerEff[]; solo?: SoloCell[] }
 
 // ---------- key helpers ----------
 
@@ -57,7 +63,7 @@ function isNum(n: unknown): n is number {
 export function compareBalance(baseline: any, current: any): BalanceDiff {
   const base: Report = baseline ?? {};
   const cur: Report = current ?? {};
-  const diff: BalanceDiff = { flagFlips: [], winRateSwings: [], avgWaveSwings: [], softFlags: [], info: [] };
+  const diff: BalanceDiff = { flagFlips: [], winRateSwings: [], efficiencySwings: [], soloViability: [], avgWaveSwings: [], softFlags: [], info: [] };
 
   // ----- grid cells (winRate FAIL, avgWave WARN) -----
   const baseCells = new Map<string, GridCell>();
@@ -70,7 +76,8 @@ export function compareBalance(baseline: any, current: any): BalanceDiff {
     if (!c) { diff.info.push(`grid cell removed: ${key}`); continue; }
     if (isNum(b.winRate) && isNum(c.winRate)) {
       const delta = round(c.winRate - b.winRate, 4);
-      if (Math.abs(delta) > WIN_RATE_FAIL_DELTA) {
+      const waveDelta = isNum(b.avgWave) && isNum(c.avgWave) ? Math.abs(c.avgWave - b.avgWave) : 0;
+      if (Math.abs(delta) > WIN_RATE_FAIL_DELTA && waveDelta > AVG_WAVE_WARN_DELTA) {
         diff.winRateSwings.push({ cell: key, from: b.winRate, to: c.winRate, delta });
       }
     }
@@ -95,6 +102,7 @@ export function compareBalance(baseline: any, current: any): BalanceDiff {
     const ct = curTowers.get(id);
     const label = bt.name ?? id;
     if (!ct) { diff.info.push(`tower removed: ${label} (${id})`); continue; }
+    recordEfficiencySwing(diff, label, 'A·t4 tower efficiency', bt.dpsPerCreditT4, ct.dpsPerCreditT4);
 
     const baseSteps = new Map<string, EffStep>();
     for (const s of bt.steps ?? []) baseSteps.set(stepKey(id, s), s);
@@ -104,10 +112,11 @@ export function compareBalance(baseline: any, current: any): BalanceDiff {
     for (const [sk, bs] of baseSteps) {
       const cs = curSteps.get(sk);
       if (!cs) { diff.info.push(`step removed: ${label} · ${sk}`); continue; }
+      const stepLabel = `${bs.name ?? cs.name ?? sk} (${sk})`;
+      recordEfficiencySwing(diff, label, stepLabel, bs.valuePerCredit, cs.valuePerCredit);
       const from = bs.flag;
       const to = cs.flag;
       if (!from || !to || from === to) continue;
-      const stepLabel = `${bs.name ?? cs.name ?? sk} (${sk})`;
       if (HARD_FLAGS.has(from) && HARD_FLAGS.has(to)) {
         // dead<->op in either direction
         diff.flagFlips.push({ tower: label, step: stepLabel, from, to });
@@ -123,14 +132,47 @@ export function compareBalance(baseline: any, current: any): BalanceDiff {
     if (!baseTowers.has(id)) diff.info.push(`tower added: ${t.name ?? id} (${id})`);
   }
 
+  const baseSolo = new Map<string, SoloCell>();
+  for (const t of base.solo ?? []) if (t.id) baseSolo.set(t.id, t);
+  const curSolo = new Map<string, SoloCell>();
+  for (const t of cur.solo ?? []) if (t.id) curSolo.set(t.id, t);
+  for (const [id, before] of baseSolo) {
+    const after = curSolo.get(id);
+    if (!after) continue;
+    if (isSoloViable(before) && !isSoloViable(after)) {
+      diff.soloViability.push({ tower: before.name ?? after.name ?? id, from: 'viable', to: 'non-viable' });
+    }
+  }
+  const baseViable = [...baseSolo.values()].filter(isSoloViable);
+  const curViable = [...curSolo.values()].filter(isSoloViable);
+  if (curViable.length === 1 && baseViable.length !== 1) {
+    const only = curViable[0];
+    diff.soloViability.push({ tower: only.name ?? only.id ?? 'unknown', from: `${baseViable.length} viable`, to: 'sole viable' });
+  }
+
   return diff;
 }
 
 function round(n: number, d = 2): number { const f = 10 ** d; return Math.round(n * f) / f; }
 
+function recordEfficiencySwing(diff: BalanceDiff, tower: string, step: string, from: unknown, to: unknown): void {
+  if (!isNum(from) || !isNum(to) || Math.abs(from) < MIN_RATIO_BASELINE) return;
+  const delta = round((to - from) / from, 4);
+  if (Math.abs(delta) > EFFICIENCY_RATIO_FAIL_DELTA) {
+    diff.efficiencySwings.push({ tower, step, from, to, delta });
+  }
+}
+
+function isSoloViable(row: SoloCell): boolean {
+  return isNum(row.winRate) && row.winRate > 0;
+}
+
 /** True when the diff contains any fail-level regression. */
 export function hasFailures(diff: BalanceDiff): boolean {
-  return diff.flagFlips.length > 0 || diff.winRateSwings.length > 0;
+  return diff.flagFlips.length > 0
+    || diff.winRateSwings.length > 0
+    || diff.efficiencySwings.length > 0
+    || diff.soloViability.length > 0;
 }
 
 // ---------- reporting ----------
@@ -148,6 +190,16 @@ function printDiff(diff: BalanceDiff): void {
     for (const w of diff.winRateSwings) {
       console.log(`    ${w.cell.padEnd(32)} ${pct(w.from)} → ${pct(w.to)}  ${signed(w.delta * 100)}%`);
     }
+  }
+  if (diff.efficiencySwings.length) {
+    console.log(`\n✖ Efficiency ratio swings (relative |Δ| > ${EFFICIENCY_RATIO_FAIL_DELTA}):`);
+    for (const e of diff.efficiencySwings) {
+      console.log(`    ${e.tower.padEnd(18)} ${e.from.toFixed(4)} → ${e.to.toFixed(4)}  ${signed(e.delta * 100)}% · ${e.step}`);
+    }
+  }
+  if (diff.soloViability.length) {
+    console.log('\n✖ Solo viability regressions:');
+    for (const s of diff.soloViability) console.log(`    ${s.tower.padEnd(18)} ${s.from} → ${s.to}`);
   }
   if (diff.avgWaveSwings.length) {
     console.log(`\n⚠ Avg-wave swings (|Δ| > ${AVG_WAVE_WARN_DELTA}, warn only):`);
@@ -186,9 +238,13 @@ function selfTest(): void {
     ],
     efficiency: [
       { id: 'pulse', name: 'Pulse Turret', steps: [
-        { track: 0, tier: 1, name: 'Long-Range Optics', flag: 'ok', valuePerCredit: 0 },
+        { track: 0, tier: 1, name: 'Long-Range Optics', flag: 'ok', valuePerCredit: 0.01 },
         { track: 1, tier: 2, name: 'Overcharge', flag: 'dead', valuePerCredit: 0 },
-      ] },
+      ], dpsPerCreditT4: 0.01 },
+    ],
+    solo: [
+      { id: 'pulse', name: 'Pulse Turret', winRate: 1, avgWave: 50 },
+      { id: 'tesla', name: 'Tesla Coil', winRate: 1, avgWave: 50 },
     ],
   };
 
@@ -201,18 +257,24 @@ function selfTest(): void {
   // mutate: flip a dead→op flag, and bump a winRate by 0.3
   const mutated = JSON.parse(JSON.stringify(baseline));
   mutated.efficiency[0].steps[1].flag = 'op'; // dead → op (hard flip)
+  mutated.efficiency[0].steps[0].valuePerCredit = 0.02; // +100% efficiency swing
+  mutated.solo[1].winRate = 0;                 // Pulse becomes the only viable solo tower
   mutated.grid[1].winRate = 0.8;              // 0.5 → 0.8 (Δ 0.30 > 0.15)
+  mutated.grid[1].avgWave = 39;               // avg-wave support for the win-rate swing
   const dirty = compareBalance(baseline, mutated);
   assert(dirty.flagFlips.length === 1, `expected 1 flagFlip, got ${dirty.flagFlips.length}`);
   assert(dirty.flagFlips[0].from === 'dead' && dirty.flagFlips[0].to === 'op', 'flag flip dead→op');
   assert(dirty.winRateSwings.length === 1, `expected 1 winRateSwing, got ${dirty.winRateSwings.length}`);
   assert(Math.abs(dirty.winRateSwings[0].delta - 0.3) < 1e-9, 'winRate delta 0.30');
+  assert(dirty.efficiencySwings.length === 1, `expected 1 efficiencySwing, got ${dirty.efficiencySwings.length}`);
+  assert(dirty.soloViability.length === 2, `expected 2 solo viability entries, got ${dirty.soloViability.length}`);
   assert(hasFailures(dirty), 'mutated baseline should fail');
 
   // defensiveness: added/removed content must not crash and lands in info
   const removed = JSON.parse(JSON.stringify(baseline));
   removed.grid.pop();
   removed.efficiency = [];
+  removed.solo = [];
   const partial = compareBalance(baseline, removed);
   assert(!hasFailures(partial), 'pure removal is not a failure');
   assert(partial.info.length >= 2, 'removed content reported as info');
@@ -224,7 +286,7 @@ function selfTest(): void {
 
   console.log('✓ selftest passed');
   console.log(`  · identical → clean (${clean.flagFlips.length} flips, ${clean.winRateSwings.length} swings)`);
-  console.log(`  · mutated   → detected (${dirty.flagFlips.length} flip dead→op, ${dirty.winRateSwings.length} swing Δ${dirty.winRateSwings[0].delta})`);
+  console.log(`  · mutated   → detected (${dirty.flagFlips.length} flip dead→op, ${dirty.winRateSwings.length} swing Δ${dirty.winRateSwings[0].delta}, ${dirty.efficiencySwings.length} efficiency, ${dirty.soloViability.length} solo)`);
   console.log(`  · partial   → ${partial.info.length} info entries, 0 failures`);
 }
 
@@ -234,8 +296,26 @@ function assert(cond: boolean, msg: string): void {
 
 // ---------- loaders ----------
 
+function argValue(name: string): string | null {
+  const inline = process.argv.find((arg) => arg.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+
+  const idx = process.argv.indexOf(name);
+  if (idx === -1) return null;
+
+  const value = process.argv[idx + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`${name} requires a path`);
+  }
+  return value;
+}
+
+function loadJsonFile(rawPath: string): any {
+  return JSON.parse(readFileSync(resolve(process.cwd(), rawPath), 'utf8'));
+}
+
 function loadCurrent(): any {
-  return JSON.parse(readFileSync(REPORT_PATH, 'utf8'));
+  return loadJsonFile(REPORT_PATH);
 }
 
 /** Read the committed baseline from HEAD. Returns null (with a warning) if unavailable. */
@@ -250,7 +330,9 @@ function loadBaseline(): any | null {
 
 // ---------- CLI ----------
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const modulePath = fileURLToPath(import.meta.url);
+const entryPath = process.argv[1] ? resolve(process.argv[1]) : '';
+const isMain = entryPath === modulePath || /[\\/]balance-check\.(ts|js)$/.test(entryPath);
 
 if (isMain) {
   if (process.argv.includes('--selftest')) {
@@ -258,7 +340,22 @@ if (isMain) {
     process.exit(0);
   }
 
-  const baseline = loadBaseline();
+  const baselineArg = argValue('--baseline');
+  const currentArg = argValue('--current');
+  const baselineLabel = baselineArg ?? `HEAD:${REPORT_GIT_PATH}`;
+  const currentLabel = currentArg ?? REPORT_PATH;
+
+  let baseline: any | null;
+  if (baselineArg) {
+    try {
+      baseline = loadJsonFile(baselineArg);
+    } catch (err) {
+      console.error(`✖ could not read baseline ${baselineArg}: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  } else {
+    baseline = loadBaseline();
+  }
   if (baseline == null) {
     console.warn('⚠ no committed baseline at HEAD:public/balance-report.json — skipping balance check (exit 0).');
     process.exit(0);
@@ -266,14 +363,18 @@ if (isMain) {
 
   let current: any;
   try {
-    current = loadCurrent();
+    current = currentArg ? loadJsonFile(currentArg) : loadCurrent();
   } catch (err) {
+    if (currentArg) {
+      console.error(`✖ could not read current report ${currentArg}: ${(err as Error).message}`);
+      process.exit(1);
+    }
     console.warn(`⚠ could not read ${REPORT_PATH}: ${(err as Error).message} — skipping (exit 0).`);
     process.exit(0);
   }
 
   console.log('NEON VECTOR DEFENSE — balance-regression check');
-  console.log('  comparing working-tree report against committed baseline (HEAD)\n');
+  console.log(`  comparing ${currentLabel} against ${baselineLabel}\n`);
 
   const diff = compareBalance(baseline, current);
   printDiff(diff);

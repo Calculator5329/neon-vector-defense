@@ -26,6 +26,7 @@ setMuted(true);
 setMusic(false);
 
 const QUICK = process.argv.includes('quick');
+const GATE = process.argv.includes('--gate');
 const CURVE_SEEDS = QUICK ? 1 : 3;
 const GRID_SEEDS = QUICK ? 1 : 2;
 const STRAT_SEEDS = QUICK ? 1 : 2;
@@ -39,9 +40,28 @@ const MATCH: Record<string, BotSkill> = {
 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT = resolve(__dirname, '../public/balance-report.json');
+const DEFAULT_OUT = resolve(__dirname, '../public/balance-report.json');
+const OUT = resolveOutputPath(argValue('--out'));
 
 function fmt(n: number, w: number): string { return String(n).padStart(w); }
+
+function argValue(name: string): string | null {
+  const inline = process.argv.find((arg) => arg.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+
+  const idx = process.argv.indexOf(name);
+  if (idx === -1) return null;
+
+  const value = process.argv[idx + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`${name} requires a path`);
+  }
+  return value;
+}
+
+function resolveOutputPath(rawPath: string | null): string {
+  return rawPath ? resolve(process.cwd(), rawPath) : DEFAULT_OUT;
+}
 
 // ---------- 1. per-wave balance curves ----------
 
@@ -145,12 +165,13 @@ function round(n: number, d = 1): number { const f = 10 ** d; return Math.round(
 
 // ---------- run everything ----------
 
-console.log(`NEON VECTOR DEFENSE — balance harness${QUICK ? ' (quick)' : ''}`);
+console.log(`NEON VECTOR DEFENSE — balance harness${QUICK ? ' (quick)' : ''}${GATE ? ' gate' : ''}`);
 console.log(`curve seeds ${CURVE_SEEDS} · grid seeds ${GRID_SEEDS} · strat seeds ${STRAT_SEEDS}\n`);
 const t0 = Date.now();
 
 console.log('▸ per-wave curves…');
-const curves = buildCurves();
+if (GATE) console.log('  skipped for balance gate');
+const curves = GATE ? [] : buildCurves();
 
 console.log('▸ win grid…');
 const grid = buildGrid();
@@ -165,7 +186,8 @@ const soloMap = ALL_MAPS.find((m) => m.id === 'orbital')!;
 const soloDiff = DIFFICULTIES.find((d) => d.id === 'normal')!;
 
 console.log('▸ strategy matrix…');
-const strategyResults: StrategyResult[] = runStrategies(stratMap, stratDiff, STRAT_SEEDS);
+if (GATE) console.log('  skipped for balance gate');
+const strategyResults: StrategyResult[] = GATE ? [] : runStrategies(stratMap, stratDiff, STRAT_SEEDS);
 
 console.log('▸ solo viability…');
 const soloResults: SoloResult[] = runSoloViability(soloMap, soloDiff, SOLO_SEEDS);
@@ -173,7 +195,7 @@ const soloResults: SoloResult[] = runSoloViability(soloMap, soloDiff, SOLO_SEEDS
 const report = {
   generatedAt: new Date().toISOString(),
   meta: {
-    quick: QUICK,
+    quick: QUICK, gate: GATE,
     curveSeeds: CURVE_SEEDS, gridSeeds: GRID_SEEDS, stratSeeds: STRAT_SEEDS, soloSeeds: SOLO_SEEDS,
     matchSkill: MATCH,
     strategyArena: { map: stratMap.id, diff: stratDiff.id },

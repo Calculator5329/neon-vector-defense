@@ -43,7 +43,7 @@
     "audit:worker": "npm --prefix worker audit --audit-level=high",
     "audit:high": "npm run audit:root && npm run audit:functions && npm run audit:worker",
     "typecheck:all": "tsc -p tsconfig.check.json",
-    "ci": "npm run build && npm test && npm run test:jest && npm run meta:sim && npm run perf:quick && npm run test:security && npm run test:engine && npm run typecheck:all && npm run audit:high",
+    "ci": "npm run build && npm test && npm run test:jest && npm run meta:sim && npm run perf:quick && npm run balance:gate && npm run test:security && npm run test:engine && npm run typecheck:all && npm run audit:high",
     "preview": "vite preview",
     "sim": "tsx scripts/sim.ts",
     "sim:quick": "npm run sim -- quick",
@@ -51,6 +51,7 @@
     "perf:quick": "npm run perf -- quick",
     "perf:browser": "node scripts/browserPerf.mjs",
     "balance": "tsx scripts/balance.ts",
+    "balance:gate": "tsx scripts/balance.ts quick --gate --out test-results/balance-gate-report.json && tsx scripts/balance-check.ts --baseline public/balance-report.json --current test-results/balance-gate-report.json",
     "tower:deep-dive": "tsx scripts/tower-deep-dive.ts",
     "meta:sim": "tsx scripts/meta-sim.ts"
   },
