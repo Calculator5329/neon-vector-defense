@@ -48,6 +48,8 @@ export interface Enemy {
   slowTimer: number;
   burnDps: number;
   burnTimer: number;
+  /** tower credited with the active burn (kills/veterancy/damage attribution) */
+  burnSrc?: Tower;
   cloaked: boolean;
   /** resonance stacks (Cantor debuff): +10% damage taken per stack */
   resonance: number;

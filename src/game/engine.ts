@@ -567,6 +567,14 @@ export class Game {
       sfx.error();
       return null;
     }
+    // enforce campaign unlocks in the ENGINE, not only the shop UI — replay and
+    // leaderboard integrity cannot trust placements that only the UI gates
+    if (!this.towerAvailable(def)) {
+      this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'locked', cost, pos);
+      this.announce(`${def.name} pattern is not decrypted yet`);
+      sfx.error();
+      return null;
+    }
     const maxTowers = this.freeplayState.contract?.maxTowers;
     if (maxTowers && this.towers.length >= maxTowers) {
       this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'contract', cost, pos);
@@ -959,6 +967,22 @@ export class Game {
     return dmg;
   }
 
+  /** Single-slot burn. A stronger burn replaces dps, remaining time, AND credit;
+   *  an equal burn refreshes the timer; a weaker burn never dilutes or extends a
+   *  stronger one. The old Math.max merge turned a weak-long + strong-short pair
+   *  into strong-long (over-buff), and burn kills credited no tower. */
+  private applyBurn(e: Enemy, dps: number, duration: number, src?: Tower) {
+    if (dps <= 0 || duration <= 0) return;
+    if (dps > e.burnDps) {
+      e.burnDps = dps;
+      e.burnTimer = duration;
+      e.burnSrc = src;
+    } else if (dps === e.burnDps) {
+      e.burnTimer = Math.max(e.burnTimer, duration);
+      e.burnSrc = e.burnSrc ?? src;
+    }
+  }
+
   /** Ability damage — bypasses all immunities (but never harms the Courier). */
   trueDamage(e: Enemy, dmg: number) {
     if (e.dead || e.finished || e.courier) return;
@@ -1171,6 +1195,9 @@ export class Game {
 
     this.updateSpawns(dt);
     this.updateEnemies(dt);
+    // terminal state reached mid-tick: no towers fire, no projectiles fly, and no
+    // wave-completion runs after the run has already ended
+    if ((this.phase as Phase) === 'gameover' || (this.phase as Phase) === 'armistice') return;
     // index enemies for this tick's radius queries, then precompute cloak reveal
     this.grid.rebuild(this.enemies);
     this.precomputeReveal();
@@ -1290,10 +1317,11 @@ export class Game {
     const path = this.map.path;
     for (const e of this.enemies) {
       if (e.dead || e.finished) continue;
-      // burn
+      // burn — always energy-typed (it's fire), credited to the applying tower
       if (e.burnTimer > 0) {
         e.burnTimer -= dt;
-        this.damageEnemy(e, e.burnDps * dt, 'energy', false);
+        this.damageEnemy(e, e.burnDps * dt, 'energy', false, e.burnSrc);
+        if (e.burnTimer <= 0) { e.burnDps = 0; e.burnSrc = undefined; } // expired burns must not out-rank fresh ones
         if (e.dead) continue;
       }
       // slow decay
@@ -1396,6 +1424,10 @@ export class Game {
           this.lowCoreWarned = true;
           vox('low-cores');
         }
+        // terminal: stop processing further leaks this tick — each extra leaking
+        // hull used to re-trigger the whole gameover branch (finishRun,
+        // recordRunEnd, defeat stinger) once per enemy
+        if ((this.phase as Phase) === 'gameover') break;
       }
     }
     compact(this.enemies, (e) => !e.dead && !e.finished);
@@ -1423,10 +1455,7 @@ export class Game {
           if (e.courier || e.dead || e.finished) return;
           if (Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= st.range) {
             if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-            if (st.burnDps > 0) {
-              e.burnDps = Math.max(e.burnDps, st.burnDps);
-              e.burnTimer = Math.max(e.burnTimer, 0.5);
-            }
+            if (st.burnDps > 0) this.applyBurn(e, st.burnDps, 0.5, s);
           }
         });
       }
@@ -1516,7 +1545,7 @@ export class Game {
               any = true;
               this.damageEnemy(e, st.damage * dt, st.damageType, false, t);
               if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-              if (st.burnDps > 0) { e.burnDps = Math.max(e.burnDps, st.burnDps); e.burnTimer = Math.max(e.burnTimer, st.burnDuration); }
+              if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
               break;
             }
           }
@@ -1539,10 +1568,7 @@ export class Game {
           if (!this.visibleTo(t, e)) return;
           any = true;
           if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-          if (st.burnDps > 0) {
-            e.burnDps = Math.max(e.burnDps, st.burnDps);
-            e.burnTimer = Math.max(e.burnTimer, st.burnDuration);
-          }
+          if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
           if (st.damage > 0) this.damageEnemy(e, st.damage, st.damageType, false, t);
         });
         if (any) {
@@ -1664,10 +1690,7 @@ export class Game {
               e.wp = at.wp;
             }
             if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
-            if (st.burnDps > 0) {
-              e.burnDps = Math.max(e.burnDps, st.burnDps);
-              e.burnTimer = Math.max(e.burnTimer, st.burnDuration);
-            }
+            if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
             this.damageEnemy(e, st.damage, st.damageType, true, t);
           });
           this.ring(cpos, t.def.glow, st.splash);
@@ -1842,7 +1865,7 @@ export class Game {
     const r = Math.min(maxDist, W + H);
     this.grid.forEachInRadius(pos.x, pos.y, r, (e) => {
       if (e.dead || e.finished || e.courier || exclude.includes(e)) return;
-      if (e.cloaked && !detection) return;
+      if (e.cloaked && !e.revealed && !detection) return;
       const d = Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y);
       if (d < bd) { bd = d; best = e; }
     });
@@ -1856,7 +1879,7 @@ export class Game {
 
       if (p.kind === 'missile') {
         const cand = p.targetUid !== null ? this.grid.byId.get(p.targetUid) : undefined;
-        const target = cand && !cand.dead && !cand.finished && !cand.courier && (!cand.cloaked || p.detection) ? cand : undefined;
+        const target = cand && !cand.dead && !cand.finished && !cand.courier && (!cand.cloaked || cand.revealed || p.detection) ? cand : undefined;
         if (target) {
           const dir = norm({ x: target.pos.x - p.pos.x, y: target.pos.y - p.pos.y });
           // steer toward target
@@ -1887,7 +1910,9 @@ export class Game {
       this.grid.forEachInRadius(p.pos.x, p.pos.y, 48, (e) => {
         if (consumed || p.life <= 0) return;
         if (e.dead || e.finished || p.hit.has(e.uid)) return;
-        if (e.cloaked && !p.detection) return;
+        // same visibility rule as targeting (visibleTo): a spire-revealed hull is
+        // hittable by ANY tower's bolts — non-detector shots used to pass through it
+        if (e.cloaked && !e.revealed && !p.detection) return;
         const hitR = e.def.radius + (p.kind === 'missile' ? 6 : 4);
         if (distToSegment(e.pos, prevPos, p.pos) <= hitR) {
           if (p.kind === 'missile') {
@@ -1898,10 +1923,7 @@ export class Game {
           }
           p.hit.add(e.uid);
           const dealt = this.damageEnemy(e, p.damage, p.damageType, p.shred, p.src);
-          if (dealt > 0 && p.burnDps > 0) {
-            e.burnDps = Math.max(e.burnDps, p.burnDps);
-            e.burnTimer = Math.max(e.burnTimer, p.burnDuration);
-          }
+          if (dealt > 0 && p.burnDps > 0) this.applyBurn(e, p.burnDps, p.burnDuration, p.src);
           this.burstFx(p.pos, p.color, 2);
           if (p.hit.size >= p.pierce) { p.life = 0; consumed = true; }
         }
@@ -2028,13 +2050,10 @@ export class Game {
     }
     this.grid.forEachInRadius(p.pos.x, p.pos.y, p.splash + 16, (e) => {
       if (e.dead || e.finished || e.courier) return;
-      if (e.cloaked && !p.detection) return;
+      if (e.cloaked && !e.revealed && !p.detection) return;
       if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= p.splash + e.def.radius) {
         const dealt = this.damageEnemy(e, p.damage, p.damageType, p.shred, p.src);
-        if (dealt > 0 && p.burnDps > 0) {
-          e.burnDps = Math.max(e.burnDps, p.burnDps);
-          e.burnTimer = Math.max(e.burnTimer, p.burnDuration);
-        }
+        if (dealt > 0 && p.burnDps > 0) this.applyBurn(e, p.burnDps, p.burnDuration, p.src);
       }
     });
   }

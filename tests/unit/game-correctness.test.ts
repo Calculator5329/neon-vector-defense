@@ -215,6 +215,118 @@ describe('freeplay correctness guards', () => {
   });
 });
 
+type EngineInternals = {
+  grid: { rebuild(enemies: Enemy[]): void };
+  applyBurn(e: Enemy, dps: number, duration: number, src?: unknown): void;
+  updateProjectiles(dt: number): void;
+  updateEnemies(dt: number): void;
+};
+
+function internals(game: Game): EngineInternals {
+  return game as unknown as EngineInternals;
+}
+
+function findPlaceable(game: Game): { x: number; y: number } {
+  for (let x = 40; x < 1240; x += 20) {
+    for (let y = 40; y < 680; y += 20) {
+      if (game.canPlace({ x, y })) return { x, y };
+    }
+  }
+  throw new Error('no placeable cell found');
+}
+
+function cheapestUnlockedTower() {
+  return [...TOWERS].filter((d) => d.unlockAt === 0).sort((a, b) => a.cost - b.cost)[0];
+}
+
+describe('engine correctness fixes', () => {
+  test('spire-revealed cloaked hulls are hit by non-detector projectiles', () => {
+    const game = makeGame();
+    const t = game.placeTower(cheapestUnlockedTower(), findPlaceable(game));
+    assert.ok(t);
+    const shoot = (revealed: boolean) => {
+      const e = makeEnemy(ENEMIES.aegis);
+      e.uid = revealed ? 901 : 902;
+      e.cloaked = true;
+      e.revealed = revealed;
+      e.pos = { x: 400, y: 300 };
+      game.enemies.push(e);
+      internals(game).grid.rebuild(game.enemies);
+      game.projectiles.push({
+        uid: 9000 + e.uid, src: t!, kind: 'bolt',
+        pos: { x: 360, y: 300 }, vel: { x: 400, y: 0 },
+        damage: 50, damageType: 'energy', pierce: 1, splash: 0, speed: 400,
+        targetUid: e.uid, life: 1, color: '#fff', hit: new Set(),
+        burnDps: 0, burnDuration: 0, burnZoneRadius: 0, burnZoneDps: 0, burnZoneDuration: 0,
+        shred: false, detection: false,
+      });
+      internals(game).updateProjectiles(0.15);
+      const hp = e.hp;
+      game.enemies.length = 0;
+      game.projectiles.length = 0;
+      return hp;
+    };
+    // revealed → the bolt connects; unrevealed → it still passes through
+    assert.ok(shoot(true) < 1000, 'revealed cloaked hull should take projectile damage');
+    assert.equal(shoot(false), 1000, 'unrevealed cloaked hull stays untouchable without detection');
+  });
+
+  test('burn damage credits the applying tower and weaker burns never override stronger ones', () => {
+    const game = makeGame();
+    const t = game.placeTower(cheapestUnlockedTower(), findPlaceable(game));
+    assert.ok(t);
+    const e = makeEnemy(ENEMIES.aegis);
+    e.pos = { x: 400, y: 300 };
+    game.enemies.push(e);
+
+    internals(game).applyBurn(e, 100, 2, t);
+    assert.equal(e.burnDps, 100);
+    assert.equal(e.burnSrc, t);
+    // weaker-but-longer burn must not merge into strong-long or steal credit
+    internals(game).applyBurn(e, 10, 50, undefined);
+    assert.equal(e.burnDps, 100);
+    assert.equal(e.burnTimer, 2);
+    assert.equal(e.burnSrc, t);
+
+    internals(game).updateEnemies(0.5);
+    assert.ok((game.runStats.dmg[t!.def.id] ?? 0) > 0, 'burn ticks should attribute damage to the source tower');
+
+    // once the burn expires its strength resets, so a fresh weaker burn can land
+    e.burnTimer = 0.01;
+    internals(game).updateEnemies(0.05);
+    internals(game).applyBurn(e, 10, 1, undefined);
+    assert.equal(e.burnDps, 10);
+  });
+
+  test('multiple same-tick leaks at zero cores end the run exactly once', () => {
+    const game = makeGame();
+    const path = ALL_MAPS[0].path;
+    game.lives = 1;
+    game.phase = 'wave';
+    for (let i = 0; i < 3; i++) {
+      const e = makeEnemy(ENEMIES.aegis);
+      e.uid = 700 + i;
+      e.wp = path.length; // already past the final waypoint → leaks this tick
+      e.pos = { ...path[path.length - 1] };
+      game.enemies.push(e);
+    }
+    internals(game).updateEnemies(0.016);
+    assert.equal(game.phase, 'gameover');
+    const events = game.buildRunUploadBundle('TEST', 'test-build').run.events as { type: string }[];
+    assert.equal(events.filter((ev) => ev.type === 'run_end').length, 1);
+  });
+
+  test('placeTower rejects locked towers even when the shop UI is bypassed', () => {
+    const game = makeGame();
+    const locked = TOWERS.find((d) => d.unlockAt > 0);
+    assert.ok(locked);
+    game.credits = 1_000_000; // rule out a credits rejection masking the unlock gate
+    assert.equal(game.placeTower(locked!, findPlaceable(game)), null);
+    const analytics = game.buildRunAnalyticsDoc('TEST', 'w_test123', 'test-build');
+    assert.equal(analytics.placement.failedByReason.locked, 1);
+  });
+});
+
 describe('server deletion helpers', () => {
   test('keeps unique valid run ids from leaderboard score rows', () => {
     assert.deepEqual(validDeletedRunIds(['r_abcdefgh', 'bad', 'r_abcdefgh', null, 'r_ijklmnop']), ['r_abcdefgh', 'r_ijklmnop']);

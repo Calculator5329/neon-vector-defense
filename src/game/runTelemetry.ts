@@ -831,6 +831,10 @@ export class RunRecorder {
   }
 
   recordRunEnd(state: RunTelemetryState, outcome: RunOutcome, reason?: string): void {
+    // A same-tick double terminal (e.g. several hulls leaking on the death tick)
+    // must not emit run_end twice. A DIFFERENT outcome is still allowed — a
+    // campaign victory followed by the freeplay death is a real transition.
+    if (this.outcome === outcome) return;
     this.outcome = outcome;
     this.endedAt = Date.now();
     if (outcome === 'gameover' && !this.funnel.firstLossAt) this.funnel.firstLossAt = roundS(state.time);
