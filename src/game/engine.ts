@@ -46,7 +46,17 @@ export const W = 1280;
 export const H = 720;
 const TOWER_R = 16;
 
-let uidCounter = 1;
+/** Deterministic PRNG (mulberry32). Gameplay randomness routes through a
+ *  per-Game instance seeded stream so a recorded seed can reproduce the run;
+ *  purely cosmetic FX keep Math.random. */
+function mulberry(seed: number): () => number {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 /** In-place array compaction — drops elements failing `keep` without allocating a
  *  new array. The per-tick lists (enemies, projectiles, particles) can hold
@@ -117,6 +127,15 @@ class EnemyGrid {
 }
 
 export type Phase = 'build' | 'wave' | 'gameover' | 'victory' | 'armistice';
+
+export interface GameOptions {
+  /** deterministic gameplay seed; random when omitted. Recorded in replay setup. */
+  seed?: number;
+  /** lifetime-kills snapshot for unlock gating; defaults to the live save. Sims
+   *  and tests pass an explicit value so results never depend on the host's
+   *  localStorage progress. */
+  lifetimeKills?: number;
+}
 
 /** a forward (repel) gravity push can never shove a hull closer than this to the exit */
 const SAFE_EXIT_MARGIN = 80;
@@ -244,6 +263,15 @@ export class Game {
   adaptation: { type: import('./types').DamageType | null; resist: number } = { type: null, resist: 0 };
   private dmgWindow: Record<string, number> = {};
 
+  /** deterministic gameplay seed + stream (see GameOptions.seed) */
+  readonly seed: number;
+  private rng: () => number;
+  /** lifetime-kills snapshot taken at construction (see GameOptions.lifetimeKills) */
+  private readonly baseKills: number;
+  /** per-instance entity uid sequence — module-global counters made uids
+   *  irreproducible across runs, which blocks deterministic re-simulation */
+  private uidSeq = 1;
+
   private grid = new EnemyGrid();
   /** recycled Particle objects — FX churn was the main GC-pause source at 4x */
   private particlePool: Particle[] = [];
@@ -262,9 +290,14 @@ export class Game {
   freeplayState: FreeplayState = createFreeplayState();
   dailyTowerIds: Set<string> | null = null;
 
-  constructor(map: GameMap, diff: DifficultyDef) {
+  constructor(map: GameMap, diff: DifficultyDef, opts: GameOptions = {}) {
     this.map = map;
     this.diff = diff;
+    this.seed = (opts.seed ?? ((Math.random() * 0x7fffffff) | 0)) >>> 0;
+    this.rng = mulberry(this.seed);
+    // Snapshot once: mid-run unlock gating must not silently depend on the host
+    // machine's live save (a landmine for balance sims and server re-simulation).
+    this.baseKills = opts.lifetimeKills ?? progress.record.kills;
     const bdiff = getBalance().diff(diff.id);
     this.credits = Math.round(diff.cash * bdiff.cashMult);
     this.lives = Math.max(1, Math.round(diff.lives * bdiff.livesMult));
@@ -273,10 +306,11 @@ export class Game {
     this.recorder = new RunRecorder({
       map,
       diff,
+      seed: this.seed,
       startingCash: this.credits,
       startingLives: this.lives,
-      availableTowerIds: TOWERS.filter((t) => t.unlockAt <= progress.record.kills).map((t) => t.id),
-      lifetimeKillsAtStart: progress.record.kills,
+      availableTowerIds: TOWERS.filter((t) => t.unlockAt <= this.baseKills).map((t) => t.id),
+      lifetimeKillsAtStart: this.baseKills,
       runsBeforeStart: progress.record.runs,
       victoriesBeforeStart: progress.record.victories,
       session: progress.engagement,
@@ -301,7 +335,7 @@ export class Game {
   }
 
   towerAvailable(def: TowerDef): boolean {
-    return this.dailyTowerIds ? this.dailyTowerIds.has(def.id) : def.unlockAt <= progress.record.kills + this.totalKills;
+    return this.dailyTowerIds ? this.dailyTowerIds.has(def.id) : def.unlockAt <= this.baseKills + this.totalKills;
   }
 
   telemetryState(): RunTelemetryState {
@@ -593,7 +627,7 @@ export class Game {
     }
     this.credits -= cost;
     const t: Tower = {
-      uid: uidCounter++,
+      uid: this.uidSeq++,
       def,
       pos: { ...pos },
       stats: computeStats(def, 0, 0),
@@ -727,7 +761,7 @@ export class Game {
 
   startWave() {
     if (this.phase !== 'build') return;
-    this.waveStartTotalKills = progress.record.kills + this.totalKills;
+    this.waveStartTotalKills = this.baseKills + this.totalKills;
     this.wave++;
     this.phase = 'wave';
     let def = getWave(this.wave);
@@ -813,7 +847,7 @@ export class Game {
     const rivalHp = this.freeplay && def.boss && this.freeplayState.rival ? 1 + this.freeplayState.rivalLevel * 0.12 : 1;
     const hp = Math.ceil(def.hp * bo.enemy(typeId).hpMult * diffMult * late * fp * mutatorHp * rivalHp);
     return {
-      uid: uidCounter++,
+      uid: this.uidSeq++,
       def,
       hp,
       maxHp: hp,
@@ -827,7 +861,7 @@ export class Game {
       resonance: 0,
       resonanceTimer: 0,
       cloaked,
-      phase: Math.random() * Math.PI * 2,
+      phase: this.rng() * Math.PI * 2,
       dead: false,
       finished: false,
     };
@@ -872,7 +906,7 @@ export class Game {
   private spawnChildren(parent: Enemy) {
     for (let i = 0; i < parent.def.children.length; i++) {
       const e = this.makeEnemy(parent.def.children[i], parent.cloaked);
-      e.pos = { x: parent.pos.x + (Math.random() - 0.5) * 14, y: parent.pos.y + (Math.random() - 0.5) * 14 };
+      e.pos = { x: parent.pos.x + (this.rng() - 0.5) * 14, y: parent.pos.y + (this.rng() - 0.5) * 14 };
       e.wp = parent.wp;
       e.dist = Math.max(0, parent.dist - i * 12);
       this.enemies.push(e);
@@ -1026,18 +1060,18 @@ export class Game {
       // credit popup
       this.emit('text', e.pos.x, e.pos.y - e.def.radius - 4, 0, -26, 0.7, 10, '#ffd32a', `+${e.def.reward}`);
       // drop chance shrinks as kill volume grows in later waves
-      if (Math.random() < 0.022 / (1 + this.wave * 0.04)) this.dropPickup(e.pos, false);
+      if (this.rng() < 0.022 / (1 + this.wave * 0.04)) this.dropPickup(e.pos, false);
     }
   }
 
   private dropPickup(pos: Vec, boss: boolean) {
     if (this.pickups.length >= 3) return; // no carpet of beacons in dense waves
-    const roll = Math.random();
+    const roll = this.rng();
     const kind: PickupKind = boss
       ? (roll < 0.5 ? 'credits' : roll < 0.8 ? 'core' : 'frenzy')
       : (roll < 0.55 ? 'credits' : roll < 0.75 ? 'frenzy' : roll < 0.92 ? 'cryoburst' : 'core');
     this.pickups.push({
-      uid: uidCounter++,
+      uid: this.uidSeq++,
       kind,
       pos: { x: Math.max(20, Math.min(W - 20, pos.x)), y: Math.max(20, Math.min(H - 20, pos.y)) },
       life: 7,
@@ -1167,18 +1201,24 @@ export class Game {
     // window shouldn't shrink at 2x/4x game speed
     for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
     compact(this.pickups, (p) => p.life > 0);
-    // fixed substeps: at 4x speed a frame can cover 0.2s of game time — stepped
-    // whole, projectiles tunnel through hulls. Cap each physics step at 1/30s, and
-    // cap the count so a render stutter can't cascade into a death spiral of ticks.
-    let total = Math.min(rawDt, 0.05) * this.speed;
-    let budget = 8;
-    while (total > 1e-6 && budget-- > 0 &&
+    // TRUE fixed timestep: every physics step is exactly SIM_STEP; the remainder
+    // carries in an accumulator instead of being stepped as a variable-size tail.
+    // Variable steps made the simulation depend on frame timing, which breaks
+    // deterministic re-simulation even with a seeded RNG. The budget caps steps
+    // per frame so a render stutter can't death-spiral, and leftover sim debt is
+    // clamped so it stays bounded.
+    this.accumulator += Math.min(rawDt, 0.05) * this.speed;
+    let budget = 12; // 12 × 1/60 = 0.2s capacity — covers 4x speed at 20fps
+    while (this.accumulator >= Game.SIM_STEP - 1e-9 && budget-- > 0 &&
       (this.phase as Phase) !== 'gameover' && (this.phase as Phase) !== 'armistice') {
-      const step = Math.min(total, 1 / 30);
-      total -= step;
-      this.tick(step);
+      this.accumulator -= Game.SIM_STEP;
+      this.tick(Game.SIM_STEP);
     }
+    this.accumulator = Math.min(this.accumulator, Game.SIM_STEP * 2);
   }
+
+  static readonly SIM_STEP = 1 / 60;
+  private accumulator = 0;
 
   private tick(dt: number) {
     this.time += dt;
@@ -1268,7 +1308,7 @@ export class Game {
         if (this.campaignProgressEnabled()) {
           const beforeKills = this.waveStartTotalKills;
           progress.addWaves(1);
-          const currentKills = progress.record.kills + this.totalKills;
+          const currentKills = this.baseKills + this.totalKills;
           const unlocked = TOWERS.filter((t) => t.unlockAt > beforeKills && t.unlockAt <= currentKills);
           if (unlocked.length > 0) {
             for (const tower of unlocked) this.recorder.recordUnlockEarned(tower.id);
@@ -1829,7 +1869,7 @@ export class Game {
         const ang = Math.atan2(lead.y - t.pos.y, lead.x - t.pos.x) + spread;
         const muzzle = isDrone ? 11 + (i % Math.max(1, st.droneSwarm)) * 2 : 14;
         this.projectiles.push({
-          uid: uidCounter++,
+          uid: this.uidSeq++,
           src: t,
           kind: t.def.style === 'missile' ? 'missile' : isDrone ? 'drone' : 'bolt',
           pos: { x: t.pos.x + Math.cos(ang) * muzzle, y: t.pos.y + Math.sin(ang) * muzzle },
@@ -2036,7 +2076,7 @@ export class Game {
     if (p.burnZoneDps > 0 && p.burnZoneRadius > 0 && p.burnZoneDuration > 0) {
       if (this.burnZones.length >= 28) this.burnZones.shift();
       this.burnZones.push({
-        uid: uidCounter++,
+        uid: this.uidSeq++,
         pos: { ...p.pos },
         radius: p.burnZoneRadius,
         dps: p.burnZoneDps,

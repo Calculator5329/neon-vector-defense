@@ -72,10 +72,13 @@ export class Bot {
   private nextAct = 0;
   private planIdx = 0;
   private placed: { tower: Tower; a: number; b: number }[] = [];
+  private rng: () => number;
 
-  constructor(game: Game, skill: BotSkill | Profile) {
+  /** Pass a seeded rng for reproducible bot playtests; defaults to Math.random. */
+  constructor(game: Game, skill: BotSkill | Profile, rng: () => number = Math.random) {
     this.game = game;
     this.profile = typeof skill === 'string' ? PROFILES[skill] : skill;
+    this.rng = rng;
     this.computeSpots();
   }
 
@@ -143,7 +146,7 @@ export class Bot {
     }
 
     // 2. upgrades toward each tower's track targets
-    if (Math.random() < this.profile.upgradeDiligence) {
+    if (this.rng() < this.profile.upgradeDiligence) {
       for (const rec of this.placed) {
         const t = rec.tower;
         if (!g.towers.includes(t)) continue;
@@ -159,7 +162,7 @@ export class Bot {
     }
 
     // 3. abilities
-    if (Math.random() < this.profile.abilityChance) {
+    if (this.rng() < this.profile.abilityChance) {
       const count = g.enemies.length;
       const boss = g.enemies.find((e) => e.def.boss && !e.courier);
       if (g.abilityReady('salvage')) g.castAbility('salvage');

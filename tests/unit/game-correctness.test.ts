@@ -327,6 +327,37 @@ describe('engine correctness fixes', () => {
   });
 });
 
+describe('deterministic simulation hooks', () => {
+  test('same seed reproduces gameplay randomness and per-instance entity uids', () => {
+    const a = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 1234, lifetimeKills: 0 });
+    const b = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 1234, lifetimeKills: 0 });
+    type WithMakeEnemy = { makeEnemy(typeId: string, cloaked: boolean): Enemy };
+    const ea = (a as unknown as WithMakeEnemy).makeEnemy('aegis', false);
+    const eb = (b as unknown as WithMakeEnemy).makeEnemy('aegis', false);
+    assert.equal(ea.uid, 1, 'entity uids restart per Game instance');
+    assert.equal(eb.uid, 1);
+    assert.equal(ea.phase, eb.phase, 'seeded rng streams must match');
+    assert.equal(a.buildRunUploadBundle('TEST', 'test-build').run.setup.seed, 1234);
+  });
+
+  test('unlock gating honors the lifetimeKills snapshot, not the live save', () => {
+    const locked = TOWERS.find((d) => d.unlockAt > 0);
+    assert.ok(locked);
+    const gated = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: 0 });
+    const veteran = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: locked!.unlockAt });
+    assert.equal(gated.towerAvailable(locked!), false);
+    assert.equal(veteran.towerAvailable(locked!), true);
+  });
+
+  test('simulation advances in exact fixed steps with a carried remainder', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 1, lifetimeKills: 0 });
+    game.update(0.01);
+    assert.equal(game.time, 0, 'sub-step remainder is banked, not stepped');
+    game.update(0.01);
+    assert.ok(Math.abs(game.time - Game.SIM_STEP) < 1e-9, 'exactly one fixed step after 20ms');
+  });
+});
+
 describe('server deletion helpers', () => {
   test('keeps unique valid run ids from leaderboard score rows', () => {
     assert.deepEqual(validDeletedRunIds(['r_abcdefgh', 'bad', 'r_abcdefgh', null, 'r_ijklmnop']), ['r_abcdefgh', 'r_ijklmnop']);

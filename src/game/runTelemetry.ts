@@ -105,6 +105,8 @@ export interface RunTelemetryState {
 export interface RunRecorderStart {
   map: GameMap;
   diff: DifficultyDef;
+  /** deterministic gameplay seed (recorded so replays can be re-simulated) */
+  seed: number;
   startingCash: number;
   startingLives: number;
   availableTowerIds: string[];
@@ -156,6 +158,7 @@ export interface PublicRunDoc {
     mapHash: string;
     diff: string;
     diffName: string;
+    seed: number;
     startingCash: number;
     startingLives: number;
     availableTowerIds: string[];
@@ -1051,6 +1054,7 @@ export class RunRecorder {
         mapHash: hashMap(this.start.map),
         diff: this.start.diff.id,
         diffName: this.start.diff.name,
+        seed: this.start.seed,
         startingCash: this.start.startingCash,
         startingLives: this.start.startingLives,
         availableTowerIds: [...this.start.availableTowerIds],
