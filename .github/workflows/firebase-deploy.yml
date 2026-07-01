@@ -40,6 +40,8 @@ jobs:
         run: npm run build
       - name: Playwright E2E
         run: npm test
+      - name: Production Bundle E2E
+        run: npm run test:e2e:prod
       - name: CI Guardrails
         run: npm run test:jest
       - name: Engine Unit Tests

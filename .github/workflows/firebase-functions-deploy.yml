@@ -42,6 +42,8 @@ jobs:
         run: npm run build
       - name: Playwright E2E
         run: npm test
+      - name: Production Bundle E2E
+        run: npm run test:e2e:prod
       - name: Build Functions
         run: npm --prefix functions run build
       - name: CI Guardrails

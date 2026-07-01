@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import net from 'node:net';
 import path from 'node:path';
-import { createServer } from 'vite';
+import { build, createServer, preview } from 'vite';
 
 const root = process.cwd();
 const aiHelpUrl = process.env.VITE_AI_HELP_URL ?? 'http://127.0.0.1:9/ai-help-test';
@@ -50,23 +50,47 @@ const port = Number(process.env.PLAYWRIGHT_PORT) || await getFreePort();
 const baseURL = `http://127.0.0.1:${port}`;
 process.env.VITE_AI_HELP_URL = aiHelpUrl;
 
-const vite = await createServer({
-  root,
-  logLevel: 'warn',
-  server: {
-    host: '127.0.0.1',
-    port,
-    strictPort: true,
-  },
-});
+// --preview: build and serve the PRODUCTION bundle instead of the dev server.
+// The dev server never exercises the real chunk graph or the service worker —
+// exactly where past regressions (sw navigation, ?run= links) lived.
+const previewMode = process.argv.includes('--preview');
+process.argv = process.argv.filter((a) => a !== '--preview');
 
 let exitCode = 1;
 
-try {
-  await vite.listen();
-  exitCode = await runPlaywright(baseURL);
-} finally {
-  await vite.close();
+if (previewMode) {
+  process.env.PLAYWRIGHT_PREVIEW = '1';
+  await build({ root, logLevel: 'warn' });
+  const server = await preview({
+    root,
+    logLevel: 'warn',
+    preview: {
+      host: '127.0.0.1',
+      port,
+      strictPort: true,
+    },
+  });
+  try {
+    exitCode = await runPlaywright(baseURL);
+  } finally {
+    await server.close();
+  }
+} else {
+  const vite = await createServer({
+    root,
+    logLevel: 'warn',
+    server: {
+      host: '127.0.0.1',
+      port,
+      strictPort: true,
+    },
+  });
+  try {
+    await vite.listen();
+    exitCode = await runPlaywright(baseURL);
+  } finally {
+    await vite.close();
+  }
 }
 
 process.exit(exitCode);
