@@ -44,3 +44,8 @@ ui-debug.log
 *credentials*.json
 worker/wrangler.toml
 worker/.wrangler/
+
+# internal balance artifacts — regenerate locally with npm run tower:deep-dive;
+# CI deep-checks uploads them as artifacts. 11MB does not belong in git or on prod hosting.
+public/tower-deep-dive-report.json
+public/tower-deep-dive-sims.csv
