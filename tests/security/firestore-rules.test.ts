@@ -46,9 +46,14 @@ const validRun = {
   build: 'test',
   chunkCount: 0,
   eventCount: 1,
+  manifest: {
+    chunkEventCounts: [],
+    eventHash: '1234abcd',
+    complete: true,
+  },
   summary: validSummary,
   setup: {},
-  events: [],
+  events: [{ type: 'run_start', t: 0 }],
   snapshots: [],
   final: {},
 };
@@ -110,6 +115,24 @@ describe('public replay rules', () => {
     await assertFails(setDoc(doc(db, 'runs', runId), {
       ...validRun,
       summary: { ...validSummary, wave: '1' },
+    }));
+  });
+
+  test('allow legacy replay docs without a manifest but reject malformed manifests', async () => {
+    const db = playerDb();
+    const legacy = { ...validRun, runId: `${runId}a` };
+    delete (legacy as Partial<typeof validRun>).manifest;
+    await assertSucceeds(setDoc(doc(db, 'runs', `${runId}a`), legacy));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}b`), {
+      ...validRun,
+      runId: `${runId}b`,
+      manifest: { chunkEventCounts: [], eventHash: 'bad', complete: true },
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}c`), {
+      ...validRun,
+      runId: `${runId}c`,
+      chunkCount: 1,
+      manifest: { chunkEventCounts: [], eventHash: '1234abcd', complete: true },
     }));
   });
 

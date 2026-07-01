@@ -8,6 +8,7 @@ import { dailyFreeplaySeed } from '../../src/game/freeplay';
 import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
+import { buildRunManifest, hashRunEventPairs, type RunEvent } from '../../src/game/runTelemetry';
 import { normalizeProgress, progress } from '../../src/game/storage';
 import { TOWERS } from '../../src/game/towers';
 import type { Enemy, EnemyDef } from '../../src/game/types';
@@ -175,6 +176,32 @@ describe('freeplay correctness guards', () => {
     };
 
     assert.equal(findUndefined(bundle), null);
+    assert.equal(bundle.run.manifest?.complete, true);
+    assert.equal(bundle.run.manifest?.chunkEventCounts.length, bundle.chunks.length);
+    assert.match(bundle.run.manifest?.eventHash ?? '', /^[a-f0-9]{8}$/);
+  });
+
+  test('replay manifest hashes event type/time pairs in stable chunk order', () => {
+    const docEvents: RunEvent[] = [
+      { type: 'run_start', t: 0, wave: 0, cash: 100, lives: 10 },
+      { type: 'wave_start', t: 1.2, wave: 1, cash: 100, lives: 10 },
+    ];
+    const chunkEvents: RunEvent[] = [
+      { type: 'run_end', t: 9.9, wave: 1, cash: 120, lives: 10 },
+    ];
+    const manifest = buildRunManifest(docEvents, [{
+      schemaVersion: 2,
+      runId: 'r_manifest123',
+      chunk: 0,
+      events: chunkEvents,
+    }]);
+
+    assert.deepEqual(manifest, {
+      chunkEventCounts: [1],
+      eventHash: 'd8a6ffad',
+      complete: true,
+    });
+    assert.equal(hashRunEventPairs([...docEvents, ...chunkEvents]), manifest.eventHash);
   });
 
   test('risk packets cannot be accepted unless they were actually offered', () => {

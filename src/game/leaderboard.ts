@@ -27,6 +27,7 @@ const globalTopCache = new Map<string, { expires: number; rows: RankedScoreEntry
 // just hangs forever, freezing any UI that awaits it. Race every network call
 // against a timeout so callers always settle into their existing catch/empty path.
 const NET_TIMEOUT_MS = 8000;
+const MAX_REPLAY_CHUNK_EVENTS = 650;
 
 // Retention: expiresAt drives Firestore TTL policies (see docs/tech_spec.md).
 // TTL requires a real Timestamp field — plain number `ts` fields are invisible
@@ -69,6 +70,12 @@ export interface RankedScoreEntry extends ScoreEntry {
 export interface LeaderboardFetchResult<T> {
   rows: T[];
   error: boolean;
+}
+
+export type ReplayIntegrity = 'complete' | 'partial' | 'legacy';
+
+export interface RunReplayDoc extends PublicRunDoc {
+  integrity: ReplayIntegrity;
 }
 
 function cloneScores<T extends ScoreEntry>(rows: T[]): T[] {
@@ -407,7 +414,8 @@ function sameReplayDoc(existing: PublicRunDoc | null, run: PublicRunDoc): boolea
     && existing.replayTokenHash === run.replayTokenHash
     && existing.createdAt === run.createdAt
     && existing.endedAt === run.endedAt
-    && Number(existing.eventCount ?? -1) === Number(run.eventCount ?? -2);
+    && Number(existing.eventCount ?? -1) === Number(run.eventCount ?? -2)
+    && JSON.stringify(existing.manifest ?? null) === JSON.stringify(run.manifest ?? null);
 }
 
 export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunReplaySubmitResult> {
@@ -454,10 +462,39 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
   }
 }
 
-const replayCache = new Map<string, { expires: number; doc: PublicRunDoc | null }>();
+const replayCache = new Map<string, { expires: number; doc: RunReplayDoc | null }>();
+
+function eventIdentity(event: unknown): string {
+  if (!event || typeof event !== 'object') return JSON.stringify(['', 0]);
+  const data = event as Record<string, unknown>;
+  const type = typeof data.type === 'string' ? data.type : String(data.type ?? '');
+  const t = typeof data.t === 'number' && Number.isFinite(data.t) ? data.t : 0;
+  return JSON.stringify([type, t]);
+}
+
+function replayEventHash(events: unknown[]): string {
+  let hash = 2166136261;
+  for (const event of events) {
+    const data = `${eventIdentity(event)}\n`;
+    for (let i = 0; i < data.length; i++) {
+      hash ^= data.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function validManifest(manifest: PublicRunDoc['manifest']): manifest is NonNullable<PublicRunDoc['manifest']> {
+  return !!manifest
+    && manifest.complete === true
+    && Array.isArray(manifest.chunkEventCounts)
+    && manifest.chunkEventCounts.every((count) => Number.isInteger(count) && count >= 0 && count <= MAX_REPLAY_CHUNK_EVENTS)
+    && typeof manifest.eventHash === 'string'
+    && /^[a-f0-9]{8}$/.test(manifest.eventHash);
+}
 
 /** Read a run replay by id (public get), reassembling overflow event chunks. */
-export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null> {
+export async function fetchRunReplay(runId: string): Promise<RunReplayDoc | null> {
   if (!isValidRunId(runId)) return null;
   const cached = replayCache.get(runId);
   if (cached && cached.expires > Date.now()) return cached.doc;
@@ -465,8 +502,10 @@ export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null
     const { fs, db } = await firestore();
     const snap = await withTimeout(fs.getDoc(fs.doc(db, 'runs', runId)));
     const doc = snap.exists() ? (snap.data() as PublicRunDoc) : null;
-    let events = Array.isArray(doc?.events) ? doc.events : [];
+    const docEvents = Array.isArray(doc?.events) ? doc.events : [];
+    let events = docEvents;
     const chunkCount = Math.max(0, Math.min(100, Math.floor(Number(doc?.chunkCount ?? 0))));
+    const fetchedChunks: { i: number; exists: boolean; events: PublicRunDoc['events'] }[] = [];
     if (doc && chunkCount > 0) {
       const chunkSnaps = await withTimeout(Promise.all(
         Array.from({ length: chunkCount }, (_, i) => fs.getDoc(fs.doc(db, 'runs', runId, 'chunks', `c${i}`))),
@@ -474,18 +513,39 @@ export async function fetchRunReplay(runId: string): Promise<PublicRunDoc | null
       const chunkEvents = chunkSnaps
         .map((chunkSnap, i) => {
           const data = chunkSnap.exists() ? chunkSnap.data() as { chunk?: number; events?: unknown } : null;
-          return { i, events: Array.isArray(data?.events) ? data.events as PublicRunDoc['events'] : [] };
+          const chunk = {
+            i,
+            exists: chunkSnap.exists(),
+            events: Array.isArray(data?.events) ? data.events as PublicRunDoc['events'] : [],
+          };
+          fetchedChunks.push(chunk);
+          return chunk;
         })
         .sort((a, b) => a.i - b.i)
         .flatMap((chunk) => chunk.events);
       events = [...events, ...chunkEvents];
     }
+    const integrity: ReplayIntegrity = (() => {
+      if (!doc?.manifest) return 'legacy';
+      if (!validManifest(doc.manifest)) return 'partial';
+      if (chunkCount !== doc.manifest.chunkEventCounts.length) return 'partial';
+      if (fetchedChunks.length !== chunkCount) return 'partial';
+      for (let i = 0; i < chunkCount; i++) {
+        const chunk = fetchedChunks.find((row) => row.i === i);
+        if (!chunk?.exists || chunk.events.length !== doc.manifest.chunkEventCounts[i]) return 'partial';
+      }
+      const expectedEventCount = docEvents.length + doc.manifest.chunkEventCounts.reduce((sum, count) => sum + count, 0);
+      if (Number(doc.eventCount ?? 0) !== expectedEventCount) return 'partial';
+      if (replayEventHash(events) !== doc.manifest.eventHash) return 'partial';
+      return 'complete';
+    })();
     // light defensive normalization so a partial/legacy doc can't crash the viewer
     const safe = doc && doc.summary && doc.setup ? {
       ...doc,
       snapshots: Array.isArray(doc.snapshots) ? doc.snapshots : [],
       events,
       final: doc.final ?? { towers: [], damageByTower: {}, killsByEnemy: {}, abilitiesCast: 0, cashEarned: 0, leaks: 0 },
+      integrity,
     } : null;
     replayCache.set(runId, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, doc: safe });
     return safe;

@@ -132,6 +132,7 @@ export interface PublicRunDoc {
   build: string;
   chunkCount: number;
   eventCount: number;
+  manifest?: RunManifest;
   summary: {
     callsign: string;
     map: string;
@@ -174,6 +175,12 @@ export interface PublicRunDoc {
     cashEarned: number;
     leaks: number;
   };
+}
+
+export interface RunManifest {
+  chunkEventCounts: number[];
+  eventHash: string;
+  complete: true;
 }
 
 export interface RunEventChunkDoc {
@@ -1073,6 +1080,11 @@ export class RunRecorder {
         leaks: Math.round(state.runStats.leaks),
       },
     });
+    const refreshIntegrity = () => {
+      run.eventCount = run.events.length + chunkEvents;
+      run.manifest = buildRunManifest(run.events, chunks);
+    };
+    refreshIntegrity();
     // Hard safety net: Firestore caps a single doc at 1 MB. Even with lean snapshots a very
     // long run could approach it — thin snapshots EVENLY (keeping first + last so the replay
     // still spans the whole run), then trim head events, so score submission never fails on size.
@@ -1083,9 +1095,10 @@ export class RunRecorder {
     }
     while (size() > DOC_LIMIT && run.events.length > 40) {
       run.events = run.events.slice(0, Math.floor(run.events.length * 0.6));
+      refreshIntegrity();
     }
     // keep eventCount honest after any head-event trim (it was computed pre-trim)
-    run.eventCount = run.events.length + chunkEvents;
+    refreshIntegrity();
     return { run, chunks };
   }
 
@@ -1622,6 +1635,34 @@ function hashMap(map: GameMap): string {
 
 function sanitizeCallsign(name: string): string {
   return (name.trim() || 'WARDEN').slice(0, 20);
+}
+
+function stableEventPair(event: Pick<RunEvent, 'type' | 't'>): string {
+  const type = typeof event.type === 'string' ? event.type : String(event.type ?? '');
+  const t = typeof event.t === 'number' && Number.isFinite(event.t) ? event.t : 0;
+  return JSON.stringify([type, t]);
+}
+
+/** FNV-1a over the replay event identity stream. Payloads intentionally stay out
+ *  of the hash so event payload schema tweaks do not invalidate honest replays. */
+export function hashRunEventPairs(events: Array<Pick<RunEvent, 'type' | 't'>>): string {
+  let hash = 2166136261;
+  for (const event of events) {
+    const data = `${stableEventPair(event)}\n`;
+    for (let i = 0; i < data.length; i++) {
+      hash ^= data.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+export function buildRunManifest(events: RunEvent[], chunks: RunEventChunkDoc[]): RunManifest {
+  return {
+    chunkEventCounts: chunks.map((chunk) => chunk.events.length),
+    eventHash: hashRunEventPairs([...events, ...chunks.flatMap((chunk) => chunk.events)]),
+    complete: true,
+  };
 }
 
 function stripUndefined<T>(value: T): T {

@@ -59,6 +59,18 @@ service cloud.firestore {
         && (!('scoreMultiplierEnd' in summary) || (summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 1000000000));
     }
 
+    function isRunManifest(data) {
+      return !('manifest' in data)
+        || (data.manifest is map
+          && data.manifest.keys().hasAll(['chunkEventCounts', 'eventHash', 'complete'])
+          && data.manifest.keys().hasOnly(['chunkEventCounts', 'eventHash', 'complete'])
+          && data.manifest.chunkEventCounts is list
+          && data.manifest.chunkEventCounts.size() == data.chunkCount
+          && data.manifest.eventHash is string
+          && data.manifest.eventHash.matches('^[a-f0-9]{8}$')
+          && data.manifest.complete == true);
+    }
+
     // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore
     // Cloud Function (Admin SDK, which bypasses rules); direct client writes are blocked.
     // This is the leaderboard-integrity lockdown — scores are validated against a replay
@@ -83,7 +95,7 @@ service cloud.firestore {
       allow create: if isPlayer()
         && isValidRunId(runId)
         && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
-        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'manifest', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && isTelemetrySchema(request.resource.data)
         && request.resource.data.runId == runId
         && request.resource.data.replayTokenHash is string && request.resource.data.replayTokenHash.matches('^[a-f0-9]{64}$')
@@ -92,6 +104,7 @@ service cloud.firestore {
         && request.resource.data.build is string && request.resource.data.build.size() <= 30
         && request.resource.data.chunkCount is int && request.resource.data.chunkCount >= 0 && request.resource.data.chunkCount <= 100
         && request.resource.data.eventCount is int && request.resource.data.eventCount >= 0 && request.resource.data.eventCount <= 100000
+        && isRunManifest(request.resource.data)
         && isRunSummary(request.resource.data.summary)
         && request.resource.data.setup is map
         && request.resource.data.final is map

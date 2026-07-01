@@ -2995,6 +2995,14 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .replay-title { display: flex; flex-direction: column; line-height: 1.25; flex: 1; min-width: 0; }
 .replay-title b { font-family: 'Orbitron', sans-serif; letter-spacing: 1px; color: var(--text); }
 .replay-title span { font-size: 12px; color: var(--dim); letter-spacing: 1px; }
+.replay-integrity-banner {
+  flex: 0 0 auto; align-self: center;
+  padding: 6px 12px; border-radius: 8px;
+  border: 1px solid rgba(255, 211, 77, 0.5);
+  background: rgba(255, 184, 65, 0.12);
+  color: #ffd34d; font-family: 'Orbitron', sans-serif;
+  font-size: 11px; letter-spacing: 1px; text-align: center;
+}
 
 .replay-stage {
   position: relative; flex: 1; min-height: 0;

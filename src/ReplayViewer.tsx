@@ -5,7 +5,7 @@ import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
 import { getWave } from './game/waves';
 import { ENEMIES } from './game/enemies';
-import { fetchRunReplay } from './game/leaderboard';
+import { fetchRunReplay, type RunReplayDoc } from './game/leaderboard';
 import { appMetrics } from './game/metrics';
 import { sfx } from './game/sound';
 import DossierShare from './DossierShare';
@@ -702,7 +702,7 @@ type Phase = 'loading' | 'notfound' | 'ready';
 
 export default function ReplayViewer({ runId, onExit }: { runId: string; onExit: () => void }) {
   const [phase, setPhase] = useState<Phase>('loading');
-  const [run, setRun] = useState<PublicRunDoc | null>(null);
+  const [run, setRun] = useState<RunReplayDoc | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -745,7 +745,7 @@ function isReplayShortcutTarget(target: EventTarget | null): boolean {
   return Boolean(target.closest('button, a, [role="button"], [role="link"]'));
 }
 
-function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void }) {
+function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -1017,6 +1017,12 @@ function ReplayStage({ run, onExit }: { run: PublicRunDoc; onExit: () => void })
         </div>
         <DossierShare input={dossierInput} runId={run.runId} compact />
       </div>
+
+      {run.integrity === 'partial' && (
+        <div className="replay-integrity-banner" role="status">
+          PARTIAL RECORD &mdash; some events could not be recovered
+        </div>
+      )}
 
       <div className="replay-stage">
         <canvas ref={canvasRef} width={W} height={H} className="replay-canvas" />

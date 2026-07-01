@@ -13,6 +13,8 @@ import {
 } from '../../src/adminAnalytics';
 import type { RunAnalyticsRow } from '../../src/game/leaderboard';
 
+test.skip(process.env.PLAYWRIGHT_PREVIEW === '1', 'UX harness checks run against the dev-server app surface');
+
 const progressSeed = {
   archive: [],
   best: {},
@@ -644,7 +646,15 @@ test.describe('run telemetry model', () => {
           recordCustom: (type: string, state: unknown, payload?: Record<string, unknown>) => void;
         };
         buildRunUploadBundle: (callsign: string, build: string) => {
-          run: { schemaVersion: number; runId: string; events: { type: string }[]; summary: Record<string, unknown> };
+          run: {
+            schemaVersion: number;
+            runId: string;
+            chunkCount: number;
+            eventCount: number;
+            events: { type: string }[];
+            summary: Record<string, unknown>;
+            manifest?: { chunkEventCounts: number[]; eventHash: string; complete: boolean };
+          };
           chunks: unknown[];
         };
         buildRunAnalyticsDoc: (callsign: string, uid: string, build: string) => Record<string, unknown>;
@@ -684,6 +694,10 @@ test.describe('run telemetry model', () => {
         checkpointHasPerf: typeof checkpoint.performance === 'object',
         checkpointHasCounters: typeof checkpoint.counters === 'object',
         chunkCount: bundle.chunks.length,
+        manifestComplete: bundle.run.manifest?.complete ?? false,
+        manifestChunks: bundle.run.manifest?.chunkEventCounts.length ?? -1,
+        manifestHash: bundle.run.manifest?.eventHash ?? '',
+        eventCount: bundle.run.eventCount,
       };
     });
 
@@ -713,6 +727,10 @@ test.describe('run telemetry model', () => {
     expect(telemetry.checkpointHasPerf).toBe(true);
     expect(telemetry.checkpointHasCounters).toBe(true);
     expect(telemetry.chunkCount).toBe(0);
+    expect(telemetry.manifestComplete).toBe(true);
+    expect(telemetry.manifestChunks).toBe(telemetry.chunkCount);
+    expect(telemetry.manifestHash).toMatch(/^[a-f0-9]{8}$/);
+    expect(telemetry.eventCount).toBeGreaterThanOrEqual(telemetry.eventTypes.length);
   });
 
   test('firestore rules allow schema migration and append-only checkpoints', () => {

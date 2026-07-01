@@ -23,6 +23,7 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
 import { mergeGlobalTopRows, type GlobalTopRow } from './aggregateHelpers.js';
 import { partitionRunDeletions, validDeletedRunIds } from './deleteHelpers.js';
+import { validateReplayManifest, type ReplayChunkInput } from './replayIntegrity.js';
 import {
   canonicalLeaderboardCash,
   feedbackTokenHash,
@@ -168,6 +169,22 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
 
   const eventCount = n(run.eventCount, 0);
   if (eventCount <= 0) return { reason: 'empty-replay' };
+  const chunkCount = Math.max(0, Math.min(100, Math.floor(n(run.chunkCount, 0))));
+  if ('manifest' in run) {
+    const chunkSnaps = await Promise.all(
+      Array.from({ length: chunkCount }, (_, i) => db.doc(`runs/${claim.runId}/chunks/c${i}`).get()),
+    );
+    const chunks: ReplayChunkInput[] = chunkSnaps.map((chunkSnap) => {
+      const data = chunkSnap.exists ? chunkSnap.data() as Record<string, unknown> : {};
+      return {
+        exists: chunkSnap.exists,
+        events: Array.isArray(data.events) ? data.events : [],
+      };
+    });
+    if (validateReplayManifest(run, chunks) === 'manifest-mismatch') return { reason: 'manifest-mismatch' };
+  } else {
+    console.warn('Legacy replay without manifest', claim.runId);
+  }
 
   const summary = (run.summary ?? {}) as Partial<RunSummary>;
   const recWave = n(summary.wave);
