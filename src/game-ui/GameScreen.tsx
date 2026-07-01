@@ -507,6 +507,28 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     return () => window.removeEventListener(WIDGET_OPEN_EVENT, pauseForWidgets);
   }, [game]);
 
+  // While the phone-portrait "rotate for command view" overlay covers the
+  // board, waves must not keep running unseen. Pause on match; resume on
+  // rotate-back only if THIS effect paused (a player's own pause sticks).
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 760px) and (orientation: portrait)');
+    let pausedByRotate = false;
+    const apply = () => {
+      if (mq.matches) {
+        if (!game.paused) {
+          game.paused = true;
+          pausedByRotate = true;
+        }
+      } else if (pausedByRotate) {
+        pausedByRotate = false;
+        if (!utilityWidgetOpen()) game.paused = false;
+      }
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [game]);
+
   useLayoutEffect(() => {
     document.body.classList.add('game-active');
     document.body.classList.toggle('game-sidebar-open', sideOpen);

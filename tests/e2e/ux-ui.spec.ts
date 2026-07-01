@@ -903,6 +903,7 @@ test.describe('run telemetry model', () => {
       game.phase = 'wave';
       game.queue = [];
       game.enemies = [];
+      game.paused = false; // mobile portrait auto-pauses behind the rotate overlay
       game.wave = 50;
       game.update(0.05); // >= one full fixed sim step (1/60) — 0.016 banks in the accumulator and may run zero ticks
       game.finishRun(false, 'gameover');
@@ -932,6 +933,7 @@ test.describe('run telemetry model', () => {
 
     const progressAfter = await page.evaluate(() => {
       const game = (window as unknown as { game: any }).game;
+      game.paused = false; // mobile portrait auto-pauses behind the rotate overlay
       game.phase = 'wave';
       game.queue = [];
       game.enemies = [];
@@ -1051,6 +1053,8 @@ test.describe('mobile UX layout', () => {
     await deployFromMenu(page);
 
     await expect(page.getByTestId('rotate-device')).toBeVisible();
+    // waves must not run unseen behind the rotate overlay
+    await expect.poll(() => page.evaluate(() => (window as unknown as { game: { paused: boolean } }).game.paused)).toBe(true);
     await page.getByTestId('tower-pulse').click();
     const point = await page.evaluate(() => {
       const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
