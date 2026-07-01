@@ -4,7 +4,9 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
-import './App.css';
+// App.css is already global (loaded by App.tsx); this file carries the
+// admin-only styles so they ride the lazy admin chunk, not the player bundle.
+import './AdminDashboard.css';
 import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWER_MAP } from './game/towers';
 import { clearAdmin } from './game/admin';
