@@ -49,7 +49,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
     <div className="ops-tab" data-testid="ops-tab">
       <div className="ops-head">
         <div className="ops-rank" data-testid="rank-bar">
-          <img className="ops-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.png`} alt="" draggable={false} />
+          <img className="ops-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} />
           <div className="ops-rank-body">
             <div className="ops-rank-top">
               <span className="ops-rank-title">{rank.title}</span>

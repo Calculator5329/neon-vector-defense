@@ -130,7 +130,7 @@ export function MainMenu(props: {
             const rank = meta.rank; const streak = meta.streak;
             return (
               <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
-                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.png`} alt="" draggable={false} decoding="async" />
+                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
                 <span className="menu-rank-title">{rank.title}</span>
                 <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
                 <span className="menu-rank-meta"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
@@ -190,7 +190,7 @@ export function MainMenu(props: {
                       {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
                       {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
                       <div className="map-thumb-stack">
-                        <img className="map-thumb-art" src={`/art/sector-${m.id}.png`} alt="" loading="lazy" decoding="async" />
+                        <img className="map-thumb-art" src={`/art/sector-${m.id}.webp`} alt="" loading="lazy" decoding="async" />
                         <MapThumb map={m} />
                       </div>
                       <div className="map-card-row">

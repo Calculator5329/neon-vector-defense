@@ -807,7 +807,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
                     : `${a.def.name} (${'QWERTY'[i]}) — ${a.def.desc}\n\n${ABILITY_LORE[a.def.id] ?? ''}`}
                   onClick={() => useAbility(a.def.id)}
                 >
-                  <span className="ability-icon">{locked ? '🔒' : <img className="ability-icon-img" src={`/art/ability-${a.def.id}.png`} alt="" draggable={false} />}</span>
+                  <span className="ability-icon">{locked ? '🔒' : <img className="ability-icon-img" src={`/art/ability-${a.def.id}.webp`} alt="" draggable={false} />}</span>
                   <span className="ability-key">{'QWERTY'[i]}</span>
                   {a.cd > 0 && <span className="ability-cd" style={{ height: `${pct * 100}%` }} />}
                   {a.cd > 0 && <span className="ability-cd-num">{Math.ceil(a.cd)}</span>}
@@ -846,13 +846,13 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           {!tutorial && !briefed && (
             <BriefingOverlay
               lines={diff.id === 'ngplus' ? LONGWATCH_BRIEFING : BRIEFING}
-              portrait={diff.id === 'ngplus' ? '/art/hollow.png' : '/art/briefing.png'}
+              portrait={diff.id === 'ngplus' ? '/art/hollow.webp' : '/art/briefing.webp'}
               audio={diff.id === 'ngplus' ? '/audio/vox/longwatch-brief.wav' : '/audio/briefing.wav'}
               onDone={() => { setBriefed(true); sfx.waveStart(); }}
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacing(null); setRun((r) => r + 1); } },
@@ -900,13 +900,13 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'armistice' && (
-            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
+            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={ARMISTICE_LINES}
               buttons={[{ label: 'MAIN MENU', fn: onExit }]}
             />
           )}
           {game.phase === 'victory' && (
-            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.png" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
+            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '∞ FREEPLAY', fn: () => chooseContract('standard') },
@@ -988,7 +988,7 @@ function FreeplayBuildPanel({
           <b>{fp.nextMutators.length ? fp.nextMutators.map((m) => m.name).join(' + ') : 'Standard pressure'}</b>
         </div>
         <div className="freeplay-rival-cell">
-          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.png`} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
+          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.webp`} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
           <div>
             <span>Rival</span>
             <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? 'Signal forming' : 'None'}</b>

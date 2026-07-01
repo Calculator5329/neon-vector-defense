@@ -94,7 +94,7 @@ export function rankTitle(rank: number): string {
   const sub = Math.min(ROMAN.length - 1, (r - 1) % ROMAN.length);
   return `${RANK_BANDS[band]} ${ROMAN[sub]}`;
 }
-/** band key for the rank-crest asset path (/art/rank-<key>.png) */
+/** band key for the rank-crest asset path (/art/rank-<key>.webp) */
 export function rankBandKey(rank: number): string {
   const r = Math.max(1, Math.min(MAX_RANK, rank));
   return RANK_BANDS[Math.min(RANK_BANDS.length - 1, Math.floor((r - 1) / ROMAN.length))].toLowerCase();
