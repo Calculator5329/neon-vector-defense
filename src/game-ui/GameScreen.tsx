@@ -858,9 +858,11 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     if (a.targeted) {
       if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
       const next = !aiming;
-      setAiming(next);
+      // setPlacementMode(null) resets aiming to false, so toggle aiming *after* it
+      // or the entering-aim state is immediately clobbered in the same batch.
       setPlacementMode(null);
       setSelectedUid(null);
+      setAiming(next);
       game.announce(next ? `${a.name}: choose an impact zone` : `${a.name} targeting canceled`);
       sfx.click();
     } else {
