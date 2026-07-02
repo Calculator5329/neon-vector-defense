@@ -12,13 +12,13 @@ export function upgradeIconKey(name: string, desc: string, bonus: boolean): Upgr
   if (bonus) return 'ultimate';
   const s = `${name} ${desc}`.toLowerCase();
   if (/(slow|cryo|freez|chill|stasis|drag|gravit|repuls|anchor)/.test(s)) return 'slow';
-  if (/(sensor|detect|cloak|reveal|sight|scan|spotter|oracle)/.test(s)) return 'sensor';
+  if (/(sensor|detect|cloak|reveal|sight|scan|spotter|oracle|focus|priority|target|signal|lure)/.test(s)) return 'sensor';
   if (/(pierce|penetrat|through|impale|lance|rail|execut|armor)/.test(s)) return 'pierce';
   if (/(splash|blast|explos|aoe|area|cluster|burst|saturat|barrage|nova|shockwave)/.test(s)) return 'splash';
   if (/(rate|reload|faster|rapid|cadence|spin|loader|cooldown|twin|auto)/.test(s)) return 'rate';
   if (/(range|reach|extend|antenna|relay|coverage)/.test(s)) return 'range';
   if (/(cash|credit|income|bounty|salvage|econom|profit|tithe)/.test(s)) return 'economy';
-  if (/(aura|buff|ally|boost|support|link|beacon|overclock|amplif)/.test(s)) return 'support';
+  if (/(aura|buff|ally|boost|support|link|beacon|overclock|amplif|resonance|harmonic|siphon|antiphon|echo)/.test(s)) return 'support';
   return 'damage';
 }
 

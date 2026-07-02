@@ -1163,7 +1163,7 @@ export class Game {
         sfx.chrono();
         break;
     }
-    a.cd = a.def.cooldown;
+    a.cd = a.def.cooldown * getBalance().abilityCooldownMult;
     this.runStats.abilitiesCast++;
     this.recorder.recordAbilityCast(this.telemetryState(), id, pos);
     vox(`cast-${id}`);
@@ -1371,8 +1371,14 @@ export class Game {
           }
         }
       }
+      // focus marks are target-priority only; when the timer expires the hull returns
+      // to normal targeting rules.
+      if ((e.focusMarkTimer ?? 0) > 0) {
+        e.focusMarkTimer = Math.max(0, (e.focusMarkTimer ?? 0) - dt);
+        if (e.focusMarkTimer <= 0) e.focusMark = 0;
+      }
       const globalSlow = this.chronoTimer > 0 ? 0.35 : 1;
-      let move = e.def.speed * e.slow * globalSlow * dt;
+      let move = e.def.speed * getBalance().enemy(e.def.id).speedMult * e.slow * globalSlow * dt;
       while (move > 0 && e.wp < path.length) {
         const target = path[e.wp];
         const dx = target.x - e.pos.x, dy = target.y - e.pos.y;
@@ -1509,6 +1515,7 @@ export class Game {
         case 'strong': val = e.hp * 1000 + e.dist; break;
         case 'close': val = -d; break;
       }
+      if ((e.focusMarkTimer ?? 0) > 0) val += 1_000_000 + (e.focusMark ?? 1) * 10_000;
       if (val > bestVal) { bestVal = val; best = e; }
     });
     return best;
@@ -1548,6 +1555,16 @@ export class Game {
 
       if (t.def.style === 'resonance') {
         this.updateResonanceTower(t, st, range);
+        continue;
+      }
+
+      if (t.def.style === 'siphon') {
+        this.updateSiphonTower(t, st, range);
+        continue;
+      }
+
+      if (t.def.style === 'lure') {
+        this.updateLureTower(t, st, range);
         continue;
       }
 
@@ -1703,6 +1720,96 @@ export class Game {
       t.flash = 0.2;
       sfx.resonance();
     }
+  }
+
+  private updateSiphonTower(t: Tower, st: TowerStats, range: number): void {
+    // Harmonic Siphon: useful alone, but spikes only when another tower has built
+    // resonance. It consumes stacks, then echoes one stack onto nearby hulls.
+    const candidates: Enemy[] = [];
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (e.dead || e.finished) return;
+      if (!this.visibleTo(t, e)) return;
+      if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+      candidates.push(e);
+    });
+    if (candidates.length === 0) return;
+    candidates.sort((a, b) => (b.resonance - a.resonance) || (b.dist - a.dist));
+    const targets = candidates.slice(0, Math.max(1, st.count));
+    const spreadRadius = Math.max(0, st.splash);
+    for (const e of targets) {
+      const consumed = Math.min(e.resonance, Math.max(1, st.pierce));
+      if (consumed > 0) {
+        e.resonance = Math.max(0, e.resonance - consumed);
+        if (e.resonance <= 0) e.resonanceTimer = 0;
+      }
+      const burst = st.damage * (1 + consumed * 0.85);
+      const dealt = this.damageEnemy(e, burst, st.damageType, false, t);
+      if (dealt > 0 && st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
+      this.addBeam(t.pos, e.pos, t.def.glow, consumed > 0 ? 3.2 : 1.8, 0.18);
+      if (consumed <= 0 || st.chain <= 0 || spreadRadius <= 0) continue;
+      let spread = 0;
+      this.grid.forEachInRadius(e.pos.x, e.pos.y, spreadRadius + 16, (o) => {
+        if (spread >= st.chain || o === e || o.dead || o.finished) return;
+        if (!this.visibleTo(t, o)) return;
+        if (Math.hypot(o.pos.x - e.pos.x, o.pos.y - e.pos.y) > spreadRadius + o.def.radius) return;
+        o.resonance = Math.min(5, o.resonance + 1);
+        o.resonanceTimer = Math.max(o.resonanceTimer, 4);
+        this.addBeam(e.pos, o.pos, t.def.color, 1.4, 0.16);
+        spread++;
+      });
+    }
+    t.angle = Math.atan2(targets[0].pos.y - t.pos.y, targets[0].pos.x - t.pos.x);
+    t.cooldown = 1 / st.fireRate;
+    t.flash = 0.22;
+    t.recoil = 0.7;
+    sfx.resonance();
+  }
+
+  private updateLureTower(t: Tower, st: TowerStats, range: number): void {
+    // Vector Lure: creates a temporary focus target. The target picker above does
+    // the actual battlefield manipulation by making marked hulls win target choice.
+    const candidates: Enemy[] = [];
+    this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
+      if (e.dead || e.finished) return;
+      if (!this.visibleTo(t, e)) return;
+      if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
+      candidates.push(e);
+    });
+    if (candidates.length === 0) return;
+    candidates.sort((a, b) =>
+      Number((a.focusMarkTimer ?? 0) > 0) - Number((b.focusMarkTimer ?? 0) > 0) ||
+      (b.hp - a.hp) ||
+      (b.dist - a.dist));
+    const targets = candidates.slice(0, Math.max(1, st.count));
+    const markDuration = Math.max(1, st.burnDuration || 3);
+    const markStrength = Math.max(1, st.pierce);
+    for (const e of targets) {
+      e.focusMark = Math.max(e.focusMark ?? 0, markStrength);
+      e.focusMarkTimer = Math.max(e.focusMarkTimer ?? 0, markDuration);
+      if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
+      if (st.damage > 0) this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
+      this.addBeam(t.pos, e.pos, t.def.glow, 2.2, 0.22);
+      if (st.splash <= 0) continue;
+      this.grid.forEachInRadius(e.pos.x, e.pos.y, st.splash + 16, (o) => {
+        if (o === e || o.dead || o.finished) return;
+        if (!this.visibleTo(t, o)) return;
+        if (Math.hypot(o.pos.x - e.pos.x, o.pos.y - e.pos.y) > st.splash + o.def.radius) return;
+        if (st.slowPower > 0) this.applySlow(o, st.slowPower, st.slowDuration);
+        const drag = st.drag * (o.def.boss ? 0.18 : 1);
+        if (drag > 0) {
+          o.dist = Math.max(0, o.dist - drag);
+          const at = this.posAtDist(o.dist);
+          o.pos = at.pos;
+          o.wp = at.wp;
+        }
+      });
+      this.ring(e.pos, t.def.glow, Math.max(24, st.splash));
+    }
+    t.angle = Math.atan2(targets[0].pos.y - t.pos.y, targets[0].pos.x - t.pos.x);
+    t.cooldown = 1 / st.fireRate;
+    t.flash = 0.25;
+    t.recoil = 0.5;
+    sfx.zap();
   }
 
   private updateRiftTower(t: Tower, st: TowerStats, range: number): void {
@@ -1864,7 +1971,9 @@ export class Game {
     for (let i = 0; i < launchCount; i++) {
       const shotTarget = isDrone ? droneTargets[i % droneTargets.length] : target;
       const spread = launchCount > 1 ? (i - (launchCount - 1) / 2) * (isDrone ? 0.075 : 0.12) : 0;
-      const lead = t.def.style === 'missile' ? shotTarget.pos : predict(shotTarget, this.map.path, t.pos, st.projectileSpeed);
+      const lead = t.def.style === 'missile'
+        ? shotTarget.pos
+        : predict(shotTarget, this.map.path, t.pos, st.projectileSpeed, getBalance().enemy(shotTarget.def.id).speedMult);
       const ang = Math.atan2(lead.y - t.pos.y, lead.x - t.pos.x) + spread;
       const muzzle = isDrone ? 11 + (i % Math.max(1, st.droneSwarm)) * 2 : 14;
       this.projectiles.push({
@@ -2144,9 +2253,9 @@ export function distToSeg(p: Vec, a: Vec, b: Vec): number {
 }
 
 /** Rough intercept prediction: where will the enemy be when the bolt arrives? */
-function predict(e: Enemy, path: Vec[], from: Vec, projSpeed: number): Vec {
+function predict(e: Enemy, path: Vec[], from: Vec, projSpeed: number, speedMult = 1): Vec {
   const eta = Math.hypot(e.pos.x - from.x, e.pos.y - from.y) / projSpeed;
-  let move = e.def.speed * e.slow * eta;
+  let move = e.def.speed * speedMult * e.slow * eta;
   let pos = { ...e.pos };
   let wp = e.wp;
   while (move > 0 && wp < path.length) {

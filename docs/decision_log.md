@@ -3,6 +3,25 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Arsenal reaches 21 towers and remote balance gets an admin editor
+
+- Harmonic Siphon is the second resonance-axis tower. It consumes resonance
+  stacks for burst damage and spreads echo stacks, making Cantor plus Siphon a
+  real combo instead of adding another generic DPS tower.
+- Vector Lure is a target-priority support tower. Its focus marks make other
+  towers prefer selected hulls while its wake slows or drags escorts; it stays
+  intentionally low/no damage so it does not become another economy or nuke tool.
+- The balance pass is evidence-led from `npm run balance` and
+  `npm run tower:deep-dive`: Cinder and Flak were reduced from OP to strong
+  watchlist status, Siphon moved into fair static value, and Requiem's late nova
+  upgrades were lifted without changing any single stat by more than 25%.
+- New tower ids are not added to bot plans yet. The final reports show Siphon
+  and Lure need support context, while the expert bot still clears
+  Recruit/Veteran and loses Apex/Extinction without them.
+- `config/balance` remains a sparse public-read gameplay document, but the admin
+  dashboard now owns validated publish/reset controls and a tiered effective-stat
+  preview. Rules mirror the additive shape so unknown live-ops keys are rejected.
+
 ## 2026-07-02 - Release hardening runs before deployment
 
 - Callable endpoints are now covered by Firebase emulator-backed integration

@@ -94,6 +94,26 @@ export function dpsOf(def: TowerDef, s: TowerStats): Dps {
       util.push(`mark ${s.count}× (+10%/stack dmg taken)`);
       break;
     }
+    case 'siphon': { // consumes resonance stacks for burst value, then echoes them outward
+      single = dmg * rate * s.count;
+      aoe = single * (1 + Math.min(s.chain, AOE_TARGETS) * 0.45);
+      util.push(`consume ${Math.max(1, s.pierce)} resonance stacks`);
+      if (s.chain > 0) util.push(`echo spread ${s.chain}`);
+      break;
+    }
+    case 'lure': { // direct value is target-priority control and escort disruption
+      single = dmg * rate * s.count;
+      aoe = single;
+      util.push(`focus mark ${s.count}`);
+      if (s.splash > 0) util.push(`scramble wake ${s.splash}`);
+      break;
+    }
+    case 'rift': { // abyss: breach fields centered on one or more clusters
+      single = dmg * rate * s.count;
+      aoe = single * (s.splash > 0 ? SPLASH_TARGETS : 1);
+      util.push('breach field');
+      break;
+    }
     case 'sweep': { // watchfire: damage IS dps, continuous, `count` beams, no cooldown
       single = dmg; // a target soaks full dps while the beam is on it
       aoe = dmg * Math.max(1, s.count);

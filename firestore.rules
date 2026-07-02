@@ -36,6 +36,123 @@ service cloud.firestore {
       return uid.matches('^[A-Za-z0-9_-]{6,40}$');
     }
 
+    function isBalanceMult(n) {
+      return n is number && n >= 0.25 && n <= 4;
+    }
+
+    function isValidBalanceIncome(x) {
+      return x is map
+        && x.keys().hasOnly(['killMult', 'waveBonusMult'])
+        && (!('killMult' in x) || isBalanceMult(x.killMult))
+        && (!('waveBonusMult' in x) || isBalanceMult(x.waveBonusMult));
+    }
+
+    function isValidBalanceGlobal(x) {
+      return x is map
+        && x.keys().hasOnly(['abilityCooldownMult'])
+        && (!('abilityCooldownMult' in x) || isBalanceMult(x.abilityCooldownMult));
+    }
+
+    function isValidBalanceDiff(x) {
+      return x is map
+        && x.keys().hasOnly(['hpMult', 'lateScale', 'costMult', 'cashMult', 'livesMult'])
+        && (!('hpMult' in x) || isBalanceMult(x.hpMult))
+        && (!('lateScale' in x) || isBalanceMult(x.lateScale))
+        && (!('costMult' in x) || isBalanceMult(x.costMult))
+        && (!('cashMult' in x) || isBalanceMult(x.cashMult))
+        && (!('livesMult' in x) || isBalanceMult(x.livesMult));
+    }
+
+    function isValidBalanceEnemy(x) {
+      return x is map
+        && x.keys().hasOnly(['hpMult', 'rewardMult', 'speedMult'])
+        && (!('hpMult' in x) || isBalanceMult(x.hpMult))
+        && (!('rewardMult' in x) || isBalanceMult(x.rewardMult))
+        && (!('speedMult' in x) || isBalanceMult(x.speedMult));
+    }
+
+    function isValidBalanceTower(x) {
+      return x is map
+        && x.keys().hasOnly(['costMult', 'damageMult', 'rangeMult', 'fireRateMult', 'projectileSpeedMult', 'splashMult', 'slowMult', 'burnMult'])
+        && (!('costMult' in x) || isBalanceMult(x.costMult))
+        && (!('damageMult' in x) || isBalanceMult(x.damageMult))
+        && (!('rangeMult' in x) || isBalanceMult(x.rangeMult))
+        && (!('fireRateMult' in x) || isBalanceMult(x.fireRateMult))
+        && (!('projectileSpeedMult' in x) || isBalanceMult(x.projectileSpeedMult))
+        && (!('splashMult' in x) || isBalanceMult(x.splashMult))
+        && (!('slowMult' in x) || isBalanceMult(x.slowMult))
+        && (!('burnMult' in x) || isBalanceMult(x.burnMult));
+    }
+
+    function isValidBalanceDiffs(x) {
+      return x is map
+        && x.keys().hasOnly(['easy', 'normal', 'hard', 'extinction'])
+        && (!('easy' in x) || isValidBalanceDiff(x.easy))
+        && (!('normal' in x) || isValidBalanceDiff(x.normal))
+        && (!('hard' in x) || isValidBalanceDiff(x.hard))
+        && (!('extinction' in x) || isValidBalanceDiff(x.extinction));
+    }
+
+    function isValidBalanceEnemies(x) {
+      return x is map
+        && x.keys().hasOnly(['scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono', 'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'wisp', 'gorge', 'lampblack', 'umbra'])
+        && (!('scout' in x) || isValidBalanceEnemy(x.scout))
+        && (!('raider' in x) || isValidBalanceEnemy(x.raider))
+        && (!('stinger' in x) || isValidBalanceEnemy(x.stinger))
+        && (!('phantom' in x) || isValidBalanceEnemy(x.phantom))
+        && (!('wraith' in x) || isValidBalanceEnemy(x.wraith))
+        && (!('shade' in x) || isValidBalanceEnemy(x.shade))
+        && (!('prism' in x) || isValidBalanceEnemy(x.prism))
+        && (!('aegis' in x) || isValidBalanceEnemy(x.aegis))
+        && (!('chrono' in x) || isValidBalanceEnemy(x.chrono))
+        && (!('vortex' in x) || isValidBalanceEnemy(x.vortex))
+        && (!('juggernaut' in x) || isValidBalanceEnemy(x.juggernaut))
+        && (!('seraph' in x) || isValidBalanceEnemy(x.seraph))
+        && (!('titan' in x) || isValidBalanceEnemy(x.titan))
+        && (!('leviathan' in x) || isValidBalanceEnemy(x.leviathan))
+        && (!('wisp' in x) || isValidBalanceEnemy(x.wisp))
+        && (!('gorge' in x) || isValidBalanceEnemy(x.gorge))
+        && (!('lampblack' in x) || isValidBalanceEnemy(x.lampblack))
+        && (!('umbra' in x) || isValidBalanceEnemy(x.umbra));
+    }
+
+    function isValidBalanceTowers(x) {
+      return x is map
+        && x.keys().hasOnly(['pulse', 'tesla', 'cryo', 'rail', 'missile', 'drone', 'emp', 'cantor', 'prismarr', 'locust', 'requiem', 'watchfire', 'abyss', 'ember', 'anchor', 'sunspear', 'siphon', 'lure', 'flak', 'cinder', 'gauss'])
+        && (!('pulse' in x) || isValidBalanceTower(x.pulse))
+        && (!('tesla' in x) || isValidBalanceTower(x.tesla))
+        && (!('cryo' in x) || isValidBalanceTower(x.cryo))
+        && (!('rail' in x) || isValidBalanceTower(x.rail))
+        && (!('missile' in x) || isValidBalanceTower(x.missile))
+        && (!('drone' in x) || isValidBalanceTower(x.drone))
+        && (!('emp' in x) || isValidBalanceTower(x.emp))
+        && (!('cantor' in x) || isValidBalanceTower(x.cantor))
+        && (!('prismarr' in x) || isValidBalanceTower(x.prismarr))
+        && (!('locust' in x) || isValidBalanceTower(x.locust))
+        && (!('requiem' in x) || isValidBalanceTower(x.requiem))
+        && (!('watchfire' in x) || isValidBalanceTower(x.watchfire))
+        && (!('abyss' in x) || isValidBalanceTower(x.abyss))
+        && (!('ember' in x) || isValidBalanceTower(x.ember))
+        && (!('anchor' in x) || isValidBalanceTower(x.anchor))
+        && (!('sunspear' in x) || isValidBalanceTower(x.sunspear))
+        && (!('siphon' in x) || isValidBalanceTower(x.siphon))
+        && (!('lure' in x) || isValidBalanceTower(x.lure))
+        && (!('flak' in x) || isValidBalanceTower(x.flak))
+        && (!('cinder' in x) || isValidBalanceTower(x.cinder))
+        && (!('gauss' in x) || isValidBalanceTower(x.gauss));
+    }
+
+    function isValidBalanceDoc(data) {
+      return data is map
+        && data.keys().hasOnly(['version', 'income', 'global', 'diffs', 'enemies', 'towers'])
+        && (!('version' in data) || (data.version is string && data.version.size() <= 30))
+        && (!('income' in data) || isValidBalanceIncome(data.income))
+        && (!('global' in data) || isValidBalanceGlobal(data.global))
+        && (!('diffs' in data) || isValidBalanceDiffs(data.diffs))
+        && (!('enemies' in data) || isValidBalanceEnemies(data.enemies))
+        && (!('towers' in data) || isValidBalanceTowers(data.towers));
+    }
+
     function isTelemetrySchema(data) {
       return data.schemaVersion == 2;
     }
@@ -290,18 +407,13 @@ service cloud.firestore {
     }
 
     // remote balance overrides: public read (PII-free gameplay tuning), admin write only.
-    // The client clamps every value to [0.25, 4] and falls back to identity, so rules only
-    // gate WHO writes + the coarse shape.
+    // The client clamps every value to [0.25, 4] and falls back to identity; rules mirror
+    // the sparse shape so public clients can never publish unknown gameplay fields.
     match /config/balance {
       allow get: if true;
       allow list: if false;
-      allow write: if isAdmin()
-        && request.resource.data.keys().hasOnly(['version', 'income', 'diffs', 'enemies', 'towers'])
-        && (!('version' in request.resource.data) || (request.resource.data.version is string && request.resource.data.version.size() <= 30))
-        && (!('income' in request.resource.data) || request.resource.data.income is map)
-        && (!('diffs' in request.resource.data) || request.resource.data.diffs is map)
-        && (!('enemies' in request.resource.data) || request.resource.data.enemies is map)
-        && (!('towers' in request.resource.data) || request.resource.data.towers is map);
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidBalanceDoc(request.resource.data);
     }
 
     // server-maintained global-top aggregate: one public doc replaces the

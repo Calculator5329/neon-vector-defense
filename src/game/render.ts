@@ -864,7 +864,7 @@ function drawRange(ctx: CanvasRenderingContext2D, pos: Vec, range: number, color
 /** towers whose art differs from their mechanical fire style */
 const ART_OVERRIDE: Record<string, string> = { oracle: 'oracle', locust: 'swarm' };
 
-const AIMED_STYLES = ['bolt', 'rail', 'missile', 'beam'];
+const AIMED_STYLES = ['bolt', 'rail', 'missile', 'beam', 'siphon', 'lure'];
 
 function drawTower(ctx: CanvasRenderingContext2D, t: Tower, time: number, selected: boolean, game: Game) {
   const overdriven = game.overdriveTimer > 0 || game.frenzyTimer > 0;
@@ -1328,6 +1328,67 @@ export function drawTowerBody(
       ctx.stroke();
       break;
     }
+    case 'siphon': { // harmonic siphon: an antiphon intake
+      ctx.translate(rec, 0);
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = 2;
+      // paired intake vanes
+      ctx.beginPath();
+      ctx.arc(6, -3.5, 11, Math.PI * 0.58, Math.PI * 1.12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(6, 3.5, 11, -Math.PI * 1.12, -Math.PI * 0.58);
+      ctx.stroke();
+      // return-note rails
+      ctx.strokeStyle = withAlpha(def.glow, 0.75);
+      ctx.lineWidth = 1.3;
+      line(ctx, -8, -7, 14, -2.5);
+      line(ctx, -8, 7, 14, 2.5);
+      // resonant sink
+      const sg = ctx.createRadialGradient(-2, 0, 0.5, -2, 0, 7.5 + (flash > 0 ? 2 : 0));
+      sg.addColorStop(0, '#ffffff');
+      sg.addColorStop(0.42, def.glow);
+      sg.addColorStop(1, shade(def.color, -0.35));
+      ctx.fillStyle = sg;
+      path(ctx, [[-2, -8], [5, 0], [-2, 8], [-9, 0]]);
+      ctx.fill();
+      ctx.strokeStyle = withAlpha('#ffffff', 0.45);
+      ctx.stroke();
+      if (flash > 0) {
+        ctx.globalAlpha = alpha * Math.min(1, flash * 6);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        circle(ctx, -2, 0, 13);
+        ctx.stroke();
+        ctx.globalAlpha = alpha;
+      }
+      break;
+    }
+    case 'lure': { // vector lure: false-command signal dish
+      ctx.translate(rec, 0);
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = 1.8;
+      // antenna spine
+      line(ctx, -10, 0, 15, 0);
+      ctx.fillStyle = shade(def.color, -0.35);
+      ctx.fillRect(-10, -4.5, 8, 9);
+      // directional dish and reticle emitter
+      ctx.beginPath();
+      ctx.ellipse(5, 0, 8, 5.5, 0, -Math.PI * 0.62, Math.PI * 0.62);
+      ctx.stroke();
+      ctx.strokeStyle = withAlpha(def.glow, 0.72);
+      circle(ctx, 8, 0, 6 + (flash > 0 ? 1.8 : 0));
+      ctx.stroke();
+      ctx.fillStyle = def.glow;
+      circle(ctx, 8, 0, 2.4);
+      ctx.fill();
+      // signal prongs
+      ctx.strokeStyle = withAlpha('#ffffff', 0.5);
+      line(ctx, 15, -5, 20, -8);
+      line(ctx, 16, 0, 22, 0);
+      line(ctx, 15, 5, 20, 8);
+      break;
+    }
     case 'sweep': { // watchfire beacon: a rotating lighthouse lens
       ctx.rotate(-angle);
       // outer housing ring
@@ -1432,7 +1493,7 @@ export function drawTowerBody(
     }
   }
   // muzzle flash at the barrel while firing
-  if (flash > 0.06 && (style === 'bolt' || style === 'rail' || style === 'missile' || style === 'oracle')) {
+  if (flash > 0.06 && (style === 'bolt' || style === 'rail' || style === 'missile' || style === 'oracle' || style === 'siphon' || style === 'lure')) {
     const fx = style === 'rail' ? 28 : 18;
     const mg = ctx.createRadialGradient(fx, 0, 0.5, fx, 0, 9);
     mg.addColorStop(0, '#ffffff');
@@ -1594,6 +1655,24 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
         [e.pos.x + Math.cos(a) * rr - 2.2, e.pos.y + Math.sin(a) * rr],
       ]);
       ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  if ((e.focusMarkTimer ?? 0) > 0) {
+    ctx.save();
+    const pulse = 0.65 + 0.35 * Math.sin(time * 8 + e.phase);
+    const rr = def.radius + 11 + (e.focusMark ?? 1) * 1.5;
+    ctx.strokeStyle = `rgba(255,194,240,${0.45 + pulse * 0.35})`;
+    ctx.lineWidth = 1.6;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 4; i++) {
+      const a = time * 1.4 + i * Math.PI / 2;
+      const x = e.pos.x + Math.cos(a) * rr;
+      const y = e.pos.y + Math.sin(a) * rr;
+      ctx.beginPath();
+      ctx.arc(x, y, 4.5, a + Math.PI * 0.4, a + Math.PI * 1.25);
+      ctx.stroke();
     }
     ctx.restore();
   }

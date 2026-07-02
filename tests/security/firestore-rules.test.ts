@@ -8,6 +8,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -428,7 +429,24 @@ describe('feedback and config rules', () => {
     const db = anonDb();
     await assertSucceeds(getDoc(doc(db, 'config', 'balance')));
     await assertFails(setDoc(doc(db, 'config', 'balance'), { version: 'test' }));
-    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'balance'), { version: 'test' }));
+    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'balance'), {
+      version: 'test',
+      income: { killMult: 1.1, waveBonusMult: 0.95 },
+      global: { abilityCooldownMult: 0.8 },
+      diffs: { normal: { hpMult: 1.05, lateScale: 1.1, costMult: 1, cashMult: 1, livesMult: 1 } },
+      enemies: { scout: { hpMult: 1.2, rewardMult: 1, speedMult: 0.9 } },
+      towers: { siphon: { damageMult: 1.15, projectileSpeedMult: 1.2, splashMult: 1.1, slowMult: 1, burnMult: 1 } },
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'balance'), {
+      towers: { siphon: { damageMult: 9 } },
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'balance'), {
+      towers: { siphon: { damageMult: 1, secret: 1 } },
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'balance'), {
+      enemies: { retiredHull: { hpMult: 1 } },
+    }));
+    await assertSucceeds(deleteDoc(doc(adminDb(), 'config', 'balance')));
   });
 
   test('global-top aggregate is public read, server-only write', async () => {

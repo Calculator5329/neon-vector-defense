@@ -399,6 +399,8 @@ function strengthsFor(def: TowerDef, builds: StaticBuild[]): string[] {
   if (def.base.range >= 9000) s.add('global range');
   if (def.style === 'support') s.add('buff/support aura');
   if (def.style === 'sweep') s.add('continuous no-cooldown damage');
+  if (def.style === 'siphon') s.add('resonance consume combo');
+  if (def.style === 'lure') s.add('focus-fire target control');
   return [...s];
 }
 
@@ -412,6 +414,8 @@ function weaknessesFor(def: TowerDef, builds: StaticBuild[]): string[] {
   if (best.singleDps <= 0 && def.style !== 'support') s.add('low/no direct damage');
   if (def.cost >= 1500) s.add('late or expensive opening');
   if (def.style === 'support') s.add('cannot solo without damage dealers');
+  if (def.style === 'siphon') s.add('needs resonance source for full value');
+  if (def.style === 'lure') s.add('support-dependent damage');
   return [...s];
 }
 

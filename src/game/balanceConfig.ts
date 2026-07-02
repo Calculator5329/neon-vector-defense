@@ -8,37 +8,48 @@
 // (e.g. effectiveHpMult = diff.hpMult * cfg.diff(id).hpMult). An empty doc is an exact no-op.
 //
 // Wire shape (all optional, admin-authored, clamped to [0.25, 4]):
-//   { version?, income?:{killMult?,waveBonusMult?},
+//   { version?, income?:{killMult?,waveBonusMult?}, global?:{abilityCooldownMult?},
 //     diffs?:{ [diffId]:{hpMult?,lateScale?,costMult?,cashMult?,livesMult?} },
-//     enemies?:{ [enemyId]:{hpMult?,rewardMult?} },
-//     towers?:{ [towerId]:{costMult?,damageMult?,rangeMult?,fireRateMult?} } }
+//     enemies?:{ [enemyId]:{hpMult?,rewardMult?,speedMult?} },
+//     towers?:{ [towerId]:{costMult?,damageMult?,rangeMult?,fireRateMult?,projectileSpeedMult?,splashMult?,slowMult?,burnMult?} } }
 
 import { firestore } from './firestoreLazy';
 
 export interface BalanceConfigDoc {
   version?: string;
   income?: { killMult?: number; waveBonusMult?: number };
+  global?: { abilityCooldownMult?: number };
   diffs?: Record<string, { hpMult?: number; lateScale?: number; costMult?: number; cashMult?: number; livesMult?: number }>;
-  enemies?: Record<string, { hpMult?: number; rewardMult?: number }>;
-  towers?: Record<string, { costMult?: number; damageMult?: number; rangeMult?: number; fireRateMult?: number }>;
+  enemies?: Record<string, { hpMult?: number; rewardMult?: number; speedMult?: number }>;
+  towers?: Record<string, {
+    costMult?: number; damageMult?: number; rangeMult?: number; fireRateMult?: number;
+    projectileSpeedMult?: number; splashMult?: number; slowMult?: number; burnMult?: number;
+  }>;
 }
 
 export interface DiffOverride { hpMult: number; lateScale: number; costMult: number; cashMult: number; livesMult: number }
-export interface EnemyOverride { hpMult: number; rewardMult: number }
-export interface TowerOverride { costMult: number; damageMult: number; rangeMult: number; fireRateMult: number }
+export interface EnemyOverride { hpMult: number; rewardMult: number; speedMult: number }
+export interface TowerOverride {
+  costMult: number; damageMult: number; rangeMult: number; fireRateMult: number;
+  projectileSpeedMult: number; splashMult: number; slowMult: number; burnMult: number;
+}
 
 export interface ResolvedBalance {
   version: string;
   killMult: number;
   waveBonusMult: number;
+  abilityCooldownMult: number;
   diff(id: string): DiffOverride;
   enemy(id: string): EnemyOverride;
   tower(id: string): TowerOverride;
 }
 
 const IDENTITY_DIFF: DiffOverride = { hpMult: 1, lateScale: 1, costMult: 1, cashMult: 1, livesMult: 1 };
-const IDENTITY_ENEMY: EnemyOverride = { hpMult: 1, rewardMult: 1 };
-const IDENTITY_TOWER: TowerOverride = { costMult: 1, damageMult: 1, rangeMult: 1, fireRateMult: 1 };
+const IDENTITY_ENEMY: EnemyOverride = { hpMult: 1, rewardMult: 1, speedMult: 1 };
+const IDENTITY_TOWER: TowerOverride = {
+  costMult: 1, damageMult: 1, rangeMult: 1, fireRateMult: 1,
+  projectileSpeedMult: 1, splashMult: 1, slowMult: 1, burnMult: 1,
+};
 
 /** Reject NaN/Infinity, then bound to [min,max]; missing → default. */
 function clampMult(n: unknown, def = 1, min = 0.25, max = 4): number {
@@ -51,6 +62,7 @@ const IDENTITY: ResolvedBalance = {
   version: '',
   killMult: 1,
   waveBonusMult: 1,
+  abilityCooldownMult: 1,
   diff: () => IDENTITY_DIFF,
   enemy: () => IDENTITY_ENEMY,
   tower: () => IDENTITY_TOWER,
@@ -64,6 +76,7 @@ export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
   const version = typeof raw.version === 'string' ? raw.version.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 30) : '';
   const killMult = clampMult(raw.income?.killMult);
   const waveBonusMult = clampMult(raw.income?.waveBonusMult);
+  const abilityCooldownMult = clampMult(raw.global?.abilityCooldownMult);
   const diffs = (raw.diffs && typeof raw.diffs === 'object') ? raw.diffs : {};
   const enemies = (raw.enemies && typeof raw.enemies === 'object') ? raw.enemies : {};
   const towers = (raw.towers && typeof raw.towers === 'object') ? raw.towers : {};
@@ -71,6 +84,7 @@ export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
     version,
     killMult,
     waveBonusMult,
+    abilityCooldownMult,
     diff: (id) => {
       const d = diffs[id];
       if (!d || typeof d !== 'object') return IDENTITY_DIFF;
@@ -82,7 +96,7 @@ export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
     enemy: (id) => {
       const e = enemies[id];
       if (!e || typeof e !== 'object') return IDENTITY_ENEMY;
-      return { hpMult: clampMult(e.hpMult), rewardMult: clampMult(e.rewardMult) };
+      return { hpMult: clampMult(e.hpMult), rewardMult: clampMult(e.rewardMult), speedMult: clampMult(e.speedMult) };
     },
     tower: (id) => {
       const t = towers[id];
@@ -90,6 +104,8 @@ export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
       return {
         costMult: clampMult(t.costMult), damageMult: clampMult(t.damageMult),
         rangeMult: clampMult(t.rangeMult), fireRateMult: clampMult(t.fireRateMult),
+        projectileSpeedMult: clampMult(t.projectileSpeedMult), splashMult: clampMult(t.splashMult),
+        slowMult: clampMult(t.slowMult), burnMult: clampMult(t.burnMult),
       };
     },
   };

@@ -10,8 +10,8 @@ import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } 
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { buildRunManifest, hashRunEventPairs, type RunEvent } from '../../src/game/runTelemetry';
 import { normalizeProgress, progress } from '../../src/game/storage';
-import { TOWERS } from '../../src/game/towers';
-import type { Enemy, EnemyDef } from '../../src/game/types';
+import { computeStats, TOWER_MAP, TOWERS } from '../../src/game/towers';
+import type { Enemy, EnemyDef, Tower } from '../../src/game/types';
 import { partitionRunDeletions, validDeletedRunIds } from '../../functions/src/deleteHelpers';
 import { isStaleBuild } from '../../src/buildFreshness';
 import { canSubmitScore, canWriteAnalytics, optOutOfSale, resetConsent, setAgeFromBirthDate } from '../../src/game/consent';
@@ -319,6 +319,9 @@ type EngineInternals = {
   applyBurn(e: Enemy, dps: number, duration: number, src?: unknown): void;
   updateProjectiles(dt: number): void;
   updateEnemies(dt: number): void;
+  updateTowers(dt: number): void;
+  pickTarget(t: Tower, range: number): Enemy | null;
+  makeEnemy(typeId: string, cloaked: boolean): Enemy;
 };
 
 function internals(game: Game): EngineInternals {
@@ -423,6 +426,126 @@ describe('engine correctness fixes', () => {
     assert.equal(game.placeTower(locked!, findPlaceable(game)), null);
     const analytics = game.buildRunAnalyticsDoc('TEST', 'w_test123', 'test-build');
     assert.equal(analytics.placement.failedByReason.locked, 1);
+  });
+});
+
+function towerProgressScore(tower: Tower): number {
+  const s = tower.stats;
+  return s.damage * s.fireRate * Math.max(1, s.count) * (1 + s.chain * 0.35 + Math.max(0, s.pierce - 1) * 0.08)
+    + s.range * 0.03
+    + s.splash * 0.05
+    + s.slowPower * 25
+    + s.slowDuration * 1.5
+    + s.burnDps * 2
+    + s.burnDuration
+    + s.drag * 0.04
+    + (s.detection ? 4 : 0);
+}
+
+describe('arsenal balance additions', () => {
+  test('remote balance knobs cover projectile, splash, slow, burn, enemy speed, and ability cooldown', () => {
+    setBalanceDoc({
+      global: { abilityCooldownMult: 0.5 },
+      enemies: { scout: { speedMult: 2 } },
+      towers: {
+        missile: { projectileSpeedMult: 2, splashMult: 1.5 },
+        cryo: { slowMult: 4 },
+        cinder: { burnMult: 2 },
+      },
+    });
+    const missile = computeStats(TOWER_MAP.missile, 0, 0);
+    assert.equal(missile.projectileSpeed, 620);
+    assert.equal(missile.splash, 72);
+    assert.equal(computeStats(TOWER_MAP.cryo, 0, 0).slowPower, 0.95);
+    const cinder = computeStats(TOWER_MAP.cinder, 0, 0);
+    assert.equal(cinder.burnDps, 7.5);
+    assert.equal(cinder.burnZoneDps, 12);
+
+    const game = makeGame();
+    assert.equal(game.castAbility('strike', { x: 0, y: 0 }), true);
+    assert.equal(game.abilities.find((a) => a.def.id === 'strike')?.cd, 22.5);
+
+    const slowGame = makeGame();
+    const slowEnemy = internals(slowGame).makeEnemy('scout', false);
+    slowGame.enemies.push(slowEnemy);
+    setBalanceDoc(null);
+    internals(slowGame).updateEnemies(0.5);
+
+    const fastGame = makeGame();
+    const fastEnemy = internals(fastGame).makeEnemy('scout', false);
+    fastGame.enemies.push(fastEnemy);
+    setBalanceDoc({ enemies: { scout: { speedMult: 2 } } });
+    internals(fastGame).updateEnemies(0.5);
+    assert.ok(fastEnemy.dist > slowEnemy.dist * 1.8, `expected speed override to move further (${fastEnemy.dist} vs ${slowEnemy.dist})`);
+  });
+
+  test('new tower upgrade tracks make monotonic stat progress', () => {
+    for (const def of [TOWER_MAP.siphon, TOWER_MAP.lure]) {
+      for (const track of [0, 1] as const) {
+        let prev = towerProgressScore({ stats: computeStats(def, 0, 0) } as Tower);
+        for (let tier = 1; tier <= 6; tier++) {
+          const stats = computeStats(def, track === 0 ? tier : 0, track === 1 ? tier : 0);
+          const score = towerProgressScore({ stats } as Tower);
+          assert.ok(score >= prev - 1e-9, `${def.id} track ${track} tier ${tier} regressed`);
+          prev = score;
+        }
+      }
+    }
+  });
+
+  test('Harmonic Siphon consumes and spreads resonance stacks', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: 1_000_000 });
+    game.credits = 100_000;
+    const tower = game.placeTower(TOWER_MAP.siphon, findPlaceable(game));
+    assert.ok(tower);
+    tower.cooldown = 0;
+
+    const api = internals(game);
+    const target = api.makeEnemy('aegis', false);
+    target.hp = 1000;
+    target.maxHp = 1000;
+    target.pos = { x: tower.pos.x + 32, y: tower.pos.y };
+    target.dist = 80;
+    target.resonance = 3;
+    target.resonanceTimer = 5;
+    const neighbor = api.makeEnemy('scout', false);
+    neighbor.hp = 1000;
+    neighbor.maxHp = 1000;
+    neighbor.pos = { x: tower.pos.x + 54, y: tower.pos.y + 8 };
+    neighbor.dist = 60;
+    game.enemies.push(target, neighbor);
+    api.grid.rebuild(game.enemies);
+
+    api.updateTowers(1);
+    assert.equal(target.resonance, 2);
+    assert.equal(neighbor.resonance, 1);
+  });
+
+  test('Vector Lure focus marks drive target selection', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: 1_000_000 });
+    game.credits = 100_000;
+    const lure = game.placeTower(TOWER_MAP.lure, findPlaceable(game));
+    assert.ok(lure);
+    lure.cooldown = 0;
+
+    const api = internals(game);
+    const marked = api.makeEnemy('aegis', false);
+    marked.hp = 500;
+    marked.maxHp = 500;
+    marked.pos = { x: lure.pos.x + 44, y: lure.pos.y };
+    marked.dist = 10;
+    const unmarked = api.makeEnemy('scout', false);
+    unmarked.hp = 50;
+    unmarked.maxHp = 50;
+    unmarked.pos = { x: lure.pos.x + 58, y: lure.pos.y + 6 };
+    unmarked.dist = 1000;
+    game.enemies.push(unmarked, marked);
+    api.grid.rebuild(game.enemies);
+
+    api.updateTowers(1);
+    assert.ok((marked.focusMarkTimer ?? 0) > 0);
+    const picker = { ...lure, def: TOWER_MAP.pulse, stats: computeStats(TOWER_MAP.pulse, 0, 0), target: 'first' as const };
+    assert.equal(api.pickTarget(picker, 999)?.uid, marked.uid);
   });
 });
 

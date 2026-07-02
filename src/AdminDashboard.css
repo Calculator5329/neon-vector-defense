@@ -142,6 +142,56 @@
 .adm-devs { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 4px; font-size: 12.5px; color: var(--text); font-variant-numeric: tabular-nums; }
 .adm-dev { padding: 5px 9px; background: var(--panel2); border-radius: 5px; }
 
+/* admin: remote balance editor */
+.adm-balance-editor { display: flex; flex-direction: column; gap: 14px; }
+.adm-balance-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+.adm-balance-version { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+.adm-balance-dirty {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: var(--dim);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 6px 9px;
+}
+.adm-balance-dirty.on { color: var(--gold); border-color: rgba(255, 211, 42, 0.4); background: rgba(255, 211, 42, 0.07); }
+.adm-balance-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1120px) { .adm-balance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .adm-balance-grid { grid-template-columns: 1fr; } }
+.adm-balance-grid section {
+  border: 1px solid rgba(75, 207, 250, 0.14);
+  background: rgba(17, 26, 54, 0.56);
+  border-radius: 8px;
+  padding: 10px;
+}
+.adm-balance-grid select,
+.adm-balance-field input {
+  width: 100%;
+  min-width: 0;
+  background: var(--panel2);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+}
+.adm-balance-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+.adm-balance-field { display: grid; gap: 4px; min-width: 0; }
+.adm-balance-field.wide { min-width: min(360px, 100%); }
+.adm-balance-field span {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.9px;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+.adm-balance-lower { align-items: start; }
+.adm-balance-preview { min-width: 620px; }
+.adm-balance-lower > div { overflow-x: auto; }
+.adm-balance-overridden { color: var(--accent); background: rgba(75, 207, 250, 0.05); }
+
 /* admin: question-led balance and telemetry cards */
 .adm-insight-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 @media (max-width: 1000px) { .adm-insight-grid { grid-template-columns: repeat(2, 1fr); } }

@@ -112,13 +112,23 @@ Optional sparse balance override document. Read once on boot by `balanceConfig.t
 {
   version?: string;
   income?: { killMult?, waveBonusMult? };
+  global?: { abilityCooldownMult? };
   diffs?: { [diffId]: { hpMult?, lateScale?, costMult?, cashMult?, livesMult? } };
-  enemies?: { [enemyId]: { hpMult?, rewardMult? } };
-  towers?: { [towerId]: { costMult?, damageMult?, rangeMult?, fireRateMult? } };
+  enemies?: { [enemyId]: { hpMult?, rewardMult?, speedMult? } };
+  towers?: {
+    [towerId]: {
+      costMult?, damageMult?, rangeMult?, fireRateMult?,
+      projectileSpeedMult?, splashMult?, slowMult?, burnMult?
+    }
+  };
 }
 ```
 
-Values clamped to `[0.25, 4]`.
+Values are clamped to `[0.25, 4]`. Firestore rules allow public reads, deny
+listing, and allow only admin create/update/delete with an explicit key allowlist
+for current protocols, enemies, and towers. The admin dashboard Balance editor
+loads this document, prunes identity values, previews tower stats at tier 0/3/6,
+publishes after confirmation, and can reset by deleting the doc.
 
 ## Cloud Functions
 
@@ -167,6 +177,7 @@ firebase deploy --only functions
   ownership rows under a victim's uid)
 - Feedback: server-only create/read helpers; admin read/update
 - Telemetry / analytics: bounded client append or merge; admin read
+- Balance config: public get, no list, admin-only validated sparse writes
 - Admin gate: verified Google email in allowlist (sync `firestore.rules` ↔ `src/game/firebaseClient.ts`)
 - Updates and deletes denied except admin feedback replies and admin-only deletion tooling
 
@@ -219,9 +230,9 @@ Demo mode (`?demo=1`) skips meta and progression writes.
 | --- | ---: | --- |
 | Sectors (maps) | 8 | Orbital Relay through Cinder Causeway |
 | Protocols (difficulties) | 4 | Recruit through Extinction |
-| Towers | 19 | 2 upgrade tracks each; kill-gated unlock ladder |
+| Towers | 21 | 2 upgrade tracks each; kill-gated unlock ladder |
 | Commander abilities | 6 | Q/W/E/R/T/Y |
-| Enemy archetypes | 15+ | Armored, cloaked, boss, heal, nested hull, etc. |
+| Enemy archetypes | 18 | Armored, cloaked, boss, heal, nested hull, etc. |
 
 ## AI Help proxy (Cloudflare Worker)
 

@@ -41,6 +41,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `meta.ts` | Warden Rank, Salvage, Operations Board quests, Watch Streak |
 | `balanceConfig.ts` | Remote Firestore `config/balance` overrides (hot-patch) |
 | `dailyChallenge.ts` | UTC daily challenge seed, modifier selection, arsenal/twist/boon helpers |
+| `adminBalanceConfig.ts` / `adminBalanceEdit.ts` | Admin-only balance publish/reset helpers plus pure editor diff/preview logic |
 | `freeplay.ts` | Freeplay contracts, relics, risk waves, score multiplier |
 | `ghostCurve.ts` / `ghostCurveData.ts` | Bot-rival pacing curves for in-run HUD |
 | `dossier.ts` / `DossierShare.tsx` | End-of-run share card generation |
@@ -98,6 +99,7 @@ Private analytics and live checkpoint data are separate from Battle Plan replays
 | --- | --- |
 | `sim.ts` | Bot playtests across map/protocol matrix |
 | `balance.ts` | Efficiency, solo viability, strategy matrix → `public/balance-report.json` |
+| `tower-deep-dive.ts` | Static and simulated tower audit → `docs/tower-balance-deep-dive.md` |
 | `perf.ts` | Engine stress timing (no render) |
 | `browserPerf.mjs` | Live FPS / quality-drop sampling via `/?perf=` route |
 | `meta-sim.ts` | Guard that `meta.ts` is not imported by engine/score path |
@@ -139,7 +141,7 @@ Heavy surfaces are lazy-loaded off the player path:
 | Firestore | `dailyBoards/{daily}/scores` | Daily Challenge leaderboard rows |
 | Firestore | `runAnalytics`, `runCheckpoints` | Private telemetry/checkpoints (consent-gated) |
 | Firestore | `feedback/{id}` | Server-created feedback and admin replies |
-| Firestore | `config/balance` | Optional live balance overrides |
+| Firestore | `config/balance` | Optional live balance overrides; public-read, admin-write |
 
 ## Testing
 

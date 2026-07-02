@@ -54,6 +54,9 @@ export interface Enemy {
   /** resonance stacks (Cantor debuff): +10% damage taken per stack */
   resonance: number;
   resonanceTimer: number;
+  /** focus mark: marked hulls become preferred targets for all towers while active */
+  focusMark?: number;
+  focusMarkTimer?: number;
   /** wobble phase for rendering */
   phase: number;
   dead: boolean;
@@ -111,7 +114,7 @@ export interface UpgradeDef {
   apply: (s: TowerStats) => void;
 }
 
-export type FireStyle = 'bolt' | 'missile' | 'arc' | 'beam' | 'pulse' | 'rail' | 'support' | 'gravity' | 'resonance' | 'nova' | 'sweep' | 'rift';
+export type FireStyle = 'bolt' | 'missile' | 'arc' | 'beam' | 'pulse' | 'rail' | 'support' | 'gravity' | 'resonance' | 'siphon' | 'lure' | 'nova' | 'sweep' | 'rift';
 
 export interface UpgradeTrack {
   name: string;

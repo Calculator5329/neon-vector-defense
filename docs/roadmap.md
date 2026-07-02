@@ -3,13 +3,13 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (Daily Challenge menu + release hardening passes)
+Last updated: 2026-07-02 (Daily Challenge, arsenal balance, admin balance console)
 
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
-| Core tower-defense loop | 8 sectors, 4 protocols, 19 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
+| Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
 | Battle Plan replays | Public `runs/{runId}` docs with required manifests, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, canonical score values, server-time ordering | `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
@@ -18,7 +18,7 @@ Last updated: 2026-07-02 (Daily Challenge menu + release hardening passes)
 | AI rival ghosts | In-run HUD and modal comparing current run to bundled bot profiles | `BotGhostHud.tsx`, `ghostCurve.ts`, `ghostCurveData.ts` |
 | Privacy and admin | Age/consent gate, private feedback receipts, admin replies, admin-only deletion tooling | `consent.ts`, `leaderboard.ts`, `functions/src/index.ts`, `PrivacyView.tsx` |
 | Accessibility baseline | Reduced motion, colorblind palette, global focus-visible ring, stronger contrast tokens | `settings.ts`, `src/index.css`, `App.css` |
-| Live-ops hardening | Remote balance config, deploy preflight, CI/security/audit gates, App Check staged-rollout path | `balanceConfig.ts`, `scripts/deploy-preflight.ts`, `.github/workflows/ci.yml`, `docs/runbooks/app-check-rollout.md` |
+| Live-ops hardening | Admin-editable remote balance config, deploy preflight, CI/security/audit gates, App Check staged-rollout path | `balanceConfig.ts`, `adminBalanceConfig.ts`, `scripts/deploy-preflight.ts`, `.github/workflows/ci.yml`, `docs/runbooks/app-check-rollout.md` |
 
 ## Recently shipped since the prior doc audit
 
@@ -39,6 +39,9 @@ Last updated: 2026-07-02 (Daily Challenge menu + release hardening passes)
 - Global focus-visible styling and design tokens improved the contrast/accessibility baseline.
 - Operations palette re-equips are now silent while purchase/error feedback remains visible.
 - Leaderboard rows can highlight the current browser's anonymous uid, and privacy export/delete includes replay score tokens.
+- Harmonic Siphon and Vector Lure complete the 21-tower arsenal, with a
+  regenerated balance baseline and an admin console for validated
+  `config/balance` hot-patches.
 
 ## Shipped 2026-07-01 (review-plan implementation pass)
 
@@ -74,8 +77,7 @@ Last updated: 2026-07-02 (Daily Challenge menu + release hardening passes)
 
 1. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
 2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
-3. **In flight (Codex missions)**: two new towers + balance pass + admin balance console.
-4. **Replay re-simulation** - server-side freeplay/mode validation and re-simulation paths before leaderboard incentives grow (deterministic sim groundwork is in).
+3. **Replay re-simulation** - server-side freeplay/mode validation and re-simulation paths before leaderboard incentives grow (deterministic sim groundwork is in).
 
 ## Deferred / bigger bets
 
@@ -91,7 +93,7 @@ Last updated: 2026-07-02 (Daily Challenge menu + release hardening passes)
 - [x] Meta retention loop (rank, quests, streak)
 - [x] Reduced motion, colorblind palette, focus-visible, and contrast baseline
 - [x] Server-validated leaderboard writes with replay-token verification
-- [x] Remote balance hot-patch
+- [x] Remote balance hot-patch and admin editor
 - [x] Replay-of-the-Day menu spotlight
 - [x] Daily Challenge protocol
 - [x] App Check staged-enforcement runbook and deploy preflight

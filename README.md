@@ -21,8 +21,9 @@ procedural audio, and Firebase-backed leaderboards.
   with a custom lane shape, no-build zones, and visual theme.
 - **4 protocols** — Recruit, Veteran, Apex, and Extinction, with
   different cash, hull, wave, cloak, and scaling rules.
-- **19 towers with 2 upgrade tracks** — including support, crowd-control,
-  anti-cloak, burst, drone, missile, gravity, resonance, and late-game towers.
+- **21 towers with 2 upgrade tracks** — including support, crowd-control,
+  anti-cloak, burst, drone, missile, gravity, resonance, targeting, and
+  late-game towers.
 - **6 commander abilities** — Q/W/E/R/T/Y abilities for orbital strikes, slow
   fields, overdrive, emergency salvage, and late-run control tools.
 - **Enemy variants** — armored, blast-proof, cryo-proof, phase-cloaked, repair,
@@ -59,7 +60,8 @@ follow the recovered signal fragments.
 - **Headless game engine** - the same game model powers live play, bot
   playtests, balance simulations, performance harnesses, and admin analytics.
 - **Remote balance config** - optional Firestore `config/balance` doc hot-patches
-  tower/enemy/difficulty multipliers without a redeploy.
+  tower, enemy, protocol, income, and global multipliers from the admin console
+  without a redeploy.
 - **Balance harness** - `npm run balance` simulates map/protocol/bot matrices,
   tower efficiency, strategy viability, solo-tower runs, and writes an in-app
   `balance-report.json`.

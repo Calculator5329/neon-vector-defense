@@ -165,6 +165,52 @@ async function widgetMetrics(page: Page) {
   });
 }
 
+async function arsenalGridMetrics(page: Page) {
+  return page.evaluate(() => {
+    const grid = document.querySelector<HTMLElement>('[data-testid="shop-grid"]');
+    const sidebar = document.querySelector<HTMLElement>('[data-testid="game-sidebar"]');
+    if (!grid) throw new Error('shop grid missing');
+    const items = [...grid.querySelectorAll<HTMLElement>('[data-testid^="tower-"]')];
+    const rects = items
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          id: el.dataset.testid?.replace('tower-', '') ?? '',
+          x: Math.round(r.x),
+          y: Math.round(r.y),
+        };
+      })
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    const rows: { y: number; ids: string[] }[] = [];
+    for (const rect of rects) {
+      const row = rows.find((candidate) => Math.abs(candidate.y - rect.y) <= 2);
+      if (row) row.ids.push(rect.id);
+      else rows.push({ y: rect.y, ids: [rect.id] });
+    }
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    return {
+      count: rects.length,
+      ids: rects.map((rect) => rect.id),
+      rowCount: rows.length,
+      rowSizes: rows.map((row) => row.ids.length),
+      columns: getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
+      sidebarBottom: sidebarRect ? Math.round(sidebarRect.bottom) : null,
+      viewportHeight: window.innerHeight,
+      horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  });
+}
+
+function expectCompleteArsenalGrid(layout: Awaited<ReturnType<typeof arsenalGridMetrics>>) {
+  expect(layout.count).toBe(21);
+  expect(layout.ids).toContain('siphon');
+  expect(layout.ids).toContain('lure');
+  expect(layout.columns).toBe(3);
+  expect(layout.rowCount).toBe(7);
+  expect(layout.rowSizes).toEqual([3, 3, 3, 3, 3, 3, 3]);
+  expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
+}
+
 type AnalyticsRowPatch = Partial<Omit<RunAnalyticsRow, 'summary'>> & { summary?: Partial<RunAnalyticsRow['summary']> };
 
 function analyticsRow(patch: AnalyticsRowPatch = {}): RunAnalyticsRow {
@@ -464,6 +510,28 @@ test.describe('desktop UX layout', () => {
     expect(layout.deployVisible).toBe(true);
     expect(layout.rightEdgesAligned).toBe(true);
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test('arsenal panel renders a complete 21-tower grid on desktop', async ({ page }) => {
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+    await expect(page.getByTestId('shop-grid')).toBeVisible();
+
+    const layout = await arsenalGridMetrics(page);
+
+    expectCompleteArsenalGrid(layout);
+  });
+
+  test('arsenal panel stays complete in short-landscape layout', async ({ page }) => {
+    await page.setViewportSize({ width: 920, height: 430 });
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+    await expect(page.getByTestId('shop-grid')).toBeVisible();
+
+    const layout = await arsenalGridMetrics(page);
+
+    expectCompleteArsenalGrid(layout);
+    expect(layout.sidebarBottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
   });
 
   test('owned signal palette equip is silent', async ({ page }) => {
@@ -1118,6 +1186,16 @@ test.describe('mobile UX layout', () => {
     expect(layout.deployVisible).toBe(true);
     expect(layout.rightEdgesAligned).toBe(true);
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test('arsenal panel renders a complete 21-tower grid on mobile', async ({ page }) => {
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+    await expect(page.getByTestId('shop-grid')).toBeVisible();
+
+    const layout = await arsenalGridMetrics(page);
+
+    expectCompleteArsenalGrid(layout);
   });
 
   test('game utility dock remains aligned on small screens', async ({ page }) => {

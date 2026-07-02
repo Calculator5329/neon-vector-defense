@@ -274,27 +274,27 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1900, unlockAt: 92000,
+    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1450, unlockAt: 92000,
     desc: 'Houses the cooling ember of a star that died protecting its system. Periodically exhales a requiem wave — an expanding ring that wounds everything it crosses.',
     lore: 'Stars do not die quietly. This one agreed to keep grieving on our side of the line.',
     color: '#f8a5c2', glow: '#ffd9e8', style: 'nova',
-    base: base({ range: 200, fireRate: 0.22, damage: 4, damageType: 'energy', pierce: 999 }),
+    base: base({ range: 240, fireRate: 0.275, damage: 5, damageType: 'energy', pierce: 999 }),
     tracks: [
       track('Grief', [
-        u('Deeper Mourning', 'Wave damage 6.', 700, (s) => { s.damage = 6; }),
+        u('Deeper Mourning', 'Wave damage 7.5.', 700, (s) => { s.damage = 7.5; }),
         u('Wider Wake', 'Wave reaches 260.', 900, (s) => { s.range = 260; }),
-        u('Twin Pulses', '+40% wave rate.', 1100, (s) => { s.fireRate *= 1.4; }),
-        u('Stellar Sorrow', 'Wave damage 9.', 1600, (s) => { s.damage = 9; }),
-        u('Grave of Light', 'BONUS: wave damage 14.', 2000, (s) => { s.damage = 14; }),
-        u('SUPERNOVA REQUIEM', 'BONUS: damage 22, reach 340. Once per cycle, the war hears a star\'s whole life.', 4200, (s) => { s.damage = 22; s.range = 340; }),
+        u('Twin Pulses', '+75% wave rate.', 1100, (s) => { s.fireRate *= 1.75; }),
+        u('Stellar Sorrow', 'Wave damage 11.25.', 1600, (s) => { s.damage = 11.25; }),
+        u('Grave of Light', 'BONUS: wave damage 17.5.', 2000, (s) => { s.damage = 17.5; }),
+        u('SUPERNOVA REQUIEM', 'BONUS: damage 27.5, reach 425. Once per cycle, the war hears a star\'s whole life.', 4200, (s) => { s.damage = 27.5; s.range = 425; }),
       ]),
       track('Memory', [
-        u('Echoes', '+30% wave rate.', 650, (s) => { s.fireRate *= 1.3; }),
+        u('Echoes', '+62% wave rate.', 650, (s) => { s.fireRate *= 1.625; }),
         u('Remembrance', 'Waves slow hulls 25%.', 850, (s) => { s.slowPower = 0.25; s.slowDuration = 1.4; }),
-        u('Candlelight', '+2 wave damage.', 1050, (s) => { s.damage += 2; }),
+        u('Candlelight', '+2.5 wave damage.', 1050, (s) => { s.damage += 2.5; }),
         u('Vigil', 'Wave reach +25%.', 1500, (s) => { s.range *= 1.25; }),
-        u('ETERNAL WAKE', 'BONUS: +60% wave rate.', 1900, (s) => { s.fireRate *= 1.6; }),
-        u('STAR REBORN', 'BONUS: +10 damage, slow 40%. It remembers being warm.', 4000, (s) => { s.damage += 10; s.slowPower = Math.max(s.slowPower, 0.4); }),
+        u('ETERNAL WAKE', 'BONUS: +100% wave rate.', 1900, (s) => { s.fireRate *= 2; }),
+        u('STAR REBORN', 'BONUS: +12.5 damage, slow 40%. It remembers being warm.', 4000, (s) => { s.damage += 12.5; s.slowPower = Math.max(s.slowPower, 0.4); }),
       ]),
     ],
   },
@@ -432,54 +432,104 @@ export const TOWERS: TowerDef[] = [
       ]),
     ],
   },
+  {
+    id: 'siphon', name: 'Harmonic Siphon', short: 'SIP', cost: 700, unlockAt: 32000,
+    desc: 'Consumes resonance stacks for focused antiphon bursts, then scatters a weaker echo to nearby hulls.',
+    lore: 'The Cantor sings. The Siphon answers by stealing the note from inside the hull.',
+    color: '#9bffd4', glow: '#d8fff0', style: 'siphon',
+    base: base({ range: 135, fireRate: 1.25, damage: 3.75, damageType: 'energy', pierce: 1, splash: 90, chain: 1 }),
+    tracks: [
+      track('Antiphon', [
+        u('Tuned Intake', 'Consumes up to 2 resonance stacks per strike.', 420, (s) => { s.pierce = 2; }),
+        u('Closer Coupling', '+30% antiphon rate.', 560, (s) => { s.fireRate *= 1.3; }),
+        u('Backscatter', 'Echo spreads to 2 nearby hulls over a wider radius.', 760, (s) => { s.chain = 2; s.splash = 90; }),
+        u('Deep Harmonics', '+3 damage, +25% range.', 1100, (s) => { s.damage += 3; s.range *= 1.25; }),
+        u('RESONANT ENGINE', 'BONUS: consumes 3 stacks and spreads to 3 hulls.', 1900, (s) => { s.pierce = 3; s.chain = 3; }),
+        u('THE RETURNING NOTE', 'BONUS: two antiphons per cycle, 4-stack consume cap, +4 damage.', 4200, (s) => { s.count = 2; s.pierce = 4; s.damage += 4; }),
+      ]),
+      track('Null Choir', [
+        u('Wide Aperture', '+30% range.', 380, (s) => { s.range *= 1.3; }),
+        u('Bitter Overtone', '+2 damage.', 520, (s) => { s.damage += 2; }),
+        u('Phase Ears', 'Can hear and target cloaked hulls.', 680, (s) => { s.detection = true; }),
+        u('Call and Answer', 'Strikes two marked hulls per cycle.', 1050, (s) => { s.count = 2; }),
+        u('BLACK CHORUS', 'BONUS: consumed stacks leave an 8 dps energy burn.', 1800, (s) => { s.burnDps = 8; s.burnDuration = 2; }),
+        u('FINAL ANTIPHON', 'BONUS: three targets, +5 damage, stronger echo spread.', 4000, (s) => { s.count = 3; s.damage += 5; s.chain += 2; }),
+      ]),
+    ],
+  },
+  {
+    id: 'lure', name: 'Vector Lure', short: 'LUR', cost: 850, unlockAt: 44000,
+    desc: 'Tags a priority hull with a false command vector, forcing nearby defenses to focus it while escorts stumble.',
+    lore: 'A single forged order in the Combine command stream: you are the center of the war now.',
+    color: '#ff5fd2', glow: '#ffc2f0', style: 'lure',
+    base: base({ range: 185, fireRate: 0.9, damage: 0, damageType: 'energy', pierce: 1, slowPower: 0.25, slowDuration: 1.5, burnDuration: 3 }),
+    tracks: [
+      track('Kill Order', [
+        u('Long Lens', '+25% signal range.', 420, (s) => { s.range *= 1.25; }),
+        u('Hard Ping', 'Focus mark lasts 4.5s.', 580, (s) => { s.burnDuration = 4.5; }),
+        u('Priority Splitter', 'Marks two hulls per cycle.', 820, (s) => { s.count = 2; }),
+        u('Target Solver', '+50% mark rate and stronger focus priority.', 1200, (s) => { s.fireRate *= 1.5; s.pierce = 2; }),
+        u('FIRE CONTROL', 'BONUS: marks three hulls per cycle.', 2100, (s) => { s.count = 3; }),
+        u('ONE TARGET WAR', 'BONUS: brutal focus priority and +35% range.', 4600, (s) => { s.pierce = 4; s.range *= 1.35; }),
+      ]),
+      track('Misdirection', [
+        u('Static Wake', 'Marked hulls slow 32%.', 400, (s) => { s.slowPower = 0.32; }),
+        u('Escort Confusion', 'Nearby escorts are caught in the slow wake.', 620, (s) => { s.splash = 65; s.slowDuration = 2; }),
+        u('False Gap', 'The wake drags escorts backward along the lane.', 860, (s) => { s.drag = 22; }),
+        u('Scramble Beacon', 'Wider wake, +35% mark rate.', 1180, (s) => { s.splash = 95; s.fireRate *= 1.35; }),
+        u('PANIC VECTOR', 'BONUS: marks two hulls, 45% slow.', 2100, (s) => { s.count = 2; s.slowPower = 0.45; }),
+        u('THE WRONG EXIT', 'BONUS: huge scramble wake, hard drag, 6s mark.', 4600, (s) => { s.splash = 130; s.drag = 55; s.burnDuration = 6; }),
+      ]),
+    ],
+  },
   // ---- kinetic / explosive / fire reinforcements ----
   {
-    id: 'flak', name: 'Flak Battery', short: 'FLK', cost: 360, unlockAt: 900,
+    id: 'flak', name: 'Flak Battery', short: 'FLK', cost: 450, unlockAt: 900,
     desc: 'Throws a fast wall of bursting flak — cheap shrapnel that shreds swarms. Blast-plated hulls swallow it whole, so keep a backup.',
     lore: 'Colonial point-defense, re-aimed at the lane. It was built to kill incoming missiles. Drones are easier.',
     color: '#ffa502', glow: '#ffd56b', style: 'missile',
-    base: base({ range: 145, fireRate: 1.85, damage: 1, damageType: 'explosive', splash: 20, projectileSpeed: 560, count: 2, pierce: 2 }),
+    base: base({ range: 145, fireRate: 1.4, damage: 0.8, damageType: 'explosive', splash: 15, projectileSpeed: 560, count: 2, pierce: 2 }),
     tracks: [
       track('Barrage', [
         u('Twin Barrels', '+2 shells per burst.', 130, (s) => { s.count += 2; }),
         u('Shrapnel Cloud', '+2 pierce, small blast growth.', 200, (s) => { s.pierce += 2; s.splash *= 1.2; }),
-        u('Rapid Cycler', '+55% fire rate.', 300, (s) => { s.fireRate *= 1.55; }),
-        u('Heavy Shells', '+1 damage.', 520, (s) => { s.damage += 1; }),
+        u('Rapid Cycler', '+40% fire rate.', 375, (s) => { s.fireRate *= 1.4; }),
+        u('Heavy Shells', '+0.8 damage.', 650, (s) => { s.damage += 0.8; }),
         u('FLAK STORM', 'BONUS: eight-shell bursts.', 1200, (s) => { s.count = Math.max(s.count, 8); }),
         u('IRON RAIN', 'BONUS: +2 damage, +40% rate, pierce 8. The sky rusts.', 2600, (s) => { s.damage += 2; s.fireRate *= 1.4; s.pierce = 8; }),
       ]),
       track('Proximity', [
-        u('Proximity Fuses', '+20% blast radius, +1 pierce.', 150, (s) => { s.splash *= 1.2; s.pierce += 1; }),
-        u('Tracer Rounds', 'Detects cloaked hulls.', 200, (s) => { s.detection = true; }),
-        u('Airburst Pattern', '+3 shells, +20% rate.', 340, (s) => { s.count += 3; s.fireRate *= 1.2; }),
-        u('Cluster Payload', '+2 shells, +1 damage.', 560, (s) => { s.count += 2; s.damage += 1; }),
+        u('Proximity Fuses', '+20% blast radius, +1 pierce.', 185, (s) => { s.splash *= 1.2; s.pierce += 1; }),
+        u('Tracer Rounds', 'Detects cloaked hulls.', 250, (s) => { s.detection = true; }),
+        u('Airburst Pattern', '+3 shells.', 425, (s) => { s.count += 3; }),
+        u('Cluster Payload', '+2 shells, +0.8 damage.', 700, (s) => { s.count += 2; s.damage += 0.8; }),
         u('DEADHAND', 'BONUS: detects cloaks, pierce 7.', 1300, (s) => { s.detection = true; s.pierce = Math.max(s.pierce, 7); }),
         u('SCATTERSTORM', 'BONUS: ten shells, +2 damage. Everything in the lane is downwind.', 2700, (s) => { s.count = Math.max(s.count, 10); s.damage += 2; }),
       ]),
     ],
   },
   {
-    id: 'cinder', name: 'Cinder Mortar', short: 'CDR', cost: 640, unlockAt: 19000,
+    id: 'cinder', name: 'Cinder Mortar', short: 'CDR', cost: 800, unlockAt: 19000,
     desc: 'Lobs incendiary shells that splash, then leave the lane burning. The blast is a courtesy; the fire is the point.',
     lore: 'Loaded with the last of Relay 6\'s reactor coolant — which, it turns out, is not coolant at all once it meets air.',
     color: '#ff6348', glow: '#ffae6b', style: 'missile',
-    base: base({ range: 170, fireRate: 0.58, damage: 2, damageType: 'explosive', splash: 36, burnDps: 5, burnDuration: 2, burnZoneRadius: 42, burnZoneDps: 8, burnZoneDuration: 4, projectileSpeed: 300 }),
+    base: base({ range: 170, fireRate: 0.44, damage: 2, damageType: 'explosive', splash: 27, burnDps: 3.75, burnDuration: 2, burnZoneRadius: 42, burnZoneDps: 6, burnZoneDuration: 4, projectileSpeed: 300 }),
     tracks: [
       track('Wildfire', [
-        u('Thermite Core', 'Burn zones sear 14 dps.', 280, (s) => { s.burnZoneDps = 14; }),
+        u('Thermite Core', 'Burn zones sear 12 dps.', 280, (s) => { s.burnZoneDps = 12; }),
         u('Wide Bloom', '+35% burn-zone radius.', 360, (s) => { s.burnZoneRadius *= 1.35; }),
         u('Long Burn', 'Fire zones linger 7s.', 460, (s) => { s.burnZoneDuration = 7; }),
         u('Double Shell', 'Two shells, +1 damage.', 760, (s) => { s.count = 2; s.damage += 1; }),
-        u('FIRESTORM', 'BONUS: burn zones sear 26 dps.', 1500, (s) => { s.burnZoneDps = 26; }),
-        u('THE LONG SUMMER', 'BONUS: burn zones sear 40 dps, +50% radius, linger 10s.', 3400, (s) => { s.burnZoneDps = 40; s.burnZoneRadius *= 1.5; s.burnZoneDuration = 10; }),
+        u('FIRESTORM', 'BONUS: burn zones sear 22 dps.', 1500, (s) => { s.burnZoneDps = 22; }),
+        u('THE LONG SUMMER', 'BONUS: burn zones sear 34 dps, +50% radius, linger 10s.', 3400, (s) => { s.burnZoneDps = 34; s.burnZoneRadius *= 1.5; s.burnZoneDuration = 10; }),
       ]),
       track('Pyroclasm', [
         u('Shaped Charge', '+3 blast damage.', 260, (s) => { s.damage += 3; }),
         u('Tracer Fuses', 'Detects cloaked hulls.', 360, (s) => { s.detection = true; }),
         u('Cluster Burn', '+1 shell.', 600, (s) => { s.count += 1; }),
-        u('Magma Core', 'Burn zones sear 20 dps, +2 blast damage.', 900, (s) => { s.burnZoneDps = 20; s.damage += 2; }),
-        u('CALDERA', 'BONUS: +60% burn-zone radius, +6 damage.', 1600, (s) => { s.burnZoneRadius *= 1.6; s.damage += 6; }),
-        u('ASHFALL', 'BONUS: four shells, burn zones sear 32 dps.', 3500, (s) => { s.count = Math.max(s.count, 4); s.burnZoneDps = 32; }),
+        u('Magma Core', 'Burn zones sear 16 dps, +2 blast damage.', 900, (s) => { s.burnZoneDps = 16; s.damage += 2; }),
+        u('CALDERA', 'BONUS: +60% burn-zone radius, +5 damage.', 1600, (s) => { s.burnZoneRadius *= 1.6; s.damage += 5; }),
+        u('ASHFALL', 'BONUS: four shells, burn zones sear 26 dps.', 3500, (s) => { s.count = Math.max(s.count, 4); s.burnZoneDps = 26; }),
       ]),
     ],
   },
@@ -525,6 +575,12 @@ export function computeStats(def: TowerDef, tierA: number, tierB: number): Tower
   s.damage *= o.damageMult;
   s.range *= o.rangeMult;
   s.fireRate *= o.fireRateMult;
+  s.projectileSpeed *= o.projectileSpeedMult;
+  s.splash *= o.splashMult;
+  s.burnZoneRadius *= o.splashMult;
+  s.slowPower = Math.min(0.95, s.slowPower * o.slowMult);
+  s.burnDps *= o.burnMult;
+  s.burnZoneDps *= o.burnMult;
   return s;
 }
 

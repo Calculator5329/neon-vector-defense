@@ -8,10 +8,28 @@ import type { User } from 'firebase/auth';
 // admin-only styles so they ride the lazy admin chunk, not the player bundle.
 import './AdminDashboard.css';
 import { ALL_MAPS, DIFFICULTIES } from './game/maps';
-import { TOWERS, TOWER_MAP } from './game/towers';
+import { TOWERS, TOWERS_BY_UNLOCK, TOWER_MAP } from './game/towers';
+import { ENEMY_LIST } from './game/enemies';
 import { clearAdmin } from './game/admin';
 import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry } from './game/leaderboard';
 import { fetchPinnedSpotlightAdmin, pinReplayOfTheDay, unpinReplayOfTheDay, spotlightFromRunId, type PinnedSpotlight } from './game/adminSpotlight';
+import { fetchBalanceConfigAdmin, publishBalanceConfigAdmin, resetBalanceConfigAdmin } from './game/adminBalanceConfig';
+import type { BalanceConfigDoc } from './game/balanceConfig';
+import {
+  DIFF_BALANCE_FIELDS,
+  ENEMY_BALANCE_FIELDS,
+  GLOBAL_BALANCE_FIELDS,
+  INCOME_BALANCE_FIELDS,
+  TOWER_BALANCE_FIELDS,
+  balanceOverrideRows,
+  clampBalanceMult,
+  pruneIdentityBalanceDoc,
+  sanitizeBalanceDoc,
+  setBalanceVersion,
+  setFlatBalanceMult,
+  setNestedBalanceMult,
+  towerPreviewRows,
+} from './game/adminBalanceEdit';
 import type { ReplaySpotlight } from './game/replaySpotlight';
 import { buildGhostCurves, ghostCurveFor } from './game/ghostCurve';
 import { computeCanary, type CanarySeries } from './game/adminCanary';
@@ -810,6 +828,284 @@ function EfficiencyTable({ efficiency }: { efficiency: TowerEfficiency[] }) {
 
 // ---------------- difficulty model (player estimate) ----------------
 
+const BALANCE_FIELD_LABELS: Record<string, string> = {
+  costMult: 'Cost',
+  damageMult: 'Damage',
+  rangeMult: 'Range',
+  fireRateMult: 'Rate',
+  projectileSpeedMult: 'Projectile',
+  splashMult: 'Splash',
+  slowMult: 'Slow',
+  burnMult: 'Burn',
+  hpMult: 'HP',
+  rewardMult: 'Reward',
+  speedMult: 'Speed',
+  lateScale: 'Late scale',
+  cashMult: 'Start cash',
+  livesMult: 'Cores',
+  killMult: 'Kill income',
+  waveBonusMult: 'Wave bonus',
+  abilityCooldownMult: 'Ability cooldown',
+};
+
+function multValue(doc: BalanceConfigDoc, section: 'income' | 'global', field: string): number | undefined {
+  return (doc[section] as Record<string, number> | undefined)?.[field];
+}
+
+function nestedMultValue(doc: BalanceConfigDoc, section: 'towers' | 'enemies' | 'diffs', id: string, field: string): number | undefined {
+  return ((doc[section] as Record<string, Record<string, number>> | undefined)?.[id])?.[field];
+}
+
+function BalanceMultInput({ label, value, onChange }: { label: string; value?: number; onChange: (value: number) => void }) {
+  return (
+    <label className="adm-balance-field">
+      <span>{label}</span>
+      <input
+        type="number"
+        min={0.25}
+        max={4}
+        step={0.05}
+        value={value ?? 1}
+        onChange={(e) => onChange(clampBalanceMult(e.target.value))}
+      />
+    </label>
+  );
+}
+
+function RemoteBalanceEditor() {
+  const [draft, setDraft] = useState<BalanceConfigDoc>({});
+  const [baseline, setBaseline] = useState<BalanceConfigDoc>({});
+  const [towerId, setTowerId] = useState(TOWERS_BY_UNLOCK[0]?.id ?? '');
+  const [enemyId, setEnemyId] = useState(ENEMY_LIST[0]?.id ?? '');
+  const [diffId, setDiffId] = useState(DIFFICULTIES[0]?.id ?? '');
+  const [previewId, setPreviewId] = useState(TOWERS_BY_UNLOCK[0]?.id ?? '');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  const publishDoc = useMemo(() => pruneIdentityBalanceDoc(draft), [draft]);
+  const rows = useMemo(() => balanceOverrideRows(draft), [draft]);
+  const dirty = useMemo(
+    () => JSON.stringify(publishDoc) !== JSON.stringify(pruneIdentityBalanceDoc(baseline)),
+    [publishDoc, baseline],
+  );
+  const previewTower = TOWER_MAP[previewId] ?? TOWERS_BY_UNLOCK[0];
+  const previews = useMemo(() => previewTower ? towerPreviewRows(previewTower, draft) : [], [previewTower, draft]);
+
+  const load = async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const remote = sanitizeBalanceDoc(await fetchBalanceConfigAdmin());
+      setDraft(remote);
+      setBaseline(remote);
+      setStatus({ kind: 'ok', text: Object.keys(remote).length ? 'Remote balance loaded.' : 'Remote balance is identity.' });
+    } catch (e) {
+      setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Remote balance load failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const publish = async () => {
+    if (!confirm('Publish config/balance overrides?')) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      await publishBalanceConfigAdmin(publishDoc);
+      const clean = sanitizeBalanceDoc(publishDoc);
+      setDraft(clean);
+      setBaseline(clean);
+      setStatus({ kind: 'ok', text: 'Remote balance published.' });
+    } catch (e) {
+      setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Publish failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = async () => {
+    if (!confirm('Reset config/balance to identity?')) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      await resetBalanceConfigAdmin();
+      setDraft({});
+      setBaseline({});
+      setStatus({ kind: 'ok', text: 'Remote balance reset to identity.' });
+    } catch (e) {
+      setStatus({ kind: 'err', text: e instanceof Error ? e.message : 'Reset failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setFlat = (section: 'income' | 'global', field: string, value: number) => {
+    setDraft((doc) => setFlatBalanceMult(doc, section, field, value));
+  };
+  const setNested = (section: 'towers' | 'enemies' | 'diffs', id: string, field: string, value: number) => {
+    setDraft((doc) => setNestedBalanceMult(doc, section, id, field, value));
+  };
+
+  return (
+    <div className="adm-card adm-balance-editor">
+      <div className="adm-card-head">
+        <h3>Remote balance editor</h3>
+        <span className="adm-hint">config/balance public-read, admin-write</span>
+        <div className="adm-balance-actions">
+          <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+          <button className="adm-mini" disabled={busy || !dirty} onClick={() => void publish()}>publish</button>
+          <button className="adm-mini" disabled={busy} onClick={() => void reset()}>reset identity</button>
+        </div>
+      </div>
+
+      {status && <div className={`adm-spot-status ${status.kind}`}>{status.text}</div>}
+
+      <div className="adm-balance-version">
+        <label className="adm-balance-field wide">
+          <span>Version</span>
+          <input value={draft.version ?? ''} maxLength={30} onChange={(e) => setDraft((doc) => setBalanceVersion(doc, e.target.value))} />
+        </label>
+        <span className={`adm-balance-dirty ${dirty ? 'on' : ''}`}>{dirty ? 'UNPUBLISHED' : 'SYNCED'}</span>
+      </div>
+
+      <div className="adm-balance-grid">
+        <section>
+          <div className="adm-subhead">Tower multipliers</div>
+          <select value={towerId} onChange={(e) => { setTowerId(e.target.value); setPreviewId(e.target.value); }}>
+            {TOWERS_BY_UNLOCK.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <div className="adm-balance-fields">
+            {TOWER_BALANCE_FIELDS.map((field) => (
+              <BalanceMultInput
+                key={field}
+                label={BALANCE_FIELD_LABELS[field]}
+                value={nestedMultValue(draft, 'towers', towerId, field)}
+                onChange={(value) => setNested('towers', towerId, field, value)}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="adm-subhead">Enemy multipliers</div>
+          <select value={enemyId} onChange={(e) => setEnemyId(e.target.value)}>
+            {ENEMY_LIST.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          <div className="adm-balance-fields">
+            {ENEMY_BALANCE_FIELDS.map((field) => (
+              <BalanceMultInput
+                key={field}
+                label={BALANCE_FIELD_LABELS[field]}
+                value={nestedMultValue(draft, 'enemies', enemyId, field)}
+                onChange={(value) => setNested('enemies', enemyId, field, value)}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="adm-subhead">Protocol multipliers</div>
+          <select value={diffId} onChange={(e) => setDiffId(e.target.value)}>
+            {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <div className="adm-balance-fields">
+            {DIFF_BALANCE_FIELDS.map((field) => (
+              <BalanceMultInput
+                key={field}
+                label={BALANCE_FIELD_LABELS[field]}
+                value={nestedMultValue(draft, 'diffs', diffId, field)}
+                onChange={(value) => setNested('diffs', diffId, field, value)}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="adm-subhead">Income and global</div>
+          <div className="adm-balance-fields">
+            {INCOME_BALANCE_FIELDS.map((field) => (
+              <BalanceMultInput
+                key={field}
+                label={BALANCE_FIELD_LABELS[field]}
+                value={multValue(draft, 'income', field)}
+                onChange={(value) => setFlat('income', field, value)}
+              />
+            ))}
+            {GLOBAL_BALANCE_FIELDS.map((field) => (
+              <BalanceMultInput
+                key={field}
+                label={BALANCE_FIELD_LABELS[field]}
+                value={multValue(draft, 'global', field)}
+                onChange={(value) => setFlat('global', field, value)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="adm-two adm-balance-lower">
+        <div>
+          <div className="adm-card-head"><h3>Override diff</h3><span className="adm-hint">{rows.length} active paths</span></div>
+          {rows.length ? (
+            <table className="adm-table">
+              <tbody>
+                {rows.map((row) => <tr key={row.path}><td>{row.path}</td><td>{row.value}</td></tr>)}
+              </tbody>
+            </table>
+          ) : <div className="adm-empty compact">Identity document.</div>}
+          <pre className="adm-config-snippet">{JSON.stringify(publishDoc, null, 2)}</pre>
+        </div>
+
+        <div>
+          <div className="adm-card-head">
+            <h3>Effective preview</h3>
+            <div className="adm-selects">
+              <select value={previewId} onChange={(e) => setPreviewId(e.target.value)}>
+                {TOWERS_BY_UNLOCK.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <table className="adm-table adm-balance-preview">
+            <thead>
+              <tr><th>tier</th><th>cost</th><th>dmg</th><th>rng</th><th>rate</th><th>proj</th><th>splash</th><th>slow</th><th>burn</th></tr>
+            </thead>
+            <tbody>
+              {previews.map((row) => (
+                <Fragment key={row.label}>
+                  <tr>
+                    <td>{row.label} static</td>
+                    <td>{row.staticStats.cost}</td>
+                    <td>{row.staticStats.damage}</td>
+                    <td>{row.staticStats.range}</td>
+                    <td>{row.staticStats.fireRate}</td>
+                    <td>{row.staticStats.projectileSpeed}</td>
+                    <td>{row.staticStats.splash}</td>
+                    <td>{Math.round(row.staticStats.slowPower * 100)}%</td>
+                    <td>{row.staticStats.burnDps + row.staticStats.burnZoneDps}</td>
+                  </tr>
+                  <tr className="adm-balance-overridden">
+                    <td>{row.label} remote</td>
+                    <td>{row.overriddenStats.cost}</td>
+                    <td>{row.overriddenStats.damage}</td>
+                    <td>{row.overriddenStats.range}</td>
+                    <td>{row.overriddenStats.fireRate}</td>
+                    <td>{row.overriddenStats.projectileSpeed}</td>
+                    <td>{row.overriddenStats.splash || row.overriddenStats.burnZoneRadius}</td>
+                    <td>{Math.round(row.overriddenStats.slowPower * 100)}%</td>
+                    <td>{row.overriddenStats.burnDps + row.overriddenStats.burnZoneDps}</td>
+                  </tr>
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const heatColor = (i: number) => {
   const c = Math.min(100, Math.max(0, i));
   return `hsl(${Math.round(142 - 1.42 * c)}, 62%, ${44 - c * 0.12}%)`;
@@ -948,6 +1244,8 @@ function BalanceTab({ report }: { report: Report }) {
       </div>
 
       <DifficultyModel />
+
+      <RemoteBalanceEditor />
 
       <BalanceFindings report={report} />
 
