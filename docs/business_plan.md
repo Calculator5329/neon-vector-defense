@@ -108,7 +108,7 @@ THEN    Monetization MVP → portal submissions → growth loop
 - Verify CCPA/GPC opt-out signal handling before portal traffic.
 
 ### Monetization MVP (after Tier 1; launch-safe minimum first)
-- Stripe (or Paddle as merchant-of-record) web checkout.
+- **Stripe** web checkout (decided 2026-07-02; Paddle rejected).
 - Launch SKUs: cosmetic palette/skin packs + premium one-time unlock. No pay-to-win.
 - Server-side entitlements keyed to the (now real) authenticated uid.
 - Later: Signal Pass seasonal track, core packs, opt-in rewarded ads (adult tier only).
