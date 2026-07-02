@@ -62,11 +62,9 @@ Last updated: 2026-07-02 (release hardening pass)
 
 ## Near-term priorities
 
-1. **Replay and score integrity** - add replay completion manifests, chunk hashes/count validation, malformed replay hardening, and server-side freeplay/mode validation before leaderboard incentives grow.
-2. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
-3. **Balance CI gate** - wire a semantic `public/balance-report.json` diff into CI so unintentional dead/op tower swings fail before release.
-4. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
-5. **Audio diet** - briefing.wav → compressed (needs ffmpeg locally).
+1. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
+2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
+3. **In flight (Codex missions)**: Long Watch + Diplomat's Gambit removal; Daily Challenge rework + menu redesign; two new towers + balance pass + admin balance console.
 
 ## Deferred / bigger bets
 
@@ -86,13 +84,13 @@ Last updated: 2026-07-02 (release hardening pass)
 - [x] Replay-of-the-Day menu spotlight
 - [x] Daily Freeplay seed
 - [x] App Check staged-enforcement runbook and deploy preflight
-- [ ] Touch-first responsive command layout
-- [ ] Replay completion manifest and chunk validation
-- [ ] Gameplay correctness audit fixes
-- [ ] Guided onboarding funnel
-- [ ] Balance CI gate on PRs
+- [x] Touch-first responsive command layout (short-landscape tier)
+- [x] Replay completion manifest and chunk validation
+- [x] Gameplay correctness audit fixes
+- [x] Guided onboarding funnel (action-gated coach)
+- [x] Balance CI gate on PRs
 - [x] Production deploy hardening checks
-- [ ] Full PWA precache + build-tag reload toast
+- [x] Build-tag reload toast (conservative shell precache retained by design)
 
 ## Guardrails
 
