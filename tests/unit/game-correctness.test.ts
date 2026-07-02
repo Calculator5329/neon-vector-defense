@@ -10,8 +10,9 @@ import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } 
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { buildRunManifest, hashRunDeathRecords, hashRunEventPairs, type RunDeathRecords, type RunEvent } from '../../src/game/runTelemetry';
 import { normalizeProgress, progress } from '../../src/game/storage';
-import { computeStats, TOWER_MAP, TOWERS } from '../../src/game/towers';
+import { computeStats, TOWER_MAP, TOWERS, TOWERS_BY_UNLOCK } from '../../src/game/towers';
 import type { Enemy, EnemyDef, Tower } from '../../src/game/types';
+import { getWave } from '../../src/game/waves';
 import { partitionRunDeletions, validDeletedRunIds } from '../../functions/src/deleteHelpers';
 import { isStaleBuild } from '../../src/buildFreshness';
 import { canSubmitScore, canWriteAnalytics, optOutOfSale, resetConsent, setAgeFromBirthDate } from '../../src/game/consent';
@@ -437,6 +438,14 @@ function cheapestUnlockedTower() {
   return [...TOWERS].filter((d) => d.unlockAt === 0).sort((a, b) => a.cost - b.cost)[0];
 }
 
+function totalWaveKills(waves: number): number {
+  let total = 0;
+  for (let wave = 1; wave <= waves; wave++) {
+    for (const group of getWave(wave)) total += group.count;
+  }
+  return total;
+}
+
 describe('engine correctness fixes', () => {
   test('spire-revealed cloaked hulls are hit by non-detector projectiles', () => {
     const game = makeGame();
@@ -523,6 +532,19 @@ describe('engine correctness fixes', () => {
     const analytics = game.buildRunAnalyticsDoc('TEST', 'w_test123', 'test-build');
     assert.equal(analytics.placement.failedByReason.locked, 1);
   });
+
+  test('targeted strike needs a target and cannot fire after the run ends', () => {
+    const game = makeGame();
+    const strike = game.abilities.find((ability) => ability.def.id === 'strike');
+    assert.ok(strike);
+
+    assert.equal(game.castAbility('strike'), false);
+    assert.equal(strike.cd, 0);
+
+    game.phase = 'victory';
+    assert.equal(game.castAbility('strike', { x: 100, y: 100 }), false);
+    assert.equal(strike.cd, 0);
+  });
 });
 
 function towerProgressScore(tower: Tower): number {
@@ -539,6 +561,16 @@ function towerProgressScore(tower: Tower): number {
 }
 
 describe('arsenal balance additions', () => {
+  test('tower unlock curve leaves most arsenal locked after a first Recruit clear', () => {
+    const firstRecruitClearKills = totalWaveKills(DIFFICULTIES[0].waves);
+    const unlocked = TOWERS_BY_UNLOCK.filter((tower) => tower.unlockAt <= firstRecruitClearKills).map((tower) => tower.id);
+
+    assert.deepEqual(unlocked, ['pulse', 'tesla']);
+    assert.ok(TOWER_MAP.cryo.unlockAt > firstRecruitClearKills, 'Cryo should require post-clear progression');
+    assert.ok(TOWER_MAP.flak.unlockAt > firstRecruitClearKills * 2, 'Flak should not arrive from a single clean clear');
+    assert.ok(TOWER_MAP.abyss.unlockAt > firstRecruitClearKills * 500, 'Endgame towers should sit on a long-tail curve');
+  });
+
   test('remote balance knobs cover projectile, splash, slow, burn, enemy speed, and ability cooldown', () => {
     setBalanceDoc({
       global: { abilityCooldownMult: 0.5 },
@@ -587,6 +619,40 @@ describe('arsenal balance additions', () => {
         }
       }
     }
+  });
+
+  test('Tesla chain lightning does not bounce onto already chained hulls', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: TOWER_MAP.tesla.unlockAt });
+    game.credits = 100_000;
+    const tower = game.placeTower(TOWER_MAP.tesla, findPlaceable(game));
+    assert.ok(tower);
+    tower.cooldown = 0;
+    tower.stats = {
+      ...tower.stats,
+      range: 70,
+      damage: 10,
+      count: 1,
+      chain: 3,
+      fireRate: 1,
+      slowPower: 0,
+      drag: 0,
+    };
+
+    const offsets = [45, 115, 185, 255];
+    const enemies = offsets.map((dx, i) => {
+      const enemy = makeEnemy(ENEMIES.scout);
+      enemy.uid = 800 + i;
+      enemy.hp = 100;
+      enemy.maxHp = 100;
+      enemy.pos = { x: tower.pos.x + dx, y: tower.pos.y };
+      return enemy;
+    });
+    game.enemies.push(...enemies);
+    internals(game).grid.rebuild(game.enemies);
+
+    internals(game).updateTowers(1);
+
+    assert.deepEqual(enemies.map((enemy) => enemy.hp), [90, 90, 90, 90]);
   });
 
   test('Harmonic Siphon consumes and spreads resonance stacks', () => {
