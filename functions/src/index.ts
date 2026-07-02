@@ -23,6 +23,7 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
 import { mergeGlobalTopRows, type GlobalTopRow } from './aggregateHelpers.js';
 import { partitionRunDeletions, validDeletedRunIds } from './deleteHelpers.js';
+import { reSimulate, setBalanceDoc, setDailyOverrideDoc, type ReSimResult } from './generated/reSimulate.js';
 import { validateReplayManifest, type ReplayChunkInput } from './replayIntegrity.js';
 import {
   canonicalLeaderboardCash,
@@ -60,6 +61,7 @@ const SCORE_SLACK = 1.25;
 const WAVE_SLACK = 2;
 const MIN_RUN_DURATION_S = 3;
 const MAX_RUN_DURATION_S = 86_400;
+const VERIFY_REASON_COLLECTION = 'runVerificationReasons';
 
 const APP_CHECK_ENFORCED = process.env.ENFORCE_APP_CHECK === 'true';
 
@@ -101,6 +103,14 @@ interface CanonicalScore {
   wave: number;
 }
 
+interface VerifyRunResult {
+  runId: string;
+  verdict: ReSimResult['verdict'];
+  reason?: string;
+  divergence?: ReSimResult['divergence'];
+  rowsUpdated: number;
+}
+
 function n(v: unknown, fallback = 0): number {
   const x = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(x) ? x : fallback;
@@ -111,6 +121,13 @@ function requireAuthUid(req: CallableRequest): string {
   const uid = String(req.auth?.uid ?? '');
   if (!uid || !UID_RE.test(uid)) throw new HttpsError('unauthenticated', 'auth-required');
   return uid;
+}
+
+function requireAdmin(req: CallableRequest): void {
+  const email = String(req.auth?.token?.email ?? '').toLowerCase();
+  if (!req.auth || req.auth.token?.email_verified !== true || !isAdminEmail(email)) {
+    throw new HttpsError('permission-denied', 'admin-only');
+  }
 }
 
 function validBoard(board: string): boolean {
@@ -268,7 +285,9 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
 
   const collPath = isDaily ? `dailyBoards/${board}/scores` : `boards/${board}/scores`;
   const docId = `${claim.uid}_${claim.runId}${claim.checkpoint ? `_w${canonical.wave}` : ''}`.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 180);
-  await db.collection(collPath).doc(docId).set(stored, { merge: false });
+  const rowRef = db.collection(collPath).doc(docId);
+  await rowRef.set(stored, { merge: false });
+  void verifyAcceptedRun(claim.runId, rowRef);
 
   // Maintain the single-doc global-top aggregate (campaign + freeplay lists)
   // so the client menu reads ONE doc instead of fanning out 40 board queries.
@@ -315,6 +334,137 @@ async function updateGlobalTop(entry: GlobalTopRow): Promise<void> {
       freeplay: listKey === 'freeplay' ? mergeGlobalTopRows(current, entry) : (data.freeplay ?? []),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: false });
+  });
+}
+
+type ScoreRowRef = FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>;
+
+async function readReSimBundle(runId: string): Promise<{ bundle?: { run: Record<string, unknown>; chunks: Array<Record<string, unknown>> }; reason?: string }> {
+  const runSnap = await db.doc(`runs/${runId}`).get();
+  if (!runSnap.exists) return { reason: 'no-replay' };
+  const run = runSnap.data() as Record<string, unknown>;
+  const chunkCount = Math.max(0, Math.min(100, Math.floor(n(run.chunkCount, 0))));
+  const chunkSnaps = await Promise.all(
+    Array.from({ length: chunkCount }, (_, i) => db.doc(`runs/${runId}/chunks/c${i}`).get()),
+  );
+  if (chunkSnaps.some((snap) => !snap.exists)) return { reason: 'missing replay chunk' };
+  return {
+    bundle: {
+      run,
+      chunks: chunkSnaps.map((snap) => snap.data() as Record<string, unknown>),
+    },
+  };
+}
+
+async function scoreRowsForRun(runId: string): Promise<ScoreRowRef[]> {
+  const snap = await db.collectionGroup('scores').where('runId', '==', runId).get();
+  return snap.docs
+    .map((docSnap) => docSnap.ref)
+    .filter((ref) => /^(boards|dailyBoards)\/[^/]+\/scores\/[^/]+$/.test(ref.path));
+}
+
+async function writeScoreVerdict(rows: ScoreRowRef[], verdict: ReSimResult['verdict']): Promise<number> {
+  let written = 0;
+  for (let i = 0; i < rows.length; i += 450) {
+    const batch = db.batch();
+    const slice = rows.slice(i, i + 450);
+    for (const row of slice) {
+      batch.update(row, {
+        verify: verdict,
+        verifyTs: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    written += slice.length;
+  }
+  return written;
+}
+
+function compactUnknown(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (value === null || typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
+    return typeof value === 'string' ? value.slice(0, 240) : value;
+  }
+  try {
+    return JSON.stringify(value).slice(0, 240);
+  } catch {
+    return String(value).slice(0, 240);
+  }
+}
+
+function compactDivergence(result: ReSimResult): Record<string, unknown> | undefined {
+  if (result.divergence) {
+    return {
+      field: result.divergence.field.slice(0, 80),
+      expected: compactUnknown(result.divergence.expected),
+      actual: compactUnknown(result.divergence.actual),
+      ...(result.divergence.at ? { at: result.divergence.at } : {}),
+    };
+  }
+  return undefined;
+}
+
+function compactReason(result: ReSimResult): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    verdict: result.verdict,
+    reason: String(result.reason ?? result.divergence?.field ?? 'unknown').slice(0, 160),
+  };
+  const divergence = compactDivergence(result);
+  if (divergence) out.divergence = divergence;
+  return out;
+}
+
+async function writeVerificationReason(runId: string, result: ReSimResult, rows: ScoreRowRef[], source: string): Promise<void> {
+  const ref = db.doc(`${VERIFY_REASON_COLLECTION}/${runId}`);
+  if (result.verdict === 'verified') {
+    await ref.delete().catch(() => undefined);
+    return;
+  }
+  await ref.set({
+    schemaVersion: 1,
+    runId,
+    ...compactReason(result),
+    rowCount: rows.length,
+    rowPaths: rows.slice(0, 20).map((row) => row.path),
+    source,
+    verifyTs: FieldValue.serverTimestamp(),
+  }, { merge: false });
+}
+
+/** The bundled engine boots with identity balance and no daily override; inject
+ *  the live config docs so re-simulation runs under the same math the player saw.
+ *  reSimulate itself compares balance versions and returns 'unverifiable' when
+ *  the run was recorded under a balance we no longer have. */
+async function loadReSimConfig(): Promise<void> {
+  const [balanceSnap, overrideSnap] = await Promise.all([
+    db.doc('config/balance').get(),
+    db.doc('config/dailyOverride').get(),
+  ]);
+  setBalanceDoc(balanceSnap.exists ? balanceSnap.data() : null);
+  setDailyOverrideDoc(overrideSnap.exists ? overrideSnap.data() : null);
+}
+
+async function verifyRunCore(runId: string, explicitRows?: ScoreRowRef[], source = 'callable'): Promise<VerifyRunResult> {
+  const bundle = await readReSimBundle(runId);
+  if (bundle.bundle) await loadReSimConfig();
+  const result: ReSimResult = bundle.bundle
+    ? reSimulate(bundle.bundle)
+    : { verdict: 'unverifiable', reason: bundle.reason ?? 'unverifiable' };
+  const rows = explicitRows ?? await scoreRowsForRun(runId);
+  const rowsUpdated = await writeScoreVerdict(rows, result.verdict);
+  await writeVerificationReason(runId, result, rows, source);
+  return {
+    runId,
+    verdict: result.verdict,
+    ...(result.reason ? { reason: result.reason } : {}),
+    ...(result.divergence ? { divergence: compactDivergence(result) as ReSimResult['divergence'] } : {}),
+    rowsUpdated,
+  };
+}
+
+function verifyAcceptedRun(runId: string, row: ScoreRowRef): void {
+  verifyRunCore(runId, [row], 'post-accept').catch((error) => {
+    console.warn('post-accept replay verification failed', { runId, error });
   });
 }
 
@@ -445,6 +595,16 @@ export const submitDailyScore = onCall(
   },
 );
 
+export const verifyRun = onCall(
+  callableOptions(5, 300),
+  async (req: CallableRequest): Promise<VerifyRunResult> => {
+    requireAdmin(req);
+    const runId = String((req.data as Record<string, unknown> | undefined)?.runId ?? '');
+    if (!RUN_ID_RE.test(runId)) throw new HttpsError('invalid-argument', 'bad-run-id');
+    return verifyRunCore(runId);
+  },
+);
+
 // ---- deleteMyData (1A) — cascade delete everything keyed by uid ----
 
 interface DeleteResult {
@@ -538,10 +698,7 @@ async function deleteRunArtifacts(uid: string, knownRunIds: Iterable<string> = [
 export const deleteMyData = onCall(
   callableOptions(5, 300),
   async (req: CallableRequest): Promise<DeleteResult> => {
-    const email = String(req.auth?.token?.email ?? '').toLowerCase();
-    if (!req.auth || req.auth.token?.email_verified !== true || !isAdminEmail(email)) {
-      throw new HttpsError('permission-denied', 'admin-only');
-    }
+    requireAdmin(req);
     const uid = String((req.data as Record<string, unknown> | undefined)?.uid ?? '');
     if (!UID_RE.test(uid)) throw new HttpsError('invalid-argument', 'bad-uid');
 

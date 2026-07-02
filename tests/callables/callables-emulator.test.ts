@@ -21,6 +21,9 @@ import {
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
+import { Game } from '../../src/game/engine';
+import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
+import type { RunUploadBundle } from '../../src/game/runTelemetry';
 import { replayDeathHash, replayEventHash } from '../../functions/src/replayIntegrity.ts';
 import { replayTokenHash } from '../../functions/src/securityHelpers.ts';
 
@@ -68,6 +71,13 @@ interface DeleteResult {
     skippedRuns: number;
   };
   errors?: string[];
+}
+
+interface VerifyRunResult {
+  runId: string;
+  verdict: 'verified' | 'divergent' | 'unverifiable';
+  reason?: string;
+  rowsUpdated: number;
 }
 
 let testEnv: RulesTestEnvironment;
@@ -254,6 +264,41 @@ function scoreEntry(user: TestAuth, seeded: { runId: string; replayToken: string
   };
 }
 
+function cloneBundle(bundle: RunUploadBundle): RunUploadBundle {
+  return JSON.parse(JSON.stringify(bundle)) as RunUploadBundle;
+}
+
+function makeRealRunBundle(): RunUploadBundle {
+  const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 4242, lifetimeKills: 1_000_000 });
+  game.paused = false;
+  game.speed = 4;
+  game.startWave();
+  for (let i = 0; i < 8_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i += 1) {
+    if (game.phase === 'build') game.startWave();
+    game.update(0.05);
+  }
+  return game.buildRunUploadBundle('VERIFY', 'callables-emulator-test');
+}
+
+async function seedRunBundle(bundle: RunUploadBundle, rowId: string): Promise<void> {
+  await withAdminDb(async (db) => {
+    await setDoc(doc(db, 'runs', bundle.run.runId), bundle.run);
+    for (const chunk of bundle.chunks) {
+      await setDoc(doc(db, 'runs', bundle.run.runId, 'chunks', `c${chunk.chunk}`), chunk);
+    }
+    await setDoc(doc(db, 'boards/orbital_easy/scores', rowId), {
+      name: 'VERIFY',
+      cash: bundle.run.summary.cashEarned,
+      kills: bundle.run.summary.kills,
+      wave: bundle.run.summary.wave,
+      freeplay: false,
+      ts: Date.now(),
+      uid: `w_${unique('verifyrow')}`.slice(0, 40),
+      runId: bundle.run.runId,
+    });
+  });
+}
+
 async function assertCallableError(fn: () => Promise<unknown>, expectedCode: string): Promise<void> {
   await assert.rejects(
     fn,
@@ -409,6 +454,51 @@ describe('feedback callables', () => {
     assert.equal(results.slice(0, 8).every((result) => result.accepted), true);
     assert.deepEqual(results[8], { accepted: false, reason: 'rate-limited' });
     assert.equal(await adminCollectionCount('feedback'), 8);
+  });
+});
+
+describe('verifyRun callable', () => {
+  test('admin can verify a real Game-generated replay and annotate board rows', async () => {
+    const bundle = makeRealRunBundle();
+    const rowId = `verify-${unique('ok')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.runId, bundle.run.runId);
+    assert.equal(result.verdict, 'verified', result.reason ?? '');
+    assert.equal(result.rowsUpdated, 1);
+
+    const row = await adminDocData(`boards/orbital_easy/scores/${rowId}`);
+    assert.equal(row?.verify, 'verified');
+    assert.ok(row?.verifyTs);
+    assert.equal(await adminDocData(`runVerificationReasons/${bundle.run.runId}`), null);
+  });
+
+  test('admin verifyRun records divergent reason docs for tampered runs', async () => {
+    const bundle = cloneBundle(makeRealRunBundle());
+    bundle.run.summary.kills += 1;
+    const rowId = `verify-${unique('bad')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'divergent');
+    assert.equal(result.rowsUpdated, 1);
+
+    const row = await adminDocData(`boards/orbital_easy/scores/${rowId}`);
+    assert.equal(row?.verify, 'divergent');
+
+    const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
+    assert.equal(reason?.verdict, 'divergent');
+    assert.equal(reason?.reason, 'summary.kills');
+  });
+
+  test('verifyRun is admin-only', async () => {
+    await assertCallableError(
+      () => callCallable('verifyRun', { runId: runId('verifydenied') }, signedInUser('verifydenied')),
+      'permission-denied',
+    );
   });
 });
 

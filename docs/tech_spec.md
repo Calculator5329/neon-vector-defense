@@ -103,6 +103,27 @@ Private per-run analytics (consent-gated writes, admin-only reads). New writes
 must use schema version 2 and include the `menu`, `controls`, `combat`,
 `placement`, `assistance`, and `freeplay` sections.
 
+### `runVerificationReasons/{runId}`
+
+Admin-only replay re-simulation triage rows written by the `verifyRun` callable
+for non-verified outcomes. The document id is the public run id. Linked
+leaderboard rows receive compact server-written `verify` and `verifyTs` fields,
+so admin-only surfaces can badge known `verified`, `divergent`, or
+`unverifiable` runs without re-running the simulation.
+
+```typescript
+{
+  runId: string;
+  verdict: 'verified' | 'divergent' | 'unverifiable';
+  reason?: string;
+  divergence?: { field?: string; expected?: unknown; actual?: unknown; at?: { eventIndex?, t?, wave?, type? } };
+  rowCount: number;
+  rowPaths?: string[];
+  source: 'callable' | 'post-accept';
+  verifyTs: Timestamp;
+}
+```
+
 ### `feedback/{id}`
 
 Anonymous player feedback. Created only by the `submitFeedback` Cloud Function; admin can read and attach replies. Players fetch replies through a private local receipt token via `fetchFeedbackReplies`, so replied documents are not public by id.
@@ -165,6 +186,7 @@ Region: `us-central1`
 | --- | --- |
 | `submitScore` | Validate replay exists, sanity-bound claimed stats, rate-limit per uid, write board entry |
 | `submitDailyScore` | Validate same-day/yesterday Daily Challenge replay and write the daily board row |
+| `verifyRun` | Admin-only re-simulate a public replay and persist a verification verdict |
 | `submitFeedback` | Rate-limit feedback, write server-only feedback doc, return private reply receipt token |
 | `fetchFeedbackReplies` | Return admin replies only when the browser presents the matching private receipt token |
 | `deleteMyData` | Admin-only cascade delete for docs keyed by anonymous uid |
@@ -187,11 +209,39 @@ Daily Challenge submit contract:
 3. Accepted daily rows force `freeplay: false` and rank by wave, then kills, then
    server time.
 
-**Trust model:** Player callables (`submitScore`, `submitDailyScore`, `submitFeedback`) require Firebase Anonymous Auth; the uid comes from the verified callable auth context and payload uids are ignored. Rate limits key on that verified identity. A hand-crafted fake replay can still pass if it is internally consistent. Full re-simulation is deferred (see roadmap).
+**Trust model:** Player callables (`submitScore`, `submitDailyScore`, `submitFeedback`) require Firebase Anonymous Auth; the uid comes from the verified callable auth context and payload uids are ignored. Rate limits key on that verified identity. Replay re-simulation is flag-first: accepted score rows can be annotated with `verify`, but divergent verdicts do not reject scores until the enforcement flip.
+
+Replay re-simulation contract:
+
+1. Admin calls `verifyRun({ runId })` from the Operations Console.
+2. The callable loads `runs/{runId}` plus public chunks, validates the replay
+   manifest, and replays exact recorded player actions through the deterministic
+   engine build compiled into Functions.
+3. Result shape is `{ runId, verdict, reason?, divergence? }`.
+4. `verified` means summary and death records matched. `divergent` means the run
+   was readable but the simulated result disagreed; `divergence` is the first
+   meaningful mismatch. `unverifiable` means the run cannot be compared
+   confidently, for example due to missing chunks, unsupported schema, balance
+   mismatch, invalid timing, or simulation guard limits.
+5. Normal runs use exact summary comparison and exact compact death-ledger
+   comparison with the existing small death-time tolerance. High-volume freeplay
+   ledgers keep exact summary comparison, then allow count-level ledger matching
+   for dense terminal runs where per-uid death ordering can drift without
+   changing score or outcome.
+6. Enforcement is not automatic at launch. Admin badges and audit docs come
+   first, soft flagging comes next, and score rejection is a later operator flip
+   after production false positives are understood.
+
+Functions packaging runs `scripts/bundle-resim.mjs` from the `functions`
+`prebuild` script. It bundles `src/game/reSimulate.ts` and its headless engine
+dependencies into `functions/src/generated/reSimulate.js`; Functions imports
+only that generated entrypoint.
 
 Deploy:
 
 ```bash
+npm run build
+npm --prefix functions run build
 firebase deploy --only functions
 ```
 

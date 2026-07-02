@@ -472,6 +472,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Deep re-simulation verdict reasons: written only by Functions with Admin SDK.
+    // Public leaderboard rows expose only the compact verify/verifyTs fields.
+    match /runVerificationReasons/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -11,6 +11,7 @@ const callableExports = [
   'fetchFeedbackReplies',
   'submitScore',
   'submitDailyScore',
+  'verifyRun',
   'deleteMyData',
 ];
 

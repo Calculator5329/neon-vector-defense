@@ -3,20 +3,15 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (portal SDK adapter, replay death fidelity, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
-
-Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
+Last updated: 2026-07-02 (portal SDK adapter, replay re-simulation audit, replay death fidelity, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
 
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
-| Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
-| Battle Plan replays | Public `runs/{runId}` docs with required manifests, compact death records, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayReconstruct.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
-
 | Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
-| Battle Plan replays | Public `runs/{runId}` docs with required manifests, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
-| Replay-backed leaderboards | Server-only board writes, replay token verification, canonical score values, server-time ordering | `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
+| Battle Plan replays | Public `runs/{runId}` docs with required manifests, compact death records, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayReconstruct.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
+| Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
 | Meta loop | Warden Rank, Salvage, Operations Board, Watch Streak; cosmetic/QoL only | `meta.ts`, `OperationsBoard.tsx`, `tests/e2e/ux-ui.spec.ts` |
@@ -43,6 +38,9 @@ Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
 - Deploy checks now verify Node/Java/Firebase project prerequisites before rules/deploy work.
 - Leaderboard rows now use server timestamps for ordering instead of trusting client clocks.
 - Battle Plan replay death fidelity now uses manifest-hashed compact death records, so killed enemies disappear at their real recorded death times while older replays keep the legacy best-effort path.
+- Admin replay re-simulation now has an Operations Console path: inspect a run,
+  press VERIFY, review `verified` / `divergent` / `unverifiable`, and badge
+  admin board or spotlight candidate rows when stored verification data exists.
 - Global focus-visible styling and design tokens improved the contrast/accessibility baseline.
 - Operations palette re-equips are now silent while purchase/error feedback remains visible.
 - Leaderboard rows can highlight the current browser's anonymous uid, and privacy export/delete includes replay score tokens.
@@ -92,11 +90,11 @@ Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
 
 1. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
 2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
-3. **Replay re-simulation** - server-side freeplay/mode validation and re-simulation paths before leaderboard incentives grow (deterministic sim groundwork is in).
+3. **Replay re-simulation enforcement** - collect admin `verifyRun` samples, soft-flag divergent leaderboard rows, then flip rejection only after high-volume freeplay and balance-version false positives are understood.
 
 ## Deferred / bigger bets
 
-- Server-side replay re-simulation for stronger anti-cheat.
+- Automated score rejection from replay re-simulation once admin audit data shows the false-positive rate is acceptable.
 - Severance Campaign, with fixed mission nodes and alternate objectives.
 - Async duel or ghost-armada modes based on public replay data.
 - Seasonal Recovered-Signal Pass and cosmetic store using Salvage/entitlements.
@@ -132,6 +130,8 @@ Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
 - Replay read paths must reject or clearly label incomplete/malformed chunks; partial data should not masquerade as a full Battle Plan.
 - New public replay uploads must carry a manifest with event and death hashes; missing manifests are incomplete and cannot back accepted scores.
 - Leaderboard score claims must include a matching replay token.
+- `verifyRun` verdicts are admin audit data until the enforcement flip; player-facing
+  views must not expose verification badges or divergence details.
 - Privacy export/delete must cover every local key that can affect score retry, identity, consent, or private replies.
 - Admin allowlists in `firestore.rules`, Functions helpers, and client admin code must stay synchronized.
 - AI help remains optional and must keep secrets in the Worker, not in Vite-exposed variables.

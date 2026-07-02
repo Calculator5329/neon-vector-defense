@@ -24,8 +24,14 @@ function eventTime(event: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function eventSimTick(event: unknown): number | null {
+  if (!event || typeof event !== 'object') return null;
+  const value = (event as Record<string, unknown>).simTick;
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : null;
+}
+
 function stableEventPair(event: unknown): string {
-  return JSON.stringify([eventType(event), eventTime(event)]);
+  return JSON.stringify([eventType(event), eventTime(event), eventSimTick(event)]);
 }
 
 export function replayEventHash(events: unknown[]): string {

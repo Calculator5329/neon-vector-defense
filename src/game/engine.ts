@@ -152,6 +152,9 @@ export interface GameOptions {
    *  and tests pass an explicit value so results never depend on the host's
    *  localStorage progress. */
   lifetimeKills?: number;
+  /** Explicit replay-time arsenal. Live play leaves this unset and uses normal
+   *  lifetime-kill unlock progression. */
+  availableTowerIds?: string[];
 }
 
 /** a forward (repel) gravity push can never shove a hull closer than this to the exit */
@@ -270,6 +273,7 @@ export class Game {
   private rng: () => number;
   /** lifetime-kills snapshot taken at construction (see GameOptions.lifetimeKills) */
   private readonly baseKills: number;
+  private readonly availableTowerIdsOverride: Set<string> | null;
   /** per-instance entity uid sequence — module-global counters made uids
    *  irreproducible across runs, which blocks deterministic re-simulation */
   private uidSeq = 1;
@@ -303,6 +307,9 @@ export class Game {
     // Snapshot once: mid-run unlock gating must not silently depend on the host
     // machine's live save (a landmine for balance sims and server re-simulation).
     this.baseKills = opts.lifetimeKills ?? progress.record.kills;
+    this.availableTowerIdsOverride = opts.availableTowerIds
+      ? new Set(opts.availableTowerIds.filter((id) => TOWER_MAP[id]))
+      : null;
     const bdiff = getBalance().diff(diff.id);
     this.credits = Math.round(diff.cash * bdiff.cashMult);
     this.lives = Math.max(1, Math.round(diff.lives * bdiff.livesMult));
@@ -314,7 +321,9 @@ export class Game {
       seed: this.seed,
       startingCash: this.credits,
       startingLives: this.lives,
-      availableTowerIds: TOWERS.filter((t) => t.unlockAt <= this.baseKills).map((t) => t.id),
+      availableTowerIds: this.availableTowerIdsOverride
+        ? [...this.availableTowerIdsOverride]
+        : TOWERS.filter((t) => t.unlockAt <= this.baseKills).map((t) => t.id),
       lifetimeKillsAtStart: this.baseKills,
       runsBeforeStart: progress.record.runs,
       victoriesBeforeStart: progress.record.victories,
@@ -345,6 +354,7 @@ export class Game {
 
   towerAvailable(def: TowerDef): boolean {
     if (this.dailyChallenge) return dailyAllowsTower(this.dailyChallenge, def);
+    if (this.availableTowerIdsOverride) return this.availableTowerIdsOverride.has(def.id);
     return this.dailyTowerIds ? this.dailyTowerIds.has(def.id) : def.unlockAt <= this.baseKills + this.totalKills;
   }
 
@@ -383,6 +393,13 @@ export class Game {
 
   abandonRun(reason: string) {
     this.recorder.recordAbandoned(this.telemetryState(), reason);
+  }
+
+  setSpeed(speed: number) {
+    const next = speed === 4 ? 4 : speed === 2 ? 2 : 1;
+    if (this.speed === next) return;
+    this.speed = next;
+    this.recorder.recordCustom(METRIC_EVENTS.SPEED_CHANGE, this.telemetryState(), { speed: next });
   }
 
   enterFreeplay(contractId: FreeplayContractId = 'standard', daily?: DailyFreeplaySeed | null) {
@@ -1404,8 +1421,6 @@ export class Game {
     this.noticeTimer = Math.max(0, this.noticeTimer - rawDt); // real-time, not game speed
     // pickups expire in real time too — clicking them is a human reflex, and the
     // window shouldn't shrink at 2x/4x game speed
-    for (const p of this.pickups) p.life -= Math.min(rawDt, 0.05);
-    compact(this.pickups, (p) => p.life > 0);
     // TRUE fixed timestep: every physics step is exactly SIM_STEP; the remainder
     // carries in an accumulator instead of being stepped as a variable-size tail.
     // Variable steps made the simulation depend on frame timing, which breaks
@@ -1427,6 +1442,13 @@ export class Game {
 
   private tick(dt: number) {
     this.time += dt;
+
+    // Pickups expire in real time relative to the selected speed, but the work
+    // happens inside the fixed tick so replay results never depend on frame
+    // batching at 2x/4x.
+    const pickupDt = dt / Math.max(1, this.speed);
+    for (const p of this.pickups) p.life -= pickupDt;
+    compact(this.pickups, (p) => p.life > 0);
 
     // global timers
     this.chronoTimer = Math.max(0, this.chronoTimer - dt);

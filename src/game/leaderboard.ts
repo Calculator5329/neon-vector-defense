@@ -58,6 +58,27 @@ export interface ScoreEntry {
   meta?: string;
   daily?: string;
   checkpoint?: boolean;
+  verify?: RunVerifyRowStatus;
+}
+
+export type RunVerifyVerdict = 'verified' | 'divergent' | 'unverifiable';
+
+export interface RunVerifyDivergence {
+  field?: string;
+  expected?: unknown;
+  actual?: unknown;
+  at?: { eventIndex?: number; t?: number; wave?: number; type?: string };
+}
+
+export interface RunVerifyResult {
+  runId: string;
+  verdict: RunVerifyVerdict;
+  reason?: string;
+  divergence?: RunVerifyDivergence;
+}
+
+export interface RunVerifyRowStatus extends RunVerifyResult {
+  checkedAt?: number;
 }
 
 export interface RankedScoreEntry extends ScoreEntry {
@@ -252,6 +273,27 @@ interface FeedbackRepliesResult {
   }[];
 }
 
+function normalizeVerify(data: unknown, fallbackRunId = ''): RunVerifyRowStatus | undefined {
+  if (data === 'verified' || data === 'divergent' || data === 'unverifiable') {
+    return { runId: fallbackRunId, verdict: data };
+  }
+  if (!data || typeof data !== 'object') return undefined;
+  const raw = data as Record<string, unknown>;
+  const verdict = raw.verdict;
+  if (verdict !== 'verified' && verdict !== 'divergent' && verdict !== 'unverifiable') return undefined;
+  const rawDivergence = raw.divergence ?? raw.firstDivergence;
+  const divergence = rawDivergence && typeof rawDivergence === 'object'
+    ? rawDivergence as RunVerifyDivergence
+    : undefined;
+  return {
+    runId: typeof raw.runId === 'string' ? raw.runId : fallbackRunId,
+    verdict,
+    reason: typeof raw.reason === 'string' ? raw.reason : undefined,
+    divergence,
+    checkedAt: typeof raw.checkedAt === 'number' ? raw.checkedAt : undefined,
+  };
+}
+
 const callSubmitScore =
   httpsCallable<{ board: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitScore');
 const callSubmitDailyScore =
@@ -260,6 +302,15 @@ const callSubmitFeedback =
   httpsCallable<{ uid: string; text: string; ctx: string }, SubmitFeedbackResult>(functions, 'submitFeedback');
 const callFetchFeedbackReplies =
   httpsCallable<{ receipts: { id: string; token: string }[] }, FeedbackRepliesResult>(functions, 'fetchFeedbackReplies');
+const callVerifyRun =
+  httpsCallable<{ runId: string }, RunVerifyResult>(functions, 'verifyRun');
+
+export async function verifyRun(runId: string): Promise<RunVerifyResult> {
+  if (!isValidRunId(runId)) return { runId, verdict: 'unverifiable', reason: 'invalid run id' };
+  const res = await withTimeout(callVerifyRun({ runId }), 60_000);
+  const normalized = normalizeVerify(res.data, runId);
+  return normalized ?? { runId, verdict: 'unverifiable', reason: 'verifyRun returned an invalid result' };
+}
 
 export async function submitScore(board: string, entry: ScoreEntry): Promise<boolean> {
   if (!canSubmitScore()) return false; // under-13 / pre-gate may play, never post
@@ -479,7 +530,10 @@ function eventIdentity(event: unknown): string {
   const data = event as Record<string, unknown>;
   const type = typeof data.type === 'string' ? data.type : String(data.type ?? '');
   const t = typeof data.t === 'number' && Number.isFinite(data.t) ? data.t : 0;
-  return JSON.stringify([type, t]);
+  const simTick = typeof data.simTick === 'number' && Number.isFinite(data.simTick)
+    ? Math.max(0, Math.floor(data.simTick))
+    : null;
+  return JSON.stringify([type, t, simTick]);
 }
 
 function replayEventHash(events: unknown[]): string {
@@ -734,6 +788,7 @@ function scoreRowFromData(data: Partial<ScoreEntry>): ScoreEntry {
     meta: data.meta ?? '',
     daily: data.daily ?? '',
     checkpoint: data.checkpoint ?? false,
+    verify: normalizeVerify(data.verify, data.runId),
   };
 }
 
@@ -874,6 +929,7 @@ async function readGlobalTopAggregate(freeplay: boolean, limit: number): Promise
         uid: String(row.uid ?? ''),
         runId: String(row.runId ?? ''),
         checkpoint: row.checkpoint ?? false,
+        verify: normalizeVerify(row.verify, row.runId),
         ...meta,
       };
     })

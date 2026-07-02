@@ -11,7 +11,7 @@ import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWERS_BY_UNLOCK, TOWER_MAP } from './game/towers';
 import { ENEMY_LIST } from './game/enemies';
 import { clearAdmin } from './game/admin';
-import { fetchBoardRowsForRun, fetchRunAnalytics, fetchRunAnalyticsById, fetchRunReplay, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry, type RunBoardScoreRow, type RunReplayDoc } from './game/leaderboard';
+import { fetchBoardRowsForRun, fetchRunAnalytics, fetchRunAnalyticsById, fetchRunReplay, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, verifyRun, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry, type RunBoardScoreRow, type RunReplayDoc, type RunVerifyResult, type RunVerifyRowStatus } from './game/leaderboard';
 import { fetchPinnedSpotlightAdmin, pinReplayOfTheDay, unpinReplayOfTheDay, spotlightFromRunId, type PinnedSpotlight } from './game/adminSpotlight';
 import { fetchBalanceConfigAdmin, publishBalanceConfigAdmin, resetBalanceConfigAdmin } from './game/adminBalanceConfig';
 import { clearDailyOverrideAdmin, fetchDailyOverrideAdmin, publishDailyOverrideAdmin } from './game/adminDailyOverride';
@@ -1935,10 +1935,37 @@ function RunIdButton({ runId, onInspect, label }: { runId?: string; onInspect: (
   return <button className="adm-run-link" onClick={() => onInspect(runId)} title={runId}>{label ?? runId.slice(0, 12)}</button>;
 }
 
+function shortJson(value: unknown): string {
+  if (value === undefined) return 'n/a';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try { return JSON.stringify(value); } catch { return String(value); }
+}
+
+function verifySummary(verify?: RunVerifyRowStatus | RunVerifyResult | null): string {
+  if (!verify) return 'not checked';
+  if (verify.verdict === 'verified') return 'verified';
+  const field = verify.divergence?.field ?? verify.reason ?? 'no detail';
+  return `${verify.verdict}: ${field}`;
+}
+
+function firstDivergenceText(verify?: RunVerifyRowStatus | RunVerifyResult | null): string {
+  if (!verify?.divergence) return verify?.reason ?? 'No divergence detail returned.';
+  const d = verify.divergence;
+  const at = d.at ? ` @ ${[d.at.type, d.at.wave !== undefined ? `w${d.at.wave}` : '', d.at.eventIndex !== undefined ? `event ${d.at.eventIndex}` : ''].filter(Boolean).join(' / ')}` : '';
+  return `${d.field ?? 'field'}${at}: expected ${shortJson(d.expected)}; actual ${shortJson(d.actual)}`;
+}
+
+function VerifyBadge({ verify }: { verify?: RunVerifyRowStatus | RunVerifyResult }) {
+  if (!verify) return null;
+  return <span className={`adm-verify-badge ${verify.verdict}`} title={firstDivergenceText(verify)}>{verify.verdict}</span>;
+}
+
 function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyticsHint?: RunAnalyticsRow | null; onClose: () => void }) {
   const [replay, setReplay] = useState<RunReplayDoc | null | undefined>(undefined);
   const [analytics, setAnalytics] = useState<RunAnalyticsRow | null | undefined>(analyticsHint ?? undefined);
   const [boards, setBoards] = useState<RunBoardScoreRow[] | null>(null);
+  const [verify, setVerify] = useState<RunVerifyResult | RunVerifyRowStatus | null>(null);
+  const [verifyBusy, setVerifyBusy] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -1946,6 +1973,8 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
     setReplay(undefined);
     setAnalytics(analyticsHint ?? undefined);
     setBoards(null);
+    setVerify(null);
+    setVerifyBusy(false);
     setErr('');
     (async () => {
       try {
@@ -1958,13 +1987,30 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
         setAnalytics(analyticsDoc);
         const dailyId = analyticsDoc?.summary.daily ?? replayDoc?.summary.daily ?? '';
         const boardRows = await fetchBoardRowsForRun(runId, dailyId);
-        if (live) setBoards(boardRows);
+        if (live) {
+          setBoards(boardRows);
+          setVerify(boardRows.find((row) => row.verify)?.verify ?? null);
+        }
       } catch (error) {
         if (live) setErr(error instanceof Error ? error.message : 'Inspector load failed.');
       }
     })();
     return () => { live = false; };
   }, [runId, analyticsHint]);
+
+  const runVerify = async () => {
+    setVerifyBusy(true);
+    setErr('');
+    try {
+      const result = await verifyRun(runId);
+      setVerify(result);
+      setBoards((rows) => rows?.map((row) => ({ ...row, verify: result })) ?? rows);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'verifyRun failed.');
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
 
   const manifest = replay?.manifest;
   const summary = analytics?.summary ?? replay?.summary ?? null;
@@ -1985,11 +2031,15 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
                 : <div className="adm-empty">Replay unavailable. The public run doc may be missing, invalid, or expired.</div>}
           </div>
           <div className="adm-card">
-            <div className="adm-card-head"><h3>Integrity</h3><span className="adm-hint">manifest and linked rows</span></div>
+            <div className="adm-card-head">
+              <h3>Integrity</h3><span className="adm-hint">manifest, linked rows, server re-sim</span>
+              <button className="adm-mini" disabled={verifyBusy} onClick={() => void runVerify()}>{verifyBusy ? 'VERIFYING' : 'VERIFY'}</button>
+            </div>
             <div className="adm-insight-grid adm-inspector-kpis">
               <div className="adm-insight"><b>Replay</b><span>{replay === undefined ? 'loading' : replay ? replay.integrity : 'missing'}</span></div>
               <div className="adm-insight"><b>Analytics</b><span>{analytics === undefined ? 'loading' : analytics ? 'present' : 'missing or unsampled'}</span></div>
               <div className="adm-insight"><b>Leaderboard</b><span>{boards === null ? 'loading' : boards.length ? `${boards.length} row(s)` : 'no row found'}</span></div>
+              <div className="adm-insight"><b>Verify</b><span><VerifyBadge verify={verify ?? undefined} /> {verifySummary(verify)}</span><span>{verify ? firstDivergenceText(verify) : 'server callable not run'}</span></div>
               <div className="adm-insight"><b>Manifest</b><span>{manifest?.complete ? 'complete' : replay ? 'partial' : 'n/a'}</span><span>{manifest?.eventHash ? `hash ${manifest.eventHash}` : 'no hash'}</span></div>
             </div>
             {summary && (
@@ -2017,10 +2067,10 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
               : boards.length === 0 ? <div className="adm-empty">No leaderboard row found for this run.</div>
                 : (
                   <table className="adm-table">
-                    <thead><tr><th>board</th><th>kind</th><th>name</th><th>wave</th><th>kills</th><th>cash</th></tr></thead>
+                    <thead><tr><th>board</th><th>kind</th><th>verify</th><th>name</th><th>wave</th><th>kills</th><th>cash</th></tr></thead>
                     <tbody>{boards.map((row, i) => (
                       <tr key={`${row.board}-${i}`}>
-                        <td>{row.board}</td><td>{row.kind}</td><td>{row.name}</td><td>w{row.wave}</td><td>{row.kills.toLocaleString()}</td><td>{Math.round(row.cash).toLocaleString()}</td>
+                        <td>{row.board}</td><td>{row.kind}</td><td><VerifyBadge verify={row.verify} /></td><td>{row.name}</td><td>w{row.wave}</td><td>{row.kills.toLocaleString()}</td><td>{Math.round(row.cash).toLocaleString()}</td>
                       </tr>
                     ))}</tbody>
                   </table>
@@ -3389,6 +3439,7 @@ function SpotlightTab({ user }: { user: User }) {
               <div key={r.runId} className={`adm-spot-cand ${pinned?.runId === r.runId ? 'on' : ''}`}>
                 <span className="adm-spot-cn">{r.name}</span>
                 <span className="adm-spot-dim">W{r.wave} · {r.mapName} {r.diffName}{r.freeplay ? ' · FP' : ''}</span>
+                <VerifyBadge verify={r.verify} />
                 <RunIdButton runId={r.runId} onInspect={setInspectRunId} label="inspect" />
                 <a className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
                 <button className="adm-mini" disabled={busy || pinned?.runId === r.runId}

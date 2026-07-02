@@ -483,4 +483,25 @@ describe('feedback and config rules', () => {
     await assertFails(setDoc(doc(playerDb(), 'aggregates', 'globalTop'), { campaign: [], freeplay: [] }));
     await assertFails(setDoc(doc(adminDb(), 'aggregates', 'globalTop'), { campaign: [], freeplay: [] }));
   });
+
+  test('re-simulation reason docs are admin-read and server-only write', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'runVerificationReasons', runId), {
+        schemaVersion: 1,
+        runId,
+        verdict: 'divergent',
+        reason: 'summary.kills',
+        rowCount: 1,
+      });
+    });
+    await assertFails(getDoc(doc(anonDb(), 'runVerificationReasons', runId)));
+    await assertFails(getDoc(doc(playerDb(), 'runVerificationReasons', runId)));
+    await assertSucceeds(getDoc(doc(adminDb(), 'runVerificationReasons', runId)));
+    await assertFails(setDoc(doc(adminDb(), 'runVerificationReasons', `${runId}2`), {
+      schemaVersion: 1,
+      runId: `${runId}2`,
+      verdict: 'unverifiable',
+      reason: 'manual',
+    }));
+  });
 });

@@ -37,9 +37,12 @@ export type RunPanelKind = 'none' | 'shop' | 'upgrade';
 export interface RunEvent {
   type: string;
   t: number;
+  /** fixed 1/60 simulation tick when the event was recorded */
+  simTick: number;
   wave: number;
   cash: number;
   lives: number;
+  speed: number;
   [key: string]: unknown;
 }
 
@@ -475,6 +478,7 @@ const PUBLIC_CUSTOM_EVENTS = new Set<string>([
   METRIC_EVENTS.FREEPLAY_MUTATOR_WAVE_START,
   METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN,
   METRIC_EVENTS.FREEPLAY_RIVAL_DEFEAT,
+  METRIC_EVENTS.SPEED_CHANGE,
 ]);
 
 export class RunRecorder {
@@ -1456,9 +1460,11 @@ export class RunRecorder {
     this.events.push({
       type,
       t: roundS(state.time),
+      simTick: Math.max(0, Math.round(state.time * 60)),
       wave: state.wave,
       cash: Math.floor(state.credits),
       lives: state.lives,
+      speed: Math.max(1, Math.min(4, Math.round(state.speed))),
       ...payload,
     });
   }
@@ -1562,9 +1568,11 @@ export class RunRecorder {
       {
         type: 'run_end',
         t: roundS(state.time),
+        simTick: Math.max(0, Math.round(state.time * 60)),
         wave: state.wave,
         cash: Math.floor(state.credits),
         lives: state.lives,
+        speed: Math.max(1, Math.min(4, Math.round(state.speed))),
         outcome: this.inferOutcome(state),
         synthetic: true,
       },
@@ -1805,10 +1813,13 @@ function sanitizeCallsign(name: string): string {
   return (name.trim() || 'WARDEN').slice(0, 20);
 }
 
-function stableEventPair(event: Pick<RunEvent, 'type' | 't'>): string {
+function stableEventPair(event: Pick<RunEvent, 'type' | 't'> & { simTick?: unknown }): string {
   const type = typeof event.type === 'string' ? event.type : String(event.type ?? '');
   const t = typeof event.t === 'number' && Number.isFinite(event.t) ? event.t : 0;
-  return JSON.stringify([type, t]);
+  const simTick = typeof event.simTick === 'number' && Number.isFinite(event.simTick)
+    ? Math.max(0, Math.floor(event.simTick))
+    : null;
+  return JSON.stringify([type, t, simTick]);
 }
 
 function fnv1aHex(lines: Iterable<string>): string {
@@ -1824,7 +1835,7 @@ function fnv1aHex(lines: Iterable<string>): string {
 
 /** FNV-1a over the replay event identity stream. Payloads intentionally stay out
  *  of the hash so event payload schema tweaks do not invalidate honest replays. */
-export function hashRunEventPairs(events: Array<Pick<RunEvent, 'type' | 't'>>): string {
+export function hashRunEventPairs(events: Array<Pick<RunEvent, 'type' | 't'> & { simTick?: unknown }>): string {
   return fnv1aHex(events.map((event) => `${stableEventPair(event)}\n`));
 }
 

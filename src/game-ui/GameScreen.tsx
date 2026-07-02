@@ -510,7 +510,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     let last = performance.now();
     let uiTimer = 0;
     if (PERF_MAP !== null && !botRef.current) {
-      game.speed = 4;
+      game.setSpeed(4);
       game.autoNext = true;
       botRef.current = new Bot(game, 'expert');
     }
@@ -1177,7 +1177,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           <button key={s} className={`tb-btn ${game.speed === s ? 'on' : ''}`}
             title={`Set game speed to ${s}x`}
             aria-label={`Set game speed to ${s}x`}
-            onClick={() => { game.speed = s; progress.preferredSpeed = s; game.recorder.recordControl(METRIC_EVENTS.SPEED_CHANGE, s); sfx.click(); }}>{s}×</button>
+          onClick={() => { game.setSpeed(s); progress.preferredSpeed = s; game.recorder.recordControl(METRIC_EVENTS.SPEED_CHANGE, s); sfx.click(); }}>{s}×</button>
         ))}
         <button className={`tb-btn ${game.paused ? 'on' : ''}`}
           title={game.paused ? 'Resume game' : 'Pause game'}

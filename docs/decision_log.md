@@ -16,6 +16,32 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   sending an ad request.
 - Portal-specific CSP is injected into portal flavor `index.html`; Firebase
   Hosting keeps its default CSP restricted to first-party/runtime dependencies.
+## 2026-07-02 - Replay re-simulation is advisory before enforcement
+
+- `verifyRun` is an admin-only callable used from the Operations Console. It
+  re-simulates one public replay and returns `verified`, `divergent`, or
+  `unverifiable` with a first-divergence record when available.
+- `verified` means the replay manifest, summary, and deterministic re-sim output
+  matched within the mode-specific comparison rule. `divergent` means the replay
+  was readable but the simulated result disagreed. `unverifiable` means the
+  system could not make a trustworthy comparison, such as missing chunks,
+  unsupported schema, balance mismatch, malformed action timing, or a step guard.
+- Normal campaign, daily, and ordinary freeplay runs require exact summary and
+  death-ledger agreement, with only the existing sub-tick death-time tolerance
+  used by the compact ledger decoder. Very high-volume freeplay death ledgers
+  keep exact summary matching but allow count-level death-ledger acceptance after
+  the exact summary has matched; this avoids rejecting dense terminal waves for
+  harmless per-uid ordering drift that does not affect the accepted score.
+- Enforcement stays staged. First, admins can manually verify suspicious or
+  spotlight candidates and review stored badges. Next, the score write path can
+  soft-flag divergent rows while still accepting scores. Only after production
+  samples show low false-positive risk should leaderboards reject `divergent`
+  runs automatically; `unverifiable` should remain a separate operational bucket
+  until legacy and balance-version coverage is understood.
+- Verification runs under the same live-ops math the player saw: `verifyRun`
+  injects the current `config/balance` and `config/dailyOverride` docs into the
+  bundled engine, and a run recorded under a balance version we no longer have
+  is `unverifiable` — never falsely `divergent`.
 
 ## 2026-07-02 - UI chrome reserves space instead of shifting
 

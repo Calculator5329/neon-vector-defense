@@ -298,13 +298,13 @@ describe('freeplay correctness guards', () => {
     assert.match(bundle.run.manifest?.eventHash ?? '', /^[a-f0-9]{8}$/);
   });
 
-  test('replay manifest hashes event type/time pairs in stable chunk order', () => {
+  test('replay manifest hashes event type/time/tick identity in stable chunk order', () => {
     const docEvents: RunEvent[] = [
-      { type: 'run_start', t: 0, wave: 0, cash: 100, lives: 10 },
-      { type: 'wave_start', t: 1.2, wave: 1, cash: 100, lives: 10 },
+      { type: 'run_start', t: 0, simTick: 0, wave: 0, cash: 100, lives: 10, speed: 1 },
+      { type: 'wave_start', t: 1.2, simTick: 72, wave: 1, cash: 100, lives: 10, speed: 1 },
     ];
     const chunkEvents: RunEvent[] = [
-      { type: 'run_end', t: 9.9, wave: 1, cash: 120, lives: 10 },
+      { type: 'run_end', t: 9.9, simTick: 594, wave: 1, cash: 120, lives: 10, speed: 1 },
     ];
     const deathRecords: RunDeathRecords = { codec: 'd1', count: 0, waves: [] };
     const manifest = buildRunManifest(docEvents, [{
@@ -316,7 +316,7 @@ describe('freeplay correctness guards', () => {
 
     assert.deepEqual(manifest, {
       chunkEventCounts: [1],
-      eventHash: 'd8a6ffad',
+      eventHash: 'bc9e57d4',
       deathHash: hashRunDeathRecords(deathRecords),
       complete: true,
     });
