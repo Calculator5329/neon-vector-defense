@@ -6,7 +6,6 @@ import { ENEMY_LIST } from '../game/enemies';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
 import { dailyModifierNames, type DailyChallenge } from '../game/dailyChallenge';
-import { fetchDailyTop, type ScoreEntry } from '../game/leaderboard';
 import { fetchReplayOfTheDay, type ReplaySpotlight } from '../game/replaySpotlight';
 
 import { sfx } from '../game/sound';
@@ -59,21 +58,6 @@ function ReplayOfTheDayCard() {
   );
 }
 
-function utcDailyId(offsetDays = 0): string {
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offsetDays));
-  return `daily-${d.toISOString().slice(0, 10)}`;
-}
-
-function dailyCountdown(): string {
-  const now = new Date();
-  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
-  const ms = Math.max(0, next - now.getTime());
-  const h = Math.floor(ms / 3_600_000);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
-  return `${h}h ${String(m).padStart(2, '0')}m`;
-}
-
 function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
   const rank = meta.rank;
   const streak = meta.streak;
@@ -110,8 +94,6 @@ export function MainMenu(props: {
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
   const [deployMode, setDeployMode] = useState<'campaign' | 'daily'>('campaign');
-  const [dailyYesterday, setDailyYesterday] = useState<ScoreEntry | null>(null);
-  const [rollover, setRollover] = useState(dailyCountdown());
   const [, bumpClaim] = useState(0); // re-read meta.claimableCount() for the nav badge after a claim
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -128,16 +110,6 @@ export function MainMenu(props: {
   const claimable = DEMO_MODE ? 0 : meta.claimableCount();
   const foesSeen = ENEMY_LIST.filter((d) => progress.enemiesSeen.includes(d.id)).length;
   const foesNew = Math.max(0, foesSeen - progress.bestiaryAck);
-  useEffect(() => {
-    let live = true;
-    setDailyYesterday(null);
-    fetchDailyTop(utcDailyId(-1), 1)
-      .then((rows) => { if (live) setDailyYesterday(rows[0] ?? null); })
-      .catch(() => { if (live) setDailyYesterday(null); });
-    const timer = window.setInterval(() => setRollover(dailyCountdown()), 30_000);
-    return () => { live = false; window.clearInterval(timer); };
-  }, [props.dailySeed.id]);
-
   return (
     <div className="menu-root">
       <div className="menu-stars" />
@@ -313,10 +285,6 @@ export function MainMenu(props: {
                 >
                   <div className="diff-name">DAILY CHALLENGE</div>
                   <div className="diff-desc daily-card-mods">{dailyMods.join(' / ')}</div>
-                  <div className="daily-card-foot">
-                    <span>ROLLOVER {rollover}</span>
-                    {dailyYesterday && <span>YESTERDAY: {dailyYesterday.name} W{dailyYesterday.wave}</span>}
-                  </div>
                 </button>
               </div>
             </div>

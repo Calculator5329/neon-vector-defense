@@ -1338,7 +1338,9 @@ export class Game {
 
   castAbility(id: AbilityId, pos?: Vec): boolean {
     const a = this.abilities.find((x) => x.def.id === id)!;
+    if (this.terminalControlsLocked()) { sfx.error(); return false; }
     if (!this.abilityReady(id)) { sfx.error(); return false; }
+    if (a.def.targeted && !pos) { sfx.error(); return false; }
     if (a.cd > 0 && this.dailyChallenge?.boon.freeAbilityRecharge && !this.dailyAbilityRechargeUsed) {
       this.dailyAbilityRechargeUsed = true;
       a.cd = 0;
@@ -1350,18 +1352,19 @@ export class Game {
     }
     switch (id) {
       case 'strike': {
-        if (!pos) return false;
+        const target = pos;
+        if (!target) return false;
         const radius = 95;
         for (const e of [...this.enemies]) {
-          if (Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y) <= radius + e.def.radius) {
+          if (Math.hypot(e.pos.x - target.x, e.pos.y - target.y) <= radius + e.def.radius) {
             this.trueDamage(e, 500);
           }
         }
         // visual: vertical lance + double shockwave
-        this.beams.push({ from: { x: pos.x, y: -20 }, to: { ...pos }, color: '#ffffff', width: 9, life: 0.35, maxLife: 0.35 });
-        this.beams.push({ from: { x: pos.x, y: -20 }, to: { ...pos }, color: '#ffd32a', width: 18, life: 0.25, maxLife: 0.25 });
-        this.explosionFx(pos, '#ffd32a', radius);
-        this.explosionFx(pos, '#ffffff', radius * 0.6);
+        this.beams.push({ from: { x: target.x, y: -20 }, to: { ...target }, color: '#ffffff', width: 9, life: 0.35, maxLife: 0.35 });
+        this.beams.push({ from: { x: target.x, y: -20 }, to: { ...target }, color: '#ffd32a', width: 18, life: 0.25, maxLife: 0.25 });
+        this.explosionFx(target, '#ffd32a', radius);
+        this.explosionFx(target, '#ffffff', radius * 0.6);
         this.shake = 1;
         sfx.strike();
         this.announce('☄ Orbital lance discharged');
@@ -2124,6 +2127,7 @@ export class Game {
       targets.push(e);
     });
     if (targets.length === 0) return;
+    const chainExcludes: Enemy[] = [...targets];
     for (const e of targets) {
       this.addBeam(t.pos, e.pos, t.def.glow, 2, 0.12);
       if (st.drag > 0 && !e.def.boss) { // Magnetar Cage
@@ -2135,8 +2139,9 @@ export class Game {
       this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
       let from = e;
       for (let j = 0; j < st.chain; j++) {
-        const next = this.nearestEnemy(from.pos, 90, targets.concat([from]), st.detection);
+        const next = this.nearestEnemy(from.pos, 90, chainExcludes, st.detection);
         if (!next) break;
+        chainExcludes.push(next);
         this.addBeam(from.pos, next.pos, t.def.glow, 1.5, 0.1);
         this.damageEnemy(next, st.damage, st.damageType, st.shred, t);
         from = next;

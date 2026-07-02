@@ -274,10 +274,11 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   // unlock modals must never stack on the briefing overlay
   const relicOfferOpen = game.phase === 'build' && game.freeplayState.nextRelicOffer.length > 0;
   overlayRef.current = !briefed || contractOpen || relicOfferOpen;
+  const terminalPhase = game.phase === 'gameover' || game.phase === 'victory';
   // cloakTip and the first-run coach are non-blocking, so they are
   // intentionally NOT part of blockingOverlay
   const blockingOverlay = !briefed || unlockModal !== null || contractOpen || relicOfferOpen ||
-    game.phase === 'gameover' || game.phase === 'victory';
+    terminalPhase;
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
   const veteranDeployActive = veteranDeployUnlocked && veteranDeploy;
@@ -765,6 +766,17 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     sfx.click();
   };
 
+  const castStrikeAt = (pos: Vec) => {
+    const cast = game.castAbility('strike', pos);
+    setAiming(false);
+    setTouchPreview(null);
+    if (!cast) {
+      setShakeAbility(null);
+      requestAnimationFrame(() => setShakeAbility('strike'));
+    }
+    return cast;
+  };
+
   // Touch placement is deliberate in portal/mobile embeds: first tap previews the
   // ghost/range, second tap in the same neighborhood confirms the build.
   const onCanvasTouch = (ev: React.TouchEvent) => {
@@ -779,9 +791,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     const pos = toCanvas(t);
     hoverRef.current = pos;
     if (aiming) {
-      game.castAbility('strike', pos);
-      setAiming(false);
-      setTouchPreview(null);
+      castStrikeAt(pos);
       return;
     }
     if (game.collectPickup(pos)) return;
@@ -819,8 +829,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     if (Date.now() < suppressMouseUntilRef.current) return;
     const pos = toCanvas(ev);
     if (aiming) {
-      game.castAbility('strike', pos);
-      setAiming(false);
+      castStrikeAt(pos);
       return;
     }
     if (game.collectPickup(pos)) return;
@@ -848,9 +857,12 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     if (!game.abilityReady(id)) { sfx.error(); setShakeAbility(null); requestAnimationFrame(() => setShakeAbility(id)); return; }
     if (a.targeted) {
       if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
-      setAiming((v) => !v);
+      const next = !aiming;
+      setAiming(next);
       setPlacementMode(null);
       setSelectedUid(null);
+      game.announce(next ? `${a.name}: choose an impact zone` : `${a.name} targeting canceled`);
+      sfx.click();
     } else {
       game.castAbility(id);
     }
@@ -1135,7 +1147,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           <span className="tb-glyph" aria-hidden="true">⬢</span> <span className="tb-stat-num no-shift-counter">{game.lives}</span><span className="tb-tag">CORES</span>
         </div>
         <div className="tb-stat credits" title="Credits — earned per kill, spent on towers & upgrades." aria-label={`Credits ${Math.floor(game.credits)}`}>
-          <span className="tb-glyph" aria-hidden="true">⌬</span> <span className="tb-stat-num no-shift-counter">{Math.floor(game.credits)}</span><span className="tb-tag">CR</span>
+          <span className="tb-glyph" aria-hidden="true">⌬</span> <span className="tb-stat-num no-shift-counter">{Math.floor(game.credits)}</span><span className="tb-tag">CREDITS</span>
         </div>
         <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : diff.waves}` : ''}`}>
           WAVE <span className="tb-stat-num no-shift-counter">{game.wave}</span>{game.phase === 'build' ? <> / <span className="tb-stat-num no-shift-counter">{game.freeplay ? '∞' : diff.waves}</span></> : ''}
@@ -1192,7 +1204,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         </button>
       </div>
 
-      <div className="game-body">
+      <div className={`game-body ${terminalPhase ? 'terminal' : ''}`}>
         <div className="canvas-wrap">
           <canvas
             data-testid="game-canvas"
@@ -1200,7 +1212,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
             onMouseMove={onCanvasMove} onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick} onContextMenu={onContext}
             onTouchStart={onCanvasTouch} onTouchMove={onCanvasTouch} onTouchEnd={onCanvasTouchEnd}
-            style={{ cursor: placing ? 'crosshair' : 'default', touchAction: 'none' }}
+            style={{ cursor: aiming || placing ? 'crosshair' : 'default', touchAction: 'none' }}
           />
           {touchPreview && placing && (
             <div className="touch-place-hint">Tap again to place {placing.name}</div>
@@ -1209,8 +1221,8 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           <div className="ability-bar">
             {game.abilities.map((a, i) => {
               const locked = game.wave < a.def.unlockWave;
-              const ready = !locked && a.cd <= 0;
-              const pct = a.cd / a.def.cooldown;
+              const ready = !locked && game.abilityReady(a.def.id);
+              const pct = Math.min(1, a.cd / a.def.cooldown);
               return (
                 <button
                   key={a.def.id}
@@ -1329,7 +1341,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
             <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
-                { label: '∞ FREEPLAY', fn: () => chooseContract('standard') },
+                { label: 'CONTINUE FREEPLAY', fn: () => chooseContract('standard') },
                 { label: 'MAIN MENU', fn: exitToMenu },
               ]}
             />
@@ -1695,7 +1707,11 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
           <div className="submit-row">
             <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
               value={name} onChange={(e) => setName(e.target.value)} />
-            <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{(game.freeplay || game.isDailyChallenge) ? ` · W${game.wave}` : ''}</span>
+            <span className="submit-stats" aria-label={`Credits earned ${Math.round(game.runStats.cashEarned)}, kills ${game.totalKills}${(game.freeplay || game.isDailyChallenge) ? `, wave ${game.wave}` : ''}`}>
+              <span><b>Credits</b> {Math.round(game.runStats.cashEarned).toLocaleString()}</span>
+              <span><b>Kills</b> {game.totalKills.toLocaleString()}</span>
+              {(game.freeplay || game.isDailyChallenge) && <span><b>Wave</b> {game.wave}</span>}
+            </span>
             <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
               {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
             </button>
@@ -1709,8 +1725,8 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
             <div key={i} className={`lb-row ${r.name === name.trim() ? 'me' : ''}`}>
               <span className="lb-rank">{i + 1}</span>
               <span className="lb-name">{r.name}</span>
-              <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
-              <span className="lb-kills">☠{r.kills}</span>
+              <span className="lb-cash">CR {r.cash.toLocaleString()}</span>
+              <span className="lb-kills">K {r.kills.toLocaleString()}</span>
               {(r.freeplay || dailyId) && <span className="lb-wave">W{r.wave}</span>}
             </div>
           ))}
