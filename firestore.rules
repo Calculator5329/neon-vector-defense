@@ -20,6 +20,29 @@ service cloud.firestore {
       return daily.matches('^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
 
+    function isValidDailyArsenalId(id) {
+      return id in ['fixedPool', 'banDamage', 'tierCap4', 'noSupport', 'budgetBuild'];
+    }
+
+    function isValidDailyTwistId(id) {
+      return id in ['fogProtocol', 'rushHour', 'glassCannon', 'thrifty', 'veteranHulls'];
+    }
+
+    function isValidDailyBoonId(id) {
+      return id in ['salvageCache', 'abilityRecharge', 'doublePickups'];
+    }
+
+    function isValidDailyOverrideDoc(data) {
+      return data is map
+        && data.keys().hasAll(['date'])
+        && data.keys().hasOnly(['date', 'arsenalId', 'twistId', 'boonId', 'note'])
+        && data.date is string && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (!('arsenalId' in data) || (data.arsenalId is string && isValidDailyArsenalId(data.arsenalId)))
+        && (!('twistId' in data) || (data.twistId is string && isValidDailyTwistId(data.twistId)))
+        && (!('boonId' in data) || (data.boonId is string && isValidDailyBoonId(data.boonId)))
+        && (!('note' in data) || (data.note is string && data.note.size() <= 240));
+    }
+
     function isValidMapId(map) {
       return map in ['orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat', 'umbral', 'cinder'];
     }
@@ -429,6 +452,15 @@ service cloud.firestore {
       allow list: if false;
       allow delete: if isAdmin();
       allow create, update: if isAdmin() && isValidBalanceDoc(request.resource.data);
+    }
+
+    // optional Daily Challenge live-ops override: public read, admin write.
+    // Pins a modifier combo for exactly one UTC date; scoring identity remains daily-YYYY-MM-DD.
+    match /config/dailyOverride {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidDailyOverrideDoc(request.resource.data);
     }
 
     // server-maintained global-top aggregate: one public doc replaces the

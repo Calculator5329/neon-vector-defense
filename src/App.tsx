@@ -5,7 +5,7 @@ import { progress } from './game/storage';
 import { needsAgeGate } from './game/consent';
 import { buildAIHelpContext } from './game/aiContext';
 import { appMetrics } from './game/metrics';
-import { dailyChallenge } from './game/dailyChallenge';
+import { dailyChallenge, dailyChallengeSignature, loadRemoteDailyOverride } from './game/dailyChallenge';
 
 import { sfx } from './game/sound';
 import { watchBuildFreshness } from './buildFreshness';
@@ -99,15 +99,17 @@ function Main() {
     if (DEMO_MODE || PERF_MAP !== null) return;
     const refreshDailySeed = () => {
       const next = dailyChallenge();
-      setDailySeed((prev) => (prev.id === next.id ? prev : next));
+      setDailySeed((prev) => (dailyChallengeSignature(prev) === dailyChallengeSignature(next) ? prev : next));
     };
+    void loadRemoteDailyOverride().then(refreshDailySeed);
     const onVisibility = () => { if (!document.hidden) refreshDailySeed(); };
-    const timer = window.setInterval(refreshDailySeed, 60_000);
-    window.addEventListener('focus', refreshDailySeed);
+    const refreshFromNetwork = () => { void loadRemoteDailyOverride().then(refreshDailySeed); };
+    const timer = window.setInterval(refreshFromNetwork, 60_000);
+    window.addEventListener('focus', refreshFromNetwork);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener('focus', refreshDailySeed);
+      window.removeEventListener('focus', refreshFromNetwork);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);

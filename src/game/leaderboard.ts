@@ -68,6 +68,15 @@ export interface RankedScoreEntry extends ScoreEntry {
   diffName: string;
 }
 
+export interface RunBoardScoreRow extends ScoreEntry {
+  board: string;
+  kind: 'campaign' | 'freeplay' | 'daily';
+  map?: string;
+  diff?: string;
+  mapName?: string;
+  diffName?: string;
+}
+
 export interface LeaderboardFetchResult<T> {
   rows: T[];
   error: boolean;
@@ -697,6 +706,68 @@ export async function fetchRunAnalytics(limit = 1000): Promise<RunAnalyticsRow[]
     const snap = await withTimeout(fs.getDocs(q));
     return snap.docs.map((d) => normalizeRunAnalytics(d.id, d.data() as Partial<PrivateRunAnalyticsDoc>));
   } catch {
+    return [];
+  }
+}
+
+export async function fetchRunAnalyticsById(runId: string): Promise<RunAnalyticsRow | null> {
+  if (!isValidRunId(runId)) return null;
+  try {
+    const { fs, db } = await firestore();
+    const snap = await withTimeout(fs.getDoc(fs.doc(db, 'runAnalytics', runId)));
+    return snap.exists() ? normalizeRunAnalytics(snap.id, snap.data() as Partial<PrivateRunAnalyticsDoc>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function scoreRowFromData(data: Partial<ScoreEntry>): ScoreEntry {
+  return {
+    name: data.name ?? '???',
+    cash: Number(data.cash ?? 0),
+    kills: Number(data.kills ?? 0),
+    wave: Number(data.wave ?? 0),
+    freeplay: data.freeplay ?? false,
+    ts: Number(data.ts ?? 0),
+    uid: data.uid ?? '',
+    runId: data.runId ?? '',
+    meta: data.meta ?? '',
+    daily: data.daily ?? '',
+    checkpoint: data.checkpoint ?? false,
+  };
+}
+
+export async function fetchBoardRowsForRun(runId: string, dailyId = ''): Promise<RunBoardScoreRow[]> {
+  if (!isValidRunId(runId)) return [];
+  try {
+    const { fs, db } = await firestore();
+    const boards = ALL_MAPS.flatMap((map) => DIFFICULTIES.flatMap((diff) => [
+      boardId(map.id, diff.id, false),
+      boardId(map.id, diff.id, true),
+    ]));
+    const boardReads = boards.map(async (board): Promise<RunBoardScoreRow[]> => {
+      const q = fs.query(fs.collection(db, 'boards', board, 'scores'), fs.where('runId', '==', runId), fs.limit(5));
+      const snap = await fs.getDocs(q);
+      const meta = boardMeta(board);
+      return snap.docs.map((d) => ({
+        ...scoreRowFromData(d.data() as Partial<ScoreEntry>),
+        board,
+        kind: board.endsWith('_fp') ? 'freeplay' : 'campaign',
+        ...(meta ?? {}),
+      }));
+    });
+    const dailyReads = dailyBoardId(dailyId)
+      ? [fs.getDocs(fs.query(fs.collection(db, 'dailyBoards', dailyId, 'scores'), fs.where('runId', '==', runId), fs.limit(5)))
+        .then((snap) => snap.docs.map((d): RunBoardScoreRow => ({
+          ...scoreRowFromData(d.data() as Partial<ScoreEntry>),
+          board: dailyId,
+          kind: 'daily',
+        })))]
+      : [];
+    const groups = await withTimeout(Promise.all([...boardReads, ...dailyReads]));
+    return groups.flat();
+  } catch (error) {
+    console.warn('Run board row fetch failed', error);
     return [];
   }
 }

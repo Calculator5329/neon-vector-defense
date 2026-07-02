@@ -131,6 +131,26 @@ for current protocols, enemies, and towers. The admin dashboard Balance editor
 loads this document, prunes identity values, previews tower stats at tier 0/3/6,
 publishes after confirmation, and can reset by deleting the doc.
 
+### `config/dailyOverride`
+
+Optional Daily Challenge live-ops override. Public clients may `get` this single
+doc; listing is denied. Admins may create/update/delete it when the sparse shape
+matches the modifier catalogs in `src/game/dailyChallenge.ts`.
+
+```typescript
+{
+  date: 'YYYY-MM-DD';
+  arsenalId?: 'fixedPool' | 'banDamage' | 'tierCap4' | 'noSupport' | 'budgetBuild';
+  twistId?: 'fogProtocol' | 'rushHour' | 'glassCannon' | 'thrifty' | 'veteranHulls';
+  boonId?: 'salvageCache' | 'abilityRecharge' | 'doublePickups';
+  note?: string; // <= 240 chars, operator-facing
+}
+```
+
+The doc pins only the modifier combo for the matching UTC date. Map/protocol,
+daily id, and leaderboard identity remain the deterministic `daily-YYYY-MM-DD`
+challenge, so `submitDailyScore` needs no contract change.
+
 ## Cloud Functions
 
 Region: `us-central1`
@@ -154,6 +174,8 @@ Daily Challenge submit contract:
 
 1. Client starts `src/game/dailyChallenge.ts` from the current UTC date and records
    `summary.daily = daily-YYYY-MM-DD` with `summary.freeplay = false`.
+   If `config/dailyOverride.date` matches that UTC date, only the modifier ids
+   are replaced before the run starts.
 2. `submitDailyScore` accepts only today or yesterday's daily id to allow near-
    rollover submissions.
 3. Accepted daily rows force `freeplay: false` and rank by wave, then kills, then

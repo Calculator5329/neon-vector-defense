@@ -3,6 +3,18 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Daily overrides pin modifiers, not score identity
+
+- `config/dailyOverride` is a single public-read, admin-write document for live
+  events. It can pin `arsenalId`, `twistId`, and `boonId` for one UTC
+  `YYYY-MM-DD` date.
+- The override intentionally does not alter map, protocol, daily id, or scoring
+  identity. Every client still submits `daily-YYYY-MM-DD`, so the existing
+  `submitDailyScore` validation remains correct.
+- Clients read the doc lazily and cache it per day. Missing, stale-date, or
+  malformed docs fall back to the deterministic computed challenge, preserving
+  same-day consistency for all players without blocking boot.
+
 ## 2026-07-02 - Arsenal reaches 21 towers and remote balance gets an admin editor
 
 - Harmonic Siphon is the second resonance-axis tower. It consumes resonance

@@ -19,6 +19,8 @@ dist-ssr
 test-results/
 playwright-report/
 blob-report/
+.npm-cache/
+.tmp-config/
 
 # Editor directories and files
 .vscode/*

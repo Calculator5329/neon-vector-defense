@@ -1,4 +1,5 @@
 import { ALL_MAPS, DIFFICULTIES } from './maps';
+import { firestore } from './firestoreLazy';
 import { TOWERS } from './towers';
 import type { DamageType, FireStyle, TowerDef, WaveGroup } from './types';
 
@@ -56,11 +57,23 @@ export interface DailyChallenge {
   rules: string[];
 }
 
+export interface DailyOverrideDoc {
+  date: string;
+  arsenalId?: DailyArsenalId;
+  twistId?: DailyTwistId;
+  boonId?: DailyBoonId;
+  note?: string;
+}
+
 const DAMAGE_TYPES: DamageType[] = ['kinetic', 'energy', 'explosive', 'cryo'];
 const FIXED_POOL_CORE = ['pulse', 'emp'];
 const FIXED_POOL_ROTATION = TOWERS
   .map((tower) => tower.id)
   .filter((id) => !FIXED_POOL_CORE.includes(id));
+
+export const DAILY_ARSENAL_IDS: DailyArsenalId[] = ['fixedPool', 'banDamage', 'tierCap4', 'noSupport', 'budgetBuild'];
+export const DAILY_TWIST_IDS: DailyTwistId[] = ['fogProtocol', 'rushHour', 'glassCannon', 'thrifty', 'veteranHulls'];
+export const DAILY_BOON_IDS: DailyBoonId[] = ['salvageCache', 'abilityRecharge', 'doublePickups'];
 
 const TWISTS: Omit<DailyTwist, 'desc'>[] = [
   { id: 'fogProtocol', name: 'Fog Protocol', short: 'FOG', sensorBlackout: true },
@@ -95,19 +108,32 @@ const BOONS: DailyBoon[] = [
   },
 ];
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+let overrideLoadedForDate = '';
+let cachedOverride: DailyOverrideDoc | null = null;
+let overrideLoadDate = '';
+let overrideLoadPromise: Promise<void> | null = null;
+
 export function dailyChallenge(now = new Date()): DailyChallenge {
-  const dateKey = now.toISOString().slice(0, 10);
-  const seed = hash(dateKey);
+  const dateKey = toDateKey(now);
+  return dailyChallengeForDate(dateKey, cachedOverride?.date === dateKey ? cachedOverride : null);
+}
+
+export function dailyChallengeForDate(dateKey: string, override?: DailyOverrideDoc | null): DailyChallenge {
+  const cleanDate = DATE_RE.test(dateKey) ? dateKey : toDateKey(new Date());
+  const seed = hash(cleanDate);
   const map = ALL_MAPS[seed % ALL_MAPS.length];
   const diffPool = DIFFICULTIES.filter((d) => d.id !== 'easy');
   const diff = diffPool[Math.floor(seed / 7) % diffPool.length] ?? DIFFICULTIES[1];
-  const arsenal = buildArsenal(seed);
-  const twist = buildTwist(seed);
-  const boon = BOONS[Math.floor(seed / 23) % BOONS.length];
-  const title = `Daily Challenge ${dateKey.slice(5)}: ${map.name}`;
+  const cleanOverride = override?.date === cleanDate ? override : null;
+  const arsenal = buildArsenalForId(seed, cleanOverride?.arsenalId ?? DAILY_ARSENAL_IDS[seed % DAILY_ARSENAL_IDS.length]);
+  const twist = buildTwistForId(cleanOverride?.twistId ?? DAILY_TWIST_IDS[Math.floor(seed / 17) % DAILY_TWIST_IDS.length]);
+  const boon = BOONS.find((item) => item.id === cleanOverride?.boonId)
+    ?? BOONS[Math.floor(seed / 23) % BOONS.length];
+  const title = `Daily Challenge ${cleanDate.slice(5)}: ${map.name}`;
   return {
-    id: `daily-${dateKey}`,
-    dateKey,
+    id: `daily-${cleanDate}`,
+    dateKey: cleanDate,
     mapId: map.id,
     diffId: diff.id,
     title,
@@ -126,11 +152,88 @@ export function dailyChallenge(now = new Date()): DailyChallenge {
 export function dailyChallengeForId(id: string): DailyChallenge | null {
   const match = /^daily-(\d{4}-\d{2}-\d{2})$/.exec(id);
   if (!match) return null;
-  return dailyChallenge(new Date(`${match[1]}T00:00:00.000Z`));
+  return dailyChallengeForDate(match[1], cachedOverride?.date === match[1] ? cachedOverride : null);
 }
 
 export function dailyModifierNames(challenge: DailyChallenge): string[] {
   return [challenge.arsenal.name, challenge.twist.name, challenge.boon.name];
+}
+
+export function dailyChallengeSignature(challenge: DailyChallenge): string {
+  return [
+    challenge.id,
+    challenge.mapId,
+    challenge.diffId,
+    challenge.arsenal.id,
+    challenge.arsenal.name,
+    challenge.twist.id,
+    challenge.boon.id,
+  ].join('|');
+}
+
+export function dailyArsenalCatalog(dateKey: string): DailyArsenalConstraint[] {
+  const seed = hash(DATE_RE.test(dateKey) ? dateKey : toDateKey(new Date()));
+  return DAILY_ARSENAL_IDS.map((id) => buildArsenalForId(seed, id));
+}
+
+export function dailyTwistCatalog(): DailyTwist[] {
+  return DAILY_TWIST_IDS.map((id) => buildTwistForId(id));
+}
+
+export function dailyBoonCatalog(): DailyBoon[] {
+  return DAILY_BOON_IDS.map((id) => BOONS.find((boon) => boon.id === id)!).filter(Boolean);
+}
+
+export function sanitizeDailyOverrideDoc(raw: unknown): DailyOverrideDoc | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const data = raw as Record<string, unknown>;
+  const date = typeof data.date === 'string' && DATE_RE.test(data.date) ? data.date : '';
+  if (!date) return null;
+  const doc: DailyOverrideDoc = { date };
+  if (typeof data.arsenalId === 'string' && DAILY_ARSENAL_IDS.includes(data.arsenalId as DailyArsenalId)) {
+    doc.arsenalId = data.arsenalId as DailyArsenalId;
+  }
+  if (typeof data.twistId === 'string' && DAILY_TWIST_IDS.includes(data.twistId as DailyTwistId)) {
+    doc.twistId = data.twistId as DailyTwistId;
+  }
+  if (typeof data.boonId === 'string' && DAILY_BOON_IDS.includes(data.boonId as DailyBoonId)) {
+    doc.boonId = data.boonId as DailyBoonId;
+  }
+  if (typeof data.note === 'string') doc.note = data.note.slice(0, 240);
+  return doc;
+}
+
+export function setDailyOverrideDoc(raw: unknown): void {
+  cachedOverride = sanitizeDailyOverrideDoc(raw);
+  overrideLoadedForDate = cachedOverride?.date ?? overrideLoadedForDate;
+}
+
+export function getDailyOverrideDoc(): DailyOverrideDoc | null {
+  return cachedOverride ? { ...cachedOverride } : null;
+}
+
+export async function loadRemoteDailyOverride(now = new Date()): Promise<void> {
+  const dateKey = toDateKey(now);
+  if (overrideLoadedForDate === dateKey) return;
+  if (overrideLoadDate === dateKey && overrideLoadPromise) return overrideLoadPromise;
+  overrideLoadDate = dateKey;
+  overrideLoadPromise = (async () => {
+    try {
+      const { fs, db } = await firestore();
+      const snap = await Promise.race([
+        fs.getDoc(fs.doc(db, 'config', 'dailyOverride')),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+      ]);
+      const doc = snap.exists() ? sanitizeDailyOverrideDoc(snap.data()) : null;
+      cachedOverride = doc?.date === dateKey ? doc : null;
+    } catch {
+      cachedOverride = null;
+    } finally {
+      overrideLoadedForDate = dateKey;
+      overrideLoadPromise = null;
+    }
+  })();
+  return overrideLoadPromise;
 }
 
 export function dailyAllowsTower(challenge: DailyChallenge | null, def: TowerDef): boolean {
@@ -156,9 +259,8 @@ export function applyDailyWaveTwist(challenge: DailyChallenge | null, wave: Wave
   return groups;
 }
 
-function buildArsenal(seed: number): DailyArsenalConstraint {
-  const pick = seed % 5;
-  if (pick === 0) {
+function buildArsenalForId(seed: number, id: DailyArsenalId): DailyArsenalConstraint {
+  if (id === 'fixedPool') {
     const towerIds = [...FIXED_POOL_CORE, ...pickMany(FIXED_POOL_ROTATION, seed + 47, 4)];
     return {
       id: 'fixedPool',
@@ -168,7 +270,7 @@ function buildArsenal(seed: number): DailyArsenalConstraint {
       towerIds,
     };
   }
-  if (pick === 1) {
+  if (id === 'banDamage') {
     const bannedDamageType = DAMAGE_TYPES[Math.floor(seed / 11) % DAMAGE_TYPES.length];
     return {
       id: 'banDamage',
@@ -178,7 +280,7 @@ function buildArsenal(seed: number): DailyArsenalConstraint {
       bannedDamageType,
     };
   }
-  if (pick === 2) {
+  if (id === 'tierCap4') {
     return {
       id: 'tierCap4',
       name: 'Tier-4 Cap',
@@ -187,7 +289,7 @@ function buildArsenal(seed: number): DailyArsenalConstraint {
       upgradeTierCap: 4,
     };
   }
-  if (pick === 3) {
+  if (id === 'noSupport') {
     return {
       id: 'noSupport',
       name: 'No Support',
@@ -205,8 +307,8 @@ function buildArsenal(seed: number): DailyArsenalConstraint {
   };
 }
 
-function buildTwist(seed: number): DailyTwist {
-  const base = TWISTS[Math.floor(seed / 17) % TWISTS.length];
+function buildTwistForId(id: DailyTwistId): DailyTwist {
+  const base = TWISTS.find((twist) => twist.id === id) ?? TWISTS[0];
   if (base.id === 'fogProtocol') {
     return { ...base, desc: 'Permanent sensor blackout: cloaked hulls need rank-3 detectors.' };
   }
@@ -220,6 +322,10 @@ function buildTwist(seed: number): DailyTwist {
     return { ...base, desc: 'Kill rewards are reduced by 30%, while wave bonuses pay +50%.' };
   }
   return { ...base, desc: 'Enemy hulls carry stronger plating and resist more incoming damage.' };
+}
+
+function toDateKey(now: Date): string {
+  return now.toISOString().slice(0, 10);
 }
 
 function towerUsesDamage(def: TowerDef, type: DamageType): boolean {

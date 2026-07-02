@@ -11,10 +11,26 @@ import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWERS_BY_UNLOCK, TOWER_MAP } from './game/towers';
 import { ENEMY_LIST } from './game/enemies';
 import { clearAdmin } from './game/admin';
-import { fetchRunAnalytics, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry } from './game/leaderboard';
+import { fetchBoardRowsForRun, fetchRunAnalytics, fetchRunAnalyticsById, fetchRunReplay, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry, type RunBoardScoreRow, type RunReplayDoc } from './game/leaderboard';
 import { fetchPinnedSpotlightAdmin, pinReplayOfTheDay, unpinReplayOfTheDay, spotlightFromRunId, type PinnedSpotlight } from './game/adminSpotlight';
 import { fetchBalanceConfigAdmin, publishBalanceConfigAdmin, resetBalanceConfigAdmin } from './game/adminBalanceConfig';
+import { clearDailyOverrideAdmin, fetchDailyOverrideAdmin, publishDailyOverrideAdmin } from './game/adminDailyOverride';
 import type { BalanceConfigDoc } from './game/balanceConfig';
+import {
+  DAILY_ARSENAL_IDS,
+  DAILY_BOON_IDS,
+  DAILY_TWIST_IDS,
+  dailyArsenalCatalog,
+  dailyBoonCatalog,
+  dailyChallengeForDate,
+  dailyModifierNames,
+  dailyTwistCatalog,
+  type DailyArsenalId,
+  type DailyBoonId,
+  type DailyChallenge,
+  type DailyOverrideDoc,
+  type DailyTwistId,
+} from './game/dailyChallenge';
 import {
   DIFF_BALANCE_FIELDS,
   ENEMY_BALANCE_FIELDS,
@@ -53,6 +69,12 @@ import {
   type MetricDefinition,
   type MetricDomain,
 } from './adminAnalytics';
+import {
+  buildAdminInsights,
+  type AdminInsightsReport,
+  type InsightMetricSet,
+  type SurvivalCurve,
+} from './adminInsights';
 import {
   replyToFeedback,
   setFeedbackStatus,
@@ -1907,6 +1929,268 @@ function AnalyticsState({ rows, err }: { rows: RunAnalyticsRow[] | null; err: bo
   return null;
 }
 
+function RunIdButton({ runId, onInspect, label }: { runId?: string; onInspect: (runId: string) => void; label?: string }) {
+  if (!runId) return <span className="adm-dim">no run</span>;
+  return <button className="adm-run-link" onClick={() => onInspect(runId)} title={runId}>{label ?? runId.slice(0, 12)}</button>;
+}
+
+function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyticsHint?: RunAnalyticsRow | null; onClose: () => void }) {
+  const [replay, setReplay] = useState<RunReplayDoc | null | undefined>(undefined);
+  const [analytics, setAnalytics] = useState<RunAnalyticsRow | null | undefined>(analyticsHint ?? undefined);
+  const [boards, setBoards] = useState<RunBoardScoreRow[] | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let live = true;
+    setReplay(undefined);
+    setAnalytics(analyticsHint ?? undefined);
+    setBoards(null);
+    setErr('');
+    (async () => {
+      try {
+        const [replayDoc, analyticsDoc] = await Promise.all([
+          fetchRunReplay(runId),
+          analyticsHint ? Promise.resolve(analyticsHint) : fetchRunAnalyticsById(runId),
+        ]);
+        if (!live) return;
+        setReplay(replayDoc);
+        setAnalytics(analyticsDoc);
+        const dailyId = analyticsDoc?.summary.daily ?? replayDoc?.summary.daily ?? '';
+        const boardRows = await fetchBoardRowsForRun(runId, dailyId);
+        if (live) setBoards(boardRows);
+      } catch (error) {
+        if (live) setErr(error instanceof Error ? error.message : 'Inspector load failed.');
+      }
+    })();
+    return () => { live = false; };
+  }, [runId, analyticsHint]);
+
+  const manifest = replay?.manifest;
+  const summary = analytics?.summary ?? replay?.summary ?? null;
+  return (
+    <div className="adm-drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="adm-drawer adm-run-inspector" role="dialog" aria-label="Run inspector" onClick={(e) => e.stopPropagation()}>
+        <div className="adm-card-head">
+          <h3>Run inspector</h3>
+          <button className="adm-mini" onClick={onClose}>close</button>
+        </div>
+        <div className="adm-run-id">{runId}</div>
+        {err && <div className="adm-empty adm-denied">{err}</div>}
+        <div className="adm-inspector-grid">
+          <div className="adm-card adm-inspector-replay">
+            <div className="adm-card-head"><h3>Replay</h3><span className="adm-hint">embedded public Battle Plan</span></div>
+            {replay === undefined ? <div className="adm-empty">Loading replay...</div>
+              : replay ? <iframe className="adm-run-frame" title={`Replay ${runId}`} src={`/?run=${encodeURIComponent(runId)}`} />
+                : <div className="adm-empty">Replay unavailable. The public run doc may be missing, invalid, or expired.</div>}
+          </div>
+          <div className="adm-card">
+            <div className="adm-card-head"><h3>Integrity</h3><span className="adm-hint">manifest and linked rows</span></div>
+            <div className="adm-insight-grid adm-inspector-kpis">
+              <div className="adm-insight"><b>Replay</b><span>{replay === undefined ? 'loading' : replay ? replay.integrity : 'missing'}</span></div>
+              <div className="adm-insight"><b>Analytics</b><span>{analytics === undefined ? 'loading' : analytics ? 'present' : 'missing or unsampled'}</span></div>
+              <div className="adm-insight"><b>Leaderboard</b><span>{boards === null ? 'loading' : boards.length ? `${boards.length} row(s)` : 'no row found'}</span></div>
+              <div className="adm-insight"><b>Manifest</b><span>{manifest?.complete ? 'complete' : replay ? 'partial' : 'n/a'}</span><span>{manifest?.eventHash ? `hash ${manifest.eventHash}` : 'no hash'}</span></div>
+            </div>
+            {summary && (
+              <div className="adm-devs">
+                <span className="adm-dev">{mapName(summary.map)} / {diffName(summary.diff)} / {summary.freeplay ? 'freeplay' : summary.daily ? 'daily' : 'campaign'}</span>
+                <span className="adm-dev">{summary.outcome} at wave {summary.wave} / {summary.kills.toLocaleString()} kills / build {analytics?.build ?? replay?.build ?? 'unknown'}</span>
+              </div>
+            )}
+            {replay && (
+              <table className="adm-table">
+                <tbody>
+                  <tr><td>event count</td><td>{replay.eventCount.toLocaleString()}</td></tr>
+                  <tr><td>chunk count</td><td>{replay.chunkCount.toLocaleString()}</td></tr>
+                  <tr><td>manifest chunks</td><td>{manifest?.chunkEventCounts?.join(', ') || 'none'}</td></tr>
+                  <tr><td>created</td><td>{replay.createdAt ? new Date(replay.createdAt).toLocaleString() : 'unknown'}</td></tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+        <div className="adm-two">
+          <div className="adm-card">
+            <div className="adm-card-head"><h3>Board rows</h3><span className="adm-hint">matching runId in score collections</span></div>
+            {boards === null ? <div className="adm-empty">Checking boards...</div>
+              : boards.length === 0 ? <div className="adm-empty">No leaderboard row found for this run.</div>
+                : (
+                  <table className="adm-table">
+                    <thead><tr><th>board</th><th>kind</th><th>name</th><th>wave</th><th>kills</th><th>cash</th></tr></thead>
+                    <tbody>{boards.map((row, i) => (
+                      <tr key={`${row.board}-${i}`}>
+                        <td>{row.board}</td><td>{row.kind}</td><td>{row.name}</td><td>w{row.wave}</td><td>{row.kills.toLocaleString()}</td><td>{Math.round(row.cash).toLocaleString()}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                )}
+          </div>
+          <div className="adm-card">
+            <div className="adm-card-head"><h3>Analytics doc</h3><span className="adm-hint">normalized private row</span></div>
+            {analytics === undefined ? <div className="adm-empty">Loading analytics...</div>
+              : analytics ? <pre className="adm-inspector-json">{JSON.stringify(analytics, null, 2)}</pre>
+                : <div className="adm-empty">No analytics doc found. The run may have been unsampled or analytics was disabled.</div>}
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function SurvivalSparkline({ curve }: { curve: SurvivalCurve }) {
+  const W = 420, H = 130, padL = 32, padB = 20, padT = 10, padR = 10;
+  if (curve.points.length === 0) return <div className="adm-empty compact">No waves reached.</div>;
+  const maxWave = Math.max(1, ...curve.points.map((point) => point.wave));
+  const sx = (wave: number) => padL + ((wave - 1) / Math.max(1, maxWave - 1)) * (W - padL - padR);
+  const sy = (rate: number) => padT + (1 - Math.max(0, Math.min(1, rate))) * (H - padT - padB);
+  const d = curve.points.map((point, i) => `${i === 0 ? 'M' : 'L'}${sx(point.wave).toFixed(1)},${sy(point.clearRate).toFixed(1)}`).join(' ');
+  return (
+    <svg className="adm-mini-area" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      {[0, 0.5, 1].map((grid) => (
+        <g key={grid}>
+          <line x1={padL} y1={sy(grid)} x2={W - padR} y2={sy(grid)} className="adm-grid" />
+          <text x={padL - 5} y={sy(grid) + 3} className="adm-axis" textAnchor="end">{Math.round(grid * 100)}</text>
+        </g>
+      ))}
+      {curve.cliffs.map((point) => <line key={point.wave} x1={sx(point.wave)} y1={padT} x2={sx(point.wave)} y2={H - padB} className="adm-marker" />)}
+      <path d={d} fill="none" stroke="#4bcffa" strokeWidth={2} />
+      <text x={padL} y={H - 5} className="adm-axis">w1</text>
+      <text x={W - padR} y={H - 5} className="adm-axis" textAnchor="end">w{maxWave}</text>
+    </svg>
+  );
+}
+
+function BuildSummary({ set, compare }: { set: InsightMetricSet; compare?: InsightMetricSet | null }) {
+  const deltaWin = compare ? set.winRate - compare.winRate : 0;
+  const deltaWave = compare ? set.avgWave - compare.avgWave : 0;
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head"><h3>{set.label}</h3><span className="adm-hint">runAnalytics sample</span></div>
+      <div className="adm-stat-row">
+        <Stat label="runs" value={set.rows.toLocaleString()} />
+        <Stat label="win rate" value={pct(set.winRate)} />
+        <Stat label="avg wave" value={set.avgWave ? `w${set.avgWave.toFixed(1)}` : 'n/a'} />
+        <Stat label="quit with cash" value={pct(set.abandonment.quitWithCashRate)} />
+      </div>
+      {compare && (
+        <div className="adm-devs">
+          <span className="adm-dev">vs {compare.label}: win {deltaWin >= 0 ? '+' : ''}{Math.round(deltaWin * 100)} pts</span>
+          <span className="adm-dev">avg wave {deltaWave >= 0 ? '+' : ''}{deltaWave.toFixed(1)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SurvivalPanel({ set }: { set: InsightMetricSet }) {
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head"><h3>Win-rate cliffs</h3><span className="adm-hint">percent of runs reaching wave N that cleared it</span></div>
+      {set.survival.length === 0 ? <div className="adm-empty">No survival data in this build slice.</div> : (
+        <div className="adm-survival-grid">
+          {set.survival.map((curve) => (
+            <div key={curve.diff} className="adm-survival-card">
+              <div className="adm-card-head"><h3>{diffName(curve.diff)}</h3><span className="adm-hint">{curve.runs} runs</span></div>
+              <SurvivalSparkline curve={curve} />
+              {curve.cliffs.length ? (
+                <div className="adm-devs">
+                  {curve.cliffs.slice(0, 3).map((point) => (
+                    <span className="adm-dev" key={point.wave}>wall w{point.wave}: {pct(point.clearRate)} clear ({point.reached} reached)</span>
+                  ))}
+                </div>
+              ) : <p className="adm-hint">No cliff flagged yet. Need at least two reaches per wave.</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AbandonmentPanel({ set }: { set: InsightMetricSet }) {
+  const bars = set.abandonment.buckets.slice(0, 10).map((bucket) => ({
+    label: `w${bucket.wave}`,
+    value: bucket.abandons,
+    color: bucket.quitWithCashRate >= 0.5 ? '#ff9f43' : '#54a0ff',
+    sub: `${bucket.firstSession} first / ${bucket.returning} ret / ${pct(bucket.quitWithCashRate)} cash`,
+  }));
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head"><h3>Abandonment spikes</h3><span className="adm-hint">quit wave, cash float, cohort split</span></div>
+      <div className="adm-insight-grid">
+        <div className="adm-insight"><b>Abandons</b><span>{set.abandonment.total.toLocaleString()} runs</span><span>{pct(set.abandonment.total / Math.max(1, set.rows))} of slice</span></div>
+        <div className="adm-insight"><b>First session</b><span>{set.abandonment.firstSession.toLocaleString()} quits</span><span>{pct(set.abandonment.firstSession / Math.max(1, set.abandonment.total))}</span></div>
+        <div className="adm-insight"><b>Returning</b><span>{set.abandonment.returning.toLocaleString()} quits</span><span>{pct(set.abandonment.returning / Math.max(1, set.abandonment.total))}</span></div>
+        <div className="adm-insight"><b>Quit with cash</b><span>{set.abandonment.quitWithCash.toLocaleString()} runs</span><span>{pct(set.abandonment.quitWithCashRate)} &gt;= 800 credits</span></div>
+      </div>
+      {bars.length ? <HBars data={bars} /> : <div className="adm-empty">No abandoned runs in this build slice.</div>}
+    </div>
+  );
+}
+
+function ArsenalHealthTable({ set }: { set: InsightMetricSet }) {
+  const rows = set.arsenal.filter((tower) => tower.runs > 0 || tower.flags.length).slice(0, 24);
+  return (
+    <div className="adm-card">
+      <div className="adm-card-head"><h3>Arsenal health</h3><span className="adm-hint">usage vs win rate from real runAnalytics rows</span></div>
+      {rows.length === 0 ? <div className="adm-empty">No tower usage data in this build slice.</div> : (
+        <table className="adm-table adm-arsenal-health">
+          <thead><tr><th>tower</th><th>usage</th><th>runs</th><th>win rate</th><th>presence in wins</th><th>damage share</th><th>flags</th></tr></thead>
+          <tbody>{rows.map((tower) => (
+            <tr key={tower.towerId} className={tower.flags.length ? 'adm-row-warn' : ''}>
+              <td><span className="adm-dot" style={{ background: towerGlow(tower.towerId) }} />{tower.name}</td>
+              <td>{pct(tower.usageRate)}</td>
+              <td>{tower.runs}</td>
+              <td style={{ color: winColor(tower.winRate) }}>{pct(tower.winRate)}</td>
+              <td>{pct(tower.winPresence)}</td>
+              <td>{tower.avgDamageShare ? pct(tower.avgDamageShare) : 'n/a'}</td>
+              <td>{tower.flags.length ? tower.flags.join(', ') : 'ok'}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+      <p className="adm-hint">Damage share is populated only when analytics rows include a damage-by-tower record; current rows primarily report usage and outcomes.</p>
+    </div>
+  );
+}
+
+function InsightsTab() {
+  const { rows, err, refresh } = useRunAnalytics();
+  const state = AnalyticsState({ rows, err });
+  const [build, setBuild] = useState('all');
+  const [compareBuild, setCompareBuild] = useState('none');
+  if (state) return <div className="adm-content">{state}</div>;
+  const data = rows!;
+  const report: AdminInsightsReport = buildAdminInsights(data, { build, compareBuild });
+  return (
+    <div className="adm-content adm-insights-content">
+      <div className="adm-filterbar">
+        <span className="adm-filter-count">{report.rows.toLocaleString()} runAnalytics rows</span>
+        <select aria-label="Insights build" value={report.activeBuild} onChange={(e) => setBuild(e.target.value)}>
+          <option value="all">all builds</option>{report.builds.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+        <select aria-label="Compare build" value={report.compareBuild} onChange={(e) => setCompareBuild(e.target.value)}>
+          <option value="none">no compare</option>{report.builds.map((item) => <option key={item} value={item}>compare {item}</option>)}
+        </select>
+        <button className="adm-mini" onClick={refresh}>refresh</button>
+      </div>
+      {report.active.rows === 0 ? (
+        <div className="adm-card"><div className="adm-empty">No runs match this build filter. Choose another build or all builds.</div></div>
+      ) : (
+        <>
+          <BuildSummary set={report.active} compare={report.compare} />
+          {report.compare && <BuildSummary set={report.compare} />}
+          <SurvivalPanel set={report.active} />
+          <div className="adm-two">
+            <AbandonmentPanel set={report.active} />
+            <ArsenalHealthTable set={report.active} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OperationsHealthPanel({ runCount }: { runCount: number }) {
   const mode = import.meta.env.MODE || 'development';
   const hasAppCheckSiteKey = Boolean(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY);
@@ -2139,6 +2423,7 @@ function MetricExplorerTab() {
   const [metricId, setMetricId] = useState(() => typeof location !== 'undefined' ? new URLSearchParams(location.search).get('metric') || 'run.wave' : 'run.wave');
   const [sort, setSort] = useState<'metric' | 'wave' | 'duration' | 'date'>('metric');
   const [selected, setSelected] = useState<RunAnalyticsRow | null>(null);
+  const [inspecting, setInspecting] = useState<RunAnalyticsRow | null>(null);
   if (state) return <div className="adm-content">{state}</div>;
   const data = rows!;
   const dataset = buildAnalyticsDataset(data, filters);
@@ -2254,7 +2539,7 @@ function MetricExplorerTab() {
           <tbody>
             {sorted.map((row) => (
               <tr key={row.runId}>
-                <td>{row.runId.slice(0, 12)}</td>
+                <td><RunIdButton runId={row.runId} onInspect={() => setInspecting(row)} /></td>
                 <td>{row.uid.slice(0, 10)}</td>
                 <td>{mapName(row.summary.map)} / {diffName(row.summary.diff)}</td>
                 <td>{row.summary.outcome}</td>
@@ -2269,6 +2554,7 @@ function MetricExplorerTab() {
         {sorted.length === 0 && <div className="adm-empty">No runs match these filters.</div>}
       </div>
       {selected && <RunDetailDrawer row={selected} metric={metric} onClose={() => setSelected(null)} />}
+      {inspecting && <RunInspector runId={inspecting.runId} analyticsHint={inspecting} onClose={() => setInspecting(null)} />}
     </div>
   );
 }
@@ -2280,6 +2566,7 @@ function RunDetailDrawer({ row, metric, onClose }: { row: RunAnalyticsRow; metri
       <aside className="adm-drawer" role="dialog" aria-label="Run analytics detail" onClick={(e) => e.stopPropagation()}>
         <div className="adm-card-head">
           <h3>{row.runId}</h3>
+          <button className="adm-mini" onClick={() => window.open(`/?run=${encodeURIComponent(row.runId)}`, '_blank', 'noopener,noreferrer')}>watch</button>
           <button className="adm-mini" onClick={onClose}>close</button>
         </div>
         <div className="adm-insight-grid">
@@ -2845,6 +3132,155 @@ function FreeplayLabTab() {
   );
 }
 
+function adminDateKey(offsetDays = 0): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offsetDays)).toISOString().slice(0, 10);
+}
+
+function DailyPreviewCard({ challenge, liveOverride }: { challenge: DailyChallenge; liveOverride?: DailyOverrideDoc | null }) {
+  const overridden = liveOverride?.date === challenge.dateKey;
+  return (
+    <div className={`adm-daily-preview ${overridden ? 'on' : ''}`}>
+      <div className="adm-daily-date">
+        <b>{challenge.dateKey}</b>
+        <span>{challenge.title}</span>
+      </div>
+      <div className="adm-daily-mods">
+        {[challenge.arsenal, challenge.twist, challenge.boon].map((mod) => (
+          <span key={mod.id}><b>{mod.short}</b>{mod.name}</span>
+        ))}
+      </div>
+      <div className="adm-spot-dim">{mapName(challenge.mapId)} / {diffName(challenge.diffId)}{overridden ? ' / override live' : ''}</div>
+    </div>
+  );
+}
+
+function DailyOpsTab() {
+  const [current, setCurrent] = useState<DailyOverrideDoc | null>(null);
+  const [date, setDate] = useState(adminDateKey());
+  const [arsenalId, setArsenalId] = useState<DailyArsenalId>('fixedPool');
+  const [twistId, setTwistId] = useState<DailyTwistId>('fogProtocol');
+  const [boonId, setBoonId] = useState<DailyBoonId>('salvageCache');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  const load = async () => {
+    try {
+      setCurrent(await fetchDailyOverrideAdmin());
+      setStatus(null);
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Daily override read failed.' });
+    }
+  };
+  useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    const base = dailyChallengeForDate(date);
+    const source = current?.date === date ? current : null;
+    setArsenalId(source?.arsenalId ?? base.arsenal.id);
+    setTwistId(source?.twistId ?? base.twist.id);
+    setBoonId(source?.boonId ?? base.boon.id);
+    setNote(source?.note ?? '');
+  }, [date, current]);
+
+  const previewOverride: DailyOverrideDoc = {
+    date,
+    arsenalId,
+    twistId,
+    boonId,
+    ...(note.trim() ? { note: note.trim().slice(0, 240) } : {}),
+  };
+  const selectedPreview = dailyChallengeForDate(date, previewOverride);
+  const upcoming = Array.from({ length: 8 }, (_, i) => {
+    const key = adminDateKey(i);
+    return dailyChallengeForDate(key, current?.date === key ? current : null);
+  });
+  const arsenals = dailyArsenalCatalog(date);
+  const twists = dailyTwistCatalog();
+  const boons = dailyBoonCatalog();
+
+  const publish = async () => {
+    setBusy(true); setStatus(null);
+    try {
+      await publishDailyOverrideAdmin(previewOverride);
+      setStatus({ kind: 'ok', text: `Published override for ${date}. Clients pick it up on their next daily refresh.` });
+      await load();
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Publish failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const clear = async () => {
+    setBusy(true); setStatus(null);
+    try {
+      await clearDailyOverrideAdmin();
+      setStatus({ kind: 'ok', text: 'Cleared daily override. Computed daily modifiers are active.' });
+      await load();
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Clear failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="adm-content adm-daily-ops">
+      <div className="adm-filterbar">
+        <span className="adm-filter-count">DAILY CHALLENGE LIVE-OPS</span>
+        <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+      </div>
+      <div className="adm-card">
+        <div className="adm-card-head"><h3>Today and next 7 days</h3><span className="adm-hint">computed locally from dailyChallenge.ts; override applied only on matching date</span></div>
+        <div className="adm-daily-preview-grid">
+          {upcoming.map((challenge) => <DailyPreviewCard key={challenge.id} challenge={challenge} liveOverride={current} />)}
+        </div>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Publish override</h3><span className="adm-hint">config/dailyOverride public-read, admin-write</span></div>
+          <div className="adm-daily-form">
+            <label><span>Date</span><input type="date" value={date} onChange={(e) => setDate(e.target.value || adminDateKey())} /></label>
+            <label><span>Arsenal</span><select value={arsenalId} onChange={(e) => setArsenalId(e.target.value as DailyArsenalId)}>
+              {DAILY_ARSENAL_IDS.map((id) => {
+                const option = arsenals.find((item) => item.id === id)!;
+                return <option key={id} value={id}>{option.name}</option>;
+              })}
+            </select></label>
+            <label><span>Twist</span><select value={twistId} onChange={(e) => setTwistId(e.target.value as DailyTwistId)}>
+              {DAILY_TWIST_IDS.map((id) => {
+                const option = twists.find((item) => item.id === id)!;
+                return <option key={id} value={id}>{option.name}</option>;
+              })}
+            </select></label>
+            <label><span>Boon</span><select value={boonId} onChange={(e) => setBoonId(e.target.value as DailyBoonId)}>
+              {DAILY_BOON_IDS.map((id) => {
+                const option = boons.find((item) => item.id === id)!;
+                return <option key={id} value={id}>{option.name}</option>;
+              })}
+            </select></label>
+            <label className="wide"><span>Note</span><input value={note} maxLength={240} onChange={(e) => setNote(e.target.value)} placeholder="operator note (optional)" /></label>
+          </div>
+          {status && <div className={`adm-spot-status ${status.kind}`}>{status.text}</div>}
+          <div className="adm-tweak-actions">
+            <button className="adm-mini" disabled={busy} onClick={() => void publish()}>publish</button>
+            <button className="adm-mini" disabled={busy || !current} onClick={() => void clear()}>clear override</button>
+          </div>
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Selected preview</h3><span className="adm-hint">{selectedPreview.id}</span></div>
+          <DailyPreviewCard challenge={selectedPreview} liveOverride={previewOverride} />
+          <div className="adm-devs">
+            {selectedPreview.rules.map((rule) => <span className="adm-dev" key={rule}>{rule}</span>)}
+          </div>
+          <pre className="adm-config-snippet">{JSON.stringify(previewOverride, null, 2)}</pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------- replay of the day ----------------
 
 const SPOT_RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
@@ -2855,6 +3291,7 @@ function SpotlightTab({ user }: { user: User }) {
   const [manualId, setManualId] = useState('');
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [inspectRunId, setInspectRunId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -2921,6 +3358,7 @@ function SpotlightTab({ user }: { user: User }) {
             <div className="adm-spot-dim">{pinned.runId}{pinned.pinnedBy ? ` · by ${pinned.pinnedBy}` : ''}</div>
             <div className="adm-spot-row">
               <a className="adm-mini" href={`/?run=${pinned.runId}`} target="_blank" rel="noreferrer">▶ watch</a>
+              <RunIdButton runId={pinned.runId} onInspect={setInspectRunId} label="inspect" />
               <button className="adm-mini" disabled={busy} onClick={() => void clear()}>clear (use automatic)</button>
             </div>
           </>
@@ -2933,6 +3371,7 @@ function SpotlightTab({ user }: { user: User }) {
 
       <div className="adm-spot-manual">
         <input className="adm-spot-input" placeholder="paste run id (r_…)" value={manualId} onChange={(e) => setManualId(e.target.value)} />
+        <button className="adm-mini" disabled={!SPOT_RUN_ID_RE.test(manualId.trim())} onClick={() => setInspectRunId(manualId.trim())}>inspect</button>
         <button className="adm-mini" disabled={busy || !manualId.trim()} onClick={() => void pinManual()}>pin by id</button>
       </div>
 
@@ -2945,6 +3384,7 @@ function SpotlightTab({ user }: { user: User }) {
               <div key={r.runId} className={`adm-spot-cand ${pinned?.runId === r.runId ? 'on' : ''}`}>
                 <span className="adm-spot-cn">{r.name}</span>
                 <span className="adm-spot-dim">W{r.wave} · {r.mapName} {r.diffName}{r.freeplay ? ' · FP' : ''}</span>
+                <RunIdButton runId={r.runId} onInspect={setInspectRunId} label="inspect" />
                 <a className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
                 <button className="adm-mini" disabled={busy || pinned?.runId === r.runId}
                   onClick={() => void doPin({ runId: r.runId!, callsign: r.name, wave: r.wave, mapName: r.mapName, diffName: r.diffName, freeplay: r.freeplay })}>
@@ -2954,6 +3394,7 @@ function SpotlightTab({ user }: { user: User }) {
             ))}
           </div>
         )}
+      {inspectRunId && <RunInspector runId={inspectRunId} onClose={() => setInspectRunId(null)} />}
     </div>
   );
 }
@@ -3115,10 +3556,12 @@ function InboxTab({ user }: { user: User }) {
 }
 
 export default function AdminDashboard() {
-  type AdminTab = 'inbox' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf' | 'spotlight';
+  // Local screenshot/QA hook only: Vite replaces DEV with false in production.
+  const adminPreview = import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('adminPreview') === '1';
+  type AdminTab = 'inbox' | 'insights' | 'daily' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf' | 'spotlight';
   const [tab, setTabState] = useState<AdminTab>(() => {
     const t = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('tab') : null;
-    return t === 'balance' || t === 'towers' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
+    return t === 'insights' || t === 'daily' || t === 'balance' || t === 'towers' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
       || t === 'combat' || t === 'systems' || t === 'freeplay' || t === 'uxperf' || t === 'spotlight' ? t : 'inbox';
   });
   const setTab = (t: AdminTab) => {
@@ -3127,16 +3570,19 @@ export default function AdminDashboard() {
   };
   const [report, setReport] = useState<Report | null | 'missing'>(null);
   const [towerReport, setTowerReport] = useState<TowerDeepDiveReport | null | 'missing'>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [allowed, setAllowed] = useState(false);
+  const [authReady, setAuthReady] = useState(adminPreview);
+  const [user, setUser] = useState<User | null>(adminPreview ? { email: 'admin-preview@localhost', uid: 'admin-preview' } as User : null);
+  const [allowed, setAllowed] = useState(adminPreview);
   const [authErr, setAuthErr] = useState('');
 
-  useEffect(() => watchAdminAuth((u, ok) => {
-    setUser(u);
-    setAllowed(ok);
-    setAuthReady(true);
-  }), []);
+  useEffect(() => {
+    if (adminPreview) return undefined;
+    return watchAdminAuth((u, ok) => {
+      setUser(u);
+      setAllowed(ok);
+      setAuthReady(true);
+    });
+  }, [adminPreview]);
 
   useEffect(() => {
     fetch('/balance-report.json', { cache: 'no-store' })
@@ -3177,6 +3623,8 @@ export default function AdminDashboard() {
         </div>
         <nav className="adm-tabs">
           <button className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
+          <button className={tab === 'insights' ? 'on' : ''} onClick={() => setTab('insights')}>INSIGHTS</button>
+          <button className={tab === 'daily' ? 'on' : ''} onClick={() => setTab('daily')}>DAILY</button>
           <button className={tab === 'spotlight' ? 'on' : ''} onClick={() => setTab('spotlight')}>SPOTLIGHT</button>
           <button className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
           <button className={tab === 'towers' ? 'on' : ''} onClick={() => setTab('towers')}>TOWERS</button>
@@ -3196,7 +3644,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {tab === 'inbox' ? <InboxTab user={user} /> : tab === 'spotlight' ? <SpotlightTab user={user} /> : tab === 'balance' ? (
+      {tab === 'inbox' ? <InboxTab user={user} /> : tab === 'insights' ? <InsightsTab /> : tab === 'daily' ? <DailyOpsTab /> : tab === 'spotlight' ? <SpotlightTab user={user} /> : tab === 'balance' ? (
         report === null ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">Loading balance report…</div></div></div>
           : report === 'missing'
             ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">

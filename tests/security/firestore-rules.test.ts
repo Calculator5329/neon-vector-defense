@@ -451,6 +451,33 @@ describe('feedback and config rules', () => {
     await assertSucceeds(deleteDoc(doc(adminDb(), 'config', 'balance')));
   });
 
+  test('allow public daily override reads and admin-only validated writes', async () => {
+    await assertSucceeds(getDoc(doc(anonDb(), 'config', 'dailyOverride')));
+    await assertFails(setDoc(doc(anonDb(), 'config', 'dailyOverride'), { date: '2026-07-04', twistId: 'rushHour' }));
+    await assertFails(setDoc(doc(playerDb(), 'config', 'dailyOverride'), { date: '2026-07-04', twistId: 'rushHour' }));
+    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'dailyOverride'), {
+      date: '2026-07-04',
+      arsenalId: 'noSupport',
+      twistId: 'rushHour',
+      boonId: 'doublePickups',
+      note: 'launch weekend',
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'dailyOverride'), {
+      date: '2026-07-04',
+      twistId: 'retiredProtocol',
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'dailyOverride'), {
+      date: '2026-07-04',
+      boonId: 'doublePickups',
+      secret: true,
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'dailyOverride'), {
+      date: '07-04-2026',
+      twistId: 'rushHour',
+    }));
+    await assertSucceeds(deleteDoc(doc(adminDb(), 'config', 'dailyOverride')));
+  });
+
   test('global-top aggregate is public read, server-only write', async () => {
     await assertSucceeds(getDoc(doc(anonDb(), 'aggregates', 'globalTop')));
     await assertFails(setDoc(doc(playerDb(), 'aggregates', 'globalTop'), { campaign: [], freeplay: [] }));
