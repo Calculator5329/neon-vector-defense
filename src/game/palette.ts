@@ -2,9 +2,10 @@
 // Cosmetic/QoL only (overrides the --accent CSS var); never touches gameplay or balance.
 import { meta } from './meta';
 
-export interface AccentPalette { id: string; name: string; color: string; cost: number; }
+export interface AccentPalette { id: string; name: string; color: string; cost: number; unlockOnly?: boolean; }
 export const PALETTES: AccentPalette[] = [
   { id: 'standard', name: 'Lantern Cyan', color: '#4bcffa', cost: 0 },
+  { id: 'sunset', name: 'Sunset Signal', color: '#ff8a4b', cost: 0, unlockOnly: true },
   { id: 'ember', name: 'Ember', color: '#ff7a3a', cost: 300 },
   { id: 'frost', name: 'Frostlight', color: '#9ffff5', cost: 350 },
   { id: 'void', name: 'Void Violet', color: '#b388ff', cost: 400 },

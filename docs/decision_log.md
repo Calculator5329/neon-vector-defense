@@ -16,6 +16,20 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   site keys, a runbook verifies token issuance and metrics first, and callable
   enforcement flips only after the operator validates production traffic.
 
+## 2026-07-02 - Long Watch and Diplomat's Gambit are retired
+
+- The active campaign is a single-ending flow across Recruit, Veteran, Apex, and
+  Extinction. Long Watch, receiver construction, escort/courier behaviors, and
+  the alternate diplomatic ending are removed from active code paths.
+- Existing local saves are normalized so retired progression flags, best-wave
+  rows, history rows, and cleared-map markers do not leak into current UI or
+  rules.
+- Extinction victory is the capstone. Its one-time meta reward grants the
+  Sunset Signal palette and a small Salvage bonus without affecting combat,
+  score, unlock thresholds, or bot simulation.
+- Public replay manifests are required for new uploads. Missing manifests are
+  treated as incomplete replay data and cannot back accepted leaderboard scores.
+
 ## 2026-06-28 - Replay-backed scores stay pragmatic, not fully deterministic
 
 - Scores are accepted only through Cloud Functions (`submitScore` and

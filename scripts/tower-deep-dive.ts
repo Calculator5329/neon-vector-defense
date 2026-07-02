@@ -174,7 +174,7 @@ function runSim(map: GameMap, diff: DifficultyDef, def: TowerDef, stage: Stage):
 
   while (time < MAX_TIME) {
     if (game.phase === 'gameover') { close(game.lives); break; }
-    if (game.phase === 'victory' || game.phase === 'armistice') { close(game.lives); break; }
+    if (game.phase === 'victory') { close(game.lives); break; }
 
     if (game.phase === 'build') {
       idle += DT;
@@ -214,7 +214,7 @@ function runSim(map: GameMap, diff: DifficultyDef, def: TowerDef, stage: Stage):
     mapName: map.name,
     difficulty: diff.id,
     difficultyName: diff.name,
-    won: game.phase === 'victory' || game.phase === 'armistice',
+    won: game.phase === 'victory',
     finalWave: game.wave,
     targetWaves: diff.waves,
     progressPct: round(Math.min(1, game.wave / diff.waves), 4),

@@ -11,7 +11,7 @@ const ENEMIES = {
   "enemy-raider": "a triangular raider drone wrapped in scavenged blue hull plating, electric-blue glow, patchwork armor over a smaller core",
   "enemy-stinger": "a green twin-bladed diamond-shaped interceptor drone, emerald glow, sharp aggressive wings, fast attack craft",
   "enemy-phantom": "a yellow diamond drone stripped down to a blazing burn-core, golden-white glow, shielding torn off for raw speed, motion-blurred",
-  "enemy-wraith": "a sleek hot-pink courier blockade-runner ship, magenta glow, aerodynamic stealth lines built to outrun targeting",
+  "enemy-wraith": "a sleek hot-pink fast blockade-runner ship, magenta glow, aerodynamic stealth lines built to outrun targeting",
   "enemy-shade": "a grey hexagonal warship hull clad in thick reactive ablative lattice plating, dull steel glow, blast-eating armor",
   "enemy-prism": "a white mirror-faceted hexagonal hull, brilliant diamond-bright reflective thermal armor refracting light",
   "enemy-aegis": "a heavy steel pentagonal armored siege hull forged from collapsed-star alloy, pale blue glow, impervious kinetic plating",

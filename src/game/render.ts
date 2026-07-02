@@ -1,6 +1,5 @@
 import type { Enemy, EnemyDef, GameMap, Pickup, Tower, TowerDef, Vec } from './types';
 import { Game, W, H } from './engine';
-import { ENEMIES } from './enemies';
 
 // ============================================================
 // Sprite caching — all hulls are pre-rendered as crisp vector
@@ -65,7 +64,7 @@ function enemySprite(def: EnemyDef): HTMLCanvasElement {
   return s;
 }
 
-/** Long Watch corruption tint, baked once per hull instead of a per-draw ctx.filter
+/** Portrait tint, baked once per hull instead of a per-draw ctx.filter
  *  (canvas filters force a full rasterization pass — death at hundreds of hulls). */
 function corruptedSprite(def: EnemyDef): HTMLCanvasElement {
   let s = hollowSprites.get(def.id);
@@ -549,25 +548,6 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
 
   for (const t of game.towers) drawTower(ctx, t, game.time, t === ui.selected, game);
   for (const e of game.enemies) drawEnemy(ctx, e, game.time, game.map, game);
-
-  // Combine escorts (Long Watch): violet sentinels sweeping the lane backward
-  for (const a of game.allies) {
-    blit(ctx, enemySprite(ENEMIES['titan']), a.pos.x, a.pos.y, a.heading, 0.72);
-    ctx.save();
-    ctx.strokeStyle = '#b388ff';
-    ctx.shadowColor = '#b388ff';
-    ctx.shadowBlur = 16;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 6]);
-    ctx.lineDashOffset = -game.time * 18;
-    circle(ctx, a.pos.x, a.pos.y, 32);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#ffffff';
-    circle(ctx, a.pos.x, a.pos.y - 36, 2.5);
-    ctx.fill();
-    ctx.restore();
-  }
 
   for (const p of game.pickups) drawPickup(ctx, p, game.time);
 
@@ -1504,7 +1484,6 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   if (e.cloaked) {
     ctx.globalAlpha = 0.34 + 0.08 * Math.sin(time * 7 + e.phase);
   }
-  const corrupted = game.diff.id === 'ngplus' && !e.courier;
 
   // hover shadow on the lane (dropped at high hull counts)
   if (!lod) {
@@ -1543,28 +1522,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   }
 
   // hull sprite
-  blit(ctx, corrupted ? corruptedSprite(def) : enemySprite(def), e.pos.x, e.pos.y + wob * 0.4, heading);
-
-  // the Courier: white truce beacon, hailing rings
-  if (e.courier) {
-    ctx.save();
-    ctx.strokeStyle = '#ffffff';
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 18;
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-      const ph = (time * 0.5 + i / 3) % 1;
-      ctx.globalAlpha = 0.65 * (1 - ph);
-      circle(ctx, e.pos.x, e.pos.y, def.radius + 8 + ph * 46);
-      ctx.stroke();
-    }
-    // the case itself, glowing in the open cradle
-    ctx.globalAlpha = 0.9 + 0.1 * Math.sin(time * 3);
-    ctx.fillStyle = '#ffffff';
-    circle(ctx, e.pos.x, e.pos.y, 4.5);
-    ctx.fill();
-    ctx.restore();
-  }
+  blit(ctx, enemySprite(def), e.pos.x, e.pos.y + wob * 0.4, heading);
 
   // boss spine lights (animated, on top of sprite)
   if (def.boss) {
@@ -1667,7 +1625,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   }
 
   // health bar
-  if (!e.courier && (e.hp < e.maxHp || def.boss)) {
+  if (e.hp < e.maxHp || def.boss) {
     const w = def.boss ? def.radius * 2.4 : 22;
     const hpct = Math.max(0, pct);
     const y = e.pos.y - def.radius - (def.boss ? 14 : 9);

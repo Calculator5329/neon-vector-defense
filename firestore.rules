@@ -20,6 +20,14 @@ service cloud.firestore {
       return daily.matches('^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
 
+    function isValidMapId(map) {
+      return map in ['orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat', 'umbral', 'cinder'];
+    }
+
+    function isValidDiffId(diff) {
+      return diff in ['easy', 'normal', 'hard', 'extinction'];
+    }
+
     function isValidRunId(runId) {
       return runId.matches('^r_[A-Za-z0-9_-]{8,80}$');
     }
@@ -37,12 +45,12 @@ service cloud.firestore {
         && summary.keys().hasAll(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS'])
         && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'contractId', 'scoreMultiplierEnd'])
         && summary.callsign is string && summary.callsign.size() <= 20
-        && summary.map is string && summary.map.size() <= 30
+        && summary.map is string && summary.map.size() <= 30 && isValidMapId(summary.map)
         && summary.mapName is string && summary.mapName.size() <= 80
-        && summary.diff is string && summary.diff.size() <= 30
+        && summary.diff is string && summary.diff.size() <= 30 && isValidDiffId(summary.diff)
         && summary.diffName is string && summary.diffName.size() <= 80
         && summary.freeplay is bool
-        && summary.outcome in ['victory', 'armistice', 'gameover', 'abandoned']
+        && summary.outcome in ['victory', 'gameover', 'abandoned']
         && summary.phase is string && summary.phase.size() <= 30
         && summary.wave is int && summary.wave >= 0 && summary.wave <= 10000
         && summary.kills is int && summary.kills >= 0 && summary.kills < 10000000
@@ -60,15 +68,14 @@ service cloud.firestore {
     }
 
     function isRunManifest(data) {
-      return !('manifest' in data)
-        || (data.manifest is map
+      return data.manifest is map
           && data.manifest.keys().hasAll(['chunkEventCounts', 'eventHash', 'complete'])
           && data.manifest.keys().hasOnly(['chunkEventCounts', 'eventHash', 'complete'])
           && data.manifest.chunkEventCounts is list
           && data.manifest.chunkEventCounts.size() == data.chunkCount
           && data.manifest.eventHash is string
           && data.manifest.eventHash.matches('^[a-f0-9]{8}$')
-          && data.manifest.complete == true);
+          && data.manifest.complete == true;
     }
 
     // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore
@@ -94,7 +101,7 @@ service cloud.firestore {
       allow delete: if false;
       allow create: if isPlayer()
         && isValidRunId(runId)
-        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'summary', 'setup', 'events', 'snapshots', 'final'])
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'manifest', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'manifest', 'summary', 'setup', 'events', 'snapshots', 'final'])
         && isTelemetrySchema(request.resource.data)
         && request.resource.data.runId == runId
@@ -247,8 +254,8 @@ service cloud.firestore {
         && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
         && request.resource.data.ts is int && request.resource.data.ts > 0
         && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
-        && request.resource.data.map is string && request.resource.data.map.size() <= 30
-        && request.resource.data.diff is string && request.resource.data.diff.size() <= 30
+        && request.resource.data.map is string && request.resource.data.map.size() <= 30 && isValidMapId(request.resource.data.map)
+        && request.resource.data.diff is string && request.resource.data.diff.size() <= 30 && isValidDiffId(request.resource.data.diff)
         && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
         && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
         && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
@@ -298,7 +305,7 @@ service cloud.firestore {
     }
 
     // server-maintained global-top aggregate: one public doc replaces the
-    // 40-query per-menu-view board fan-out. Written only by the score
+    // 32-query per-menu-view board fan-out. Written only by the score
     // functions (Admin SDK bypasses rules).
     match /aggregates/globalTop {
       allow get: if true;

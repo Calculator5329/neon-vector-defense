@@ -42,7 +42,6 @@ const CARD_W = 1200, CARD_H = 630;
 
 const OUTCOME: Record<RunOutcome, { word: string; color: string }> = {
   victory: { word: 'SECTOR SECURED', color: '#2ed573' },
-  armistice: { word: 'THE LONG SIGNAL', color: '#ffd32a' },
   gameover: { word: 'GRID OFFLINE', color: '#ff4757' },
   abandoned: { word: 'SIGNAL LOST', color: '#9aa6c8' },
 };

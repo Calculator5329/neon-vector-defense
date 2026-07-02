@@ -35,7 +35,7 @@ Board ID pattern: `{map}_{diff}` or `{map}_{diff}_fp` for freeplay.
 
 Valid maps: `orbital`, `reactor`, `hyperlane`, `mobius`, `blackout`, `throat`, `umbral`, `cinder`
 
-Valid diffs: `easy`, `normal`, `hard`, `extinction`, `ngplus`
+Valid diffs: `easy`, `normal`, `hard`, `extinction`
 
 ### `dailyBoards/{daily}/scores/{id}`
 
@@ -59,6 +59,7 @@ Key fields (`PublicRunDoc`):
   build: string;
   chunkCount: number;
   eventCount: number;
+  manifest: { chunkEventCounts: number[], eventHash: string, complete: true };
   setup: { map, mapName, mapHash, diff, diffName, startingCash, startingLives, availableTowerIds, balanceVersion };
   summary: { callsign, map, diff, freeplay, wave, kills, credits, cashEarned, outcome, durationS, ... };
   snapshots: RunWaveSnapshot[];  // lean tower rows per wave
@@ -67,7 +68,7 @@ Key fields (`PublicRunDoc`):
 }
 ```
 
-Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
+Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Public replay docs must include a completion manifest so server validation can compare chunk event counts and event hash before accepting score claims. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
 
 ### `runs/{runId}/chunks/c{n}`
 
@@ -206,7 +207,7 @@ Demo mode (`?demo=1`) skips meta and progression writes.
 | Category | Count | Notes |
 | --- | ---: | --- |
 | Sectors (maps) | 8 | Orbital Relay through Cinder Causeway |
-| Protocols (difficulties) | 5 | Recruit → Long Watch |
+| Protocols (difficulties) | 4 | Recruit through Extinction |
 | Towers | 19 | 2 upgrade tracks each; kill-gated unlock ladder |
 | Commander abilities | 6 | Q/W/E/R/T/Y |
 | Enemy archetypes | 15+ | Armored, cloaked, boss, heal, nested hull, etc. |

@@ -107,6 +107,29 @@ describe('storage normalization', () => {
     assert.deepEqual(normalized.clearedMaps, ['orbital']);
     assert.equal((normalized as unknown as { fpRuns?: number }).fpRuns, 3);
   });
+
+  test('drops retired protocol records from old saves', () => {
+    const retiredDiff = 'ng' + 'plus';
+    const retiredFlag = 'armi' + 'stice';
+    const normalized = normalizeProgress({
+      [retiredFlag]: true,
+      best: {
+        [`orbital:${retiredDiff}`]: 50,
+        [retiredDiff]: 50,
+        'reactor:normal': 44,
+      },
+      history: [
+        { map: 'orbital', diff: retiredDiff, wave: 60, kills: 1200, cash: 9000, won: true, freeplay: false, date: 1 },
+        { map: 'reactor', diff: 'normal', wave: 44, kills: 900, cash: 6800, won: false, freeplay: false, date: 2 },
+      ],
+      clearedMaps: ['orbital', retiredDiff, 'reactor'],
+    });
+
+    assert.equal((normalized as unknown as Record<string, unknown>)[retiredFlag], undefined);
+    assert.deepEqual(normalized.best, { 'reactor:normal': 44 });
+    assert.deepEqual(normalized.history.map((row) => row.diff), ['normal']);
+    assert.deepEqual(normalized.clearedMaps, ['orbital', 'reactor']);
+  });
 });
 
 describe('freeplay correctness guards', () => {

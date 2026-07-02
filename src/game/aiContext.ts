@@ -32,7 +32,6 @@ export interface AIHelpContext {
     kills: number;
     totalWaves: number;
     clearedMaps: string[];
-    armisticeSeen: boolean;
     apexCleared: boolean;
     freeplay: { runs: number; bestWave: number; kills: number };
     unlockedTowers: string[];
@@ -57,7 +56,6 @@ export interface AIHelpContext {
     cashEarned: number;
     leaks: number;
     durationS: number;
-    receiverBuilt: boolean;
     adaptation: string | null;
     towerCount: number;
     towers: Array<{ name: string; count: number; kills: number; tiers: string }>;
@@ -184,7 +182,6 @@ export function buildAIHelpContext(args: {
       kills: progress.record.kills,
       totalWaves: progress.totalWaves,
       clearedMaps: ALL_MAPS.filter((m) => progress.mapCleared(m.id)).map((m) => m.name),
-      armisticeSeen: progress.armisticeSeen,
       apexCleared: progress.apexCleared,
       freeplay: progress.freeplay,
       unlockedTowers,
@@ -216,7 +213,6 @@ export function buildAIHelpContext(args: {
       cashEarned: Math.round(live.runStats.cashEarned),
       leaks: live.runStats.leaks,
       durationS: Math.round(live.time),
-      receiverBuilt: live.receiver,
       adaptation: live.adaptation.type ? `${live.adaptation.type} damage resisted by ${Math.round(live.adaptation.resist * 100)}%` : null,
       towerCount: live.towers.length,
       towers: Object.values(live.towers.reduce<Record<string, { name: string; count: number; kills: number; tiers: string }>>((acc, t) => {

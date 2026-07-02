@@ -60,15 +60,6 @@ const ASSETS = {
       `silhouettes of angular machine warships drifting past in the background, the beacon extinguished. ` +
       `Smoke and sparks in vacuum, elegiac, the light has gone out.`,
   },
-  'armistice': {
-    model: 'google/gemini-2.5-flash-image',
-    aspect: '16:9',
-    prompt:
-      `${STYLE} The colossal ancient dreadnought docked gently nose-first at the crystalline lighthouse spire, ` +
-      `dwarfing it. A single small luminous courier case crosses between them on a thin bridge of light. In the ` +
-      `background an entire fleet of angular machine warships is powering down, their running lights going dark ` +
-      `one by one like candles. Gold dawn light breaking over the cyan. Overwhelming peace after a long war.`,
-  },
   'sector-orbital': {
     model: 'google/gemini-2.5-flash-image',
     aspect: '16:9',
@@ -99,7 +90,7 @@ const ASSETS = {
     prompt:
       `${STYLE} An ancient colossal violet dreadnought warship, hull scarred by three centuries of travel, ` +
       `gun blisters welded on as afterthoughts. Its forward cargo cradle is open, gently illuminated, holding a ` +
-      `single small pristine diplomatic courier case that glows softly white. Melancholic, not menacing â€” a giant ` +
+      `single small pristine sealed command case that glows softly white. Melancholic, not menacing â€” a giant ` +
       `that only wants to hand something over. Side profile, vast scale.`,
   },
 };

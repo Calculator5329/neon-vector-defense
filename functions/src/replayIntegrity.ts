@@ -1,4 +1,4 @@
-export type ReplayIntegrityStatus = 'complete' | 'legacy' | 'manifest-mismatch';
+export type ReplayIntegrityStatus = 'complete' | 'manifest-missing' | 'manifest-mismatch';
 
 export interface ReplayChunkInput {
   exists: boolean;
@@ -58,7 +58,7 @@ function intField(data: Record<string, unknown>, key: string): number {
 }
 
 export function validateReplayManifest(run: Record<string, unknown>, chunks: ReplayChunkInput[]): ReplayIntegrityStatus {
-  if (!('manifest' in run)) return 'legacy';
+  if (!('manifest' in run)) return 'manifest-missing';
   const manifest = readManifest(run.manifest);
   if (!manifest) return 'manifest-mismatch';
 

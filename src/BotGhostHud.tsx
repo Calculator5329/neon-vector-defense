@@ -188,7 +188,7 @@ function GhostModal({
         <span id="ghost-modal-title">AI RIVAL · {profileShortLabel(selectedCurve)}</span>
         <button className="ghost-modal-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
-        <p id="ghost-modal-desc" className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Long Watch starts are comparable.</p>
+        <p id="ghost-modal-desc" className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Extinction starts are comparable.</p>
 
         <div className="ghost-profile-switch" role="tablist" aria-label="AI rival profile">
           {sortedCurves.map((curve, i) => {

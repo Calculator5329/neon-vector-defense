@@ -19,7 +19,7 @@ procedural audio, and Firebase-backed leaderboards.
 - **8 sectors** — Orbital Relay, Twin Reactor, Hyperlane Junction, Mobius
   Drift, Blackout Reach, The Throat, Umbral Reach, and Cinder Causeway, each
   with a custom lane shape, no-build zones, and visual theme.
-- **5 protocols** — Recruit, Veteran, Apex, Extinction, and Long Watch, with
+- **4 protocols** — Recruit, Veteran, Apex, and Extinction, with
   different cash, hull, wave, cloak, and scaling rules.
 - **19 towers with 2 upgrade tracks** — including support, crowd-control,
   anti-cloak, burst, drone, missile, gravity, resonance, and late-game towers.
@@ -28,12 +28,12 @@ procedural audio, and Firebase-backed leaderboards.
 - **Enemy variants** — armored, blast-proof, cryo-proof, phase-cloaked, repair,
   boss, and nested-hull units.
 - **Progression** — service records, tower unlocks, freeplay, recovered signal
-  fragments, and alternate ending progression persist locally.
+  fragments, and cosmetic rewards persist locally.
 - **Meta loop** — Warden Rank, Salvage wallet, daily/weekly Operations Board
   quests, and Watch Streak (cosmetic/QoL only — never affects run balance).
 - **Battle Plan replays** — watch any run via `/?run=<runId>`; leaderboard rows
   link to reconstructions built from uploaded wave snapshots and public replay
-  event chunks.
+  event chunks with required completion manifests.
 - **Bot-rival ghosts** — in-run pacing curve compares your cores/cash to the
   bundled rookie/standard/expert bot profiles for the same sector.
 - **Leaderboards and feedback** — server-validated Firestore scoreboards and

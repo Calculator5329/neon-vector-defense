@@ -146,11 +146,11 @@ describe('public replay rules', () => {
     }));
   });
 
-  test('allow legacy replay docs without a manifest but reject malformed manifests', async () => {
+  test('require replay manifests and reject malformed manifests', async () => {
     const db = playerDb();
-    const legacy = { ...validRun, runId: `${runId}a` };
-    delete (legacy as Partial<typeof validRun>).manifest;
-    await assertSucceeds(setDoc(doc(db, 'runs', `${runId}a`), legacy));
+    const missingManifest = { ...validRun, runId: `${runId}a` };
+    delete (missingManifest as Partial<typeof validRun>).manifest;
+    await assertFails(setDoc(doc(db, 'runs', `${runId}a`), missingManifest));
     await assertFails(setDoc(doc(db, 'runs', `${runId}b`), {
       ...validRun,
       runId: `${runId}b`,
@@ -161,6 +161,22 @@ describe('public replay rules', () => {
       runId: `${runId}c`,
       chunkCount: 1,
       manifest: { chunkEventCounts: [], eventHash: '1234abcd', complete: true },
+    }));
+  });
+
+  test('deny retired protocol and outcome values in replay summaries', async () => {
+    const db = playerDb();
+    const retiredDiff = 'ng' + 'plus';
+    const retiredOutcome = 'armi' + 'stice';
+    await assertFails(setDoc(doc(db, 'runs', `${runId}d`), {
+      ...validRun,
+      runId: `${runId}d`,
+      summary: { ...validSummary, diff: retiredDiff },
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}e`), {
+      ...validRun,
+      runId: `${runId}e`,
+      summary: { ...validSummary, outcome: retiredOutcome },
     }));
   });
 
@@ -280,6 +296,23 @@ describe('leaderboard and telemetry write rules', () => {
     };
     await assertFails(setDoc(doc(anonDb(), 'telemetry', 't1'), row));
     await assertFails(setDoc(doc(playerDb(), 'telemetry', 't2'), { ...row, uid: 'w_victim9' }));
+  });
+
+  test('deny telemetry writes for retired protocol ids', async () => {
+    const retiredDiff = 'ng' + 'plus';
+    await assertFails(setDoc(doc(playerDb(), 'telemetry', 't_retired'), {
+      uid: playerUid,
+      ts: 1,
+      kind: 'final',
+      map: 'orbital',
+      diff: retiredDiff,
+      wave: 1,
+      kills: 1,
+      cash: 1,
+      won: false,
+      freeplay: false,
+      durationS: 10,
+    }));
   });
 
   test('allow private run analytics create and deny public updates', async () => {

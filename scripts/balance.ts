@@ -36,7 +36,7 @@ const CURVE_SKILLS: BotSkill[] = ['rookie', 'standard', 'expert'];
 
 // the skill each protocol is BALANCED around — used by the admin dashboard as context
 const MATCH: Record<string, BotSkill> = {
-  easy: 'rookie', normal: 'standard', hard: 'expert', extinction: 'expert', ngplus: 'expert',
+  easy: 'rookie', normal: 'standard', hard: 'expert', extinction: 'expert',
 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

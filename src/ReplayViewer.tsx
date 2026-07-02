@@ -105,10 +105,10 @@ function rgba(hex: string, a: number): string {
 }
 
 const OUTCOME_LABEL: Record<RunOutcome, string> = {
-  victory: 'VICTORY', armistice: 'ARMISTICE', gameover: 'GRID OVERRUN', abandoned: 'ABANDONED',
+  victory: 'VICTORY', gameover: 'GRID OVERRUN', abandoned: 'ABANDONED',
 };
 const OUTCOME_COLOR: Record<RunOutcome, string> = {
-  victory: '#3ad6ff', armistice: '#8e7bef', gameover: '#ff5a6e', abandoned: '#9aa6c8',
+  victory: '#3ad6ff', gameover: '#ff5a6e', abandoned: '#9aa6c8',
 };
 
 // ── path geometry + enemy re-enactment ──────────────────────────────────────
@@ -468,7 +468,6 @@ function eventLabel(e: RunEvent): string | null {
     case 'tower_upgrade': return `⬆ ${TOWER_MAP[tid ?? '']?.short ?? ''} ${(e.upgradeName as string) ?? 'upgrade'}`.trim();
     case 'tower_sell': return `✖ Sold ${TOWER_MAP[tid ?? '']?.name ?? 'tower'}`;
     case 'ability_cast': return `✦ ${prettyAbility(e.abilityId as string)}`;
-    case 'receiver_build': return '◈ Receiver online';
     default: return null;
   }
 }

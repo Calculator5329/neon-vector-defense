@@ -26,7 +26,7 @@ const defs: EnemyDef[] = [
   {
     id: 'wraith', name: 'Wraith', hp: 1, speed: 210, radius: 11, reward: 6,
     color: '#ff6ec7', glow: '#ffa7dd', children: ['phantom'], shape: 'ship',
-    lore: 'Courier-class blockade runner. Built to outrun targeting computers — and most of the time, it does.',
+    lore: 'Knife-edge blockade runner. Built to outrun targeting computers — and most of the time, it does.',
   },
   {
     id: 'shade', name: 'Shade', hp: 2, speed: 110, radius: 12, reward: 8,

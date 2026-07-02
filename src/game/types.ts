@@ -58,8 +58,6 @@ export interface Enemy {
   phase: number;
   dead: boolean;
   finished: boolean;
-  /** the Courier: carries the armistice, cannot be harmed or targeted */
-  courier?: boolean;
   /** bosses: seconds until the next disruption pulse */
   pulseCd?: number;
   /** transient per-tick: cloaked hull is inside a detector aura (precomputed) */

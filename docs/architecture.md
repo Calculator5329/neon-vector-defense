@@ -33,7 +33,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `engine.ts` | Core simulation: movement, combat, abilities, freeplay, run recorder hooks |
 | `render.ts` | Canvas drawing, camera shake, quality scaling, tower/enemy art |
 | `towers.ts` / `enemies.ts` / `waves.ts` | Static content definitions and stat computation |
-| `maps.ts` / `difficulty.ts` | 8 sectors × 5 protocols |
+| `maps.ts` / `difficulty.ts` | 8 sectors x 4 protocols |
 | `bot.ts` | Headless AI at rookie / standard / expert tiers |
 | `runTelemetry.ts` | Run events, wave snapshots, public replay chunks, private checkpoint docs |
 | `leaderboard.ts` | Firestore facade; replay upload/read; score submit via Cloud Functions |
@@ -69,13 +69,15 @@ The codebase follows a practical three-layer split. UI components observe game s
 ### Score and replay flow
 
 1. `RunRecorder.makePublicRun()` builds a public replay bundle. The main run doc
-   carries compact summary/setup/snapshots/final rows plus the first event window.
+   carries compact summary/setup/snapshots/final rows, the first event window,
+   and a required completion manifest.
 2. Overflow public events are written under `runs/{runId}/chunks/cN`.
 3. `submitRunReplay()` adds a browser-local replay token, stores its hash on the
    public run doc, and records ownership under `replayOwners/{uid}/runs/{runId}`.
 4. `submitScore` / `submitDailyScore` Cloud Functions verify the replay token,
-   check the replay summary against the claimed board, canonicalize score values,
-   and write board rows with server timestamps.
+   validate manifest chunk counts and event hash, check the replay summary
+   against the claimed board, canonicalize score values, and write board rows
+   with server timestamps.
 5. `ReplayViewer` reads `runs/{runId}` plus public chunks and reconstructs the run
    as a Battle Plan flipbook. It does not re-simulate combat.
 

@@ -1,4 +1,4 @@
-// Sanity-run the second sector trio (+ Long Watch) with the standard bot.
+// Sanity-run the second sector trio with the standard bot.
 import { Game } from '../src/game/engine';
 import { Bot } from '../src/game/bot';
 import { MAPS2, DIFFICULTIES } from '../src/game/maps';

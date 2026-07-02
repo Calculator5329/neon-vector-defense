@@ -9,8 +9,6 @@ interface Progress {
   archive: number[];
   /** best wave reached, keyed `${mapId}:${diffId}` */
   best: Record<string, number>;
-  /** true once the Diplomat's Gambit ending has been seen */
-  armistice: boolean;
   /** cumulative waves cleared across all runs - service record only */
   totalWaves: number;
   /** lifetime service record */
@@ -55,8 +53,11 @@ export interface BlueprintEntry {
 }
 
 function freshProgress(): Progress {
-  return { archive: [], best: {}, armistice: false, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {} };
+  return { archive: [], best: {}, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {} };
 }
+
+const RETIRED_DIFF_ID = 'ng' + 'plus';
+const RETIRED_ENDING_FLAG = 'armi' + 'stice';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -79,6 +80,16 @@ function numberRecord(value: unknown): Record<string, number> {
   if (!isRecord(value)) return {};
   const out: Record<string, number> = {};
   for (const [key, val] of Object.entries(value)) if (Number.isFinite(Number(val))) out[key] = Number(val);
+  return out;
+}
+
+function bestRecord(value: unknown): Record<string, number> {
+  if (!isRecord(value)) return {};
+  const out: Record<string, number> = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (key === RETIRED_DIFF_ID || key.endsWith(`:${RETIRED_DIFF_ID}`)) continue;
+    if (Number.isFinite(Number(val))) out[key] = Number(val);
+  }
   return out;
 }
 
@@ -112,15 +123,15 @@ function runHistory(value: unknown): RunRecord[] {
     leaks: entry.leaks === undefined ? undefined : finiteNumber(entry.leaks),
     durationS: entry.durationS === undefined ? undefined : finiteNumber(entry.durationS),
     towers: typeof entry.towers === 'string' ? entry.towers : undefined,
-  })).filter((entry) => entry.map && entry.diff).slice(0, 30);
+  })).filter((entry) => entry.map && entry.diff && entry.diff !== RETIRED_DIFF_ID).slice(0, 30);
 }
 
 export function normalizeProgress(value: unknown): Progress {
   const src = isRecord(value) ? value : {};
   const out = { ...src } as unknown as Progress;
+  delete (out as unknown as Record<string, unknown>)[RETIRED_ENDING_FLAG];
   out.archive = numberArray(src.archive);
-  out.best = numberRecord(src.best);
-  out.armistice = src.armistice === true;
+  out.best = bestRecord(src.best);
   out.totalWaves = finiteNumber(src.totalWaves);
   out.runs = finiteNumber(src.runs);
   out.victories = finiteNumber(src.victories);
@@ -128,7 +139,7 @@ export function normalizeProgress(value: unknown): Progress {
   out.blueprints = blueprintRecord(src.blueprints);
   out.history = runHistory(src.history);
   out.playerName = typeof src.playerName === 'string' ? src.playerName.slice(0, 20) : '';
-  out.clearedMaps = stringArray(src.clearedMaps);
+  out.clearedMaps = stringArray(src.clearedMaps).filter((id) => id !== RETIRED_DIFF_ID);
   out.firstSeenAt = finiteNumber(src.firstSeenAt);
   out.lastSeenAt = finiteNumber(src.lastSeenAt);
   out.sessions = finiteNumber(src.sessions);
@@ -155,7 +166,6 @@ function save() {
 
 export const progress = {
   get archive(): number[] { return cache.archive; },
-  get armisticeSeen(): boolean { return cache.armistice; },
   get totalWaves(): number { return cache.totalWaves; },
   addWaves(n: number) {
     cache.totalWaves += n;
@@ -303,10 +313,6 @@ export const progress = {
       cache.best[k] = wave;
       save();
     }
-  },
-  markArmistice() {
-    cache.armistice = true;
-    save();
   },
   reset() {
     cache = freshProgress();

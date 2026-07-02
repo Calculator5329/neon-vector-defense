@@ -3,14 +3,14 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (release hardening pass)
+Last updated: 2026-07-02 (release hardening + single-ending sunset passes)
 
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
-| Core tower-defense loop | 8 sectors, 5 protocols, 19 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
-| Battle Plan replays | Public `runs/{runId}` docs, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
+| Core tower-defense loop | 8 sectors, 4 protocols, 19 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
+| Battle Plan replays | Public `runs/{runId}` docs with required manifests, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, canonical score values, server-time ordering | `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, deterministic Daily Freeplay, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Meta loop | Warden Rank, Salvage, Operations Board, Watch Streak; cosmetic/QoL only | `meta.ts`, `OperationsBoard.tsx`, `tests/e2e/ux-ui.spec.ts` |
@@ -21,6 +21,12 @@ Last updated: 2026-07-02 (release hardening pass)
 
 ## Recently shipped since the prior doc audit
 
+- Long Watch and Diplomat's Gambit were retired; the campaign now has one
+  ending path through Extinction, with a one-time Sunset Signal palette and
+  Salvage bonus for the capstone clear.
+- Public replay manifests are now mandatory for new uploads, and score
+  validation treats missing manifests as incomplete data rather than legacy
+  compatibility.
 - AI-rival comparisons were deepened and the modal layout was polished.
 - AI helper privacy copy now explains what the assistant sends and why.
 - Deploy checks now verify Node/Java/Firebase project prerequisites before rules/deploy work.
@@ -64,7 +70,8 @@ Last updated: 2026-07-02 (release hardening pass)
 
 1. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
 2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
-3. **In flight (Codex missions)**: Long Watch + Diplomat's Gambit removal; Daily Challenge rework + menu redesign; two new towers + balance pass + admin balance console.
+3. **In flight (Codex missions)**: Daily Challenge rework + menu redesign; two new towers + balance pass + admin balance console.
+4. **Replay re-simulation** - server-side freeplay/mode validation and re-simulation paths before leaderboard incentives grow (deterministic sim groundwork is in).
 
 ## Deferred / bigger bets
 
@@ -85,7 +92,7 @@ Last updated: 2026-07-02 (release hardening pass)
 - [x] Daily Freeplay seed
 - [x] App Check staged-enforcement runbook and deploy preflight
 - [x] Touch-first responsive command layout (short-landscape tier)
-- [x] Replay completion manifest and chunk validation
+- [x] Replay completion manifest and chunk validation (manifests now REQUIRED)
 - [x] Gameplay correctness audit fixes
 - [x] Guided onboarding funnel (action-gated coach)
 - [x] Balance CI gate on PRs
@@ -97,6 +104,7 @@ Last updated: 2026-07-02 (release hardening pass)
 - `meta.ts` must stay off the combat, score, and bot paths.
 - Public replay docs must remain compact and free of `undefined` values.
 - Replay read paths must reject or clearly label incomplete/malformed chunks; partial data should not masquerade as a full Battle Plan.
+- New public replay uploads must carry a manifest; missing manifests are incomplete and cannot back accepted scores.
 - Leaderboard score claims must include a matching replay token.
 - Privacy export/delete must cover every local key that can affect score retry, identity, consent, or private replies.
 - Admin allowlists in `firestore.rules`, Functions helpers, and client admin code must stay synchronized.

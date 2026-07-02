@@ -21,8 +21,6 @@ const SYS = (delivery: string) =>
 
 const CONTINUITY = 'calm, slightly ethereal female station AI carrying a million archived human minds; gentle, layered, unhurried, quiet warmth';
 const ARCHIVIST = 'quiet, weathered human archivist reading recovered records late at night; intimate, measured, a little haunted';
-const HOLLOW_CMD = 'urgent but controlled military commander over a crackling long-range radio, an edge of dread he is suppressing';
-
 interface Line { text: string; voice: string; delivery: string }
 
 const LINES: Record<string, Line> = {
@@ -33,16 +31,10 @@ const LINES: Record<string, Line> = {
   'gameover': { text: 'The light has gone out. We remember you, Warden.', voice: 'sage', delivery: CONTINUITY },
   'victory': { text: 'Sector secured. One million, one hundred six thousand souls thank you.', voice: 'sage', delivery: CONTINUITY },
   'archive': { text: 'Archive fragment recovered.', voice: 'sage', delivery: CONTINUITY },
-  'courier': { text: 'Hold fire. The leviathan is hailing us.', voice: 'sage', delivery: CONTINUITY },
-  'armistice': { text: 'The war is over. The receipt is signed. Come home.', voice: 'sage', delivery: CONTINUITY },
   'low-cores': { text: 'Warden. The cores are failing.', voice: 'sage', delivery: CONTINUITY },
   'unlock': { text: 'New instrument pattern decrypted.', voice: 'sage', delivery: CONTINUITY },
   'titan-down': { text: 'Carrier destroyed. Well shot, Warden.', voice: 'sage', delivery: CONTINUITY },
   'leviathan-down': { text: 'The dreadnought is down. The lane remembers.', voice: 'sage', delivery: CONTINUITY },
-  'longwatch-brief': {
-    text: 'Warden. The war you ended was never the only war. Something followed the Combine home through the old routes — the same hunger that hollowed the Locust world. It does not deliver. It does not queue. It eats light. The Combine remembers what you did for them. Their patrol frames are inbound to fight beside you. Two fleets, one lane, one lighthouse. They are calling it the Hollow. Keep the lantern lit.',
-    voice: 'onyx', delivery: HOLLOW_CMD,
-  },
 };
 
 // every Archive fragment, read by the archivist

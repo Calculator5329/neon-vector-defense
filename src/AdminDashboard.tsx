@@ -1003,7 +1003,7 @@ function bucket(wave: number): string {
 // ---- telemetry analysis helpers ----
 const DAY = 86_400_000;
 const RANGE_MS: Record<string, number> = { '24h': DAY, '7d': 7 * DAY, '30d': 30 * DAY, all: Infinity };
-const SKILL_FOR: Record<string, string> = { easy: 'rookie', normal: 'standard', hard: 'expert', extinction: 'expert', ngplus: 'expert' };
+const SKILL_FOR: Record<string, string> = { easy: 'rookie', normal: 'standard', hard: 'expert', extinction: 'expert' };
 const dayKey = (ts: number) => new Date(ts).toISOString().slice(0, 10);
 /** Wilson 95% lower bound — a small-sample-aware win rate (3/3 ranks below 200/300). */
 function wilsonLow(wins: number, n: number): number {
@@ -1253,12 +1253,11 @@ function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
     const n = rows.length;
     const avg = (f: (r: TelemetryRow) => number) => rows.reduce((s, r) => s + f(r), 0) / n;
     // death/end histogram bucketed by wave, split by kind
-    const buckets = new Map<string, { gameover: number; victory: number; armistice: number }>();
+    const buckets = new Map<string, { gameover: number; victory: number }>();
     for (const r of rows) {
       const b = bucket(r.wave);
-      const e = buckets.get(b) ?? { gameover: 0, victory: 0, armistice: 0 };
+      const e = buckets.get(b) ?? { gameover: 0, victory: 0 };
       if (r.kind === 'victory') e.victory++;
-      else if (r.kind === 'armistice') e.armistice++;
       else e.gameover++;
       buckets.set(b, e);
     }
@@ -1269,7 +1268,7 @@ function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
     const byMap = winRateBy(rows, (r) => r.map, ALL_MAPS.map((m) => m.id), mapName);
     const byDiff = winRateBy(rows, (r) => r.diff, DIFFICULTIES.map((d) => d.id), diffName);
     const fails = histo
-      .map(([label, e]) => ({ label, losses: e.gameover, total: e.gameover + e.victory + e.armistice }))
+      .map(([label, e]) => ({ label, losses: e.gameover, total: e.gameover + e.victory }))
       .filter((b) => b.losses > 0)
       .sort((a, b) => b.losses - a.losses)
       .slice(0, 4);
@@ -1408,7 +1407,7 @@ function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
       {!s ? (
         <div className="adm-card"><div className="adm-empty">No runs match this filter.</div></div>
       ) : ((s: NonNullable<typeof stats>) => {
-        const maxBucket = Math.max(1, ...s.histo.map(([, e]) => e.gameover + e.victory + e.armistice));
+        const maxBucket = Math.max(1, ...s.histo.map(([, e]) => e.gameover + e.victory));
         return (
           <>
             <div className="adm-stat-row">
@@ -1470,13 +1469,12 @@ function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
               <div className="adm-card-head"><h3>Run outcome by wave reached</h3><span className="adm-hint">where players' runs end</span></div>
               <div className="adm-histo">
                 {s.histo.map(([b, e]) => {
-                  const total = e.gameover + e.victory + e.armistice;
+                  const total = e.gameover + e.victory;
                   return (
-                    <div key={b} className="adm-histo-col" title={`${b}: ${e.gameover} lost · ${e.victory} won · ${e.armistice} armistice`}>
+                    <div key={b} className="adm-histo-col" title={`${b}: ${e.gameover} lost · ${e.victory} won`}>
                       <div className="adm-histo-stack" style={{ height: `${(total / maxBucket) * 100}%` }}>
                         <div style={{ flex: e.gameover, background: '#ff4757' }} />
                         <div style={{ flex: e.victory, background: '#2ed573' }} />
-                        <div style={{ flex: e.armistice, background: '#ffd32a' }} />
                       </div>
                       <span className="adm-histo-label">{b}</span>
                     </div>
@@ -1486,7 +1484,6 @@ function TelemetryTab({ report }: { report: Report | null | 'missing' }) {
               <div className="adm-legend">
                 <span><i style={{ background: '#ff4757' }} /> grid offline</span>
                 <span><i style={{ background: '#2ed573' }} /> sector secured</span>
-                <span><i style={{ background: '#ffd32a' }} /> armistice</span>
               </div>
             </div>
 
@@ -1669,7 +1666,7 @@ function analyticsByDay(rows: RunAnalyticsRow[]) {
     const k = dayKey(r.endedAt || r.createdAt || Date.now());
     const e = byDay.get(k) ?? { runs: 0, wins: 0, abandons: 0, minutes: 0 };
     e.runs++;
-    if (r.summary.outcome === 'victory' || r.summary.outcome === 'armistice') e.wins++;
+    if (r.summary.outcome === 'victory') e.wins++;
     if (r.summary.outcome === 'abandoned') e.abandons++;
     e.minutes += r.summary.durationS / 60;
     byDay.set(k, e);
@@ -1680,7 +1677,7 @@ function analyticsByDay(rows: RunAnalyticsRow[]) {
 function outcomeBars(rows: RunAnalyticsRow[]) {
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.summary.outcome, (counts.get(r.summary.outcome) ?? 0) + 1);
-  const color: Record<string, string> = { victory: '#2ed573', armistice: '#ffd32a', gameover: '#ff4757', abandoned: '#ff9f43' };
+  const color: Record<string, string> = { victory: '#2ed573', gameover: '#ff4757', abandoned: '#ff9f43' };
   return [...counts.entries()].map(([label, value]) => ({ label, value, color: color[label] ?? '#54a0ff' }));
 }
 
@@ -1904,7 +1901,7 @@ function MetricExplorerTab() {
           <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
         </select>
         <select aria-label="Analytics outcome" value={filters.outcome} onChange={(e) => updateFilters({ outcome: e.target.value })}>
-          <option value="all">all outcomes</option><option value="victory">victory</option><option value="armistice">armistice</option><option value="gameover">gameover</option><option value="abandoned">abandoned</option>
+          <option value="all">all outcomes</option><option value="victory">victory</option><option value="gameover">gameover</option><option value="abandoned">abandoned</option>
         </select>
         <select aria-label="Analytics wave bucket" value={filters.waveBucket} onChange={(e) => updateFilters({ waveBucket: e.target.value })}>
           <option value="all">all waves</option>{waveBuckets.map((bucket) => <option key={bucket} value={bucket}>{bucket}</option>)}
@@ -2238,7 +2235,7 @@ function RunIntelligenceTab() {
       </div>
       <div className="adm-two">
         <div className="adm-card">
-          <div className="adm-card-head"><h3>Outcome mix</h3><span className="adm-hint">completed, lost, armistice, abandoned</span></div>
+          <div className="adm-card-head"><h3>Outcome mix</h3><span className="adm-hint">completed, lost, abandoned</span></div>
           <HBars data={outcomeBars(data)} fmt={(v) => `${v}`} />
         </div>
         <div className="adm-card">
@@ -2315,7 +2312,7 @@ function EngagementTab() {
     runs,
     sessions: Math.max(...runs.map((r) => num(r.progression.sessions))),
     daysSinceFirstSeen: Math.min(...runs.map((r) => num(r.progression.daysSinceFirstSeen))),
-    won: runs.some((r) => r.summary.outcome === 'victory' || r.summary.outcome === 'armistice'),
+    won: runs.some((r) => r.summary.outcome === 'victory'),
     returnedAfterLoss: runs.length > 1 && runs[0].summary.outcome !== 'gameover',
   }));
   const funnelKeys = [

@@ -110,14 +110,16 @@ export function rankFromXp(xp: number): RankInfo {
 }
 
 // ---- run reward derivation (pure; reads only engine-computed values) ----
-export type RunOutcome = 'victory' | 'armistice' | 'gameover' | 'abandoned';
+export type RunOutcome = 'victory' | 'gameover' | 'abandoned';
 export interface RunRewardInput {
   wave: number; kills: number; cashEarned: number; won: boolean;
   freeplay: boolean; diffId: string; isDailyFreeplay: boolean; outcome: RunOutcome;
 }
 export interface RunMetaReward { xp: number; salvage: number; breakdown: { label: string; xp: number; salvage: number }[]; }
 
-const DIFF_MULT: Record<string, number> = { easy: 0.8, normal: 1, hard: 1.4, extinction: 1.8, ngplus: 1.6 };
+const DIFF_MULT: Record<string, number> = { easy: 0.8, normal: 1, hard: 1.4, extinction: 1.8 };
+const EXTINCTION_CAPSTONE_PALETTE = 'palette-sunset';
+const EXTINCTION_CAPSTONE_SALVAGE = 300;
 
 export function deriveRunReward(input: RunRewardInput): RunMetaReward {
   if (input.outcome === 'abandoned') return { xp: 0, salvage: 0, breakdown: [] };
@@ -128,7 +130,6 @@ export function deriveRunReward(input: RunRewardInput): RunMetaReward {
   add(`Wave ${input.wave}`, input.wave * 10 * mult, input.wave * 2);
   add(`${input.kills.toLocaleString()} hulls`, input.kills * 1 * mult, input.cashEarned / 200);
   if (input.won) add('Sector held', 250 * mult, 60);
-  if (input.outcome === 'armistice') add('The Long Signal', 400 * mult, 0);
   if (input.isDailyFreeplay) add('Daily op', 50, 20);
 
   const xp = breakdown.reduce((s, b) => s + b.xp, 0);
@@ -253,6 +254,11 @@ export const meta = {
     if (input.outcome === 'abandoned') return zero;
 
     const reward = deriveRunReward(input);
+    if (input.won && !input.freeplay && input.diffId === 'extinction' && !cache.cosmetics.includes(EXTINCTION_CAPSTONE_PALETTE)) {
+      cache.cosmetics.push(EXTINCTION_CAPSTONE_PALETTE);
+      reward.salvage += EXTINCTION_CAPSTONE_SALVAGE;
+      reward.breakdown.push({ label: 'Sunset Signal palette', xp: 0, salvage: EXTINCTION_CAPSTONE_SALVAGE });
+    }
     cache.xp += reward.xp;
     cache.salvage += reward.salvage;
     cache.salvageLifetime += reward.salvage;

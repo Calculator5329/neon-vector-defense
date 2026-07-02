@@ -10,7 +10,7 @@ const P = {
   "frag-2": S + " A war museum hologram of two fleets frozen mid-battle over a gate route, eleven service flags dimmed below.",
   "frag-3": S + " An old signal console printing an endless repeating delivery schedule on translucent tape that coils across a dark floor.",
   "frag-4": S + " A battered journal floating in a ruined lighthouse control room, pages open, handwriting visible as faint light.",
-  "frag-5": S + " A grand armistice signing hall aboard a station, two empty chairs, a single document on the table, clock reading 04:47.",
+  "frag-5": S + " A grand ceasefire signing hall aboard a station, two empty chairs, a single document on the table, clock reading 04:47.",
   "frag-6": S + " The open carrier bay of a huge red machine warship: padded, climate-misted, gentle interior lighting, clearly built to carry something fragile.",
   "frag-7": S + " A suppressed star chart where machine fleet routes form a patient orderly queue between lighthouse beacons, one route highlighted.",
   "frag-9": S + " A cherry tree in full blossom on a station observation deck, petals drifting in zero gravity past a window full of warship silhouettes holding fire.",

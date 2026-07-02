@@ -4,8 +4,7 @@ import { render, drawTowerBody, setRenderQuality } from '../game/render';
 import { TOWERS, TOWERS_BY_UNLOCK, sellValue } from '../game/towers';
 import { ENEMIES } from '../game/enemies';
 import { ABILITIES } from '../game/abilities';
-import { BRIEFING, LONGWATCH_BRIEFING, ABILITY_LORE, RECEIVER_DESC, ARMISTICE_LINES } from '../game/lore';
-import { RECEIVER_COST } from '../game/engine';
+import { BRIEFING, ABILITY_LORE } from '../game/lore';
 import { progress } from '../game/storage';
 import { Bot } from '../game/bot';
 import { isMilestoneWave } from '../game/writePolicy';
@@ -138,7 +137,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   // cloakTip and the first-run coach are non-blocking, so they are
   // intentionally NOT part of blockingOverlay
   const blockingOverlay = !briefed || unlockModal !== null || contractOpen || relicOfferOpen ||
-    game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice';
+    game.phase === 'gameover' || game.phase === 'victory';
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
   sideOpenRef.current = sideOpen;
@@ -216,9 +215,9 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
 
   // sector ambience while deployed
   useEffect(() => {
-    playSectorTheme(diff.id === 'ngplus' ? 'hollow' : (map.music ?? map.id));
+    playSectorTheme(map.music ?? map.id);
     return () => playSectorTheme(null);
-  }, [map.id, map.music, diff.id]);
+  }, [map.id, map.music]);
 
   // anonymous run-end telemetry (one event per run, terminal phases only)
   const loggedRunRef = useRef(false);
@@ -336,7 +335,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
       }
       // fire one anonymous telemetry event when a run ends (skip perf bot runs)
       if (PERF_MAP === null && !DEMO_MODE && !loggedRunRef.current &&
-          (game.phase === 'gameover' || game.phase === 'victory' || game.phase === 'armistice')) {
+          (game.phase === 'gameover' || game.phase === 'victory')) {
         loggedRunRef.current = true;
         void submitCheckpointNow('terminal');
         logTelemetry({
@@ -359,7 +358,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         const reward = meta.creditRun(game.runId, {
           wave: game.wave, kills: game.totalKills, cashEarned: game.runStats.cashEarned,
           won: game.phase !== 'gameover', freeplay: game.freeplay, diffId: game.diff.id,
-          isDailyFreeplay: game.isDailyFreeplay, outcome: game.phase as 'victory' | 'armistice' | 'gameover',
+          isDailyFreeplay: game.isDailyFreeplay, outcome: game.phase as 'victory' | 'gameover',
         }, {
           towerKindsUsed: new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)]).size,
           abilitiesCast: game.runStats.abilitiesCast,
@@ -630,7 +629,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
       return;
     }
     if (abortRisk) game.recorder.recordControl(METRIC_EVENTS.ABORT_CONFIRMED);
-    if (abortRisk && game.phase !== 'gameover' && game.phase !== 'victory' && game.phase !== 'armistice') {
+    if (abortRisk && game.phase !== 'gameover' && game.phase !== 'victory') {
       game.abandonRun('abort');
       if (PERF_MAP === null && !DEMO_MODE) {
         void submitCheckpointNow('abort');
@@ -878,9 +877,9 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           )}
           {!briefed && (
             <BriefingOverlay
-              lines={diff.id === 'ngplus' ? LONGWATCH_BRIEFING : BRIEFING}
-              portrait={diff.id === 'ngplus' ? '/art/hollow.webp' : '/art/briefing.webp'}
-              audio={diff.id === 'ngplus' ? '/audio/vox/longwatch-brief.mp3' : '/audio/briefing.mp3'}
+              lines={BRIEFING}
+              portrait="/art/briefing.webp"
+              audio="/audio/briefing.mp3"
               onDone={() => { setBriefed(true); sfx.waveStart(); }}
             />
           )}
@@ -932,12 +931,6 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           )}
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
-          {game.phase === 'armistice' && (
-            <Overlay title="THE LONG SIGNAL" color="#ffd32a" art="/art/armistice.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
-              lines={ARMISTICE_LINES}
-              buttons={[{ label: 'MAIN MENU', fn: onExit }]}
-            />
-          )}
           {game.phase === 'victory' && (
             <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
@@ -961,7 +954,6 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
                   sig={`${Math.floor(game.credits)}|${game.totalKills}|${game.isDailyFreeplay ? [...(game.dailyTowerIds ?? [])].join(',') : 'campaign'}`}
                   setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               )}
-              <ReceiverPanel game={game} />
             </div>
           ) : (
             <button className="side-rail" title="Expand panel" aria-label="Expand arsenal panel" onClick={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_EXPAND); setSideOpen(true); sfx.click(); }}>
@@ -1220,7 +1212,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const [top, setTop] = useState<ScoreEntry[] | null>(null);
   const [dossier, setDossier] = useState<DossierInput | null>(null);
   const [sharedRunId, setSharedRunId] = useState<string | undefined>(undefined);
-  const eligible = game.phase === 'victory' || game.phase === 'armistice' ||
+  const eligible = game.phase === 'victory' ||
     (game.phase === 'gameover' && game.freeplay);
   useEffect(() => {
     if (eligible && !DEMO_MODE) game.recorder.recordLeaderboardOpen();
@@ -1568,35 +1560,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="stat-row">
       <span>{label}</span>
       <span className="stat-val">{value}</span>
-    </div>
-  );
-}
-
-// ---------------- The Diplomat's Gambit ----------------
-
-function ReceiverPanel({ game }: { game: Game }) {
-  if (game.diff.id === 'ngplus') return null;
-  if (game.receiver) {
-    return (
-      <div className="panel receiver listening">
-        <div className="panel-title" style={{ color: '#ffd32a' }}>📡 RECEIVER LISTENING</div>
-        <p className="hint-dim">Towers at 75% rate. The next LEVIATHAN to enter the corridor will hail instead of fight. Let it through.</p>
-      </div>
-    );
-  }
-  if (!game.canBuildReceiver()) return null;
-  return (
-    <div className="panel receiver">
-      <div className="panel-title" style={{ color: '#ffd32a' }}>THE DIPLOMAT'S GAMBIT</div>
-      <p className="hint-dim">{RECEIVER_DESC}</p>
-      <button
-        className={`upgrade-btn receiver-btn ${game.credits >= RECEIVER_COST ? '' : 'poor'}`}
-        onClick={() => { game.buildReceiver(); }}
-      >
-        <div className="up-name">📡 Build the Antique Receiver</div>
-        <div className="up-desc">Command votes no. The Continuity votes yes.</div>
-        <div className="up-cost">⌬{RECEIVER_COST}</div>
-      </button>
     </div>
   );
 }

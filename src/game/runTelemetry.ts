@@ -30,7 +30,7 @@ function downsampleSnapshots<T>(snaps: T[], cap: number): T[] {
   return out.filter((s, i) => i === 0 || s !== out[i - 1]);
 }
 
-export type RunOutcome = 'victory' | 'armistice' | 'gameover' | 'abandoned';
+export type RunOutcome = 'victory' | 'gameover' | 'abandoned';
 export type RunPanelKind = 'none' | 'shop' | 'upgrade';
 
 export interface RunEvent {
@@ -132,7 +132,7 @@ export interface PublicRunDoc {
   build: string;
   chunkCount: number;
   eventCount: number;
-  manifest?: RunManifest;
+  manifest: RunManifest;
   summary: {
     callsign: string;
     map: string;
@@ -788,12 +788,6 @@ export class RunRecorder {
     });
   }
 
-  recordReceiverBuild(state: RunTelemetryState, cost: number): void {
-    this.cashSpent += cost;
-    this.lastPurchaseAtS = state.time;
-    this.record('receiver_build', state, { cost, cashAfter: Math.floor(state.credits) });
-  }
-
   recordBlueprint(state: RunTelemetryState, action: 'save' | 'apply', count: number): void {
     if (action === 'save') this.placement.blueprintSaves++;
     else {
@@ -848,7 +842,7 @@ export class RunRecorder {
     this.outcome = outcome;
     this.endedAt = Date.now();
     if (outcome === 'gameover' && !this.funnel.firstLossAt) this.funnel.firstLossAt = roundS(state.time);
-    if ((outcome === 'victory' || outcome === 'armistice') && !this.funnel.firstWinAt) this.funnel.firstWinAt = roundS(state.time);
+    if (outcome === 'victory' && !this.funnel.firstWinAt) this.funnel.firstWinAt = roundS(state.time);
     this.record('run_end', state, {
       outcome,
       reason: reason ?? null,
@@ -1054,6 +1048,7 @@ export class RunRecorder {
       build,
       chunkCount: chunks.length,
       eventCount: runEvents.length + chunkEvents,
+      manifest: buildRunManifest(runEvents, chunks),
       summary: this.summary(state, callsign),
       setup: {
         map: this.start.map.id,
@@ -1527,7 +1522,6 @@ export class RunRecorder {
 
   private inferOutcome(state: RunTelemetryState): RunOutcome {
     if (state.phase === 'gameover') return 'gameover';
-    if (state.phase === 'armistice') return 'armistice';
     if (state.phase === 'victory') return 'victory';
     return 'abandoned';
   }

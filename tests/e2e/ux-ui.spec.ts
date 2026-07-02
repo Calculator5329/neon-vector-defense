@@ -18,7 +18,6 @@ test.skip(process.env.PLAYWRIGHT_PREVIEW === '1', 'UX harness checks run against
 const progressSeed = {
   archive: [],
   best: {},
-  armistice: false,
   totalWaves: 0,
   runs: 1,
   victories: 0,
@@ -748,7 +747,7 @@ test.describe('run telemetry model', () => {
   });
 
   test('records representative friction, assistance, and leaderboard counters', async ({ page }) => {
-    await seedProgress(page, { runs: 0, victories: 0, kills: 0, armistice: false });
+    await seedProgress(page, { runs: 0, victories: 0, kills: 0 });
     await page.goto('/');
     await expect(page.getByTestId('diff-card-hard')).toHaveAttribute('aria-disabled', 'true');
     await deployFromMenu(page);
@@ -1015,7 +1014,7 @@ test.describe('browser perf harness', () => {
       expect(sample.qualityRecoveries).toBeGreaterThanOrEqual(0);
       expect(sample.hullCount).toBeGreaterThanOrEqual(0);
       expect(sample.fxCount).toBeGreaterThanOrEqual(0);
-      expect(['build', 'wave', 'victory', 'gameover', 'armistice']).toContain(sample.phase);
+      expect(['build', 'wave', 'victory', 'gameover']).toContain(sample.phase);
     }
 
     expect(firestorePosts).toHaveLength(0);

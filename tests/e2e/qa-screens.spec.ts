@@ -22,7 +22,6 @@ const progressSeed = {
     'umbral:hard': 24,
     'cinder:hard': 26,
   },
-  armistice: true,
   totalWaves: 420,
   runs: 18,
   victories: 5,
@@ -41,7 +40,6 @@ const progressSeed = {
   uid: 'w_qa_audit',
   tut: true,
   cloakTip: true,
-  armisticeSeen: true,
   apexW: true,
   foes: [
     'scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono',

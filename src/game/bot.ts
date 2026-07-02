@@ -164,7 +164,7 @@ export class Bot {
     // 3. abilities
     if (this.rng() < this.profile.abilityChance) {
       const count = g.enemies.length;
-      const boss = g.enemies.find((e) => e.def.boss && !e.courier);
+      const boss = g.enemies.find((e) => e.def.boss);
       if (g.abilityReady('salvage')) g.castAbility('salvage');
       if (boss && g.abilityReady('strike')) g.castAbility('strike', { ...boss.pos });
       else if (count >= 26 && g.abilityReady('strike')) {

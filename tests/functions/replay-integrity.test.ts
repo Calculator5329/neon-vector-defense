@@ -25,12 +25,12 @@ function manifestRun(patch: Record<string, unknown> = {}) {
 }
 
 describe('replay manifest integrity', () => {
-  test('accepts complete manifests and preserves legacy replay compatibility', () => {
+  test('accepts complete manifests and rejects manifest-less uploads', () => {
     assert.equal(
       validateReplayManifest(manifestRun(), [{ exists: true, events: chunkEvents }]),
       'complete',
     );
-    assert.equal(validateReplayManifest({ eventCount: 1, events: docEvents }, []), 'legacy');
+    assert.equal(validateReplayManifest({ eventCount: 1, events: docEvents }, []), 'manifest-missing');
   });
 
   test('returns manifest-mismatch for missing, truncated, or tampered chunks', () => {

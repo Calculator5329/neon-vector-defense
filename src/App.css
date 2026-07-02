@@ -463,9 +463,6 @@
 .diff-desc { font-size: 11px; color: #8392bf; margin-top: 4px; line-height: 1.22; }
 
 .diff-card.diff-locked { opacity: 0.5; cursor: not-allowed; border-style: dashed; }
-.diff-card.diff-ngplus { border-color: rgba(179, 136, 255, 0.45); }
-.diff-card.diff-ngplus.active { border-color: #b388ff; box-shadow: 0 0 0 1px #b388ff, 0 0 10px rgba(179, 136, 255, 0.25); }
-.diff-card.diff-ngplus .diff-name { color: #b388ff; }
 .diff-card.diff-extinction { border-color: rgba(255, 71, 87, 0.4); }
 .diff-card.diff-extinction.active { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), 0 0 10px rgba(255, 71, 87, 0.25); }
 .diff-card.diff-extinction .diff-name { color: var(--danger); }
@@ -2129,10 +2126,6 @@ body.game-blocking-overlay .fb-root.on-game {
 
 .rank-stars { color: var(--gold); text-shadow: 0 0 8px rgba(255, 211, 42, 0.7); }
 
-.panel.receiver { border-color: rgba(255, 211, 42, 0.5); box-shadow: 0 0 18px rgba(255, 211, 42, 0.12); }
-.panel.receiver.listening { animation: twinkle 2s ease-in-out infinite alternate; }
-.receiver-btn { margin-top: 10px; border-color: var(--gold); background: rgba(255, 211, 42, 0.07); }
-.receiver-btn .up-name { color: var(--gold); }
 .archive-frag.locked { border-left-color: var(--edge); opacity: 0.45; }
 .archive-frag.locked .archive-title { color: var(--dim); }
 

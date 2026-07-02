@@ -60,7 +60,7 @@ export const ARCHIVE: ArchiveFragment[] = [
     wave: 26,
     art: '/art/frag-5.webp',
     title: 'Concord Archives: the first hour of peace',
-    text: 'The armistice was signed aboard Lantern 1 at 0400 standard. The ceasefire broadcast — every shutdown key for every autonomous fleet — was queued for relay at 0500. The Combine\'s siege vanguard reached Lantern 1 at 0447.',
+    text: 'The ceasefire was signed aboard Lantern 1 at 0400 standard. The shutdown broadcast — every key for every autonomous fleet — was queued for relay at 0500. The Combine\'s siege vanguard reached Lantern 1 at 0447.',
   },
   {
     wave: 33,
@@ -78,13 +78,13 @@ export const ARCHIVE: ArchiveFragment[] = [
     wave: 50,
     art: '/art/leviathan.webp',
     title: 'Manifest fragment, LEVIATHAN-class hold',
-    text: 'Item 1 of 1. Diplomatic pouch, Meridian Compact, year 2063. Contents: armistice instrument, shutdown keys, one personal letter beginning "To whoever is still listening." Delivery instruction: hand-carry to Lantern receiver. Receipt required. It has been trying to deliver the end of the war for 284 years.',
+    text: 'Item 1 of 1. Meridian Compact pouch, year 2063. Contents: ceasefire instrument, shutdown keys, one personal letter beginning "To whoever is still listening." Delivery instruction: hand-carry to Lantern Seven command. Receipt required. It has been trying to deliver the end of the war for 284 years.',
   },
   {
     wave: 60,
     art: '/art/frag-9.webp',
     title: 'Sector Command, draft directive (unsent)',
-    text: 'Proposal: rebuild the antique Compact-era receiver and sign for the pouch. Risk assessment: catastrophic if wrong. We would have to let a LEVIATHAN dock. Every soul in the Continuity votes yes. Command votes no. The guns stay warm. The cherry tree on deck seven blossomed this morning.',
+    text: 'Proposal: recover the Compact-era shutdown keys and answer the old delivery order. Risk assessment: catastrophic if wrong. Every soul in the Continuity votes yes. Command votes no. The guns stay warm. The cherry tree on deck seven blossomed this morning.',
   },
   {
     wave: 65,
@@ -102,26 +102,6 @@ export const ARCHIVE: ArchiveFragment[] = [
     title: 'The thing the war was for',
     text: 'We finally understand the delivery schedule. The Combine was never besieging us. It was the wall — a three-century picket line their makers raised between the gates and the dark, holding back the Hollow one polite wave at a time, waiting for someone to sign for the end so they could stand down and let us hold the wall ourselves. We did not sign. We shot the wall. And now the dark is at Lantern Seven, and the only light left is the one you keep.',
   },
-];
-
-// Post-armistice campaign: the thing the Locust Shrine's dead world only hinted at.
-export const LONGWATCH_BRIEFING = [
-  'Warden. The war you ended was never the only war.',
-  'Something followed the Combine home through the old routes — the same hunger that hollowed the Locust world. It does not deliver. It does not queue. It eats light.',
-  'The Combine remembers what you did for them. Their patrol frames are inbound to fight beside you. Two fleets, one lane, one lighthouse.',
-  'They are calling it the Hollow. Keep the lantern lit.',
-];
-
-export const RECEIVER_DESC =
-  'Rebuild the antique Compact-era receiver and sign for the pouch. While it listens, beacon fuel is diverted: ' +
-  'all towers fire 25% slower — and the next LEVIATHAN to enter the corridor will hail instead of fight. ' +
-  'Your guns cannot touch it. If it reaches the dock, you will find out what it has been carrying.';
-
-export const ARMISTICE_LINES = [
-  'The LEVIATHAN docks. The receiver accepts a diplomatic pouch, 284 years in transit.',
-  'Armistice instrument. Shutdown keys. One personal letter, beginning "To whoever is still listening."',
-  'Across the corridor, the Combine fleet goes dark — not destroyed. Relieved. The queue is finally empty.',
-  'On deck seven, under the cherry tree, a million archived souls hear the war end. You signed for it, Warden.',
 ];
 
 export const ABILITY_LORE: Record<string, string> = {

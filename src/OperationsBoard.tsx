@@ -81,13 +81,15 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
         <div className="menu-section-label">SIGNAL PALETTES</div>
         <div className="palette-row">
           {PALETTES.map((p) => {
-            const owned = p.cost === 0 || meta.owns(`palette-${p.id}`);
+            const owned = (p.cost === 0 && !p.unlockOnly) || meta.owns(`palette-${p.id}`);
             const equipped = meta.equippedPalette === p.id;
-            const afford = meta.salvage >= p.cost;
+            const afford = !p.unlockOnly && meta.salvage >= p.cost;
             const short = Math.max(0, p.cost - meta.salvage);
             const paletteLabel = owned
               ? (equipped ? `${p.name} palette equipped` : `Equip ${p.name} palette`)
-              : afford
+              : p.unlockOnly
+                ? `${p.name} palette unlocks after an Extinction victory`
+                : afford
                 ? `Buy ${p.name} palette for ${p.cost} salvage`
                 : `${p.name} palette needs ${short} more salvage`;
             return (
@@ -116,7 +118,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
                 <span className="palette-swatch" style={{ background: p.color }} />
                 <span className="palette-name">{p.name}</span>
                 <span className="palette-tag">
-                  {equipped ? '✓ EQUIPPED' : owned ? 'EQUIP' : afford ? <><i className="ico-diamond" aria-hidden="true" /> {p.cost}</> : <><i className="ico-diamond" aria-hidden="true" /> need {short}</>}
+                  {equipped ? '✓ EQUIPPED' : owned ? 'EQUIP' : p.unlockOnly ? 'EXTINCTION' : afford ? <><i className="ico-diamond" aria-hidden="true" /> {p.cost}</> : <><i className="ico-diamond" aria-hidden="true" /> need {short}</>}
                 </span>
               </button>
             );

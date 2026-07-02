@@ -21,8 +21,6 @@ const LINES = {
   'gameover': 'The light has gone out. We remember you, Warden.',
   'victory': 'Sector secured. One million, one hundred six thousand souls thank you.',
   'archive': 'Archive fragment recovered.',
-  'courier': 'Hold fire. The leviathan is hailing us.',
-  'armistice': 'The war is over. The receipt is signed. Come home.',
   'low-cores': 'Warden. The cores are failing.',
   'unlock': 'New instrument pattern decrypted.',
   'wave-incoming': 'Hostiles inbound.',

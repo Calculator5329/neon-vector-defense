@@ -72,7 +72,6 @@ export function MainMenu(props: {
   // Apex unlocks on a COMPLETED campaign (a win), matching its "survive one campaign"
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
-  const ngLocked = !DEMO_MODE && !progress.armisticeSeen;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
@@ -208,12 +207,10 @@ export function MainMenu(props: {
               <div className="menu-section-label">② SELECT PROTOCOL</div>
               <div className="diff-row" data-testid="diff-row">
                 {DIFFICULTIES.map((d) => {
-                  const locked = (d.id === 'ngplus' && ngLocked) || (d.id === 'hard' && apexLocked)
+                  const locked = (d.id === 'hard' && apexLocked)
                     || (d.id === 'extinction' && !DEMO_MODE && !progress.apexCleared);
                   if (locked) {
-                    const reason = d.id === 'ngplus'
-                      ? { label: '🔒 SEALED SIGNAL', desc: 'Another ending unlocks this protocol.', title: 'Sealed. End the war the other way first.' }
-                      : d.id === 'extinction'
+                    const reason = d.id === 'extinction'
                         ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
                         : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
                     return (
@@ -229,7 +226,7 @@ export function MainMenu(props: {
                   return (
                     <button
                       key={d.id}
-                      className={`diff-card ${active ? 'active' : ''} ${d.id === 'ngplus' ? 'diff-ngplus' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
+                      className={`diff-card ${active ? 'active' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
                       data-testid={`diff-card-${d.id}`}
                       aria-label={`${d.name} protocol. ${d.desc}`}
                       title={d.desc}

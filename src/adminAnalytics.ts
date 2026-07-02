@@ -116,7 +116,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   m('run.leaks', 'Leaks', 'run', ['summary', 'leaks'], 'number', 'avg', 'Cores lost across the run.'),
   m('run.coresLeft', 'Cores left', 'run', ['summary', 'coresLeft'], 'number', 'avg', 'Remaining lives at end.'),
   m('run.durationS', 'Duration', 'run', ['summary', 'durationS'], 'number', 'avg', 'Run duration in seconds.', 's'),
-  m('run.outcome', 'Outcome', 'run', ['summary', 'outcome'], 'string', 'distribution', 'Victory, armistice, gameover, or abandon.'),
+  m('run.outcome', 'Outcome', 'run', ['summary', 'outcome'], 'string', 'distribution', 'Victory, gameover, or abandon.'),
   m('run.freeplay', 'Freeplay run', 'run', ['summary', 'freeplay'], 'boolean', 'rate', 'Whether the run was endless/freeplay.'),
   m('menu.pageAgeAtDeployS', 'Page age at deploy', 'menu', ['menu', 'pageAgeAtDeployS'], 'number', 'avg', 'Seconds from page load to deploy.', 's'),
   m('menu.deployAttempts', 'Deploy attempts', 'menu', ['menu', 'deployAttempts'], 'number', 'sum', 'Deploy button attempts.'),
@@ -339,7 +339,7 @@ export function survivalBuckets(rows: RunAnalyticsRow[]): Array<{ label: string;
     const entry = map.get(label) ?? { runs: 0, losses: 0, wins: 0 };
     entry.runs++;
     if (row.summary.outcome === 'gameover' || row.summary.outcome === 'abandoned') entry.losses++;
-    if (row.summary.outcome === 'victory' || row.summary.outcome === 'armistice') entry.wins++;
+    if (row.summary.outcome === 'victory') entry.wins++;
     map.set(label, entry);
   }
   return [...map.entries()].sort((a, b) => bucketStart(a[0]) - bucketStart(b[0])).map(([label, value]) => ({ label, ...value }));

@@ -160,7 +160,6 @@ export const DIFFICULTIES: DifficultyDef[] = [
   { id: 'normal', name: 'Veteran', lives: 120, cash: 700, costMult: 1.0, hpMult: 1.4, lateScale: 0.03, waves: 60, desc: '120 cores · adaptive armada · 60 waves' },
   { id: 'hard', name: 'Apex', lives: 80, cash: 700, costMult: 1.2, hpMult: 1.8, lateScale: 0.075, waves: 70, desc: '80 cores · hardened adaptive hulls · escalating siege · 70 waves' },
   { id: 'extinction', name: 'Extinction', lives: 70, cash: 950, costMult: 1.2, hpMult: 1.95, lateScale: 0.11, waves: 80, desc: '70 cores · relentless armada · brutal escalating adaptation · 80 waves' },
-  { id: 'ngplus', name: 'Long Watch', lives: 100, cash: 800, costMult: 1.0, hpMult: 1.6, lateScale: 0.045, waves: 50, desc: 'post-armistice · Hollow-corrupted hulls · Combine escorts fight beside you' },
 ];
 
 /** Total length of a polyline path. */

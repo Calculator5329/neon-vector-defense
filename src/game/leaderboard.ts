@@ -73,7 +73,7 @@ export interface LeaderboardFetchResult<T> {
   error: boolean;
 }
 
-export type ReplayIntegrity = 'complete' | 'partial' | 'legacy';
+export type ReplayIntegrity = 'complete' | 'partial';
 
 export interface RunReplayDoc extends PublicRunDoc {
   integrity: ReplayIntegrity;
@@ -527,7 +527,7 @@ export async function fetchRunReplay(runId: string): Promise<RunReplayDoc | null
       events = [...events, ...chunkEvents];
     }
     const integrity: ReplayIntegrity = (() => {
-      if (!doc?.manifest) return 'legacy';
+      if (!doc?.manifest) return 'partial';
       if (!validManifest(doc.manifest)) return 'partial';
       if (chunkCount !== doc.manifest.chunkEventCounts.length) return 'partial';
       if (fetchedChunks.length !== chunkCount) return 'partial';
@@ -540,7 +540,7 @@ export async function fetchRunReplay(runId: string): Promise<RunReplayDoc | null
       if (replayEventHash(events) !== doc.manifest.eventHash) return 'partial';
       return 'complete';
     })();
-    // light defensive normalization so a partial/legacy doc can't crash the viewer
+    // light defensive normalization so a partial doc can't crash the viewer
     const safe = doc && doc.summary && doc.setup ? {
       ...doc,
       snapshots: Array.isArray(doc.snapshots) ? doc.snapshots : [],
@@ -800,7 +800,7 @@ export async function fetchGlobalTopResult(freeplay: boolean, limit = 20): Promi
     // fall through to the legacy fan-out below
   }
   // Legacy fallback (aggregate doc absent — no scores accepted since the
-  // migration): 40-board fan-out, up to ~400 reads. Goes away naturally once
+  // migration): 32-board fan-out, up to ~320 reads. Goes away naturally once
   // the first post-migration score lands.
   const boards = ALL_MAPS.flatMap((map) =>
     DIFFICULTIES.map((diff) => boardId(map.id, diff.id, freeplay)));

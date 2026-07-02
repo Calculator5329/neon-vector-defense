@@ -44,7 +44,7 @@ const db: Firestore = getFirestore();
 const VALID_MAPS = new Set([
   'orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat', 'umbral', 'cinder',
 ]);
-const VALID_DIFFS = new Set(['easy', 'normal', 'hard', 'extinction', 'ngplus']);
+const VALID_DIFFS = new Set(['easy', 'normal', 'hard', 'extinction']);
 
 const BOARD_RE = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?<fp>_fp)?$/;
 const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
@@ -170,21 +170,19 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   const eventCount = n(run.eventCount, 0);
   if (eventCount <= 0) return { reason: 'empty-replay' };
   const chunkCount = Math.max(0, Math.min(100, Math.floor(n(run.chunkCount, 0))));
-  if ('manifest' in run) {
-    const chunkSnaps = await Promise.all(
-      Array.from({ length: chunkCount }, (_, i) => db.doc(`runs/${claim.runId}/chunks/c${i}`).get()),
-    );
-    const chunks: ReplayChunkInput[] = chunkSnaps.map((chunkSnap) => {
-      const data = chunkSnap.exists ? chunkSnap.data() as Record<string, unknown> : {};
-      return {
-        exists: chunkSnap.exists,
-        events: Array.isArray(data.events) ? data.events : [],
-      };
-    });
-    if (validateReplayManifest(run, chunks) === 'manifest-mismatch') return { reason: 'manifest-mismatch' };
-  } else {
-    console.warn('Legacy replay without manifest', claim.runId);
-  }
+  if (!('manifest' in run)) return { reason: 'manifest-missing' };
+  const chunkSnaps = await Promise.all(
+    Array.from({ length: chunkCount }, (_, i) => db.doc(`runs/${claim.runId}/chunks/c${i}`).get()),
+  );
+  const chunks: ReplayChunkInput[] = chunkSnaps.map((chunkSnap) => {
+    const data = chunkSnap.exists ? chunkSnap.data() as Record<string, unknown> : {};
+    return {
+      exists: chunkSnap.exists,
+      events: Array.isArray(data.events) ? data.events : [],
+    };
+  });
+  const manifestStatus = validateReplayManifest(run, chunks);
+  if (manifestStatus !== 'complete') return { reason: manifestStatus };
 
   const summary = (run.summary ?? {}) as Partial<RunSummary>;
   const recWave = n(summary.wave);

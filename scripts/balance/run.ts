@@ -85,7 +85,7 @@ export function runInstrumented(
 
   while (time < MAX_TIME) {
     if (game.phase === 'gameover') { close(game.lives); break; }
-    if (game.phase === 'victory' || game.phase === 'armistice') { close(game.lives); break; }
+    if (game.phase === 'victory') { close(game.lives); break; }
 
     if (game.phase === 'build') {
       idle += DT;
@@ -115,6 +115,6 @@ export function runInstrumented(
   // time-cap with a wave still in flight
   if (open) close(game.lives);
 
-  const won = game.phase === 'victory' || game.phase === 'armistice';
+  const won = game.phase === 'victory';
   return { won, finalWave: game.wave, livesLeft: game.lives, startingLives, waves };
 }

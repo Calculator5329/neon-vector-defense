@@ -117,7 +117,7 @@ class EnemyGrid {
   }
 }
 
-export type Phase = 'build' | 'wave' | 'gameover' | 'victory' | 'armistice';
+export type Phase = 'build' | 'wave' | 'gameover' | 'victory';
 
 export interface GameOptions {
   /** deterministic gameplay seed; random when omitted. Recorded in replay setup. */
@@ -130,12 +130,6 @@ export interface GameOptions {
 
 /** a forward (repel) gravity push can never shove a hull closer than this to the exit */
 const SAFE_EXIT_MARGIN = 80;
-export const RECEIVER_COST = 4000;
-/** index of the Archive fragment that reveals the LEVIATHAN's cargo */
-export const RECEIVER_FRAGMENT = ARCHIVE.findIndex((f) => f.wave === 50);
-const LONGWATCH_ESCORT_COUNT = 3;
-const LONGWATCH_ESCORT_RANGE = 260;
-const LONGWATCH_ESCORT_SPEED = 82;
 const DAILY_FREEPLAY_MIN_CASH = 18000;
 const DAILY_FREEPLAY_CASH_PER_WAVE = 420;
 
@@ -168,9 +162,6 @@ export class Game {
   abilities: AbilityState[] = ABILITIES.map((def) => ({ def, cd: 0 }));
   /** Mirror Protocol: while >0, leaked hulls are thrown back to the entrance */
   mirrorTimer = 0;
-  /** Long Watch: friendly Combine escorts patrolling the lane in reverse */
-  allies: { dist: number; pos: Vec; heading: number; cd: number; lane: number }[] = [];
-  private allyTimer = 0;
 
   /** global effect timers */
   chronoTimer = 0;
@@ -196,9 +187,6 @@ export class Game {
   newHostiles: EnemyDef[] = [];
   private flaggedHostiles = new Set<string>();
 
-  /** the Diplomat's Gambit: antique receiver built this run */
-  receiver = false;
-  private courierActive = false;
   private lowCoreWarned = false;
 
   /** per-run telemetry for the after-action report */
@@ -219,7 +207,7 @@ export class Game {
     this.runStats.cashEarned += n;
   }
 
-  private finishRun(won: boolean, outcome: 'victory' | 'armistice' | 'gameover') {
+  private finishRun(won: boolean, outcome: 'victory' | 'gameover') {
     setBossMusic(false); // never leave the boss theme looping past a run's end
     // A win→freeplay→death session calls finishRun twice on the SAME Game instance.
     // Persist the lifetime record only once, or runs/kills/history double-count and
@@ -577,7 +565,7 @@ export class Game {
   }
 
   private terminalControlsLocked(): boolean {
-    return this.phase === 'gameover' || this.phase === 'victory' || this.phase === 'armistice';
+    return this.phase === 'gameover' || this.phase === 'victory';
   }
 
   placeTower(def: TowerDef, pos: Vec): Tower | null {
@@ -787,11 +775,6 @@ export class Game {
       gap: entry.group.gap,
       delay: entry.group.delay ?? 0,
     })));
-    if (this.diff.id === 'ngplus') {
-      this.allyTimer = 0;
-      this.allies.length = 0;
-      this.deployLongWatchEscorts();
-    }
     sfx.waveStart();
     if (this.freeplay && this.freeplayState.currentMutators.length > 0) {
       this.announce(`FREEPLAY MUTATORS: ${this.freeplayState.currentMutators.map((m) => m.name).join(' + ')}`);
@@ -864,34 +847,7 @@ export class Game {
       this.cloakTipShown = true;
       this.cloakTipPending = true;
     }
-    // the Diplomat's Gambit: with the receiver listening, the next LEVIATHAN hails instead of fighting
-    if (this.diff.id !== 'ngplus' && this.receiver && typeId === 'leviathan' && !this.courierActive) {
-      e.courier = true;
-      e.cloaked = false;
-      this.courierActive = true;
-      this.announce('✉ The LEVIATHAN is hailing on the antique frequency. HOLD FIRE.');
-      vox('courier');
-    }
     this.enemies.push(e);
-  }
-
-  /** Available once the wave-50 manifest is recovered. */
-  canBuildReceiver(): boolean {
-    return !this.isDailyFreeplay && this.diff.id !== 'ngplus' && !this.receiver && this.archive.includes(RECEIVER_FRAGMENT) &&
-      !this.terminalControlsLocked();
-  }
-
-  buildReceiver(): boolean {
-    if (!this.canBuildReceiver() || this.credits < RECEIVER_COST) {
-      sfx.error();
-      return false;
-    }
-    this.credits -= RECEIVER_COST;
-    this.receiver = true;
-    this.recorder.recordReceiverBuild(this.telemetryState(), RECEIVER_COST);
-    this.announce('📡 Antique receiver assembled — beacon fuel diverted, towers −25% rate');
-    sfx.archive();
-    return true;
   }
 
   private spawnChildren(parent: Enemy) {
@@ -923,38 +879,6 @@ export class Game {
     return this.segLengths.reduce((a, b) => a + b, 0);
   }
 
-  private deployLongWatchEscorts() {
-    const total = this.pathLength();
-    if (total <= 0) return;
-    while (this.allies.length < LONGWATCH_ESCORT_COUNT) {
-      const lane = this.allies.length;
-      const spacing = total / (LONGWATCH_ESCORT_COUNT + 1);
-      const dist = Math.max(0, total - spacing * (lane + 1));
-      const at = this.posAtDist(dist);
-      this.allies.push({ dist, pos: at.pos, heading: Math.PI, cd: lane * 0.16, lane });
-    }
-  }
-
-  private pickEscortTarget(pos: Vec, maxDist: number, exclude: Set<number> = new Set()): Enemy | null {
-    let best: Enemy | null = null;
-    let bestScore = -Infinity;
-    this.grid.forEachInRadius(pos.x, pos.y, maxDist + 36, (e) => {
-      if (e.dead || e.finished || e.courier || exclude.has(e.uid)) return;
-      const d = Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y);
-      if (d > maxDist + e.def.radius) return;
-      const score =
-        e.dist * 0.02 +
-        (maxDist - d) * 0.1 +
-        (e.def.boss ? 110 : 0) +
-        (1 - e.hp / Math.max(1, e.maxHp)) * 24;
-      if (score > bestScore) {
-        bestScore = score;
-        best = e;
-      }
-    });
-    return best;
-  }
-
   // ---------- damage ----------
 
   /** Veterancy: towers earn ranks from kills; each rank adds 6% damage. */
@@ -964,7 +888,7 @@ export class Game {
 
   /** Returns actual damage dealt (0 if immune). */
   damageEnemy(e: Enemy, dmg: number, type: Projectile['damageType'], shred: boolean, src?: Tower): number {
-    if (e.dead || e.finished || e.courier) return 0;
+    if (e.dead || e.finished) return 0;
     // Soft resistance: shred strips all resistances (preserves "shred counters armor").
     if (!shred) {
       if (e.def.armored && type === 'kinetic') dmg *= RESIST_ARMORED;
@@ -1008,15 +932,15 @@ export class Game {
     }
   }
 
-  /** Ability damage — bypasses all immunities (but never harms the Courier). */
+  /** Ability damage — bypasses all immunities. */
   trueDamage(e: Enemy, dmg: number) {
-    if (e.dead || e.finished || e.courier) return;
+    if (e.dead || e.finished) return;
     e.hp -= dmg;
     if (e.hp <= 0) this.killEnemy(e);
   }
 
   applySlow(e: Enemy, power: number, duration: number) {
-    if (e.def.immuneCryo || e.def.boss || e.courier) return;
+    if (e.def.immuneCryo || e.def.boss) return;
     const slow = 1 - power;
     if (slow < e.slow || e.slowTimer <= 0) {
       e.slow = Math.min(e.slow, slow);
@@ -1157,7 +1081,7 @@ export class Game {
         // detonate every resonance mark on the field
         let popped = 0;
         for (const e of [...this.enemies]) {
-          if (e.resonance > 0 && !e.courier) {
+          if (e.resonance > 0) {
             this.explosionFx(e.pos, '#fff8c4', 30 + e.resonance * 8);
             this.trueDamage(e, e.resonance * 15);
             e.resonance = 0;
@@ -1186,7 +1110,7 @@ export class Game {
   // ---------- main update ----------
 
   update(rawDt: number) {
-    if (this.paused || this.phase === 'gameover' || this.phase === 'armistice') return;
+    if (this.paused || this.phase === 'gameover') return;
     this.noticeTimer = Math.max(0, this.noticeTimer - rawDt); // real-time, not game speed
     // pickups expire in real time too — clicking them is a human reflex, and the
     // window shouldn't shrink at 2x/4x game speed
@@ -1201,7 +1125,7 @@ export class Game {
     this.accumulator += Math.min(rawDt, 0.05) * this.speed;
     let budget = 12; // 12 × 1/60 = 0.2s capacity — covers 4x speed at 20fps
     while (this.accumulator >= Game.SIM_STEP - 1e-9 && budget-- > 0 &&
-      (this.phase as Phase) !== 'gameover' && (this.phase as Phase) !== 'armistice') {
+      (this.phase as Phase) !== 'gameover') {
       this.accumulator -= Game.SIM_STEP;
       this.tick(Game.SIM_STEP);
     }
@@ -1228,13 +1152,12 @@ export class Game {
     this.updateEnemies(dt);
     // terminal state reached mid-tick: no towers fire, no projectiles fly, and no
     // wave-completion runs after the run has already ended
-    if ((this.phase as Phase) === 'gameover' || (this.phase as Phase) === 'armistice') return;
+    if ((this.phase as Phase) === 'gameover') return;
     // index enemies for this tick's radius queries, then precompute cloak reveal
     this.grid.rebuild(this.enemies);
     this.precomputeReveal();
     this.updateBurnZones(dt);
     this.updateHealers(dt);
-    this.updateAllies(dt);
     this.updateAuras();
     this.updateTowers(dt);
     this.updateProjectiles(dt);
@@ -1270,18 +1193,14 @@ export class Game {
           this.freeplayState.riskAccepted = null;
         }
       }
-      // archive fragments unlock by wave. +1 so a fragment becomes available during the
-      // NEXT build phase, not the instant its wave clears — critical on Recruit, where the
-      // receiver fragment is at wave 50 (the final wave): without the +1 it would unlock
-      // exactly at victory, making the armistice ending (and thus Long Watch) unreachable.
+      // archive fragments unlock by wave. +1 makes each fragment available during the
+      // next build phase instead of the instant its wave clears.
       ARCHIVE.forEach((f, i) => {
         if (f.wave <= this.wave + 1 && !this.archive.includes(i)) {
           this.archive.push(i);
           if (this.campaignProgressEnabled()) progress.addArchive(i);
           this.newArchive = true;
-          this.announce(i === RECEIVER_FRAGMENT
-            ? '✦ Manifest decoded. There may be another way to end this.'
-            : '✦ Archive fragment recovered.');
+          this.announce('✦ Archive fragment recovered.');
           sfx.archive();
           vox('archive');
         }
@@ -1367,7 +1286,7 @@ export class Game {
       }
       // boss disruption pulse: stuns towers near the hull — don't stack your whole
       // defense on the one chokepoint a carrier will walk through
-      if (e.def.boss && !e.courier) {
+      if (e.def.boss) {
         e.pulseCd = (e.pulseCd ?? 2.5) - dt;
         if (e.pulseCd <= 0) {
           e.pulseCd = e.def.id === 'leviathan' ? 4 : 5.5;
@@ -1407,7 +1326,7 @@ export class Game {
       }
       if (e.wp >= path.length) {
         e.finished = true;
-        if (!e.courier && this.mirrorTimer > 0) {
+        if (this.mirrorTimer > 0) {
           // Mirror Protocol: thrown back to the entrance instead of breaching
           e.finished = false;
           e.dist = 0;
@@ -1415,21 +1334,6 @@ export class Game {
           e.pos = { ...path[0] };
           this.ring(e.pos, '#54a0ff', 30);
           continue;
-        }
-        if (e.courier) {
-          // the Courier docks. The receipt is signed. The war is over.
-          this.phase = 'armistice';
-          if (this.campaignProgressEnabled()) {
-            progress.markArmistice();
-            progress.recordWave(this.map.id, this.diff.id, this.wave);
-          }
-          this.finishRun(true, 'armistice');
-          this.enemies = [];
-          this.queue = [];
-          sfx.victory();
-          playStinger('victory');
-          vox('armistice');
-          return;
         }
         const coresLost = rbe(e.def.id);
         this.lives -= coresLost;
@@ -1483,7 +1387,7 @@ export class Game {
       // aura effects on enemies: slow (Ion Storm) and sear (Razor Static)
       if (st.slowPower > 0 || st.burnDps > 0) {
         this.grid.forEachInRadius(s.pos.x, s.pos.y, st.range, (e) => {
-          if (e.courier || e.dead || e.finished) return;
+          if (e.dead || e.finished) return;
           if (Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) <= st.range) {
             if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
             if (st.burnDps > 0) this.applyBurn(e, st.burnDps, 0.5, s);
@@ -1529,7 +1433,7 @@ export class Game {
     let best: Enemy | null = null;
     let bestVal = -Infinity;
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-      if (e.dead || e.finished || e.courier) return;
+      if (e.dead || e.finished) return;
       const d = Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y);
       if (d > range + e.def.radius) return;
       if (!this.visibleTo(t, e)) return;
@@ -1546,8 +1450,7 @@ export class Game {
   }
 
   private updateTowers(dt: number) {
-    const globalRate = (this.overdriveTimer > 0 ? 2 : 1) * (this.frenzyTimer > 0 ? 1.5 : 1)
-      * (this.receiver && this.diff.id !== 'ngplus' ? 0.75 : 1); // beacon fuel diverted to the antique receiver
+    const globalRate = (this.overdriveTimer > 0 ? 2 : 1) * (this.frenzyTimer > 0 ? 1.5 : 1);
     for (const t of this.towers) {
       t.flash = Math.max(0, t.flash - dt);
       t.recoil = Math.max(0, t.recoil - dt * 5);
@@ -1623,7 +1526,7 @@ export class Game {
     const beams = Math.max(1, st.count);
     let any = false;
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-      if (e.dead || e.finished || e.courier) return;
+      if (e.dead || e.finished) return;
       const dx = e.pos.x - t.pos.x, dy = e.pos.y - t.pos.y;
       const d = Math.hypot(dx, dy);
       if (d > range + e.def.radius || !this.visibleTo(t, e)) return;
@@ -1649,7 +1552,7 @@ export class Game {
     // cryo / locust cloud: hit everything in range
     let any = false;
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-      if (e.dead || e.finished || e.courier) return;
+      if (e.dead || e.finished) return;
       if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
       if (!this.visibleTo(t, e)) return;
       any = true;
@@ -1669,7 +1572,7 @@ export class Game {
     // drowned star: exhale an expanding requiem wave
     let inRange = false;
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 40, (e) => {
-      if (!e.dead && !e.finished && !e.courier &&
+      if (!e.dead && !e.finished &&
         Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + 40) inRange = true;
     });
     if (inRange) {
@@ -1688,7 +1591,7 @@ export class Game {
     // drag every hostile in range backward along the path, crush hulls
     let any = false;
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
-      if (e.dead || e.finished || e.courier) return;
+      if (e.dead || e.finished) return;
       if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
       if (!this.visibleTo(t, e)) return;
       any = true;
@@ -1719,7 +1622,7 @@ export class Game {
     const marked: Enemy[] = [];
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
       if (marked.length >= st.count) return;
-      if (e.dead || e.finished || e.courier || marked.includes(e)) return;
+      if (e.dead || e.finished || marked.includes(e)) return;
       if (!this.visibleTo(t, e)) return;
       if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
       marked.push(e);
@@ -1746,7 +1649,7 @@ export class Game {
     for (let i = 1; i < gates; i++) {
       let next: Enemy | null = null;
       this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
-        if (next || e.dead || e.finished || e.courier || centers.includes(e)) return;
+        if (next || e.dead || e.finished || centers.includes(e)) return;
         if (!this.visibleTo(t, e)) return;
         if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
         if (!centers.every((c) => Math.hypot(e.pos.x - c.pos.x, e.pos.y - c.pos.y) > st.splash * 1.2)) return;
@@ -1760,7 +1663,7 @@ export class Game {
       this.addBeam(t.pos, cpos, t.def.glow, 5.5, 0.2);
       this.addBeam({ x: cpos.x, y: cpos.y - st.splash * 0.65 }, { x: cpos.x, y: cpos.y + st.splash * 0.65 }, '#ffffff', 2, 0.18);
       this.grid.forEachInRadius(cpos.x, cpos.y, st.splash + 20, (e) => {
-        if (e.dead || e.finished || e.courier || hit.has(e.uid)) return;
+        if (e.dead || e.finished || hit.has(e.uid)) return;
         if (!this.visibleTo(t, e)) return;
         if (Math.hypot(e.pos.x - cpos.x, e.pos.y - cpos.y) > st.splash + e.def.radius) return;
         hit.add(e.uid);
@@ -1790,7 +1693,7 @@ export class Game {
     const targets: Enemy[] = [];
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
       if (targets.length >= st.count) return;
-      if (e.dead || e.finished || e.courier) return;
+      if (e.dead || e.finished) return;
       if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
       if (!this.visibleTo(t, e)) return;
       targets.push(e);
@@ -1827,7 +1730,7 @@ export class Game {
     for (let i = 1; i < st.count; i++) {
       let next: Enemy | null = null;
       this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 24, (e) => {
-        if (next || e.dead || e.finished || e.courier || shots.includes(e)) return;
+        if (next || e.dead || e.finished || shots.includes(e)) return;
         if (!this.visibleTo(t, e)) return;
         if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) > range + e.def.radius) return;
         next = e;
@@ -1844,7 +1747,7 @@ export class Game {
       // collect only enemies near the firing line, then sort that short list
       const onLine: { enemy: Enemy; d2: number }[] = [];
       this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 32, (e) => {
-        if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) return;
+        if (e.dead || e.finished || !this.visibleTo(t, e)) return;
         if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 4) onLine.push({ enemy: e, d2: sqDist(t.pos, e.pos) });
       });
       onLine.sort((a, b) => a.d2 - b.d2);
@@ -1869,8 +1772,7 @@ export class Game {
     this.addBeam(t.pos, end, t.def.glow, 4, 0.1);
     let hits = 0;
     for (const e of this.enemies) {
-      // couriers are untargetable — crossing the beam must not eat a pierce slot
-      if (e.dead || e.finished || e.courier || !this.visibleTo(t, e)) continue;
+      if (e.dead || e.finished || !this.visibleTo(t, e)) continue;
       if (distToSeg(e.pos, t.pos, end) <= e.def.radius + 6) {
         this.damageEnemy(e, st.damage, st.damageType, st.shred, t);
         if (++hits >= st.pierce) break;
@@ -1888,7 +1790,7 @@ export class Game {
     if (isDrone) {
       this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
         if (droneTargets.length >= launchCount) return;
-        if (e.dead || e.finished || e.courier || droneTargets.includes(e)) return;
+        if (e.dead || e.finished || droneTargets.includes(e)) return;
         if (!this.visibleTo(t, e)) return;
         if (Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y) <= range + e.def.radius) droneTargets.push(e);
       });
@@ -1935,7 +1837,7 @@ export class Game {
     // cap the search radius so a 9999 "anywhere" query still uses the grid
     const r = Math.min(maxDist, W + H);
     this.grid.forEachInRadius(pos.x, pos.y, r, (e) => {
-      if (e.dead || e.finished || e.courier || exclude.includes(e)) return;
+      if (e.dead || e.finished || exclude.includes(e)) return;
       if (e.cloaked && !e.revealed && !detection) return;
       const d = Math.hypot(e.pos.x - pos.x, e.pos.y - pos.y);
       if (d < bd) { bd = d; best = e; }
@@ -1950,7 +1852,7 @@ export class Game {
 
       if (p.kind === 'missile') {
         const cand = p.targetUid !== null ? this.grid.byId.get(p.targetUid) : undefined;
-        const target = cand && !cand.dead && !cand.finished && !cand.courier && (!cand.cloaked || cand.revealed || p.detection) ? cand : undefined;
+        const target = cand && !cand.dead && !cand.finished && (!cand.cloaked || cand.revealed || p.detection) ? cand : undefined;
         if (target) {
           const dir = norm({ x: target.pos.x - p.pos.x, y: target.pos.y - p.pos.y });
           // steer toward target
@@ -2009,7 +1911,7 @@ export class Game {
       z.life -= dt;
       if (z.life <= 0) continue;
       this.grid.forEachInRadius(z.pos.x, z.pos.y, z.radius + 16, (e) => {
-        if (e.dead || e.finished || e.courier) return;
+        if (e.dead || e.finished) return;
         if (e.cloaked && !z.detection && !e.revealed) return;
         if (Math.hypot(e.pos.x - z.pos.x, e.pos.y - z.pos.y) > z.radius + e.def.radius) return;
         this.damageEnemy(e, z.dps * dt, 'energy', false, z.src);
@@ -2032,65 +1934,12 @@ export class Game {
     }
   }
 
-  /** Long Watch only: allied treaty escorts patrol backward and suppress the Hollow. */
-  private updateAllies(dt: number) {
-    if (this.diff.id !== 'ngplus') return;
-    if (this.phase !== 'wave') {
-      this.allies.length = 0;
-      return;
-    }
-
-    this.allyTimer -= dt;
-    if (this.allyTimer <= 0) {
-      this.deployLongWatchEscorts();
-      this.allyTimer = 2.5;
-    }
-
-    const total = this.pathLength();
-    const escortDamage = 13 + this.wave * 0.95;
-    for (const a of this.allies) {
-      const prev = a.pos;
-      a.dist -= LONGWATCH_ESCORT_SPEED * dt;
-      if (a.dist <= 0) {
-        a.dist = total;
-        this.ring(prev, '#b388ff', 34);
-      }
-      const at = this.posAtDist(Math.max(0, a.dist));
-      a.pos = at.pos;
-      if (Math.hypot(a.pos.x - prev.x, a.pos.y - prev.y) > 0.5) {
-        a.heading = Math.atan2(a.pos.y - prev.y, a.pos.x - prev.x);
-      }
-      a.cd -= dt;
-      if (a.cd <= 0) {
-        const hit = new Set<number>();
-        let target = this.pickEscortTarget(a.pos, LONGWATCH_ESCORT_RANGE, hit);
-        if (target) {
-          a.cd = 0.34;
-          let from = a.pos;
-          for (let jump = 0; target && jump < 3; jump++) {
-            hit.add(target.uid);
-            const falloff = jump === 0 ? 1 : jump === 1 ? 0.55 : 0.35;
-            const dmg = escortDamage * falloff * (target.def.boss ? 0.62 : 1);
-            this.addBeam(from, target.pos, jump === 0 ? '#b388ff' : '#d6a2ff', jump === 0 ? 3.2 : 2, 0.14);
-            this.trueDamage(target, dmg);
-            this.applySlow(target, 0.22, 0.75);
-            this.burstFx(target.pos, '#b388ff', jump === 0 ? 5 : 3);
-            from = target.pos;
-            target = this.pickEscortTarget(from, 115, hit);
-          }
-        } else {
-          a.cd = 0.12;
-        }
-      }
-    }
-  }
-
   private updateNovas(dt: number) {
     for (const n of this.novas) {
       n.r += 230 * dt;
       // only the ring band can be hit; query the disc out to the current radius
       this.grid.forEachInRadius(n.pos.x, n.pos.y, n.r + 16, (e) => {
-        if (e.dead || e.finished || e.courier || n.hit.has(e.uid)) return;
+        if (e.dead || e.finished || n.hit.has(e.uid)) return;
         if (Math.abs(Math.hypot(e.pos.x - n.pos.x, e.pos.y - n.pos.y) - n.r) <= e.def.radius + 10) {
           n.hit.add(e.uid);
           if (n.slowPower > 0) this.applySlow(e, n.slowPower, n.slowDuration);
@@ -2120,7 +1969,7 @@ export class Game {
       this.ring(p.pos, p.color, p.burnZoneRadius);
     }
     this.grid.forEachInRadius(p.pos.x, p.pos.y, p.splash + 16, (e) => {
-      if (e.dead || e.finished || e.courier) return;
+      if (e.dead || e.finished) return;
       if (e.cloaked && !e.revealed && !p.detection) return;
       if (Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y) <= p.splash + e.def.radius) {
         const dealt = this.damageEnemy(e, p.damage, p.damageType, p.shred, p.src);
