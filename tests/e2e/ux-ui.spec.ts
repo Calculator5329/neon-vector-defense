@@ -1110,6 +1110,56 @@ test.describe('run telemetry model', () => {
     expect(metrics.eventTypes).not.toContain('tower_place_failed');
   });
 
+  test('forced elite renders on canvas and dies through engine damage', async ({ page }) => {
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+
+    const result = await page.evaluate(async () => {
+      const game = (window as unknown as { game: any }).game;
+      game.paused = false;
+      game.phase = 'wave';
+      game.queue = [];
+      game.enemies = [];
+      const elite = game.makeEnemy('scout', false, 'shielded');
+      elite.pos = { x: 240, y: 170 };
+      elite.wp = 1;
+      elite.dist = 100;
+      elite.hp = 12;
+      elite.maxHp = 12;
+      elite.elite.shield = 7;
+      elite.elite.maxShield = 7;
+      game.enemies.push(elite);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+      const ctx = canvas.getContext('2d')!;
+      const data = ctx.getImageData(210, 136, 70, 70).data;
+      let cyanPixels = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (r < 190 && g > 180 && b > 170) cyanPixels++;
+      }
+
+      const shieldOnly = game.damageEnemy(elite, 5, 'energy', true);
+      const lethal = game.damageEnemy(elite, 40, 'energy', true);
+      game.update(0.05);
+      return {
+        affix: elite.elite.id,
+        cyanPixels,
+        shieldOnly,
+        lethal,
+        liveEnemies: game.enemies.filter((enemy: { dead: boolean }) => !enemy.dead).length,
+      };
+    });
+
+    expect(result.affix).toBe('shielded');
+    expect(result.cyanPixels).toBeGreaterThan(8);
+    expect(result.shieldOnly).toBe(0);
+    expect(result.lethal).toBeGreaterThan(0);
+    expect(result.liveEnemies).toBe(0);
+  });
+
   test('records freeplay contracts, relics, risk offers, and checkpoint gates', async ({ page }) => {
     await openDemoMenu(page);
     await deployFromMenu(page);

@@ -87,6 +87,100 @@ describe('damage resistance rules', () => {
   });
 });
 
+describe('elite affixes and Umbra encounter rules', () => {
+  function waveStartGroups(game: Game): Array<{ type: string; elites?: { i: number; a: string }[] }> {
+    const event = game.buildRunUploadBundle('TEST', 'test-build').run.events.find((e) => e.type === 'wave_start');
+    assert.ok(event);
+    assert.ok(Array.isArray(event.groups));
+    return event.groups as Array<{ type: string; elites?: { i: number; a: string }[] }>;
+  }
+
+  test('elite affix planning is deterministic and skips boss groups', () => {
+    const makePlan = () => {
+      const game = new Game(ALL_MAPS[0], DIFFICULTIES[3], { seed: 424242, lifetimeKills: 999999 });
+      game.wave = 39;
+      game.startWave();
+      return waveStartGroups(game).flatMap((group) => (group.elites ?? []).map((elite) => ({ type: group.type, ...elite })));
+    };
+
+    const first = makePlan();
+    const second = makePlan();
+    assert.deepEqual(first, second);
+    assert.ok(first.length > 0);
+    assert.ok(first.length <= 3);
+    assert.ok(first.every((elite) => !ENEMIES[elite.type].boss));
+  });
+
+  test('shielded elites absorb damage before hp and return only hp damage', () => {
+    const game = makeGame();
+    const shielded = makeEnemy(ENEMIES.raider);
+    shielded.elite = { id: 'shielded', rewardMult: 1.3, speedMult: 1, shield: 8, maxShield: 8 };
+    const hpBefore = shielded.hp;
+
+    assert.equal(game.damageEnemy(shielded, 5, 'energy', true), 0);
+    assert.equal(shielded.hp, hpBefore);
+    assert.equal(shielded.elite.shield, 3);
+    assert.equal(game.damageEnemy(shielded, 10, 'energy', true), 7);
+    assert.equal(shielded.hp, hpBefore - 7);
+    assert.equal(shielded.elite.shield, 0);
+  });
+
+  test('splitting elites add bounded non-elite children on death', () => {
+    const game = makeGame();
+    const splitting = makeEnemy(ENEMIES.raider);
+    splitting.hp = 1;
+    splitting.maxHp = 1;
+    splitting.elite = { id: 'splitting', rewardMult: 1.28, speedMult: 1 };
+    game.enemies.push(splitting);
+
+    assert.equal(game.damageEnemy(splitting, 5, 'energy', true), 5);
+    const live = game.enemies.filter((enemy) => !enemy.dead);
+    assert.equal(live.length, 3);
+    assert.deepEqual(live.map((enemy) => enemy.def.id).sort(), ['scout', 'scout', 'scout']);
+    assert.ok(live.every((enemy) => !enemy.elite));
+  });
+
+  test('bulwark elites reduce nearby non-boss hull damage without protecting themselves', () => {
+    const game = makeGame();
+    const bulwark = makeEnemy(ENEMIES.aegis);
+    bulwark.elite = { id: 'bulwark', rewardMult: 1.32, speedMult: 0.96 };
+    const target = makeEnemy(ENEMIES.raider);
+    bulwark.pos = { x: 120, y: 120 };
+    target.pos = { x: 150, y: 120 };
+    game.enemies.push(bulwark, target);
+    (game as unknown as { grid: { rebuild(enemies: Enemy[]): void } }).grid.rebuild(game.enemies);
+
+    assert.equal(game.damageEnemy(target, 100, 'energy', true), 78);
+    assert.equal(target.hp, 922);
+    assert.equal(game.damageEnemy(bulwark, 100, 'energy', true), 100);
+  });
+
+  test('Umbra transitions through phase-shift and enrage with replay events', () => {
+    const game = makeGame();
+    const umbra = makeEnemy(ENEMIES.umbra);
+    umbra.maxHp = 1000;
+    umbra.hp = 670;
+    umbra.umbraPhase = 1;
+    umbra.umbraTickDamage = 0;
+    game.enemies.push(umbra);
+
+    assert.equal(game.damageEnemy(umbra, 20, 'energy', true), 16);
+    assert.equal(umbra.umbraPhase, 2);
+    assert.equal(umbra.cloaked, true);
+    assert.ok(umbra.dist > 0);
+
+    umbra.hp = 331;
+    assert.equal(game.damageEnemy(umbra, 2, 'energy', true), 2);
+    assert.equal(umbra.umbraPhase, 3);
+    assert.equal(umbra.cloaked, false);
+
+    const phases = game.buildRunUploadBundle('TEST', 'test-build').run.events
+      .filter((event) => event.type === 'umbra_phase')
+      .map((event) => event.p);
+    assert.deepEqual(phases, [2, 3]);
+  });
+});
+
 describe('storage normalization', () => {
   test('repairs malformed persisted shapes without dropping extension fields', () => {
     const normalized = normalizeProgress({

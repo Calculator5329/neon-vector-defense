@@ -43,6 +43,15 @@ export interface RunEvent {
   [key: string]: unknown;
 }
 
+export interface RunWaveStartGroup {
+  type: string;
+  count: number;
+  cloaked: boolean;
+  gap?: number;
+  delay?: number;
+  elites?: { i: number; a: string }[];
+}
+
 export interface RunTowerSnapshot {
   towerUid: number;
   towerId: string;
@@ -659,12 +668,16 @@ export class RunRecorder {
     this.snapshot('run_start', state);
   }
 
-  recordWaveStart(state: RunTelemetryState, groups: { type: string; count: number; cloaked: boolean; gap?: number; delay?: number }[]): void {
+  recordWaveStart(state: RunTelemetryState, groups: RunWaveStartGroup[]): void {
     this.combat.waveStarts++;
     this.combat.currentWaveStartedAt = state.time;
     this.waveStartDs.set(state.wave, roundDs(state.time));
     this.record('wave_start', state, { groups, towerCount: state.towers.length });
     this.snapshot('wave_start', state);
+  }
+
+  recordUmbraPhase(state: RunTelemetryState, enemyUid: number, phase: 1 | 2 | 3): void {
+    this.record('umbra_phase', state, { enemyUid, p: phase });
   }
 
   recordWaveEnd(state: RunTelemetryState, waveBonusCredits: number): void {

@@ -15,6 +15,12 @@ No tower crossed the OP threshold in this preset.
 Strong/watchlist: Cinder Mortar, Flak Battery, Drone Carrier, Sunspear Battery, Ember Lattice, Tesla Coil, Pulse Turret, Railgun Post, Locust Shrine, Prism Array, Gauss Bastion, Missile Battery.
 Weak or support-dependent: Cryo Emitter, EMP Spire, Abyss Gate, Drowned Star Reliquary, Phase Anchor, Vector Lure.
 
+## 2026-07-02 Encounter Tuning Note
+
+Elite variants begin at wave 12 and are capped at one to three authored wave spawns. They deliberately skip bosses, spawned children, and healer hulls, so Shielded and Bulwark cannot stack with Seraph/Lampblack repair auras. Shielded adds a flat shield based on the non-daily scaled HP baseline, Frenzied trades speed for a bounty, Splitting adds two small non-elite children, and Bulwark grants nearby non-boss hulls a single non-stacking damage reduction aura.
+
+The Umbra now has three phases instead of acting as a stat wall. The lattice phase caps per-tick damage and periodically summons bounded Wisp adds; the phase-shift threshold cloaks and repositions the boss while preserving the existing detector/reveal counterplay; the enrage threshold removes cloak and shortens disruption-pulse cadence. Tuning intent is to pressure burst-only and stacked-chokepoint boards without invalidating detector coverage, support placement, or sustained single-target damage.
+
 ## Tower Rankings
 
 | Rank | Tower | Verdict | OP score | All win rate | Veteran win rate | Apex win rate | Avg progress | Win cores | Best sim | Best static build | Static AoE/credit | Strengths | Weaknesses |

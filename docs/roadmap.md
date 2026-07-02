@@ -5,12 +5,17 @@ audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
 Last updated: 2026-07-02 (replay death fidelity, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
 
+Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
+
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
 | Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
 | Battle Plan replays | Public `runs/{runId}` docs with required manifests, compact death records, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayReconstruct.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
+
+| Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
+| Battle Plan replays | Public `runs/{runId}` docs with required manifests, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, canonical score values, server-time ordering | `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
@@ -45,6 +50,10 @@ Last updated: 2026-07-02 (replay death fidelity, Daily Challenge, arsenal balanc
   `config/balance` hot-patches.
 - Build-phase wave preview, keyboard placement/cycling, and Veteran Deploy
   shipped as QoL layers over the canonical engine placement and upgrade actions.
+
+- Elite variants add capped Shielded, Frenzied, Splitting, and Bulwark hulls to
+  regular waves, and the Umbra now has lattice, phase-shift, and enrage phases
+  with replay-visible transitions.
 
 ## Shipped 2026-07-01 (review-plan implementation pass)
 
@@ -88,7 +97,7 @@ Last updated: 2026-07-02 (replay death fidelity, Daily Challenge, arsenal balanc
 - Severance Campaign, with fixed mission nodes and alternate objectives.
 - Async duel or ghost-armada modes based on public replay data.
 - Seasonal Recovered-Signal Pass and cosmetic store using Salvage/entitlements.
-- Multi-phase Umbra boss and more authored Hollow encounters.
+- More authored Hollow encounters beyond the Umbra.
 
 ## Portal launch checklist
 

@@ -73,6 +73,12 @@ Key fields (`PublicRunDoc`):
 
 Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Public replay docs must include a completion manifest so server validation can compare chunk event counts, event hash, and the compact death-record hash before accepting score claims. `deathRecords.codec = 'd1'` stores per-wave packed varints for real enemy uid delta, enemy type, spawn decisecond offset, and death decisecond offset; the viewer treats these as authoritative and falls back to snapshot kill deltas only for older production replays. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
 
+Encounter metadata stays inside the existing replay event list. `wave_start`
+group rows may include compact elite entries (`elites: [{ i, a }]`, where `i`
+is the 0-based spawn index within the group and `a` is the affix id), and Umbra
+phase transitions are recorded as `umbra_phase` events with compact phase
+numbers. These payload additions do not change Firestore document schemas.
+
 ### `runs/{runId}/chunks/c{n}`
 
 Public overflow replay event chunks. `ReplayViewer` reads these after loading the

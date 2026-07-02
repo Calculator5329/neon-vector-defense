@@ -1396,7 +1396,7 @@ function NewHostileReveal({ def }: { def: EnemyDef | null }) {
     <div className="hostile-reveal" key={def.id}>
       <EnemyPortrait def={def} className="hostile-reveal-art" />
       <div className="hostile-reveal-text">
-        <div className="hostile-reveal-eyebrow">{def.boss ? '⚠ CAPITAL HULL IDENTIFIED' : 'NEW HOSTILE IDENTIFIED'}</div>
+        <div className="hostile-reveal-eyebrow">{def.id === 'elite' ? 'ELITE VARIANT IDENTIFIED' : def.boss ? '⚠ CAPITAL HULL IDENTIFIED' : 'NEW HOSTILE IDENTIFIED'}</div>
         <div className="hostile-reveal-name" style={{ color: def.glow }}>{def.name}</div>
         <div className="hostile-reveal-lore">{def.lore}</div>
       </div>

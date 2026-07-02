@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ENEMY_LIST } from './game/enemies';
+import { ELITE_AFFIX_META, ELITE_VARIANT_DEF } from './game/eliteAffixes';
 import { progress } from './game/storage';
 import { sfx } from './game/sound';
 import EnemyPortrait from './EnemyPortrait';
@@ -28,6 +29,7 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
   const seen = new Set(progress.enemiesSeen);
   const total = ENEMY_LIST.length;
   const found = ENEMY_LIST.filter((d) => seen.has(d.id)).length;
+  const eliteSeen = seen.has(ELITE_VARIANT_DEF.id);
   const [filter, setFilter] = useState<Filter>('all');
 
   // opening the codex acknowledges every identified hull so the NEW badge clears
@@ -55,6 +57,15 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
             onClick={() => { setFilter(f); sfx.click(); }}>{label}</button>
         ))}
       </div>
+      {eliteSeen && (
+        <div className="bestiary-elite-note">
+          <div className="foe-name" style={{ color: ELITE_VARIANT_DEF.glow }}>{ELITE_VARIANT_DEF.name}</div>
+          <div className="foe-traits">
+            {Object.values(ELITE_AFFIX_META).map((affix) => <span key={affix.name}>{affix.name.toUpperCase()}</span>)}
+          </div>
+          <div className="foe-lore">{ELITE_VARIANT_DEF.lore}</div>
+        </div>
+      )}
       <div className="bestiary-grid">
         {list.map((d) => {
           const known = seen.has(d.id);

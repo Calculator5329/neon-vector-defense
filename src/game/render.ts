@@ -1,5 +1,6 @@
 import type { Enemy, EnemyDef, GameMap, Pickup, Tower, TowerDef, Vec } from './types';
 import { Game, W, H } from './engine';
+import { BULWARK_RADIUS, ELITE_AFFIX_META } from './eliteAffixes';
 
 // ============================================================
 // Sprite caching — all hulls are pre-rendered as crisp vector
@@ -48,6 +49,7 @@ function blit(ctx: CanvasRenderingContext2D, sprite: HTMLCanvasElement, x: numbe
 
 const enemySprites = new Map<string, HTMLCanvasElement>();
 const hollowSprites = new Map<string, HTMLCanvasElement>();
+const eliteSprites = new Map<string, HTMLCanvasElement>();
 
 function enemySprite(def: EnemyDef): HTMLCanvasElement {
   let s = enemySprites.get(def.id);
@@ -77,6 +79,38 @@ function corruptedSprite(def: EnemyDef): HTMLCanvasElement {
   c.filter = 'hue-rotate(115deg) saturate(1.35) brightness(1.08)';
   c.drawImage(base, 0, 0);
   hollowSprites.set(def.id, s = cv);
+  return s;
+}
+
+function eliteSprite(id: keyof typeof ELITE_AFFIX_META, r: number): HTMLCanvasElement {
+  const key = `${id}:${Math.round(r)}`;
+  let s = eliteSprites.get(key);
+  if (s) return s;
+  const meta = ELITE_AFFIX_META[id];
+  const size = r * 4 + 36;
+  s = makeSprite(size, (c) => {
+    c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = meta.glow;
+    c.fillStyle = meta.color;
+    c.shadowColor = meta.glow;
+    c.shadowBlur = 10;
+    c.lineWidth = 1.8;
+    c.setLineDash(id === 'frenzied' ? [5, 5] : id === 'bulwark' ? [10, 6] : []);
+    circle(c, 0, 0, r + 7);
+    c.stroke();
+    c.setLineDash([]);
+    path(c, [[-r * 0.48, -r * 1.28], [-r * 0.18, -r * 1.76], [0, -r * 1.32], [r * 0.18, -r * 1.76], [r * 0.48, -r * 1.28]]);
+    c.fill();
+    c.stroke();
+    if (id === 'splitting') {
+      c.fillStyle = withAlphaCss(meta.glow, 0.85);
+      path(c, [[-r * 0.92, r * 0.78], [-r * 0.48, r * 0.48], [-r * 0.52, r * 1.0]]);
+      c.fill();
+      path(c, [[r * 0.92, r * 0.78], [r * 0.48, r * 0.48], [r * 0.52, r * 1.0]]);
+      c.fill();
+    }
+  });
+  eliteSprites.set(key, s);
   return s;
 }
 
@@ -694,6 +728,53 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
   }
   // ambient vignette — constant per resolution, so bake it once and blit
   ctx.drawImage(vignetteSprite(), 0, 0);
+  drawBossHud(ctx, game);
+}
+
+function drawBossHud(ctx: CanvasRenderingContext2D, game: Game) {
+  let boss: Enemy | null = null;
+  for (const e of game.enemies) {
+    if (e.dead || e.finished || !e.def.boss) continue;
+    if (!boss || e.dist > boss.dist) boss = e;
+  }
+  if (!boss) return;
+  const w = 460;
+  const h = 32;
+  const x = (W - w) / 2;
+  const y = 18;
+  const hp = Math.max(0, Math.min(1, boss.hp / boss.maxHp));
+  const phase = boss.def.id === 'umbra' ? (boss.umbraPhase ?? 1) : 0;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(2,5,14,0.78)';
+  ctx.strokeStyle = boss.def.id === 'umbra' ? 'rgba(179,136,255,0.78)' : 'rgba(255,127,80,0.65)';
+  ctx.lineWidth = 1.4;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+  ctx.font = "700 11px Orbitron, sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#eef7ff';
+  ctx.fillText(boss.def.name, x + 12, y + 10);
+
+  const barX = x + 12;
+  const barY = y + 20;
+  const barW = w - 24;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(barX, barY, barW, 6);
+  ctx.fillStyle = hp > 0.5 ? '#7bed9f' : hp > 0.25 ? '#ffd32a' : '#ff5a6e';
+  ctx.fillRect(barX, barY, barW * hp, 6);
+
+  if (phase > 0) {
+    const pipW = 32;
+    for (let i = 1; i <= 3; i++) {
+      const px = x + w - 12 - (4 - i) * (pipW + 6);
+      ctx.fillStyle = i <= phase ? (i === 3 ? '#ff5a6e' : '#b388ff') : 'rgba(255,255,255,0.12)';
+      ctx.fillRect(px, y + 7, pipW, 6);
+    }
+  }
+  ctx.restore();
 }
 
 let vignetteCache: HTMLCanvasElement | null = null;
@@ -1592,6 +1673,39 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   }
 
   // engine flame behind hull — solid two-layer triangles (dropped at high hull counts)
+  if (e.elite?.id === 'bulwark' && !lod) {
+    const meta = ELITE_AFFIX_META.bulwark;
+    ctx.save();
+    ctx.globalAlpha = (e.cloaked ? 0.18 : 0.34) * (0.75 + 0.25 * Math.sin(time * 3 + e.phase));
+    ctx.strokeStyle = meta.glow;
+    ctx.shadowColor = meta.glow;
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([10, 8]);
+    ctx.lineDashOffset = -time * 24;
+    circle(ctx, e.pos.x, e.pos.y, BULWARK_RADIUS);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  if (def.id === 'umbra' && !lod) {
+    ctx.save();
+    const phase = e.umbraPhase ?? 1;
+    const color = phase === 3 ? '#ff5a6e' : phase === 2 ? '#7d5fff' : '#b388ff';
+    ctx.globalAlpha = 0.18 + 0.08 * Math.sin(time * (phase === 3 ? 8 : 3) + e.phase);
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 18;
+    ctx.lineWidth = phase === 3 ? 3 : 2;
+    ctx.setLineDash(phase === 1 ? [14, 8] : phase === 2 ? [4, 10] : []);
+    ctx.lineDashOffset = -time * (phase === 3 ? 42 : 18);
+    circle(ctx, e.pos.x, e.pos.y, def.radius + 18 + phase * 5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   if (!lod) {
     const flick = 0.7 + 0.3 * Math.sin(time * 22 + e.phase);
     const fl = def.radius * (def.boss ? 1.5 : 1.05) * flick;
@@ -1618,6 +1732,24 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
 
   // hull sprite
   blit(ctx, enemySprite(def), e.pos.x, e.pos.y + wob * 0.4, heading);
+
+  if (e.elite) {
+    const meta = ELITE_AFFIX_META[e.elite.id];
+    blit(ctx, eliteSprite(e.elite.id, def.radius), e.pos.x, e.pos.y + wob * 0.4, heading);
+    if (e.elite.id === 'frenzied' && !lod) {
+      ctx.save();
+      ctx.translate(e.pos.x, e.pos.y + wob * 0.4);
+      ctx.rotate(heading);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = withAlphaCss(meta.glow, 0.55);
+      for (let i = 0; i < 3; i++) {
+        const x = -def.radius * (1.25 + i * 0.22) - Math.sin(time * 18 + i) * 3;
+        path(ctx, [[x, -4], [x - 12, 0], [x, 4]]);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
 
   // boss spine lights (animated, on top of sprite)
   if (def.boss) {
@@ -1738,7 +1870,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
   }
 
   // health bar
-  if (e.hp < e.maxHp || def.boss) {
+  if (e.hp < e.maxHp || def.boss || (e.elite?.maxShield ?? 0) > 0) {
     const w = def.boss ? def.radius * 2.4 : 22;
     const hpct = Math.max(0, pct);
     const y = e.pos.y - def.radius - (def.boss ? 14 : 9);
@@ -1746,6 +1878,14 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
     ctx.fillRect(e.pos.x - w / 2 - 1, y - 1, w + 2, (def.boss ? 5 : 3.5) + 2);
     ctx.fillStyle = hpct > 0.5 ? '#2ed573' : hpct > 0.25 ? '#ffd32a' : '#ff4757';
     ctx.fillRect(e.pos.x - w / 2, y, w * hpct, def.boss ? 5 : 3.5);
+    if ((e.elite?.maxShield ?? 0) > 0 && (e.elite?.shield ?? 0) > 0) {
+      const sh = Math.max(0, Math.min(1, (e.elite?.shield ?? 0) / (e.elite?.maxShield ?? 1)));
+      const sy = y - (def.boss ? 5 : 4);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(e.pos.x - w / 2 - 1, sy - 1, w + 2, 3);
+      ctx.fillStyle = '#7efff5';
+      ctx.fillRect(e.pos.x - w / 2, sy, w * sh, 1.5);
+    }
   }
 }
 

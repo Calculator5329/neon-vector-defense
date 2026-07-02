@@ -6,6 +6,8 @@ export interface Vec {
 }
 
 export type DamageType = 'kinetic' | 'energy' | 'explosive' | 'cryo';
+export type EliteAffixId = 'shielded' | 'frenzied' | 'splitting' | 'bulwark';
+export type UmbraPhase = 1 | 2 | 3;
 
 export interface EnemyDef {
   id: string;
@@ -68,6 +70,19 @@ export interface Enemy {
   /** replay-only provenance for compact death reconstruction */
   replayWave?: number;
   replaySpawnT?: number;
+  /** optional elite variant state; children spawned from an elite never inherit it */
+  elite?: {
+    id: EliteAffixId;
+    rewardMult: number;
+    speedMult: number;
+    shield?: number;
+    maxShield?: number;
+  };
+  /** Umbra-only encounter state */
+  umbraPhase?: UmbraPhase;
+  umbraCloakTimer?: number;
+  umbraSummonCd?: number;
+  umbraTickDamage?: number;
 }
 
 export interface TowerStats {
@@ -263,6 +278,8 @@ export interface WaveGroup {
   cloaked?: boolean;
   /** seconds to wait after previous group finished */
   delay?: number;
+  /** compact per-spawn elite plan, indexes are 0-based within this group */
+  elites?: { i: number; a: EliteAffixId }[];
 }
 
 export type Wave = WaveGroup[];

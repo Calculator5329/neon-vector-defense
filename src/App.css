@@ -3474,6 +3474,9 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 }
 .bestiary-filter:hover { color: var(--text); }
 .bestiary-filter.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.bestiary-elite-note { margin: 12px 20px 0; padding: 10px 12px; border: 1px solid rgba(255, 211, 42, 0.25); border-radius: 8px; background: rgba(255, 211, 42, 0.055); }
+.bestiary-elite-note .foe-name { margin-top: 0; }
+.bestiary-elite-note .foe-lore { max-width: 860px; }
 .foe-traits.redacted span { color: var(--dim); border-color: var(--edge); opacity: 0.85; }
 .bestiary-empty { grid-column: 1 / -1; text-align: center; color: var(--dim); font-size: 13px; padding: 32px 0; }
 .bestiary-close { width: 30px; height: 30px; padding: 0; cursor: pointer; border-radius: 7px; border: 1px solid var(--edge); background: rgba(255, 255, 255, 0.05); color: var(--dim); }

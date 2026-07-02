@@ -32,6 +32,24 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
 - The Veteran Deploy ghost/shop projection is advisory only and must be computed
   from the same cost and upgrade-state helpers used by the actual purchase path.
 
+## 2026-07-02 - Encounters gain deterministic elites and a phased Umbra
+
+- Elite variants are assigned during `startWave()` from the seeded gameplay RNG
+  and encoded in `wave_start.groups[].elites`, rather than as per-enemy replay
+  events. This keeps Battle Plan reconstruction honest without expanding replay
+  event volume.
+- Elites start at wave 12, are capped at one to three per wave, and skip bosses,
+  death-spawned children, and healer hulls. This avoids unkillable repair stacks
+  while still adding variety inside normal authored waves.
+- Shielded, Frenzied, Splitting, and Bulwark are tuned as additive encounter
+  pressure: flat shield, speed-for-bounty, two bounded non-elite children, and a
+  non-stacking nearby-hull resistance aura.
+- The Umbra now owns enemy-local phase state. Lattice, phase-shift, and enrage
+  transitions reuse existing damage, cloak/reveal, announcement, and boss-pulse
+  systems, with compact `umbra_phase` replay events for reconstruction.
+- The boss health bar is rendered inside the canvas post-effects pass so phase
+  pips do not shift the React layout or create another overlay collision point.
+
 ## 2026-07-02 - Arsenal reaches 21 towers and remote balance gets an admin editor
 
 - Harmonic Siphon is the second resonance-axis tower. It consumes resonance

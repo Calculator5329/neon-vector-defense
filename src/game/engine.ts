@@ -1,8 +1,18 @@
 import type {
-  AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, Enemy, EnemyDef, GameMap,
+  AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, EliteAffixId, Enemy, EnemyDef, GameMap,
   Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, TowerStats, Vec, Wave, WaveGroup,
 } from './types';
 import { ENEMIES, rbe } from './enemies';
+import {
+  BULWARK_DAMAGE_MULT,
+  BULWARK_RADIUS,
+  ELITE_AFFIX_META,
+  ELITE_VARIANT_DEF,
+  eliteAffixForSpawn,
+  eliteSplitChildren,
+  makeEliteState,
+  planEliteWave,
+} from './eliteAffixes';
 import { ABILITIES } from './abilities';
 import { ARCHIVE } from './lore';
 import { getBalance } from './balanceConfig';
@@ -821,7 +831,7 @@ export class Game {
     this.wave++;
     this.phase = 'wave';
     const prepared = this.prepareWave(this.wave);
-    const def = prepared.groups;
+    let def = prepared.groups;
     if (this.freeplay) {
       this.freeplayState.currentMutators = prepared.mutators;
       this.freeplayState.rival = prepared.rival;
@@ -833,19 +843,24 @@ export class Game {
       });
       if (prepared.rival) this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN, { rivalId: prepared.rival.id, rivalName: prepared.rival.name, level: this.freeplayState.rivalLevel });
     }
+    def = planEliteWave(this.wave, def, this.rng);
     this.queue = def.map((group) => ({
       group,
       spawned: 0,
       timer: group.delay ?? 0,
       started: false,
     }));
-    this.recorder.recordWaveStart(this.telemetryState(), this.queue.map((entry) => ({
-      type: entry.group.type,
-      count: entry.group.count,
-      cloaked: !!entry.group.cloaked,
-      gap: entry.group.gap,
-      delay: entry.group.delay ?? 0,
-    })));
+    this.recorder.recordWaveStart(this.telemetryState(), this.queue.map((entry) => {
+      const group: { type: string; count: number; cloaked: boolean; gap: number; delay: number; elites?: { i: number; a: EliteAffixId }[] } = {
+        type: entry.group.type,
+        count: entry.group.count,
+        cloaked: !!entry.group.cloaked,
+        gap: entry.group.gap,
+        delay: entry.group.delay ?? 0,
+      };
+      if (entry.group.elites?.length) group.elites = entry.group.elites.map((elite) => ({ i: elite.i, a: elite.a }));
+      return group;
+    }));
     sfx.waveStart();
     if (this.freeplay && this.freeplayState.currentMutators.length > 0) {
       this.announce(`FREEPLAY MUTATORS: ${this.freeplayState.currentMutators.map((m) => m.name).join(' + ')}`);
@@ -867,7 +882,7 @@ export class Game {
     this.noticeTimer = 4;
   }
 
-  private makeEnemy(typeId: string, cloaked: boolean): Enemy {
+  private makeEnemy(typeId: string, cloaked: boolean, eliteAffix?: EliteAffixId): Enemy {
     const def = ENEMIES[typeId];
     // first-ever sighting of this hull → queue a Bestiary reveal (UI drains + records it)
     if (!this.flaggedHostiles.has(typeId) && !progress.enemiesSeen.includes(typeId)) {
@@ -891,8 +906,9 @@ export class Game {
         this.freeplay && (def.armored || typeId === 'juggernaut' || typeId === 'aegis') && this.freeplayState.currentMutators.some((m) => m.id === 'armoredSwarm') ? 1.22 : 1;
     const rivalHp = this.freeplay && def.boss && this.freeplayState.rival ? 1 + this.freeplayState.rivalLevel * 0.12 : 1;
     const dailyHp = this.dailyChallenge?.twist.enemyHpMultiplier ?? 1;
-    const hp = Math.ceil(def.hp * bo.enemy(typeId).hpMult * diffMult * late * fp * mutatorHp * rivalHp * dailyHp);
-    return {
+    const eliteShieldBaseHp = Math.ceil(def.hp * bo.enemy(typeId).hpMult * diffMult * late * fp * mutatorHp * rivalHp);
+    const hp = Math.ceil(eliteShieldBaseHp * dailyHp);
+    const e: Enemy = {
       uid: this.uidSeq++,
       def,
       hp,
@@ -911,10 +927,23 @@ export class Game {
       dead: false,
       finished: false,
     };
+    if (eliteAffix && !def.boss) {
+      e.elite = makeEliteState(eliteAffix, eliteShieldBaseHp, this.wave);
+      if (!this.flaggedHostiles.has(ELITE_VARIANT_DEF.id) && !progress.enemiesSeen.includes(ELITE_VARIANT_DEF.id)) {
+        this.flaggedHostiles.add(ELITE_VARIANT_DEF.id);
+        this.newHostiles.push(ELITE_VARIANT_DEF);
+      }
+    }
+    if (def.id === 'umbra') {
+      e.umbraPhase = 1;
+      e.umbraSummonCd = 4.5;
+      e.umbraTickDamage = 0;
+    }
+    return e;
   }
 
-  private spawnEnemy(typeId: string, cloaked: boolean) {
-    const e = this.makeEnemy(typeId, cloaked);
+  private spawnEnemy(typeId: string, cloaked: boolean, eliteAffix?: EliteAffixId) {
+    const e = this.makeEnemy(typeId, cloaked, eliteAffix);
     e.replayWave = this.wave;
     e.replaySpawnT = this.time;
     if (cloaked && !this.cloakTipShown && !progress.cloakTipSeen) {
@@ -922,6 +951,7 @@ export class Game {
       this.cloakTipPending = true;
     }
     this.enemies.push(e);
+    if (e.def.id === 'umbra') this.recorder.recordUmbraPhase(this.telemetryState(), e.uid, 1);
   }
 
   private spawnChildren(parent: Enemy) {
@@ -934,6 +964,21 @@ export class Game {
       e.replaySpawnT = this.time;
       this.enemies.push(e);
     }
+  }
+
+  private spawnEliteSplitChildren(parent: Enemy) {
+    const children = eliteSplitChildren(parent.def.id);
+    for (let i = 0; i < children.length; i++) {
+      const e = this.makeEnemy(children[i], parent.cloaked);
+      e.pos = { x: parent.pos.x + (this.rng() - 0.5) * 24, y: parent.pos.y + (this.rng() - 0.5) * 24 };
+      e.wp = parent.wp;
+      e.dist = Math.max(0, parent.dist - 18 - i * 14);
+      // replay provenance: the death ledger needs spawn context for EVERY enemy
+      e.replayWave = parent.replayWave ?? this.wave;
+      e.replaySpawnT = this.time;
+      this.enemies.push(e);
+    }
+    this.ring(parent.pos, ELITE_AFFIX_META.splitting.glow, parent.def.radius + 16);
   }
 
   /** position and waypoint index for a given distance along the path */
@@ -962,6 +1007,127 @@ export class Game {
     return t.kills >= 150 ? 3 : t.kills >= 60 ? 2 : t.kills >= 20 ? 1 : 0;
   }
 
+  private eliteBulwarkProtects(e: Enemy): boolean {
+    if (e.def.boss) return false;
+    let protectedByBulwark = false;
+    this.grid.forEachInRadius(e.pos.x, e.pos.y, BULWARK_RADIUS, (o) => {
+      if (protectedByBulwark || o === e || o.dead || o.finished || o.def.boss || o.elite?.id !== 'bulwark') return;
+      if (Math.hypot(o.pos.x - e.pos.x, o.pos.y - e.pos.y) <= BULWARK_RADIUS) protectedByBulwark = true;
+    });
+    return protectedByBulwark;
+  }
+
+  private capUmbraDamage(e: Enemy, dmg: number): number {
+    if (e.def.id !== 'umbra' || e.umbraPhase !== 1) return dmg;
+    const cap = Math.max(16, Math.min(36, e.maxHp * 0.0075));
+    const used = e.umbraTickDamage ?? 0;
+    const allowed = Math.max(0, cap - used);
+    const applied = Math.min(dmg, allowed);
+    e.umbraTickDamage = used + applied;
+    return applied;
+  }
+
+  private umbraSpeedMult(e: Enemy): number {
+    if (e.def.id !== 'umbra') return 1;
+    if (e.umbraPhase === 3) return 1.22;
+    if (e.umbraPhase === 2 && (e.umbraCloakTimer ?? 0) > 0) return 0.72;
+    return 1;
+  }
+
+  private bossPulseInterval(e: Enemy): number {
+    if (e.def.id === 'umbra') {
+      if (e.umbraPhase === 3) return 2.7;
+      if (e.umbraPhase === 2) return 3.6;
+      return 4.6;
+    }
+    return e.def.id === 'leviathan' ? 4 : 5.5;
+  }
+
+  private bossPulseRadius(e: Enemy): number {
+    if (e.def.id === 'umbra') {
+      if (e.umbraPhase === 3) return 170;
+      if (e.umbraPhase === 2) return 145;
+      return 130;
+    }
+    return e.def.id === 'leviathan' ? 160 : 120;
+  }
+
+  private updateUmbra(e: Enemy, dt: number) {
+    if (e.def.id !== 'umbra') return;
+    if (!e.umbraPhase) e.umbraPhase = 1;
+    if (e.umbraPhase === 1) {
+      e.umbraSummonCd = (e.umbraSummonCd ?? 4.5) - dt;
+      if (e.umbraSummonCd <= 0) {
+        e.umbraSummonCd += 6.2;
+        this.summonUmbraWisps(e);
+      }
+    }
+    if ((e.umbraCloakTimer ?? 0) > 0) {
+      e.umbraCloakTimer = Math.max(0, (e.umbraCloakTimer ?? 0) - dt);
+      if (e.umbraCloakTimer <= 0 && e.umbraPhase === 2) {
+        e.cloaked = false;
+        e.revealed = false;
+        this.ring(e.pos, e.def.glow, e.def.radius + 18);
+      }
+    }
+  }
+
+  private summonUmbraWisps(e: Enemy) {
+    let activeWisps = 0;
+    for (const other of this.enemies) {
+      if (!other.dead && !other.finished && other.def.id === 'wisp') activeWisps++;
+    }
+    if (activeWisps >= 16) return;
+    const count = Math.min(2, 16 - activeWisps);
+    for (let i = 0; i < count; i++) {
+      const dist = Math.max(0, e.dist - 62 - i * 28);
+      const spot = this.posAtDist(dist);
+      const wisp = this.makeEnemy('wisp', false);
+      wisp.pos = { x: spot.pos.x + (this.rng() - 0.5) * 22, y: spot.pos.y + (this.rng() - 0.5) * 22 };
+      wisp.wp = spot.wp;
+      wisp.dist = dist;
+      this.enemies.push(wisp);
+    }
+    this.ring(e.pos, '#b388ff', e.def.radius + 34);
+  }
+
+  private maybeAdvanceUmbraPhase(e: Enemy) {
+    if (e.def.id !== 'umbra' || e.dead || e.finished) return;
+    const pct = e.hp / e.maxHp;
+    if ((e.umbraPhase ?? 1) < 2 && pct <= 0.66) this.transitionUmbra(e, 2);
+    if ((e.umbraPhase ?? 1) < 3 && pct <= 0.33) this.transitionUmbra(e, 3);
+  }
+
+  private transitionUmbra(e: Enemy, phase: 2 | 3) {
+    if (phase <= (e.umbraPhase ?? 1)) return;
+    e.umbraPhase = phase;
+    if (phase === 2) {
+      const maxDist = Math.max(0, this.pathLength() - SAFE_EXIT_MARGIN);
+      const nextDist = Math.min(maxDist, e.dist + 260);
+      const spot = this.posAtDist(nextDist);
+      e.dist = nextDist;
+      e.wp = spot.wp;
+      e.pos = spot.pos;
+      e.cloaked = true;
+      e.revealed = false;
+      e.umbraCloakTimer = 3.4;
+      e.pulseCd = Math.min(e.pulseCd ?? 2.2, 2.2);
+      this.announce('THE UMBRA phase-shifts - detector coverage advised');
+      vox('wave-cloaked');
+      this.ring(e.pos, '#7d5fff', e.def.radius + 30);
+    } else {
+      e.cloaked = false;
+      e.revealed = false;
+      e.umbraCloakTimer = 0;
+      e.pulseCd = Math.min(e.pulseCd ?? 1.2, 1.2);
+      this.announce('THE UMBRA enrages - disruption cadence rising');
+      vox('wave-boss');
+      this.ring(e.pos, '#ff5a6e', e.def.radius + 40);
+      this.shake = Math.min(1, this.shake + 0.45);
+    }
+    this.recorder.recordUmbraPhase(this.telemetryState(), e.uid, phase);
+  }
+
   /** Returns actual damage dealt (0 if immune). */
   damageEnemy(e: Enemy, dmg: number, type: Projectile['damageType'], shred: boolean, src?: Tower): number {
     if (e.dead || e.finished) return 0;
@@ -980,15 +1146,35 @@ export class Game {
     if (this.freeplay && e.def.boss && this.freeplayState.currentMutators.some((m) => m.id === 'shieldedBoss')) dmg *= 0.82;
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
-    this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + dmg;
-    if (src) {
-      this.runStats.dmg[src.def.id] = (this.runStats.dmg[src.def.id] ?? 0) + dmg;
-      this.runStats.dmgByTowerUid[src.uid] = (this.runStats.dmgByTowerUid[src.uid] ?? 0) + dmg;
+    if (this.eliteBulwarkProtects(e)) dmg *= BULWARK_DAMAGE_MULT;
+    dmg = this.capUmbraDamage(e, dmg);
+    if (dmg <= 0) return 0;
+
+    let shieldAbsorbed = 0;
+    if (e.elite?.id === 'shielded' && (e.elite.shield ?? 0) > 0) {
+      shieldAbsorbed = Math.min(dmg, e.elite.shield ?? 0);
+      e.elite.shield = Math.max(0, (e.elite.shield ?? 0) - shieldAbsorbed);
+      dmg -= shieldAbsorbed;
+      if (shieldAbsorbed > 0 && e.elite.shield <= 0) {
+        this.ring(e.pos, ELITE_AFFIX_META.shielded.glow, e.def.radius + 18);
+        this.burstFx(e.pos, ELITE_AFFIX_META.shielded.glow, 8);
+        sfx.zap();
+      }
     }
+
+    const credited = shieldAbsorbed + dmg;
+    this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + credited;
+    if (src) {
+      this.runStats.dmg[src.def.id] = (this.runStats.dmg[src.def.id] ?? 0) + credited;
+      this.runStats.dmgByTowerUid[src.uid] = (this.runStats.dmgByTowerUid[src.uid] ?? 0) + credited;
+    }
+    if (dmg <= 0) return 0;
     e.hp -= dmg;
     if (e.hp <= 0) {
       this.killEnemy(e);
       if (src) src.kills++;
+    } else {
+      this.maybeAdvanceUmbraPhase(e);
     }
     return dmg;
   }
@@ -1012,8 +1198,21 @@ export class Game {
   /** Ability damage — bypasses all immunities. */
   trueDamage(e: Enemy, dmg: number) {
     if (e.dead || e.finished) return;
+    dmg = this.capUmbraDamage(e, dmg);
+    if (dmg <= 0) return;
+    if (e.elite?.id === 'shielded' && (e.elite.shield ?? 0) > 0) {
+      const absorbed = Math.min(dmg, e.elite.shield ?? 0);
+      e.elite.shield = Math.max(0, (e.elite.shield ?? 0) - absorbed);
+      dmg -= absorbed;
+      if (absorbed > 0 && e.elite.shield <= 0) {
+        this.ring(e.pos, ELITE_AFFIX_META.shielded.glow, e.def.radius + 18);
+        this.burstFx(e.pos, ELITE_AFFIX_META.shielded.glow, 8);
+      }
+    }
+    if (dmg <= 0) return;
     e.hp -= dmg;
     if (e.hp <= 0) this.killEnemy(e);
+    else this.maybeAdvanceUmbraPhase(e);
   }
 
   applySlow(e: Enemy, power: number, duration: number) {
@@ -1029,13 +1228,14 @@ export class Game {
     if (e.dead) return;
     e.dead = true;
     const dailyIncome = this.dailyChallenge?.twist.killRewardMultiplier ?? 1;
-    const reward = Math.max(1, Math.round(e.def.reward * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
+    const reward = Math.max(1, Math.round(e.def.reward * (e.elite?.rewardMult ?? 1) * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
       (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1) * dailyIncome));
     this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
     this.recorder.recordEnemyKill(this.telemetryState(), e);
     this.spawnChildren(e);
+    if (e.elite?.id === 'splitting') this.spawnEliteSplitChildren(e);
     if (e.def.boss) {
       sfx.bossDown();
       vox(e.def.id === 'leviathan' ? 'leviathan-down' : 'titan-down');
@@ -1052,7 +1252,7 @@ export class Game {
         this.ring(e.pos, e.def.glow, e.def.radius + 6);
       }
       // credit popup
-      this.emit('text', e.pos.x, e.pos.y - e.def.radius - 4, 0, -26, 0.7, 10, '#ffd32a', `+${e.def.reward}`);
+      this.emit('text', e.pos.x, e.pos.y - e.def.radius - 4, 0, -26, 0.7, 10, '#ffd32a', `+${reward}`);
       // drop chance shrinks as kill volume grows in later waves
       const pickupMult = this.dailyChallenge?.boon.pickupDropMultiplier ?? 1;
       if (this.rng() < (0.022 * pickupMult) / (1 + this.wave * 0.04)) this.dropPickup(e.pos, false);
@@ -1237,6 +1437,9 @@ export class Game {
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.6);
     const abilityHaste = this.freeplay && this.freeplayState.relics.some((r) => r.id === 'chronoMarket') ? 1.35 : 1;
     for (const a of this.abilities) a.cd = Math.max(0, a.cd - dt * abilityHaste);
+    for (const e of this.enemies) {
+      if (e.def.id === 'umbra' && e.umbraPhase === 1) e.umbraTickDamage = 0;
+    }
 
     this.updateSpawns(dt);
     this.updateEnemies(dt);
@@ -1346,7 +1549,7 @@ export class Game {
       if (blocked) break;
       entry.timer -= dt;
       while (entry.timer <= 0 && entry.spawned < entry.group.count) {
-        this.spawnEnemy(entry.group.type, !!entry.group.cloaked);
+        this.spawnEnemy(entry.group.type, !!entry.group.cloaked, eliteAffixForSpawn(entry.group, entry.spawned));
         entry.spawned++;
         entry.timer += entry.group.gap;
       }
@@ -1376,13 +1579,14 @@ export class Game {
         e.resonanceTimer -= dt;
         if (e.resonanceTimer <= 0) e.resonance = 0;
       }
+      this.updateUmbra(e, dt);
       // boss disruption pulse: stuns towers near the hull — don't stack your whole
       // defense on the one chokepoint a carrier will walk through
       if (e.def.boss) {
         e.pulseCd = (e.pulseCd ?? 2.5) - dt;
         if (e.pulseCd <= 0) {
-          e.pulseCd = e.def.id === 'leviathan' ? 4 : 5.5;
-          const radius = e.def.id === 'leviathan' ? 160 : 120;
+          e.pulseCd = this.bossPulseInterval(e);
+          const radius = this.bossPulseRadius(e);
           let hit = 0;
           for (const t of this.towers) {
             if (t.def.style === 'support') continue;
@@ -1405,7 +1609,7 @@ export class Game {
         if (e.focusMarkTimer <= 0) e.focusMark = 0;
       }
       const globalSlow = this.chronoTimer > 0 ? 0.35 : 1;
-      let move = e.def.speed * getBalance().enemy(e.def.id).speedMult * e.slow * globalSlow * dt;
+      let move = e.def.speed * getBalance().enemy(e.def.id).speedMult * (e.elite?.speedMult ?? 1) * this.umbraSpeedMult(e) * e.slow * globalSlow * dt;
       while (move > 0 && e.wp < path.length) {
         const target = path[e.wp];
         const dx = target.x - e.pos.x, dy = target.y - e.pos.y;
