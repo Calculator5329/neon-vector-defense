@@ -965,6 +965,8 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
 
   const nextWaveNumber = game.wave + 1;
   const nextWavePreview = game.phase === 'build' ? summarizeWave(game.previewWave(nextWaveNumber)) : [];
+  const adaptationType = game.adaptation.type;
+  const adaptationResist = Math.round(game.adaptation.resist * 100);
   const recordWavePreviewHover = () => {
     const key = `${game.runId}:${nextWaveNumber}`;
     if (previewHoverRef.current === key) return;
@@ -998,13 +1000,13 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           {abortConfirm ? 'CONFIRM' : '✕ ABORT'}
         </button>
         <div className="tb-stat lives" title="Reactor cores — your lives. Lose them all and the lighthouse falls." aria-label={`Reactor cores ${game.lives}`}>
-          <span className="tb-glyph" aria-hidden="true">⬢</span> {game.lives}<span className="tb-tag">CORES</span>
+          <span className="tb-glyph" aria-hidden="true">⬢</span> <span className="tb-stat-num no-shift-counter">{game.lives}</span><span className="tb-tag">CORES</span>
         </div>
         <div className="tb-stat credits" title="Credits — earned per kill, spent on towers & upgrades." aria-label={`Credits ${Math.floor(game.credits)}`}>
-          <span className="tb-glyph" aria-hidden="true">⌬</span> {Math.floor(game.credits)}<span className="tb-tag">CR</span>
+          <span className="tb-glyph" aria-hidden="true">⌬</span> <span className="tb-stat-num no-shift-counter">{Math.floor(game.credits)}</span><span className="tb-tag">CR</span>
         </div>
         <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : diff.waves}` : ''}`}>
-          WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
+          WAVE <span className="tb-stat-num no-shift-counter">{game.wave}</span>{game.phase === 'build' ? <> / <span className="tb-stat-num no-shift-counter">{game.freeplay ? '∞' : diff.waves}</span></> : ''}
         </div>
         {game.dailyChallenge && (
           <div className="tb-stat daily-strip" title={game.dailyMeta().summary} aria-label={`Daily Challenge modifiers: ${game.dailyMeta().summary}`}>
@@ -1019,16 +1021,19 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
             ⏱ {fpsRef.current.fps}fps · {game.enemies.length}E {game.particles.length}P {game.projectiles.length}J
           </div>
         )}
-        {game.adaptation.type && (
-          <div key={`${game.adaptation.type}-${Math.floor(game.wave / 10)}`} className="tb-stat tb-adapt" style={{ color: '#ff9f43' }}
-            title={`Apex protocol: the Combine has armored against ${game.adaptation.type} damage for 10 waves — switch up your damage types`}
-            aria-label={`Warning: ${game.adaptation.type} damage resisted ${Math.round(game.adaptation.resist * 100)} percent`}>
-            ⛨ {game.adaptation.type} −{Math.round(game.adaptation.resist * 100)}%
-          </div>
-        )}
+        <div
+          key={`${adaptationType || 'reserved'}-${Math.floor(game.wave / 10)}`}
+          className={`tb-stat tb-adapt tb-adapt-slot ${adaptationType ? 'active' : ''}`}
+          style={{ color: '#ff9f43' }}
+          title={adaptationType ? `Apex protocol: the Combine has armored against ${adaptationType} damage for 10 waves — switch up your damage types` : undefined}
+          aria-label={adaptationType ? `Warning: ${adaptationType} damage resisted ${adaptationResist} percent` : undefined}
+          aria-hidden={!adaptationType}
+        >
+          ⛨ <span className="tb-adapt-type">{adaptationType || 'energy'}</span> −<span className="no-shift-counter">{adaptationType ? adaptationResist : 0}</span>%
+        </div>
         <div className="tb-spacer" />
         <div className="tb-stat kills" title="Hostiles destroyed" aria-label={`Hostiles destroyed ${game.totalKills}`}>
-          <span className="tb-glyph" aria-hidden="true">☠</span> {game.totalKills}<span className="tb-tag">KILLS</span>
+          <span className="tb-glyph" aria-hidden="true">☠</span> <span className="tb-stat-num no-shift-counter">{game.totalKills}</span><span className="tb-tag">KILLS</span>
         </div>
         <button
           className={`tb-btn ${game.autoNext ? 'on' : ''}`}

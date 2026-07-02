@@ -53,7 +53,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
           <div className="ops-rank-body">
             <div className="ops-rank-top">
               <span className="ops-rank-title">{rank.title}</span>
-              <span className="ops-rank-xp">{rank.xpIntoRank.toLocaleString()} / {rank.xpForRank.toLocaleString()} XP</span>
+              <span className="ops-rank-xp no-shift-counter">{rank.xpIntoRank.toLocaleString()} / {rank.xpForRank.toLocaleString()} XP</span>
             </div>
             <div className="ops-rank-bar"><div className="ops-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></div>
             <div className="ops-rank-sub">WARDEN RANK {rank.rank} · {rank.totalXp.toLocaleString()} lifetime XP</div>
@@ -66,12 +66,12 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
         </div>
         <div className="ops-chips">
           <div className="ops-chip salvage" title="Salvage — earned per run, spent on Signal Palettes below">
-            <span className="ops-chip-val"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}</span>
+            <span className="ops-chip-val no-shift-counter"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}</span>
             <span className="ops-chip-label">SALVAGE</span>
           </div>
           <div className={`ops-chip streak ${streak.activeToday ? 'active' : streak.current > 0 ? 'warn' : ''}`}
             title={streak.current > 0 && !streak.activeToday ? `Play today to keep your ${streak.current}-day watch alive (best: ${streak.best})` : `Best streak: ${streak.best} days`}>
-            <span className="ops-chip-val">🔥 {streak.current}</span>
+            <span className="ops-chip-val no-shift-counter">🔥 {streak.current}</span>
             <span className="ops-chip-label">{streak.activeToday ? 'DAY STREAK' : streak.current > 0 ? 'PLAY TODAY!' : 'NO STREAK'}</span>
           </div>
         </div>
@@ -126,17 +126,21 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
         </div>
       </div>
 
-      {status && (
-        <div className={`ops-status ${status.kind}`} role="status" aria-live="polite" aria-atomic="true">
-          {status.text}
-        </div>
-      )}
+      <div className={`ops-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-atomic="true" aria-hidden={!status}>
+        {status?.text ?? 'Operation status reserved.'}
+      </div>
 
       <div className="ops-board-head">
         <div className="menu-section-label">OPERATIONS BOARD</div>
-        {claimable >= 2 && (
-          <button className="quest-claim claim-all" onClick={claimAll}>CLAIM ALL ({claimable})</button>
-        )}
+        <button
+          className={`quest-claim claim-all ${claimable >= 2 ? '' : 'is-placeholder'}`}
+          disabled={claimable < 2}
+          aria-hidden={claimable < 2}
+          tabIndex={claimable < 2 ? -1 : undefined}
+          onClick={claimAll}
+        >
+          CLAIM ALL ({claimable})
+        </button>
       </div>
       <div className="ops-board" data-testid="ops-board">
         <QuestColumn label="DAILY OPERATIONS" quests={daily} onClaim={claim} />
@@ -164,11 +168,11 @@ function QuestColumn({ label, quests, onClaim }: { label: string; quests: QuestW
             </div>
             <div className="quest-bar"><div className="quest-fill" style={{ width: `${pct}%` }} /></div>
             <div className="quest-bot">
-              <span className="quest-prog">{Math.min(q.progress, q.target).toLocaleString()} / {q.target.toLocaleString()}</span>
+              <span className="quest-prog no-shift-counter">{Math.min(q.progress, q.target).toLocaleString()} / {q.target.toLocaleString()}</span>
               {q.claimed
-                ? <span className="quest-done">✓ CLAIMED</span>
+                ? <span className="quest-done no-shift-action">✓ CLAIMED</span>
                 : q.complete
-                  ? <button className="quest-claim" onClick={() => onClaim(q.id)}>CLAIM</button>
+                  ? <button className="quest-claim no-shift-action" onClick={() => onClaim(q.id)}>CLAIM</button>
                   : <span className="quest-prog dim">in progress</span>}
             </div>
           </div>

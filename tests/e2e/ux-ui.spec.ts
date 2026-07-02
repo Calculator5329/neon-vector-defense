@@ -786,7 +786,8 @@ test.describe('desktop UX layout', () => {
     await openOperationsMenu(page);
 
     await page.getByRole('button', { name: 'Equip Void Violet palette' }).click();
-    await expect(page.locator('.ops-status')).toHaveCount(0);
+    await expect(page.locator('.ops-status')).toBeHidden();
+    await expect(page.locator('.ops-status:not(.idle)')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Void Violet palette equipped' })).toBeVisible();
     await expect(page.getByText('Void Violet palette equipped.')).toHaveCount(0);
   });

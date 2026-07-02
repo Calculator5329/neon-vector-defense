@@ -981,7 +981,9 @@ function RemoteBalanceEditor() {
         </div>
       </div>
 
-      {status && <div className={`adm-spot-status ${status.kind}`}>{status.text}</div>}
+      <div className={`adm-spot-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-hidden={!status}>
+        {status?.text ?? 'Admin status reserved.'}
+      </div>
 
       <div className="adm-balance-version">
         <label className="adm-balance-field wide">
@@ -3261,7 +3263,9 @@ function DailyOpsTab() {
             </select></label>
             <label className="wide"><span>Note</span><input value={note} maxLength={240} onChange={(e) => setNote(e.target.value)} placeholder="operator note (optional)" /></label>
           </div>
-          {status && <div className={`adm-spot-status ${status.kind}`}>{status.text}</div>}
+          <div className={`adm-spot-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-hidden={!status}>
+            {status?.text ?? 'Admin status reserved.'}
+          </div>
           <div className="adm-tweak-actions">
             <button className="adm-mini" disabled={busy} onClick={() => void publish()}>publish</button>
             <button className="adm-mini" disabled={busy || !current} onClick={() => void clear()}>clear override</button>
@@ -3366,7 +3370,9 @@ function SpotlightTab({ user }: { user: User }) {
         )}
       </div>
 
-      {status && <div className={`adm-spot-status ${status.kind}`}>{status.text}</div>}
+      <div className={`adm-spot-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-hidden={!status}>
+        {status?.text ?? 'Admin status reserved.'}
+      </div>
 
       <div className="adm-spot-manual">
         <input className="adm-spot-input" placeholder="paste run id (r_…)" value={manualId} onChange={(e) => setManualId(e.target.value)} />

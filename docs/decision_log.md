@@ -3,6 +3,24 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - UI chrome reserves space instead of shifting
+
+- Transient player-facing messages must be overlays or permanent reserved slots.
+  Status rows, toasts, tips, and in-run advisories should not be conditionally
+  inserted in normal flow where they push command surfaces.
+- High-churn numbers use tabular figures and, in compact chrome, explicit
+  widths sized to realistic maximum labels. This applies to topbar stats,
+  leaderboard values, meta rewards, costs, cooldowns, replay stamps, and admin
+  telemetry values.
+- State-swapped controls keep their box while changing content. Claim, equip,
+  submit, feedback, replay-watch, and admin mini-action families reserve enough
+  width for their longest expected label.
+- Async surfaces reserve their loaded footprint. Leaderboards, local boards,
+  score tables, dossier previews, feedback receipt states, and admin status
+  rows avoid inserting new height after network or callable settlement.
+- `tests/e2e/ui-stability.spec.ts` is now the regression guard for this contract
+  using both browser `layout-shift` entries and targeted rect probes.
+
 ## 2026-07-02 - Daily overrides pin modifiers, not score identity
 
 - `config/dailyOverride` is a single public-read, admin-write document for live

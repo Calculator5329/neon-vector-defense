@@ -204,10 +204,12 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
                 aria-label="Message to the developer"
                 placeholder="Bug, idea, or anything at all — it goes straight to the developer."
                 onChange={(e) => { setText(e.target.value); if (state === 'err') setState('idle'); }} />
-              {state === 'err' && <div className="fb-error">Transmission failed. Your draft is still here; try again.</div>}
+              <div className={`fb-error ${state === 'err' ? '' : 'empty'}`} aria-hidden={state !== 'err'}>
+                {state === 'err' ? 'Transmission failed. Your draft is still here; try again.' : 'Feedback status reserved.'}
+              </div>
               <div className="fb-foot">
                 <span className="fb-count">{text.length}/{MAX}</span>
-                <button className="fb-send" aria-label="Send message to developer" disabled={!text.trim() || state === 'busy'} onClick={send}>
+                <button className="fb-send no-shift-action" aria-label="Send message to developer" disabled={!text.trim() || state === 'busy'} onClick={send}>
                   {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SEND ▸'}
                 </button>
               </div>

@@ -138,6 +138,27 @@ Heavy surfaces are lazy-loaded off the player path:
 - `PrivacyView` — `/privacy` only
 - `ReplayViewer` — `?run=` deep links only
 
+## UI stability rules
+
+Player-facing UI should not move when transient content appears or numbers tick.
+Use these rules for all new React chrome:
+
+- Transient messages, tips, toasts, and status chips are fixed/absolute overlays
+  or permanently reserved slots. Do not insert them in normal flow where they
+  push siblings.
+- Counters, timers, scores, XP, salvage, costs, and table metrics use tabular
+  figures and, when they live in compact chrome, a min-width sized to the
+  largest realistic label.
+- State-swapped controls keep the same box. Size button families to the longest
+  label (`CLAIMED`, `EQUIPPED`, busy/retry states) and swap only the contents.
+- Async tables, leaderboard rows, dossier previews, and empty states reserve the
+  loaded footprint. Prefer fixed-height scroll regions for boards whose row
+  count changes after network settlement.
+- Expanding tactical panels must not resize the game canvas or command layout.
+  Use bounded overlays or internal scrolling when content can appear mid-run.
+- `tests/e2e/ui-stability.spec.ts` is the CI guard for these rules; add probes
+  there when a new transient surface is introduced.
+
 ## Data persistence
 
 | Store | Key / collection | Contents |

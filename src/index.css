@@ -105,6 +105,22 @@ button {
   cursor: pointer;
 }
 
+.no-shift-counter {
+  display: inline-block;
+  min-width: var(--nvd-counter-width, auto);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.no-shift-action {
+  min-width: var(--nvd-action-width, 9ch);
+  white-space: nowrap;
+}
+
+.no-shift-skeleton {
+  min-height: var(--nvd-skeleton-height, 0);
+}
+
 /* Global keyboard-focus ring — every interactive control gets a visible focus state
    (previously only ~6 menu selectors did, so in-game/overlay focus was invisible). */
 button:focus-visible,
