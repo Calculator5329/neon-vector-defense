@@ -578,8 +578,9 @@
 .diff-card {
   flex: 1 1 158px;
   max-width: 198px;
-  height: 112px;
-  min-height: 112px;
+  /* no fixed height: the stretch row sizes every card to the tallest (the
+     daily card), so nothing clips and campaign cards carry minimal slack */
+  min-height: 96px;
   display: flex;
   flex-direction: column;
   /* top-aligned so the description hugs the title; the daily card's footer is
@@ -619,6 +620,13 @@
 .diff-card.daily-protocol {
   border-color: rgba(126, 255, 245, 0.34);
   background: linear-gradient(180deg, rgba(126, 255, 245, 0.08), rgba(8, 14, 30, 0.94));
+}
+/* "DAILY CHALLENGE" wraps at the shared 14px title size and doubles the row
+   height for every protocol card — size it to hold one line. */
+.diff-card.daily-protocol .diff-name {
+  font-size: 12px;
+  letter-spacing: 1.3px;
+  white-space: nowrap;
 }
 .diff-card.daily-protocol.active {
   border-color: #7efff5;
@@ -727,7 +735,7 @@
   .menu-section-label { font-size: 10px; }
   .map-thumb-stack { aspect-ratio: 16 / 6.8; }
   .map-card-row { padding-block: 9px 10px; }
-  .diff-card { height: 112px; min-height: 112px; }
+  .diff-card { min-height: 96px; }
   .replay-of-day-card { min-height: 46px; }
 }
 
@@ -2965,14 +2973,15 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .diff-card {
     flex-basis: 128px;
     max-width: none;
-    height: 104px;
-    min-height: 104px;
+    min-height: 88px;
     padding: 8px 10px;
     scroll-margin-bottom: 160px;
   }
 }
 
 @media (max-width: 560px) {
+  /* narrow cards can't hold the nowrap daily title — let it wrap again */
+  .diff-card.daily-protocol .diff-name { white-space: normal; font-size: 11px; }
   .commander-rail {
     grid-template-columns: 1fr;
     padding: 10px;
