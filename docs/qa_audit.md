@@ -1,6 +1,6 @@
 # QA Audit Scaffold
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 This audit is a screenshot scaffold for the current screen inventory. The Playwright spec at `tests/e2e/qa-screens.spec.ts` captures named screenshots into `test-results/qa/<playwright-project>/` with explicit `page.screenshot()` calls. It does not change the global Playwright screenshot policy.
 
@@ -11,6 +11,7 @@ This audit is a screenshot scaffold for the current screen inventory. The Playwr
 | Desktop | `chromium-desktop` | 1440 x 900 | `test-results/qa/chromium-desktop/` |
 | Mobile | `chromium-mobile` | Pixel 5 profile | `test-results/qa/chromium-mobile/` |
 | Short landscape | run-once viewport override | 844 x 390 | `test-results/qa/short-landscape/` |
+| Menu polish matrix | run-once viewport overrides | 1920 x 930, 1440 x 900, 844 x 390, Pixel 5 portrait | `test-results/qa/menu-polish/` |
 
 ## Acceptance Criteria
 
@@ -28,6 +29,7 @@ This audit is a screenshot scaffold for the current screen inventory. The Playwr
 | --- | --- | --- | --- | --- | --- | --- |
 | 01 | Age gate entry | `/` with empty local storage | `01-age-gate-entry.png` | `01-age-gate-entry.png` | AUTOMATED | Verifies the blocking entry dialog only. |
 | 02 | Deploy menu | `/?demo=1` with seeded local state | `02-deploy-menu.png` | `02-deploy-menu.png` | AUTOMATED | Demo mode exposes the full sector/protocol inventory deterministically. |
+| 02b | Menu polish deploy and Daily selected states | `/?demo=1`, required viewport matrix | `menu-polish/{1920x930,1440x900,844x390}-{deploy-menu,daily-selected}.png` | `menu-polish/pixel-5-portrait-{deploy-menu,daily-selected}.png` | AUTOMATED | Verifies the non-scrolling header, full-size utility icons, compact Daily Challenge card, and deploy-bar daily selection state. |
 | 03 | Leaderboard tab shell | Menu `LEADERBOARD` tab | `03-leaderboard-tab-shell.png` | `03-leaderboard-tab-shell.png` | AUTOMATED SHELL | Firestore reads are blocked, so live rows/replay links are not verified. |
 | 04 | Operations board | Menu `OPERATIONS` tab | `04-operations-board.png` | `04-operations-board.png` | AUTOMATED | Uses seeded local progress/meta only. |
 | 05 | How to play modal | Menu `?` control | `05-how-to-play-modal.png` | `05-how-to-play-modal.png` | AUTOMATED | Modal visibility and layout shell. |
@@ -51,16 +53,17 @@ This audit is a screenshot scaffold for the current screen inventory. The Playwr
 
 ## Current Status
 
-The QA screenshot scaffold is implemented and was verified on 2026-07-01.
+The QA screenshot scaffold is implemented and was verified on 2026-07-02, including the Menu polish matrix for 1920 x 930, 1440 x 900, 844 x 390, and Pixel 5 portrait.
 
 Focused checks run:
 
 ```sh
 npm.cmd run typecheck:all
+npm.cmd test
 node .\tests\e2e\run-playwright.mjs tests/e2e/qa-screens.spec.ts
 ```
 
-Results: typecheck passed; Playwright passed 2/2 projects. The run produced 16 desktop screenshots and 17 mobile screenshots, with the extra mobile artifact covering the portrait rotate guidance.
+Results: typecheck passed; the full Playwright dev suite passed; and the QA screenshot spec refreshed the core desktop/mobile artifacts plus `test-results/qa/menu-polish/` deploy and Daily-selected captures.
 
 Run the focused spec with:
 

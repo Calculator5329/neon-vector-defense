@@ -33,8 +33,20 @@ function WatchCell({ runId }: { runId?: string }) {
   );
 }
 
-export function LeaderboardTab({ map, diff, daily = dailyChallenge() }: { map: GameMap; diff: DifficultyDef; daily?: DailyChallenge }) {
-  const [mode, setMode] = useState<'campaign' | 'freeplay' | 'daily'>('campaign');
+type LeaderboardMode = 'campaign' | 'freeplay' | 'daily';
+
+export function LeaderboardTab({
+  map,
+  diff,
+  daily = dailyChallenge(),
+  initialMode = 'campaign',
+}: {
+  map: GameMap;
+  diff: DifficultyDef;
+  daily?: DailyChallenge;
+  initialMode?: LeaderboardMode;
+}) {
+  const [mode, setMode] = useState<LeaderboardMode>(initialMode);
   const [globalRows, setGlobalRows] = useState<RankedScoreEntry[] | null>(null);
   const [localRows, setLocalRows] = useState<ScoreEntry[] | null>(null);
   const [dailyRows, setDailyRows] = useState<ScoreEntry[] | null>(null);
@@ -45,6 +57,9 @@ export function LeaderboardTab({ map, diff, daily = dailyChallenge() }: { map: G
   // Server rows carry the authenticated anonymous uid; the local uid fallback
   // only covers browsers that read boards before anonymous sign-in has warmed.
   const myUid = cachedServerUid() ?? progress.uid;
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
   useEffect(() => {
     let live = true;
     setGlobalRows(null);

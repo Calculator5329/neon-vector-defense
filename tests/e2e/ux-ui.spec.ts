@@ -165,6 +165,48 @@ async function widgetMetrics(page: Page) {
   });
 }
 
+async function menuHeaderMetrics(page: Page) {
+  return page.evaluate(() => {
+    const header = [...document.querySelectorAll<HTMLElement>('.menu-topbar, .menu-tabs')].map((el) => ({
+      selector: el.className,
+      scrollX: el.scrollWidth - el.clientWidth,
+      scrollY: el.scrollHeight - el.clientHeight,
+      overflowX: getComputedStyle(el).overflowX,
+      overflowY: getComputedStyle(el).overflowY,
+    }));
+    const icons = [...document.querySelectorAll<HTMLElement>('.menu-tab-help')].map((button) => {
+      const icon = button.querySelector<HTMLElement>('.menu-tab-icon');
+      const buttonRect = button.getBoundingClientRect();
+      const iconStyle = icon ? getComputedStyle(icon) : null;
+      return {
+        label: button.getAttribute('aria-label') || button.getAttribute('title') || '',
+        buttonWidth: Math.round(buttonRect.width),
+        buttonHeight: Math.round(buttonRect.height),
+        glyphFontSize: iconStyle ? Number.parseFloat(iconStyle.fontSize) : 0,
+      };
+    });
+    return { header, icons };
+  });
+}
+
+function expectPolishedMenuHeader(metrics: Awaited<ReturnType<typeof menuHeaderMetrics>>) {
+  expect(metrics.header.length).toBeGreaterThanOrEqual(2);
+  for (const el of metrics.header) {
+    expect(el.scrollX, `${el.selector} horizontal overflow`).toBeLessThanOrEqual(0);
+    expect(el.scrollY, `${el.selector} vertical overflow`).toBeLessThanOrEqual(0);
+    expect(el.overflowX, `${el.selector} overflow-x`).not.toMatch(/auto|scroll/);
+    expect(el.overflowY, `${el.selector} overflow-y`).not.toMatch(/auto|scroll/);
+  }
+  expect(metrics.icons).toHaveLength(3);
+  for (const icon of metrics.icons) {
+    expect(icon.buttonWidth, `${icon.label} button width`).toBeGreaterThanOrEqual(40);
+    expect(icon.buttonWidth, `${icon.label} button width`).toBeLessThanOrEqual(44);
+    expect(icon.buttonHeight, `${icon.label} button height`).toBeGreaterThanOrEqual(40);
+    expect(icon.buttonHeight, `${icon.label} button height`).toBeLessThanOrEqual(44);
+    expect(icon.glyphFontSize, `${icon.label} glyph size`).toBeGreaterThanOrEqual(20);
+  }
+}
+
 async function arsenalGridMetrics(page: Page) {
   return page.evaluate(() => {
     const grid = document.querySelector<HTMLElement>('[data-testid="shop-grid"]');
@@ -481,6 +523,21 @@ test.describe('admin analytics model', () => {
 
 test.describe('desktop UX layout', () => {
   test.skip(({ isMobile }) => isMobile, 'desktop-only layout expectations');
+
+  test('menu header wraps without scrollbars and keeps utility icons readable at desktop widths', async ({ page }) => {
+    for (const viewport of [
+      { width: 1920, height: 930 },
+      { width: 1440, height: 900 },
+      { width: 844, height: 390 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await openDemoMenu(page);
+      expectPolishedMenuHeader(await menuHeaderMetrics(page));
+      await expect(page.getByTestId('menu-utility-bestiary')).toBeVisible();
+      await expect(page.getByTestId('menu-utility-help')).toBeVisible();
+      await expect(page.getByTestId('menu-utility-settings')).toBeVisible();
+    }
+  });
 
   test('sector select keeps an 8-card, 4-by-2 grid with docked utility buttons', async ({ page }) => {
     await openDemoMenu(page);
@@ -937,13 +994,25 @@ test.describe('run telemetry model', () => {
 
   test('daily challenge starts as a wave-one daily protocol', async ({ page }) => {
     await openDemoMenu(page);
+    await expect(page.locator('[data-testid="daily-challenge-panel"]')).toHaveCount(0);
     await page.getByTestId('diff-card-daily').click();
+    await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
+    await expect(page.getByTestId('diff-card-daily')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
+    await expect(page.locator('[data-testid="daily-challenge-panel"]')).toHaveCount(0);
+
+    await page.getByRole('button', { name: /^LEADERBOARD/ }).click();
+    await expect(page.getByTestId('daily-leaderboard-mode')).toBeVisible();
+    await page.getByRole('button', { name: /^DEPLOY$/ }).click();
+    await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
     await page.getByTestId('deploy-button').click();
     await expect(page.getByTestId('game-root')).toBeVisible();
+    await expect(page.locator('.daily-strip')).toBeVisible();
 
     const daily = await page.evaluate(() => {
       const game = (window as unknown as { game: any }).game;
       const setup = game.buildRunUploadBundle('DAILYTEST', 'test-build').run.setup;
+      const modifiers = game.dailyMeta().modifiers;
       return {
         freeplay: game.freeplay,
         isDaily: game.isDailyChallenge,
@@ -960,6 +1029,8 @@ test.describe('run telemetry model', () => {
         setupCash: setup.startingCash,
         relicOffers: game.freeplayState.nextRelicOffer.length,
         canBank: game.canBankFreeplay(),
+        modifiers,
+        hudText: document.querySelector('.daily-strip')?.textContent ?? '',
       };
     });
 
@@ -978,6 +1049,8 @@ test.describe('run telemetry model', () => {
     expect(daily.setupTowerIds.sort()).toEqual(daily.dailyTowerIds.sort());
     expect(daily.relicOffers).toBe(0);
     expect(daily.canBank).toBe(false);
+    expect(daily.modifiers).toHaveLength(3);
+    for (const modifier of daily.modifiers) expect(daily.hudText).toContain(modifier);
   });
 
   test('daily challenge does not mutate campaign progress', async ({ page }) => {
@@ -1207,6 +1280,17 @@ test.describe('first-run coach', () => {
 
 test.describe('mobile UX layout', () => {
   test.skip(({ isMobile }) => !isMobile, 'mobile-only layout expectations');
+
+  test('menu header wraps without scrollbars and keeps utility icons readable on Pixel portrait', async ({ page }) => {
+    await openDemoMenu(page);
+    expectPolishedMenuHeader(await menuHeaderMetrics(page));
+    for (const id of ['menu-utility-bestiary', 'menu-utility-help', 'menu-utility-settings']) {
+      const control = page.getByTestId(id);
+      await expect(control).toBeVisible();
+      await control.focus();
+      await expect(control).toBeFocused();
+    }
+  });
 
   test('sector select uses a horizontal card strip without page overflow', async ({ page }) => {
     await openDemoMenu(page);

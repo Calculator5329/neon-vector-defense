@@ -337,4 +337,27 @@ test.describe('QA audit screen screenshots', () => {
     expect(verticalOverflow).toBeLessThanOrEqual(2);
     await captureInDir(page, 'short-landscape', '15b-short-landscape-game');
   });
+
+  test('captures menu polish viewports into test-results/qa', async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
+    await mockRemoteDataFailures(page);
+
+    const captures: { slug: string; name: string; viewport?: { width: number; height: number } }[] = testInfo.project.name.includes('mobile')
+      ? [{ slug: 'menu-polish', name: 'pixel-5-portrait' }]
+      : [
+          { slug: 'menu-polish', name: '1920x930', viewport: { width: 1920, height: 930 } },
+          { slug: 'menu-polish', name: '1440x900', viewport: { width: 1440, height: 900 } },
+          { slug: 'menu-polish', name: '844x390', viewport: { width: 844, height: 390 } },
+        ];
+
+    for (const item of captures) {
+      if (item.viewport) await page.setViewportSize(item.viewport);
+      await seedLocalState(page);
+      await openMenu(page, '/?demo=1');
+      await captureInDir(page, item.slug, `${item.name}-deploy-menu`);
+      await page.getByTestId('diff-card-daily').click();
+      await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
+      await captureInDir(page, item.slug, `${item.name}-daily-selected`);
+    }
+  });
 });
