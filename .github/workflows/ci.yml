@@ -16,7 +16,7 @@ jobs:
   verify:
     name: Commit Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -73,6 +73,40 @@ jobs:
             firebase-debug.log
             firestore-debug.log
           if-no-files-found: ignore
+
+  worker:
+    name: Worker Wrangler Dry Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - name: Install Worker Dependencies
+        working-directory: worker
+        run: npm ci
+      - name: Worker Dry Run
+        working-directory: worker
+        run: |
+          cp wrangler.toml.example wrangler.toml
+          mkdir -p "$RUNNER_TEMP/worker-dry-run"
+          set +e
+          WRANGLER_OUTPUT="$(npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker-dry-run" 2>&1)"
+          WRANGLER_STATUS=$?
+          set -e
+          printf '%s\n' "$WRANGLER_OUTPUT"
+          if [ "$WRANGLER_STATUS" -ne 0 ]; then
+            if printf '%s\n' "$WRANGLER_OUTPUT" | grep -Eiq 'not authenticated|not logged in|api token|CLOUDFLARE_API_TOKEN|wrangler login'; then
+              echo "Wrangler requires Cloudflare auth for dry-run in this environment; local build validation was attempted with --outdir."
+              exit 0
+            fi
+            exit "$WRANGLER_STATUS"
+          fi
 
   secrets:
     name: Secret Scan

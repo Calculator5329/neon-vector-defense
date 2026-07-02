@@ -24,6 +24,8 @@ describe('CI/CD guardrails', () => {
   test('CI runs quick perf and Jest smoke checks', () => {
     expect(packageJson.scripts['test:jest']).toBe('jest --runInBand');
     expect(packageJson.scripts['test:functions']).toContain('npm --prefix functions run build');
+    expect(packageJson.scripts['test:callables']).toContain('firebase emulators:exec --only firestore,functions,auth');
+    expect(packageJson.scripts['test:security']).toContain('npm run test:callables');
     expect(packageJson.scripts['sim:quick']).toBe('npm run sim -- quick');
     expect(packageJson.scripts['perf:quick']).toBe('npm run perf -- quick');
     expect(packageJson.scripts['balance:gate']).toBe('tsx scripts/balance.ts quick --gate --out test-results/balance-gate-report.json && tsx scripts/balance-check.ts --baseline public/balance-report.json --current test-results/balance-gate-report.json');
@@ -64,6 +66,11 @@ describe('CI/CD guardrails', () => {
     expect(codeqlWorkflow).toContain("github.event.repository.visibility == 'public'");
     expect(deployWorkflow).toContain('workflow_dispatch');
     expect(deployWorkflow).toContain('environment: production');
+    expect(deployWorkflow).toContain('Require master ref');
+    expect(deployWorkflow).toContain('refs/heads/master');
+    expect(deployWorkflow).toContain('Deployment Audit Summary');
+    expect(deployWorkflow).toContain('Commit SHA: $GITHUB_SHA');
+    expect(deployWorkflow).toContain('Build tag: $BUILD_TAG');
     expect(deployWorkflow).toContain('npm run build');
     expect(deployWorkflow).toContain('npx playwright install --with-deps chromium');
     expect(deployWorkflow).toContain('npm test');
@@ -73,6 +80,11 @@ describe('CI/CD guardrails', () => {
     expect(deployWorkflow).toContain('firebase-tools deploy --only hosting,firestore:rules,firestore:indexes');
     expect(functionsDeployWorkflow).toContain('workflow_dispatch');
     expect(functionsDeployWorkflow).toContain('environment: production');
+    expect(functionsDeployWorkflow).toContain('Require master ref');
+    expect(functionsDeployWorkflow).toContain('refs/heads/master');
+    expect(functionsDeployWorkflow).toContain('Deployment Audit Summary');
+    expect(functionsDeployWorkflow).toContain('Commit SHA: $GITHUB_SHA');
+    expect(functionsDeployWorkflow).toContain('Build tag: $BUILD_TAG');
     expect(functionsDeployWorkflow).toContain('npm --prefix functions run build');
     expect(functionsDeployWorkflow).toContain('npx playwright install --with-deps chromium');
     expect(functionsDeployWorkflow).toContain('npm test');
@@ -82,6 +94,25 @@ describe('CI/CD guardrails', () => {
     expect(deployWorkflow).not.toMatch(/\npull_request:|\nschedule:/);
     expect(functionsDeployWorkflow).not.toMatch(/\npull_request:|\nschedule:/);
     expect(workerPackageJson.devDependencies.wrangler).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  test('CI security step picks up callable integration tests when available', () => {
+    const securityBlock = /- name: Security Tests[\s\S]*?(?=\n      - name:|\n  worker:|\n  secrets:)/.exec(ciWorkflow)?.[0] ?? '';
+
+    expect(securityBlock).toContain('npm run test:security');
+    expect(packageJson.scripts['test:security']).toContain('npm run test:callables');
+  });
+
+  test('CI dry-runs the Cloudflare Worker without deploy secrets', () => {
+    expect(ciWorkflow).toContain('Worker Wrangler Dry Run');
+    expect(ciWorkflow).toContain('node-version: 22');
+    expect(ciWorkflow).toContain('cache-dependency-path: worker/package-lock.json');
+    expect(ciWorkflow).toContain('working-directory: worker');
+    expect(ciWorkflow).toContain('npm ci');
+    expect(ciWorkflow).toContain('cp wrangler.toml.example wrangler.toml');
+    expect(ciWorkflow).toContain('wrangler deploy --dry-run --outdir');
+    expect(ciWorkflow).toContain('CLOUDFLARE_API_TOKEN');
+    expect(ciWorkflow).toContain('local build validation was attempted with --outdir');
   });
 
   test('admin allowlist is shared by backend and admin UI', () => {
