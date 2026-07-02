@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { renderDossierCanvas, dossierBlob, dossierShareUrl, type DossierInput } from './game/dossier';
 import { sfx } from './game/sound';
+import { IS_PORTAL_BUILD } from './game/portal';
 
 // Share row for a Mission Dossier. The PNG is the real shareable artifact (works with no
 // server); the ?run= link is offered only when the run was actually uploaded (runId present).
 // Every action is feature-detected and try/caught — it must never throw inside an overlay.
 export default function DossierShare({ input, runId, compact }: { input: DossierInput; runId?: string; compact?: boolean }) {
+  const shareInput = useMemo(() => IS_PORTAL_BUILD ? { ...input, runId: '' } : input, [input]);
   const [preview, setPreview] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
@@ -17,7 +19,7 @@ export default function DossierShare({ input, runId, compact }: { input: Dossier
     let live = true;
     (async () => {
       try {
-        const cv = await renderDossierCanvas(input);
+        const cv = await renderDossierCanvas(shareInput);
         if (!live) return;
         setPreview(cv.toDataURL('image/png'));
         cv.toBlob((b) => { if (live) setBlob(b); }, 'image/png');
@@ -27,15 +29,15 @@ export default function DossierShare({ input, runId, compact }: { input: Dossier
       }
     })();
     return () => { live = false; };
-  }, [input, compact]);
+  }, [shareInput, compact]);
 
   const flash = (text: string, kind: 'ok' | 'err' | 'info' = 'ok') => {
     setToast({ kind, text });
     setTimeout(() => setToast(null), 2200);
   };
-  const fileName = `nvd-dossier-${input.mapId}-w${input.wave}.png`;
-  const url = runId ? dossierShareUrl(runId) : null;
-  const getBlob = async () => blob ?? (await dossierBlob(input));
+  const fileName = `nvd-dossier-${shareInput.mapId}-w${shareInput.wave}.png`;
+  const url = !IS_PORTAL_BUILD && runId ? dossierShareUrl(runId) : null;
+  const getBlob = async () => blob ?? (await dossierBlob(shareInput));
   const hasShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
   const onShare = async () => {

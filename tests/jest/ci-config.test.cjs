@@ -26,6 +26,8 @@ describe('CI/CD guardrails', () => {
     expect(packageJson.scripts['test:functions']).toContain('npm --prefix functions run build');
     expect(packageJson.scripts['test:callables']).toContain('firebase emulators:exec --only firestore,functions,auth');
     expect(packageJson.scripts['test:security']).toContain('npm run test:callables');
+    expect(packageJson.scripts['build:crazygames']).toBe('node ./scripts/build-portal.mjs crazygames');
+    expect(packageJson.scripts['build:poki']).toBe('node ./scripts/build-portal.mjs poki');
     expect(packageJson.scripts['sim:quick']).toBe('npm run sim -- quick');
     expect(packageJson.scripts['perf:quick']).toBe('npm run perf -- quick');
     expect(packageJson.scripts['balance:gate']).toBe('tsx scripts/balance.ts quick --gate --out test-results/balance-gate-report.json && tsx scripts/balance-check.ts --baseline public/balance-report.json --current test-results/balance-gate-report.json');

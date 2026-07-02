@@ -3,6 +3,20 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Portal SDKs live behind a build-time adapter
+
+- `VITE_PORTAL` selects `none`, `crazygames`, or `poki`. The default `none`
+  build keeps portal SDK URLs, scripts, lifecycle calls, and CSP additions out of
+  the production Firebase bundle.
+- CrazyGames and Poki share one `PortalAdapter` contract so app-shell lifecycle,
+  ad breaks, and portal celebratory moments stay outside the deterministic
+  engine and replay telemetry.
+- Portal ad breaks are limited to natural pauses and are consent-gated before
+  calling the SDK. Under-13 runs record a local skipped opportunity without
+  sending an ad request.
+- Portal-specific CSP is injected into portal flavor `index.html`; Firebase
+  Hosting keeps its default CSP restricted to first-party/runtime dependencies.
+
 ## 2026-07-02 - UI chrome reserves space instead of shifting
 
 - Transient player-facing messages must be overlays or permanent reserved slots.

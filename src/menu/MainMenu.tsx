@@ -18,6 +18,7 @@ import { DEMO_MODE } from '../appShared';
 import { LeaderboardTab } from './LeaderboardTab';
 import { HowToPlay } from '../game-ui/HowToPlay';
 import { SettingsPanel } from '../game-ui/SettingsPanel';
+import { IS_PORTAL_BUILD } from '../game/portal';
 
 // ---------------- Main menu ----------------
 
@@ -333,7 +334,7 @@ export function MainMenu(props: {
       <div className="deploy-bar">
         <div className="deploy-bar-inner">
           <div className="menu-legal">
-            <a href="/privacy">Privacy &amp; Data Choices</a>
+            {!IS_PORTAL_BUILD && <a href="/privacy">Privacy &amp; Data Choices</a>}
           </div>
           <div className="deploy-bar-sel">
             <span className="dbar-label">DEPLOYING TO</span>

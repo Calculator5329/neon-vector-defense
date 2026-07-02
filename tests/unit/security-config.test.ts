@@ -36,11 +36,12 @@ describe('hosting security headers', () => {
       "img-src 'self' data: blob:",
       "connect-src 'self' https://*.googleapis.com https://accounts.google.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.workers.dev",
       "frame-src https://www.google.com/recaptcha/ https://apis.google.com https://accounts.google.com https://*.firebaseapp.com",
-      "frame-ancestors 'self' https://*.crazygames.com https://*.poki.com",
+      "frame-ancestors 'self'",
       "worker-src 'self'",
     ]) {
       assert.ok(csp.includes(directive), `missing CSP directive: ${directive}`);
     }
+    assert.doesNotMatch(csp, /crazygames|poki/);
   });
 
   test('keeps baseline browser hardening headers', () => {

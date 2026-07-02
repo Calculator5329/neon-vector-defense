@@ -36,6 +36,9 @@ export const METRIC_EVENTS = {
   FEEDBACK_SUCCESS: 'feedback_success',
   FEEDBACK_ERROR: 'feedback_error',
   FEEDBACK_REPLY_VIEW: 'feedback_reply_view',
+  AD_BREAK_REQUESTED: 'ad_break_requested',
+  AD_BREAK_COMPLETED: 'ad_break_completed',
+  AD_BREAK_SKIPPED: 'ad_break_skipped',
   QUALITY_DOWNGRADE: 'quality_downgrade',
   QUALITY_RECOVER: 'quality_recover',
   FREEPLAY_ENTER: 'freeplay_enter',
@@ -93,6 +96,9 @@ export interface AppMetricSnapshot {
     feedbackSuccesses: number;
     feedbackErrors: number;
     feedbackRepliesViewed: number;
+    adBreakRequests: number;
+    adBreakCompleted: number;
+    adBreakSkipped: number;
   };
   leaderboard: {
     menuOpens: number;
@@ -233,6 +239,13 @@ export const appMetrics = {
     target().assistance.feedbackRepliesViewed += Math.max(0, Math.floor(count));
   },
 
+  recordAdBreak(result: 'requested' | 'completed' | 'skipped'): void {
+    const assistance = target().assistance;
+    if (result === 'requested') assistance.adBreakRequests++;
+    else if (result === 'completed') assistance.adBreakCompleted++;
+    else assistance.adBreakSkipped++;
+  },
+
   recordQualityChange(lite: boolean): void {
     const performance = target().performance;
     if (lite) performance.qualityDowngrades++;
@@ -289,6 +302,9 @@ function freshSnapshot(): AppMetricSnapshot {
       feedbackSuccesses: 0,
       feedbackErrors: 0,
       feedbackRepliesViewed: 0,
+      adBreakRequests: 0,
+      adBreakCompleted: 0,
+      adBreakSkipped: 0,
     },
     leaderboard: {
       menuOpens: 0,

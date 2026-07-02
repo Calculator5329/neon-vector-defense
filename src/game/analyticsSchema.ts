@@ -97,6 +97,9 @@ export const analyticsAssistanceDefaults: PrivateRunAnalyticsDoc['assistance'] =
   feedbackSuccesses: 0,
   feedbackErrors: 0,
   feedbackRepliesViewed: 0,
+  adBreakRequests: 0,
+  adBreakCompleted: 0,
+  adBreakSkipped: 0,
   widgetPauseS: 0,
 };
 

@@ -67,6 +67,10 @@ const explicitTestSelection = process.argv.slice(2).some((arg, index, all) => {
 if (previewMode && !explicitTestSelection) {
   process.argv.push('tests/e2e/production-build.spec.ts');
 }
+const portalMode = process.env.VITE_PORTAL === 'crazygames' || process.env.VITE_PORTAL === 'poki';
+if (!portalMode && !explicitTestSelection) {
+  process.argv.push('--grep-invert', '@portal');
+}
 
 let exitCode = 1;
 

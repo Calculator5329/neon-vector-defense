@@ -402,6 +402,9 @@ function analyticsRow(patch: AnalyticsRowPatch = {}): RunAnalyticsRow {
       feedbackSuccesses: 1,
       feedbackErrors: 0,
       feedbackRepliesViewed: 0,
+      adBreakRequests: 0,
+      adBreakCompleted: 0,
+      adBreakSkipped: 0,
       widgetPauseS: 12,
     },
     freeplay: {

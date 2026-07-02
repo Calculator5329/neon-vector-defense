@@ -5,6 +5,38 @@ import react from '@vitejs/plugin-react-swc';
 // /build-tag.json. Installed/PWA clients compare the two on focus and offer a
 // reload toast when a newer deploy exists (see src/buildFreshness.ts).
 const BUILD_TAG = Date.now().toString(36);
+const PORTAL = process.env.VITE_PORTAL === 'crazygames' || process.env.VITE_PORTAL === 'poki'
+  ? process.env.VITE_PORTAL
+  : 'none';
+
+const BASE_CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'none'",
+  "script-src 'self' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob:",
+  "media-src 'self'",
+  "connect-src 'self' https://*.googleapis.com https://accounts.google.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.workers.dev",
+  "frame-src https://www.google.com/recaptcha/ https://apis.google.com https://accounts.google.com https://*.firebaseapp.com",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+];
+
+const PORTAL_CSP = {
+  crazygames: BASE_CSP.map((directive) => {
+    if (directive.startsWith('script-src')) return `${directive} https://sdk.crazygames.com`;
+    if (directive.startsWith('connect-src')) return `${directive} https://sdk.crazygames.com https://*.crazygames.com`;
+    return directive;
+  }).join('; '),
+  poki: BASE_CSP.map((directive) => {
+    if (directive.startsWith('script-src')) return `${directive} https://game-cdn.poki.com https://poki-gdn.com https://*.poki-gdn.com`;
+    if (directive.startsWith('connect-src')) return `${directive} https://game-cdn.poki.com https://poki-gdn.com https://*.poki-gdn.com https://*.poki.com`;
+    return directive;
+  }).join('; '),
+} as const;
 
 // Split stable vendor code into its own long-cached chunks so a game-code change
 // doesn't bust the React/Firestore cache, and the player's first load can fetch in
@@ -21,6 +53,20 @@ export default defineConfig({
       name: 'nvd-build-tag',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: 'build-tag.json', source: JSON.stringify({ tag: BUILD_TAG }) });
+      },
+    },
+    {
+      name: 'nvd-portal-csp',
+      transformIndexHtml() {
+        if (PORTAL === 'none') return [];
+        return [{
+          tag: 'meta',
+          injectTo: 'head-prepend' as const,
+          attrs: {
+            'http-equiv': 'Content-Security-Policy',
+            content: PORTAL_CSP[PORTAL],
+          },
+        }];
       },
     },
   ],

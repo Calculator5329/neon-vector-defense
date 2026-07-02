@@ -34,6 +34,9 @@ describe('analytics schema defaults', () => {
     assert.deepEqual(row.combat.abilityCasts, {});
     assert.equal(row.placement.beaconZonePlacements, 2);
     assert.equal(row.assistance.widgetPauseS, 6.5);
+    assert.equal(row.assistance.adBreakRequests, 0);
+    assert.equal(row.assistance.adBreakCompleted, 0);
+    assert.equal(row.assistance.adBreakSkipped, 0);
     assert.equal(row.freeplay.entered, true);
     assert.equal(row.freeplay.relicOffers, 2);
     assert.equal(row.progression.sessions, 4);

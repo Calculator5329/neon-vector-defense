@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ADULT_MIN_AGE, setAgeFromBirthDate } from './game/consent';
 import { sfx } from './game/sound';
+import { IS_PORTAL_BUILD } from './game/portal';
 import Modal from './Modal';
 
 // Neutral entry age gate (a birth-year selection, NOT "are you 18?"). Required for
@@ -86,7 +87,7 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
           </div>
           <p className="age-gate-fine">
             Players under {ADULT_MIN_AGE} get a safe mode with no data collection and no public
-            leaderboard. See our <a href="/privacy">Privacy Policy</a>.
+            leaderboard.{IS_PORTAL_BUILD ? '' : <> See our <a href="/privacy">Privacy Policy</a>.</>}
           </p>
         </>
       )}

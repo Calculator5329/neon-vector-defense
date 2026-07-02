@@ -17,6 +17,11 @@ test.describe('production bundle', () => {
   });
 
   test('emits a build tag and shows no stale toast on a fresh bundle', async ({ page }) => {
+    const portalRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (/sdk\.crazygames\.com|game-cdn\.poki\.com|poki-gdn\.com/.test(url)) portalRequests.push(url);
+    });
     await page.goto('/');
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
     const tagInfo = await page.evaluate(async () => {
@@ -25,6 +30,7 @@ test.describe('production bundle', () => {
     });
     expect(typeof tagInfo?.tag).toBe('string');
     await expect(page.getByTestId('update-toast')).toBeHidden();
+    expect(portalRequests).toEqual([]);
   });
 
   test('boots the built app and registers the service worker', async ({ page }) => {

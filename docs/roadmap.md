@@ -3,7 +3,7 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (replay death fidelity, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
+Last updated: 2026-07-02 (portal SDK adapter, replay death fidelity, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
 
 Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
 
@@ -25,6 +25,7 @@ Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
 | Privacy and admin | Age/consent gate, private feedback receipts, admin replies, admin-only deletion tooling | `consent.ts`, `leaderboard.ts`, `functions/src/index.ts`, `PrivacyView.tsx` |
 | Accessibility baseline | Reduced motion, colorblind palette, global focus-visible ring, stronger contrast tokens | `settings.ts`, `src/index.css`, `App.css` |
 | Live-ops hardening | Admin-editable remote balance config, deploy preflight, CI/security/audit gates, App Check staged-rollout path | `balanceConfig.ts`, `adminBalanceConfig.ts`, `scripts/deploy-preflight.ts`, `.github/workflows/ci.yml`, `docs/runbooks/app-check-rollout.md` |
+| Portal distribution | Build-time CrazyGames/Poki SDK adapter, portal CSP flavors, natural-pause ad hooks, portal submission runbook | `portal.ts`, `vite.config.ts`, `GameScreen.tsx`, `docs/runbooks/portal-submission.md` |
 
 ## Recently shipped since the prior doc audit
 
@@ -50,6 +51,8 @@ Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
   `config/balance` hot-patches.
 - Build-phase wave preview, keyboard placement/cycling, and Veteran Deploy
   shipped as QoL layers over the canonical engine placement and upgrade actions.
+- CrazyGames and Poki portal SDK builds now share a no-op-default adapter,
+  portal-only CSP injection, lifecycle events, and natural-pause ad hooks.
 
 - Elite variants add capped Shielded, Frenzied, Splitting, and Bulwark hulls to
   regular waves, and the Umbra now has lattice, phase-shift, and enrage phases
@@ -117,6 +120,8 @@ Last updated: 2026-07-02 (elite encounters, phased Umbra, balance baseline)
 - [x] Balance CI gate on PRs
 - [x] Production deploy hardening checks
 - [x] Build-tag reload toast (conservative shell precache retained by design)
+- [x] CrazyGames/Poki SDK adapter and portal build flavors
+- [ ] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
 
 ## Guardrails
 

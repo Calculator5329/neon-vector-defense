@@ -26,6 +26,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:crazygames": "node ./scripts/build-portal.mjs crazygames",
+    "build:poki": "node ./scripts/build-portal.mjs poki",
     "test": "npm run test:e2e",
     "test:e2e": "node ./tests/e2e/run-playwright.mjs",
     "test:e2e:prod": "node ./tests/e2e/run-playwright.mjs --preview",

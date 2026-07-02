@@ -8,7 +8,7 @@ import { BRIEFING, ABILITY_LORE } from '../game/lore';
 import { progress } from '../game/storage';
 import { Bot } from '../game/bot';
 import { isMilestoneWave } from '../game/writePolicy';
-import { canSubmitScore } from '../game/consent';
+import { ageBand, canSubmitScore } from '../game/consent';
 import {
   boardId,
   submitScore,
@@ -35,6 +35,7 @@ import {
 import type { DailyChallenge } from '../game/dailyChallenge';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from '../game/sound';
+import { portal, type AdBreakResult, type AdBreakType } from '../game/portal';
 import DossierShare from '../DossierShare';
 import BotGhostHud from '../BotGhostHud';
 import Modal from '../Modal';
@@ -56,6 +57,10 @@ const KEYBOARD_GRID = 24;
 const TOWER_EDGE = 16;
 // Bot-rival ghost curves (matched-difficulty AI cores pace), built once from the bundled asset.
 const GHOST_CURVES: GhostCurve[] = buildGhostCurves(GHOST_CURVES_RAW);
+const REWARDED_AD_BREAKS_ENABLED = false;
+const AD_BREAK_TIMEOUT_MS = 45_000;
+
+type AdBreakPlacement = 'gameover' | 'return_to_menu' | 'rewarded_stub';
 
 interface VeteranProjection {
   baseCost: number;
@@ -78,6 +83,31 @@ function clampCursor(pos: Vec): Vec {
     x: Math.max(TOWER_EDGE, Math.min(W - TOWER_EDGE, Math.round(pos.x / KEYBOARD_GRID) * KEYBOARD_GRID)),
     y: Math.max(TOWER_EDGE, Math.min(H - TOWER_EDGE, Math.round(pos.y / KEYBOARD_GRID) * KEYBOARD_GRID)),
   };
+}
+
+function skippedAdBreak(type: AdBreakType, error: string): AdBreakResult {
+  return { status: 'skipped', type, adStarted: false, error };
+}
+
+function withAdBreakTimeout(promise: Promise<AdBreakResult>, type: AdBreakType): Promise<AdBreakResult> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve({ status: 'failed', type, adStarted: false, error: 'timeout' }), AD_BREAK_TIMEOUT_MS);
+    promise.then(
+      (result) => {
+        window.clearTimeout(timer);
+        resolve(result);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        resolve({
+          status: 'failed',
+          type,
+          adStarted: false,
+          error: error instanceof Error ? error.message : 'request_failed',
+        });
+      },
+    );
+  });
 }
 
 function projectedVeteranDeploy(game: Game, def: TowerDef, credits = game.credits): VeteranProjection {
@@ -234,6 +264,10 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   const aimingRef = useRef(false);
   const overlayRef = useRef(false);
   const suppressMouseUntilRef = useRef(0);
+  const adBreakBusyRef = useRef(false);
+  const terminalAdRef = useRef('');
+  const happyWaveRef = useRef(0);
+  const victoryHappyRef = useRef('');
   placingRef.current = placing;
   aimingRef.current = aiming;
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
@@ -363,6 +397,76 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     void submitCheckpointNow(reason).finally(() => { checkpointBusyRef.current = false; });
   }, [submitCheckpointNow]);
 
+  const requestPortalAdBreak = useCallback(async (type: AdBreakType, placement: AdBreakPlacement): Promise<AdBreakResult> => {
+    if (!portal.isPortal) return skippedAdBreak(type, 'no_portal');
+    if (type === 'rewarded' && !REWARDED_AD_BREAKS_ENABLED) return skippedAdBreak(type, 'rewarded_disabled');
+
+    const payload = { adType: type, portal: portal.portalId, placement };
+    appMetrics.recordAdBreak('requested');
+    game.recorder.recordCustom(METRIC_EVENTS.AD_BREAK_REQUESTED, game.telemetryState(), payload);
+
+    const recordResult = (result: AdBreakResult) => {
+      const completed = result.status === 'completed';
+      appMetrics.recordAdBreak(completed ? 'completed' : 'skipped');
+      game.recorder.recordCustom(completed ? METRIC_EVENTS.AD_BREAK_COMPLETED : METRIC_EVENTS.AD_BREAK_SKIPPED, game.telemetryState(), {
+        ...payload,
+        status: result.status,
+        adStarted: result.adStarted,
+        error: result.error ?? '',
+      });
+    };
+
+    if (ageBand() === 'under13') {
+      const result = skippedAdBreak(type, 'under13');
+      recordResult(result);
+      return result;
+    }
+    if (adBreakBusyRef.current) {
+      const result = skippedAdBreak(type, 'busy');
+      recordResult(result);
+      return result;
+    }
+
+    adBreakBusyRef.current = true;
+    const wasPaused = game.paused;
+    const wasMuted = isMuted();
+    const wasMusicOn = isMusicOn();
+    game.paused = true;
+    portal.gameplayStop();
+    setMuted(true);
+    setMusic(false);
+    setMutedState(true);
+    window.__NVD_PORTAL_TRACE__?.('adBreakGuardStart', {
+      ...payload,
+      paused: game.paused,
+      muted: true,
+      musicOff: true,
+    });
+    setTick((tick) => tick + 1);
+
+    try {
+      const result = await withAdBreakTimeout(portal.requestAdBreak(type), type);
+      recordResult(result);
+      return result;
+    } finally {
+      setMuted(wasMuted);
+      setMusic(wasMusicOn);
+      setMutedState(wasMuted);
+      game.paused = wasPaused;
+      adBreakBusyRef.current = false;
+      window.__NVD_PORTAL_TRACE__?.('adBreakGuardEnd', {
+        ...payload,
+        paused: game.paused,
+        muted: wasMuted,
+        musicOff: !wasMusicOn,
+      });
+      setTick((tick) => tick + 1);
+      if (!wasPaused && placement !== 'return_to_menu' && game.phase !== 'gameover' && game.phase !== 'victory') {
+        portal.gameplayStart();
+      }
+    }
+  }, [game]);
+
   useEffect(() => {
     const flushHidden = () => {
       if (document.hidden) flushRunCheckpoint('visibility');
@@ -375,6 +479,30 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
       window.removeEventListener('pagehide', flushPageHide);
     };
   }, [flushRunCheckpoint]);
+
+  const gameplayActive = briefed && !game.paused && game.phase !== 'gameover' && game.phase !== 'victory';
+  useEffect(() => {
+    if (!portal.isPortal) return;
+    if (gameplayActive) portal.gameplayStart();
+    else portal.gameplayStop();
+    return () => portal.gameplayStop();
+  }, [game, gameplayActive]);
+
+  useEffect(() => {
+    if (!portal.isPortal) return;
+    if (game.phase === 'build' && game.wave > 0 && game.wave > happyWaveRef.current && isMilestoneWave(game.wave)) {
+      happyWaveRef.current = game.wave;
+      portal.happyTime();
+    }
+    if (game.phase === 'victory' && victoryHappyRef.current !== game.runId) {
+      victoryHappyRef.current = game.runId;
+      portal.happyTime();
+    }
+    if (game.phase === 'gameover' && terminalAdRef.current !== game.runId) {
+      terminalAdRef.current = game.runId;
+      void requestPortalAdBreak('midgame', 'gameover');
+    }
+  }, [game, game.phase, game.runId, game.wave, requestPortalAdBreak]);
 
   // main loop
   useEffect(() => {
@@ -862,6 +990,10 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
 
   const selected = selectedRef.current;
   const abortRisk = game.phase !== 'build' || game.wave > 0 || game.towers.length > 0 || game.totalKills > 0;
+  const exitToMenu = useCallback(() => {
+    void requestPortalAdBreak('midgame', 'return_to_menu').finally(onExit);
+  }, [onExit, requestPortalAdBreak]);
+
   const requestAbort = () => {
     if (abortRisk && !abortConfirm) {
       setAbortConfirm(true);
@@ -879,7 +1011,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         void submitRunAnalytics(game.buildRunAnalyticsDoc(progress.playerName || 'WARDEN', progress.uid, TELEMETRY_BUILD));
       }
     }
-    onExit();
+    exitToMenu();
   };
 
   useEffect(() => {
@@ -995,7 +1127,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           className={`tb-btn exit ${abortConfirm ? 'confirm' : ''}`}
           aria-label={abortConfirm ? 'Confirm abort run' : 'Abort run'}
           title={abortRisk ? 'Press once to arm abort, then confirm.' : 'Return to main menu'}
-          onClick={requestAbort}
+          onClick={() => requestAbort()}
         >
           {abortConfirm ? 'CONFIRM' : '✕ ABORT'}
         </button>
@@ -1150,7 +1282,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacementMode(null); setRun((r) => r + 1); } },
-                { label: 'MAIN MENU', fn: onExit },
+                { label: 'MAIN MENU', fn: exitToMenu },
               ]}
             />
           )}
@@ -1198,7 +1330,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
               lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '∞ FREEPLAY', fn: () => chooseContract('standard') },
-                { label: 'MAIN MENU', fn: onExit },
+                { label: 'MAIN MENU', fn: exitToMenu },
               ]}
             />
           )}

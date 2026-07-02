@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import './App.css';
 import { ALL_MAPS, MAPS, DIFFICULTIES } from './game/maps';
 import { progress } from './game/storage';
@@ -19,6 +19,7 @@ import { AIHelpWidget } from './widgets/AIHelpWidget';
 import { FeedbackWidget } from './widgets/FeedbackWidget';
 import { MainMenu } from './menu/MainMenu';
 import { GameScreen } from './game-ui/GameScreen';
+import { portal } from './game/portal';
 // Lazy: the 2,900-line dashboard + admin auth SDK are code-split off the player path,
 // loaded only on the /admin route. PrivacyView is lazy too (rare /privacy route).
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
@@ -91,6 +92,14 @@ function Main() {
   const [dailyMode, setDailyMode] = useState(false);
   const [comeback, setComeback] = useState(false);
   const [staleBuild, setStaleBuild] = useState(false);
+  useEffect(() => {
+    if (!portal.isPortal) return;
+    portal.loadingStart();
+    void portal.init();
+  }, []);
+  useEffect(() => {
+    if (portal.isPortal && screen === 'menu') portal.loadingFinished();
+  }, [screen]);
   useEffect(() => { progress.markSession(); }, []);
   // Installed/PWA users can linger on a stale cached bundle; offer a reload
   // when a newer deploy is detected. Shown on the menu only — never mid-run.
@@ -134,6 +143,7 @@ function Main() {
   const startCampaign = () => {
     setDailyMode(false);
     sfx.click();
+    portal.gameplayStart();
     setScreen('game');
   };
   const startDaily = () => {
@@ -142,15 +152,21 @@ function Main() {
     setDiff(DIFFICULTIES.find((d) => d.id === dailySeed.diffId) ?? DIFFICULTIES[1]);
     setDailyMode(true);
     sfx.click();
+    portal.gameplayStart();
     setScreen('game');
   };
+  const exitGame = useCallback(() => {
+    portal.gameplayStop();
+    setDailyMode(false);
+    setScreen('menu');
+  }, []);
 
   return (
     <>
       {screen === 'menu'
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
             dailySeed={dailySeed} onStart={startCampaign} onStartDaily={startDaily} />
-        : <GameScreen map={map} diff={diff} dailySeed={dailyMode ? dailySeed : null} onExit={() => { setDailyMode(false); setScreen('menu'); }} />}
+        : <GameScreen map={map} diff={diff} dailySeed={dailyMode ? dailySeed : null} onExit={exitGame} />}
       {AI_HELP_ENABLED && screen === 'menu' && (
         <AIHelpWidget getContext={() => buildAIHelpContext({ screen: 'menu', map, diff })} />
       )}
