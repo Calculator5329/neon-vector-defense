@@ -14,6 +14,11 @@ import { balanceVersion } from './balanceConfig';
 import { ENEMY_LIST } from './enemies';
 
 export const RUN_TELEMETRY_SCHEMA = 2;
+/** Bump whenever a simulation-affecting engine change lands (not cosmetic/FX).
+ *  Replays are exact re-simulations, so runs recorded under different engine
+ *  behavior must verify as unverifiable rather than falsely divergent.
+ *  v2: burn zones stopped stacking (strongest zone only). */
+export const REPLAY_ENGINE_VERSION = 2;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const SNAP_DOC_CAP = 115; // uploaded snapshot keyframes — under the firestore.rules snapshots<=120 bound
 const SNAP_MEM_CAP = 360; // in-memory keyframes before downsampling at upload (covers very long runs)
@@ -178,6 +183,8 @@ export interface PublicRunDoc {
     startingLives: number;
     availableTowerIds: string[];
     balanceVersion: string;
+    /** REPLAY_ENGINE_VERSION at record time; absent on runs older than v2 */
+    replayEngine?: number;
   };
   events: RunEvent[];
   snapshots: RunWaveSnapshot[];
@@ -1132,6 +1139,7 @@ export class RunRecorder {
         startingLives: this.start.startingLives,
         availableTowerIds: [...this.start.availableTowerIds],
         balanceVersion: balanceVersion() || build,
+        replayEngine: REPLAY_ENGINE_VERSION,
       },
       events: runEvents,
       // Evenly downsample to the rules cap while ALWAYS keeping the first + last keyframe, so the

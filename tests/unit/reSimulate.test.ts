@@ -257,6 +257,14 @@ describe('reSimulate', () => {
     }
   });
 
+  test('marks runs recorded under a different engine behavior as unverifiable', () => {
+    const bundle = cloneBundle(runSeededBotCampaign());
+    bundle.run.setup.replayEngine = (bundle.run.setup.replayEngine ?? 1) - 1;
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'unverifiable');
+    assert.match(result.reason ?? '', /engine mismatch/);
+  });
+
   test('treats identity-balance runs as verifiable only under identity balance', () => {
     const bundle = runSeededBotCampaign();
     assert.equal(bundle.run.setup.balanceVersion, 'test-build');

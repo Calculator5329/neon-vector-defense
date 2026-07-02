@@ -2334,6 +2334,11 @@ export class Game {
 
   /** Lingering fire fields left by Cinder Mortar impacts. */
   private updateBurnZones(dt: number) {
+    // Fire doesn't stack: an enemy burns under the single strongest zone
+    // covering it. Summing every overlapping zone let multi-shell mortars
+    // carpet one choke into hundreds of dps — zone COUNT dominated every
+    // per-zone stat and made Cinder unbalanceable by numbers alone.
+    const strongest = new Map<Enemy, { dps: number; src?: Tower }>();
     for (const z of this.burnZones) {
       z.life -= dt;
       if (z.life <= 0) continue;
@@ -2341,8 +2346,13 @@ export class Game {
         if (e.dead || e.finished) return;
         if (e.cloaked && !z.detection && !e.revealed) return;
         if (Math.hypot(e.pos.x - z.pos.x, e.pos.y - z.pos.y) > z.radius + e.def.radius) return;
-        this.damageEnemy(e, z.dps * dt, 'energy', false, z.src);
+        const cur = strongest.get(e);
+        if (!cur || z.dps > cur.dps) strongest.set(e, { dps: z.dps, src: z.src });
       });
+    }
+    for (const [e, hit] of strongest) {
+      if (e.dead || e.finished) continue;
+      this.damageEnemy(e, hit.dps * dt, 'energy', false, hit.src);
     }
     compact(this.burnZones, (z) => z.life > 0);
   }

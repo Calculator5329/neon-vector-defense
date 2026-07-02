@@ -3,6 +3,7 @@ import { dailyChallengeForId } from './dailyChallenge';
 import { Game } from './engine';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import {
+  REPLAY_ENGINE_VERSION,
   RUN_TELEMETRY_SCHEMA,
   buildRunManifest,
   decodeReplayDeathRecords,
@@ -59,6 +60,9 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult {
   const unverifiable = (reason: string): ReSimResult => ({ verdict: 'unverifiable', reason });
   const run = bundle.run;
   if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return unverifiable(`unsupported schemaVersion ${run.schemaVersion}`);
+  if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) {
+    return unverifiable(`engine mismatch: run=${run.setup.replayEngine ?? 1} current=${REPLAY_ENGINE_VERSION}`);
+  }
   if (!run.deathRecords) return unverifiable('missing deathRecords');
   if (!run.manifest?.complete) return unverifiable('missing complete replay manifest');
   if (!Array.isArray(bundle.chunks) || bundle.chunks.length !== run.chunkCount) {

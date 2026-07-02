@@ -3,6 +3,20 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Burn zones no longer stack; replay engine versioning
+
+- The dps-curve nerf barely moved the sims (opScore 5.14→5.12) because the OP
+  mechanic was structural: every overlapping burn zone damaged every hull
+  independently, so a multi-shell mortar carpeting one choke multiplied zone
+  COUNT (~15+ concurrent zones) into hundreds of dps that no per-zone stat
+  could balance. Fire no longer stacks — a hull burns under the single
+  strongest zone covering it. Deep-dive after: Cinder 4.21 opScore / 17% solo
+  win rate, second in the pack behind Flak (4.48/15%) instead of double it.
+- Replays are exact re-simulations, so sim-affecting engine changes invalidate
+  verification of runs recorded before them. `REPLAY_ENGINE_VERSION` (now 2) is
+  recorded in run setup and checked by reSimulate: a mismatch is `unverifiable`,
+  never falsely `divergent`. Bump it on every future sim-behavior change.
+
 ## 2026-07-02 - Cinder Mortar burn-zone curve pulled ~15-18%
 
 - Owner play experience plus `npm run tower:deep-dive` agreed Cinder was still
