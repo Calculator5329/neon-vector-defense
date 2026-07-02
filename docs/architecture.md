@@ -61,10 +61,13 @@ The codebase follows a practical three-layer split. UI components observe game s
 ### Game loop (`App.tsx` + `engine.ts`)
 
 1. Player selects map/protocol or the UTC Daily Challenge protocol from the menu
-2. `Game` instance runs a fixed-timestep update loop; `render()` draws to canvas each frame
-3. `RunRecorder` captures events and wave snapshots during play
-4. On terminal state: upload replay, optional leaderboard submit (via callable), meta credit, dossier share
-5. A campaign victory can continue on the same `Game` instance as freeplay; the
+2. During build phases, `Game.previewWave()` exposes the same composed wave that
+   `startWave()` will launch, and keyboard/Veteran Deploy controls still call the
+   canonical `placeTower` and `upgradeTower` engine APIs
+3. `Game` instance runs a fixed-timestep update loop; `render()` draws to canvas each frame
+4. `RunRecorder` captures events and wave snapshots during play
+5. On terminal state: upload replay, optional leaderboard submit (via callable), meta credit, dossier share
+6. A campaign victory can continue on the same `Game` instance as freeplay; the
    first campaign terminal state and the later freeplay terminal state are
    persisted as separate progression moments so kills/runs do not double-count.
 
@@ -131,7 +134,7 @@ Heavy surfaces are lazy-loaded off the player path:
 
 | Store | Key / collection | Contents |
 | --- | --- | --- |
-| localStorage | `nvd-progress-v1` | Kills, archive, blueprints, settings, session days |
+| localStorage | `nvd-progress-v1` | Kills, archive, blueprints, settings, QoL preferences, session days |
 | localStorage | `nvd-meta-v2` | XP, Salvage, quest progress, streak |
 | localStorage | `nvd-consent-v1` | Age band, analytics consent |
 | localStorage | `nvd-replay-tokens-v1` | Private replay tokens used for score retry |

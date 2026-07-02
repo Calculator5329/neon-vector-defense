@@ -442,6 +442,10 @@ export interface RenderUi {
   hover: Vec | null;
   placing: TowerDef | null;
   canPlaceHere: boolean;
+  placingTiers?: { a: number; b: number } | null;
+  placingRange?: number;
+  placingLabel?: string | null;
+  keyboardCursor?: boolean;
   selected: Tower | null;
   /** ability awaiting a target click */
   aimingStrike: boolean;
@@ -511,7 +515,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
 
   if (ui.selected) drawRange(ctx, ui.selected.pos, ui.selected.stats.range * ui.selected.rangeBuff * game.rangeFactor(ui.selected.pos), ui.selected.def.glow, true);
   if (ui.placing && ui.hover) {
-    drawRange(ctx, ui.hover, ui.placing.base.range, ui.canPlaceHere ? ui.placing.glow : '#ff4757', ui.canPlaceHere);
+    drawRange(ctx, ui.hover, ui.placingRange ?? ui.placing.base.range, ui.canPlaceHere ? ui.placing.glow : '#ff4757', ui.canPlaceHere);
   }
 
   // Watchfire sweep beams — rotating lances of light under the hulls
@@ -601,12 +605,42 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
   if (ui.placing && ui.hover) {
     ctx.save();
     ctx.globalAlpha = 0.8;
-    drawTowerBody(ctx, ui.hover, ui.placing, -Math.PI / 2, 0, 0, ui.canPlaceHere ? 1 : 0.35, 0, game.time, 0);
+    const tiers = ui.placingTiers ?? { a: 0, b: 0 };
+    drawTowerBody(ctx, ui.hover, ui.placing, -Math.PI / 2, tiers.a, tiers.b, ui.canPlaceHere ? 1 : 0.35, 0, game.time, 0);
+    if (ui.keyboardCursor) {
+      ctx.strokeStyle = ui.canPlaceHere ? ui.placing.glow : '#ff4757';
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+      line(ctx, ui.hover.x - 19, ui.hover.y, ui.hover.x - 7, ui.hover.y);
+      line(ctx, ui.hover.x + 7, ui.hover.y, ui.hover.x + 19, ui.hover.y);
+      line(ctx, ui.hover.x, ui.hover.y - 19, ui.hover.x, ui.hover.y - 7);
+      line(ctx, ui.hover.x, ui.hover.y + 7, ui.hover.x, ui.hover.y + 19);
+      circle(ctx, ui.hover.x, ui.hover.y, 5);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
     if (!ui.canPlaceHere) {
       ctx.strokeStyle = '#ff4757';
       ctx.lineWidth = 3;
       line(ctx, ui.hover.x - 10, ui.hover.y - 10, ui.hover.x + 10, ui.hover.y + 10);
       line(ctx, ui.hover.x + 10, ui.hover.y - 10, ui.hover.x - 10, ui.hover.y + 10);
+    }
+    if (ui.placingLabel) {
+      const label = ui.placingLabel;
+      ctx.font = "bold 10px 'Orbitron', sans-serif";
+      ctx.textAlign = 'center';
+      const w = Math.min(190, ctx.measureText(label).width + 16);
+      const x = Math.max(w / 2 + 8, Math.min(W - w / 2 - 8, ui.hover.x));
+      const y = Math.max(30, ui.hover.y - 36);
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = 'rgba(3, 8, 18, 0.86)';
+      ctx.fillRect(x - w / 2, y - 12, w, 22);
+      ctx.strokeStyle = ui.canPlaceHere ? ui.placing.glow : '#ff4757';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - w / 2, y - 12, w, 22);
+      ctx.fillStyle = ui.canPlaceHere ? '#eaf1ff' : '#ffd7dc';
+      ctx.fillText(label, x, y + 3, w - 8);
     }
     ctx.restore();
   }

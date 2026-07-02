@@ -129,6 +129,32 @@ async function deployFromMenu(page: Page) {
   await expect(page.getByTestId('game-root')).toBeVisible();
 }
 
+async function acknowledgeBriefing(page: Page) {
+  const briefing = page.getByTestId('briefing-overlay');
+  if (await briefing.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
+  }
+}
+
+async function validCanvasPoint(page: Page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+    const rect = canvas.getBoundingClientRect();
+    const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
+    const W = 1280;
+    const H = 720;
+    const scale = Math.min(rect.width / W, rect.height / H);
+    const ox = rect.left + (rect.width - W * scale) / 2;
+    const oy = rect.top + (rect.height - H * scale) / 2;
+    for (let y = 90; y <= 630; y += 36) {
+      for (let x = 90; x <= 1190; x += 36) {
+        if (game.canPlace({ x, y })) return { x: ox + x * scale, y: oy + y * scale };
+      }
+    }
+    throw new Error('no valid placement point');
+  });
+}
+
 async function widgetMetrics(page: Page) {
   return page.evaluate(() => {
     const rect = (selector: string) => {
@@ -406,6 +432,8 @@ function analyticsRow(patch: AnalyticsRowPatch = {}): RunAnalyticsRow {
       failedUpgrades: 1,
       quickSellbacks: 0,
       targetModeChanges: 1,
+      wavePreviewViews: 0,
+      wavePreviewHovers: 0,
       abilityUses: { strike: 2 },
       pickupCollects: { credits: 1 },
     },
@@ -577,6 +605,162 @@ test.describe('desktop UX layout', () => {
     const layout = await arsenalGridMetrics(page);
 
     expectCompleteArsenalGrid(layout);
+  });
+
+  test('keyboard can place a tower and reach its upgrade action', async ({ page }) => {
+    await seedProgress(page, { runs: 1, tut: true });
+    await page.goto('/');
+    await deployFromMenu(page);
+    await acknowledgeBriefing(page);
+
+    await page.keyboard.press('1');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { game: { towers: unknown[] } }).game.towers.length)).toBe(1);
+
+    await page.evaluate(() => {
+      (window as unknown as { game: { credits: number } }).game.credits = 10_000;
+    });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('upgrade-pulse-a')).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect.poll(() => page.evaluate(() => {
+      const tower = (window as unknown as { game: { towers: { tierA: number; tierB: number }[] } }).game.towers[0];
+      return tower.tierA + tower.tierB;
+    })).toBe(1);
+  });
+
+  test('Veteran Deploy toggle is gated by a campaign victory', async ({ page, context }) => {
+    await seedProgress(page, { runs: 1, victories: 0 });
+    await page.goto('/');
+    await deployFromMenu(page);
+    await acknowledgeBriefing(page);
+    await expect(page.locator('.shop-mode-toggle')).toHaveCount(0);
+
+    const veteranPage = await context.newPage();
+    await seedProgress(veteranPage, { runs: 1, victories: 1 });
+    await veteranPage.goto('/');
+    await deployFromMenu(veteranPage);
+    await acknowledgeBriefing(veteranPage);
+    await expect(veteranPage.locator('.shop-mode-toggle')).toBeVisible();
+    await expect(veteranPage.locator('.shop-mode-toggle').getByRole('button', { name: 'VETERAN' })).toBeVisible();
+    await veteranPage.close();
+  });
+
+  test('Veteran Deploy spends exact projected credits and replays the upgrades', async ({ page }) => {
+    await seedProgress(page, { runs: 1, victories: 1, kills: 1_000_000, foes: ['scout'] });
+    await page.goto('/');
+    await deployFromMenu(page);
+    await acknowledgeBriefing(page);
+    await page.locator('.shop-mode-toggle').getByRole('button', { name: 'VETERAN' }).click();
+
+    const expected = await page.evaluate(async () => {
+      const game = (window as unknown as { game: any }).game;
+      const load = (path: string) => import(/* @vite-ignore */ path);
+      const { TOWER_MAP, computeStats } = await load('/src/game/towers.ts');
+      const def = TOWER_MAP.pulse;
+      const startingCredits = 50_000;
+      game.credits = startingCredits;
+      const baseCost = game.cost(def);
+      const fake = {
+        uid: -1,
+        def,
+        pos: { x: 0, y: 0 },
+        stats: computeStats(def, 0, 0),
+        tierA: 0,
+        tierB: 0,
+        committed: null,
+        cooldown: 0,
+        angle: -Math.PI / 2,
+        target: 'first',
+        invested: baseCost,
+        kills: 0,
+        rateBuff: 1,
+        rangeBuff: 1,
+        flash: 0,
+        recoil: 0,
+      };
+      let remaining = startingCredits - baseCost;
+      let upgradeCost = 0;
+      let upgrades = 0;
+      while ((fake.tierA < 4 || fake.tierB < 4) && upgrades < 8) {
+        const track = fake.tierA <= fake.tierB ? 0 : 1;
+        if (game.tierOf(fake, track) >= 4) break;
+        const cost = game.upgradeCost(fake, track);
+        if (cost <= 0 || game.upgradeState(fake, track) !== 'ok' || remaining < cost) break;
+        remaining -= cost;
+        upgradeCost += cost;
+        upgrades++;
+        fake.invested += cost;
+        if (track === 0) fake.tierA++;
+        else fake.tierB++;
+        fake.stats = computeStats(def, fake.tierA, fake.tierB);
+      }
+      return { startingCredits, totalCost: baseCost + upgradeCost, tierA: fake.tierA, tierB: fake.tierB, upgrades };
+    });
+
+    await page.getByTestId('tower-pulse').click();
+    const point = await validCanvasPoint(page);
+    await page.mouse.click(point.x, point.y);
+
+    const placed = await page.evaluate((startingCredits) => {
+      const game = (window as unknown as { game: any }).game;
+      const tower = game.towers[0];
+      return {
+        spent: startingCredits - game.credits,
+        tierA: tower.tierA,
+        tierB: tower.tierB,
+        invested: tower.invested,
+      };
+    }, expected.startingCredits);
+
+    expect(placed.spent).toBe(expected.totalCost);
+    expect(placed.invested).toBe(expected.totalCost);
+    expect(placed.tierA).toBe(expected.tierA);
+    expect(placed.tierB).toBe(expected.tierB);
+    expect(placed.tierA).toBe(placed.tierB);
+    expect(placed.tierA).toBeLessThanOrEqual(4);
+    expect(expected.upgrades).toBe(8);
+
+    const replay = await page.evaluate(async () => {
+      const game = (window as unknown as { game: any }).game;
+      game.paused = false;
+      game.startWave();
+      for (let i = 0; i < 5_000 && game.phase === 'wave'; i++) game.update(0.05);
+      const bundle = game.buildRunUploadBundle('VETERANDEPLOY', 'test-build');
+      const load = (path: string) => import(/* @vite-ignore */ path);
+      const recon = await load('/src/game/replayReconstruct.ts');
+      const waveStart = bundle.run.snapshots.find((snap: { label: string }) => snap.label === 'wave_start');
+      const frame = recon.reconstructAt(bundle.run, waveStart?.t ?? 0);
+      const tower = frame.towers[0];
+      const timeline = recon.buildReplayCombatTimeline(bundle.run);
+      return {
+        snapshotTierA: tower?.tierA ?? -1,
+        snapshotTierB: tower?.tierB ?? -1,
+        finalTierA: bundle.run.final.towers[0]?.tierA ?? -1,
+        finalTierB: bundle.run.final.towers[0]?.tierB ?? -1,
+        finalUpgrades: bundle.run.final.towers[0]?.upgrades?.length ?? 0,
+        kills: bundle.run.summary.kills,
+        deathCount: bundle.run.deathRecords?.count ?? -1,
+        deathHash: bundle.run.manifest.deathHash ?? '',
+        authoritativeDeaths: timeline.authoritativeDeaths,
+      };
+    });
+
+    expect(replay.snapshotTierA).toBe(expected.tierA);
+    expect(replay.snapshotTierB).toBe(expected.tierB);
+    expect(replay.finalTierA).toBe(expected.tierA);
+    expect(replay.finalTierB).toBe(expected.tierB);
+    expect(replay.finalUpgrades).toBe(expected.upgrades);
+    expect(replay.authoritativeDeaths).toBe(true);
+    expect(replay.deathHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(replay.deathCount).toBe(replay.kills);
+    expect(replay.kills).toBeGreaterThan(0);
   });
 
   test('arsenal panel stays complete in short-landscape layout', async ({ page }) => {

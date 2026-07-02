@@ -1,6 +1,6 @@
 import type {
   AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, Enemy, EnemyDef, GameMap,
-  Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, TowerStats, Vec, WaveGroup,
+  Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, TowerStats, Vec, Wave, WaveGroup,
 } from './types';
 import { ENEMIES, rbe } from './enemies';
 import { ABILITIES } from './abilities';
@@ -35,8 +35,10 @@ import {
   riskOfferForWave,
   type DailyFreeplaySeed,
   type FreeplayContractId,
+  type FreeplayMutator,
   type FreeplayRelic,
   type FreeplayRelicId,
+  type FreeplayRival,
   type FreeplayState,
   type RiskWaveId,
 } from './freeplay';
@@ -82,6 +84,12 @@ interface SpawnEntry {
   spawned: number;
   timer: number;
   started: boolean;
+}
+
+interface PreparedWave {
+  groups: Wave;
+  mutators: FreeplayMutator[];
+  rival: FreeplayRival | null;
 }
 
 // ---------- spatial grid ----------
@@ -781,38 +789,52 @@ export class Game {
 
   // ---------- waves ----------
 
+  private prepareWave(wave: number): PreparedWave {
+    let groups: Wave = getWave(wave).map((group) => ({ ...group }));
+    if (this.dailyChallenge) {
+      groups = applyDailyWaveTwist(this.dailyChallenge, groups);
+      if (this.dailyChallenge.twist.sensorBlackout) {
+        groups = applyMutatorsToWave(wave, groups, [mutatorById('sensorBlackout')], null, null);
+      }
+    }
+    let mutators: FreeplayMutator[] = [];
+    let rival: FreeplayRival | null = null;
+    if (this.freeplay) {
+      mutators = this.freeplayState.nextMutators.length > 0
+        ? this.freeplayState.nextMutators
+        : nextMutators(wave, this.freeplayState.relics, this.freeplayState.daily, this.freeplayState.riskAccepted);
+      rival = rivalForWave(wave, this.freeplayState.daily);
+      groups = applyMutatorsToWave(wave, groups, mutators, rival, this.freeplayState.riskAccepted);
+    }
+    // Recruit protocol: the Combine never deploys phase-cloaks against a green Warden.
+    if (this.diff.id === 'easy') groups = groups.map((group) => ({ ...group, cloaked: false }));
+    return { groups, mutators, rival };
+  }
+
+  previewWave(wave = this.wave + 1): Wave {
+    return this.prepareWave(Math.max(1, Math.floor(wave))).groups.map((group) => ({ ...group }));
+  }
+
   startWave() {
     if (this.phase !== 'build') return;
     this.waveStartTotalKills = this.baseKills + this.totalKills;
     this.wave++;
     this.phase = 'wave';
-    let def = getWave(this.wave);
-    if (this.dailyChallenge) {
-      def = applyDailyWaveTwist(this.dailyChallenge, def);
-      if (this.dailyChallenge.twist.sensorBlackout) {
-        def = applyMutatorsToWave(this.wave, def, [mutatorById('sensorBlackout')], null, null);
-      }
-    }
+    const prepared = this.prepareWave(this.wave);
+    const def = prepared.groups;
     if (this.freeplay) {
-      const mutators = this.freeplayState.nextMutators.length > 0
-        ? this.freeplayState.nextMutators
-        : nextMutators(this.wave, this.freeplayState.relics, this.freeplayState.daily, this.freeplayState.riskAccepted);
-      const rival = rivalForWave(this.wave, this.freeplayState.daily);
-      this.freeplayState.currentMutators = mutators;
-      this.freeplayState.rival = rival;
-      this.freeplayState.rivalLevel = rival ? this.freeplayState.rivalLevel + 1 : this.freeplayState.rivalLevel;
-      def = applyMutatorsToWave(this.wave, def, mutators, rival, this.freeplayState.riskAccepted);
+      this.freeplayState.currentMutators = prepared.mutators;
+      this.freeplayState.rival = prepared.rival;
+      this.freeplayState.rivalLevel = prepared.rival ? this.freeplayState.rivalLevel + 1 : this.freeplayState.rivalLevel;
       this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_MUTATOR_WAVE_START, {
         wave: this.wave,
-        mutators: mutators.map((m) => m.id),
+        mutators: prepared.mutators.map((m) => m.id),
         riskId: this.freeplayState.riskAccepted?.id ?? null,
       });
-      if (rival) this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN, { rivalId: rival.id, rivalName: rival.name, level: this.freeplayState.rivalLevel });
+      if (prepared.rival) this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_RIVAL_SPAWN, { rivalId: prepared.rival.id, rivalName: prepared.rival.name, level: this.freeplayState.rivalLevel });
     }
-    // Recruit protocol: the Combine never deploys phase-cloaks against a green Warden
-    const allowCloak = this.diff.id !== 'easy';
     this.queue = def.map((group) => ({
-      group: allowCloak ? group : { ...group, cloaked: false },
+      group,
       spawned: 0,
       timer: group.delay ?? 0,
       started: false,
@@ -831,7 +853,7 @@ export class Game {
     // threat advisories
     if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
-    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && allowCloak && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
+    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
     else { vox('wave-incoming'); }
     // capital-hull waves swap to the boss theme; normal waves resume the sector score
     setBossMusic(def.some((g) => ENEMIES[g.type]?.boss));

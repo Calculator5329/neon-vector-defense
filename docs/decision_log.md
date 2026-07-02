@@ -15,6 +15,23 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   malformed docs fall back to the deterministic computed challenge, preserving
   same-day consistency for all players without blocking boot.
 
+## 2026-07-02 - In-run QoL stays on top of canonical engine actions
+
+- Build-phase wave preview is generated through `Game.previewWave()`, which uses
+  the same daily, freeplay, rival, and difficulty composition path as
+  `startWave()`. The panel may hide unseen enemy identities, but not invent a
+  different wave.
+- Keyboard placement is a UI surface over the existing grid/map placement rules:
+  tower hotkeys enter a snapped placement cursor, arrows move it, Enter calls
+  `placeTower`, and Esc cancels.
+- Veteran Deploy is unlocked after one campaign victory and is persisted as a
+  local QoL preference. It never adds an engine shortcut or combat modifier:
+  the UI calls `placeTower` once, then repeatedly calls `upgradeTower` while
+  alternating A/B tracks up to tier 4/4 and stopping when credits or upgrade
+  rules say stop.
+- The Veteran Deploy ghost/shop projection is advisory only and must be computed
+  from the same cost and upgrade-state helpers used by the actual purchase path.
+
 ## 2026-07-02 - Arsenal reaches 21 towers and remote balance gets an admin editor
 
 - Harmonic Siphon is the second resonance-axis tower. It consumes resonance

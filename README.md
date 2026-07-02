@@ -32,6 +32,8 @@ procedural audio, and Firebase-backed leaderboards.
   fragments, and cosmetic rewards persist locally.
 - **Meta loop** — Warden Rank, Salvage wallet, daily/weekly Operations Board
   quests, and Watch Streak (cosmetic/QoL only — never affects run balance).
+- **In-run QoL** — build-phase wave preview, keyboard placement, tower cycling,
+  and Veteran Deploy batch upgrades for repeat runs.
 - **Battle Plan replays** — watch any run via `/?run=<runId>`; leaderboard rows
   link to reconstructions built from uploaded wave snapshots and public replay
   event chunks with required completion manifests.
@@ -155,10 +157,12 @@ reserved project assets. See [docs/asset_provenance.md](docs/asset_provenance.md
 
 | Input | Action |
 | --- | --- |
-| `1`-`9`, `0` | Select a tower to build |
+| `1`-`9`, `0` | Select a tower to build and enter keyboard placement |
+| Arrow keys, `Enter` | Move the placement cursor and build the selected tower |
 | Click map | Place tower or collect power-ups |
 | Shift-click map | Keep placing the selected tower |
 | Click tower | Open upgrade, targeting, stats, lore, and sell panel |
+| `Tab` / Arrow keys, `Enter` | Cycle built towers, then focus the upgrade panel |
 | `Q` `W` `E` `R` `T` `Y` | Commander abilities |
 | Right-click / `Esc` | Cancel placement, aiming, or selection |
 | `Space` | Launch the next wave or pause mid-wave |

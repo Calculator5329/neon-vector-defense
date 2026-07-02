@@ -129,6 +129,8 @@ export const analyticsTowerInterestDefaults: PrivateRunAnalyticsDoc['towerIntere
   failedUpgrades: 0,
   quickSellbacks: 0,
   targetModeChanges: 0,
+  wavePreviewViews: 0,
+  wavePreviewHovers: 0,
   abilityUses: {},
   pickupCollects: {},
 };

@@ -239,7 +239,7 @@ receipts must be included in `/privacy` local export/delete controls.
 
 | Key | Module | Contents |
 | --- | --- | --- |
-| `nvd-progress-v1` | `storage.ts` | Progression, settings, blueprints, session days |
+| `nvd-progress-v1` | `storage.ts` | Progression, settings, blueprints, QoL preferences, session days |
 | `nvd-meta-v2` | `meta.ts` | Rank XP, Salvage, quests, streak, cosmetics |
 | `nvd-consent-v1` | `consent.ts` | Age band, analytics consent, GPC |
 | `nvd-replay-tokens-v1` | `leaderboard.ts` | Private replay tokens for score submit/retry |

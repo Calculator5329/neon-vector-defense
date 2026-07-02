@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Game, W, H } from '../game/engine';
 import { render, drawTowerBody, setRenderQuality } from '../game/render';
-import { TOWERS, TOWERS_BY_UNLOCK, sellValue } from '../game/towers';
+import { TOWERS, TOWERS_BY_UNLOCK, computeStats, sellValue } from '../game/towers';
 import { ENEMIES } from '../game/enemies';
 import { ABILITIES } from '../game/abilities';
 import { BRIEFING, ABILITY_LORE } from '../game/lore';
@@ -44,7 +44,7 @@ import { meta, type RunMetaReward } from '../game/meta';
 import { buildGhostCurves, ghostCurveFor, ghostCurvesForMap, judgeRun, type GhostCurve } from '../game/ghostCurve';
 import { GHOST_CURVES_RAW } from '../game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from '../game/dossier';
-import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec, EnemyDef } from '../game/types';
+import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec, EnemyDef, WaveGroup } from '../game/types';
 import { AIHelpWidget } from '../widgets/AIHelpWidget';
 import { FeedbackWidget } from '../widgets/FeedbackWidget';
 import { PERF_MAP, DEMO_MODE, AI_HELP_ENABLED, WIDGET_OPEN_EVENT } from '../appShared';
@@ -52,8 +52,107 @@ import { utilityWidgetOpen, isTypingTarget } from '../uiShared';
 
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
 const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
+const KEYBOARD_GRID = 24;
+const TOWER_EDGE = 16;
 // Bot-rival ghost curves (matched-difficulty AI cores pace), built once from the bundled asset.
 const GHOST_CURVES: GhostCurve[] = buildGhostCurves(GHOST_CURVES_RAW);
+
+interface VeteranProjection {
+  baseCost: number;
+  totalCost: number;
+  upgradeCost: number;
+  tierA: number;
+  tierB: number;
+  range: number;
+  upgrades: number;
+}
+
+function isControlTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (isTypingTarget(target)) return true;
+  return Boolean(target.closest('button, a, input, textarea, select, [role="button"], [tabindex]'));
+}
+
+function clampCursor(pos: Vec): Vec {
+  return {
+    x: Math.max(TOWER_EDGE, Math.min(W - TOWER_EDGE, Math.round(pos.x / KEYBOARD_GRID) * KEYBOARD_GRID)),
+    y: Math.max(TOWER_EDGE, Math.min(H - TOWER_EDGE, Math.round(pos.y / KEYBOARD_GRID) * KEYBOARD_GRID)),
+  };
+}
+
+function projectedVeteranDeploy(game: Game, def: TowerDef, credits = game.credits): VeteranProjection {
+  const baseCost = game.cost(def);
+  const tower: Tower = {
+    uid: -1,
+    def,
+    pos: { x: 0, y: 0 },
+    stats: computeStats(def, 0, 0),
+    tierA: 0,
+    tierB: 0,
+    committed: null,
+    cooldown: 0,
+    angle: -Math.PI / 2,
+    target: 'first',
+    invested: baseCost,
+    kills: 0,
+    rateBuff: 1,
+    rangeBuff: 1,
+    flash: 0,
+    recoil: 0,
+  };
+  let remaining = Math.max(0, credits - baseCost);
+  let upgradeCost = 0;
+  let upgrades = 0;
+  while ((tower.tierA < 4 || tower.tierB < 4) && upgrades < 8) {
+    const track: 0 | 1 = tower.tierA <= tower.tierB ? 0 : 1;
+    if (game.tierOf(tower, track) >= 4) break;
+    const nextCost = game.upgradeCost(tower, track);
+    if (nextCost <= 0 || game.upgradeState(tower, track) !== 'ok' || remaining < nextCost) break;
+    remaining -= nextCost;
+    upgradeCost += nextCost;
+    upgrades++;
+    tower.invested += nextCost;
+    if (track === 0) tower.tierA++;
+    else tower.tierB++;
+    tower.stats = computeStats(def, tower.tierA, tower.tierB);
+  }
+  return {
+    baseCost,
+    totalCost: baseCost + upgradeCost,
+    upgradeCost,
+    tierA: tower.tierA,
+    tierB: tower.tierB,
+    range: tower.stats.range,
+    upgrades,
+  };
+}
+
+function applyVeteranDeploy(game: Game, tower: Tower): number {
+  let bought = 0;
+  while ((tower.tierA < 4 || tower.tierB < 4) && bought < 8) {
+    const track: 0 | 1 = tower.tierA <= tower.tierB ? 0 : 1;
+    if (game.tierOf(tower, track) >= 4) break;
+    const cost = game.upgradeCost(tower, track);
+    if (cost <= 0 || game.upgradeState(tower, track) !== 'ok' || game.credits < cost) break;
+    if (!game.upgradeTower(tower, track)) break;
+    bought++;
+  }
+  return bought;
+}
+
+function summarizeWave(groups: WaveGroup[]) {
+  const byType = new Map<string, { def: EnemyDef; count: number; cloaked: boolean; boss: boolean }>();
+  for (const group of groups) {
+    const def = ENEMIES[group.type];
+    if (!def) continue;
+    const row = byType.get(group.type) ?? { def, count: 0, cloaked: false, boss: !!def.boss };
+    row.count += group.count;
+    row.cloaked = row.cloaked || !!group.cloaked;
+    row.boss = row.boss || !!def.boss;
+    byType.set(group.type, row);
+  }
+  return [...byType.entries()].map(([id, row]) => ({ id, ...row }));
+}
 
 function liveUnlockKills(game: Game): number {
   if (game.isDailyChallenge) return DEMO_UNLOCK_KILLS;
@@ -96,6 +195,8 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   const [, setTick] = useState(0);
   const [placing, setPlacing] = useState<TowerDef | null>(null);
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
+  const veteranDeployUnlocked = progress.record.victories >= 1;
+  const [veteranDeploy, setVeteranDeploy] = useState(veteranDeployUnlocked && progress.veteranDeploy);
   const [muted, setMutedState] = useState(isMuted());
   const [aiming, setAiming] = useState(false);
   // Action-gated first-run coach: new players learn by DOING (place → launch →
@@ -124,6 +225,11 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   const [shakeAbility, setShakeAbility] = useState<string | null>(null); // ability id to shake on a failed cast
   const hoverRef = useRef<Vec | null>(null);
   const placingRef = useRef<TowerDef | null>(null);
+  const keyboardPlacementRef = useRef(false);
+  const keyboardCursorRef = useRef<Vec | null>(null);
+  const keyboardTowerIndexRef = useRef(-1);
+  const previewViewRef = useRef('');
+  const previewHoverRef = useRef('');
   const selectedRef = useRef<Tower | null>(null);
   const aimingRef = useRef(false);
   const overlayRef = useRef(false);
@@ -140,8 +246,11 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     game.phase === 'gameover' || game.phase === 'victory';
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
+  const veteranDeployActive = veteranDeployUnlocked && veteranDeploy;
+  const veteranDeployActiveRef = useRef(veteranDeployActive);
   sideOpenRef.current = sideOpen;
   blockingOverlayRef.current = blockingOverlay;
+  veteranDeployActiveRef.current = veteranDeployActive;
 
   useEffect(() => {
     if (coachStage !== null) game.recorder.recordControl(METRIC_EVENTS.TUTORIAL_VIEW);
@@ -150,6 +259,13 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   useEffect(() => {
     if (!briefed) game.recorder.recordControl(METRIC_EVENTS.BRIEFING_VIEW);
   }, [briefed, game]);
+  useEffect(() => {
+    if (!sideOpen || game.phase !== 'build') return;
+    const key = `${game.runId}:${game.wave + 1}`;
+    if (previewViewRef.current === key) return;
+    previewViewRef.current = key;
+    game.recorder.recordWavePreview('view');
+  }, [game, game.phase, game.wave, sideOpen]);
   // Coach advancement — checked on the normal ~8Hz UI tick; each gate is the
   // real action, not a "next" click.
   useEffect(() => {
@@ -173,6 +289,9 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   useEffect(() => {
     if (cloakTip) game.recorder.recordControl(METRIC_EVENTS.CLOAK_TIP_VIEW);
   }, [cloakTip, game]);
+  useEffect(() => {
+    if (!veteranDeployUnlocked && veteranDeploy) setVeteranDeploy(false);
+  }, [veteranDeploy, veteranDeployUnlocked]);
   useEffect(() => {
     setTouchPreview(null);
   }, [placing?.id]);
@@ -369,10 +488,21 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
       if (ctx) {
         const hover = hoverRef.current;
         const pl = placingRef.current;
+        const projection = pl && veteranDeployActiveRef.current ? projectedVeteranDeploy(game, pl) : null;
+        const placingTiers = projection ? { a: projection.tierA, b: projection.tierB } : null;
+        const placingLabel = projection
+          ? (projection.upgrades > 0
+            ? `VETERAN A${projection.tierA}/B${projection.tierB} - ${projection.totalCost} CR`
+            : `${projection.baseCost} CR`)
+          : null;
         render(ctx, game, {
           hover,
           placing: pl,
           canPlaceHere: !!(hover && pl) && game.canPlace(hover!) && game.credits >= game.cost(pl!),
+          placingTiers,
+          placingRange: projection?.range,
+          placingLabel,
+          keyboardCursor: keyboardPlacementRef.current,
           selected: selectedRef.current,
           aimingStrike: aimingRef.current,
         });
@@ -434,6 +564,79 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     return null;
   };
 
+  const findKeyboardStart = (): Vec => {
+    const path = game.map.path;
+    const center = path[Math.floor(path.length / 2)] ?? { x: W / 2, y: H / 2 };
+    for (let radius = KEYBOARD_GRID; radius <= 384; radius += KEYBOARD_GRID) {
+      for (let dy = -radius; dy <= radius; dy += KEYBOARD_GRID) {
+        for (let dx = -radius; dx <= radius; dx += KEYBOARD_GRID) {
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+          const pos = clampCursor({ x: center.x + dx, y: center.y + dy });
+          if (game.canPlace(pos)) return pos;
+        }
+      }
+    }
+    return clampCursor({ x: W / 2, y: H / 2 });
+  };
+
+  const setPlacementMode = (def: TowerDef | null, keyboard = false) => {
+    const wasKeyboardPlacement = keyboardPlacementRef.current;
+    setPlacing(def);
+    setSelectedUid(null);
+    setAiming(false);
+    setTouchPreview(null);
+    keyboardPlacementRef.current = keyboard && !!def;
+    if (keyboard && def) {
+      const pos = keyboardCursorRef.current ?? findKeyboardStart();
+      keyboardCursorRef.current = pos;
+      hoverRef.current = pos;
+      game.announce(`${def.name}: arrow keys move, Enter builds, Esc cancels`);
+    } else if (!def) {
+      keyboardCursorRef.current = null;
+      if (wasKeyboardPlacement) hoverRef.current = null;
+    }
+    setTick((t) => t + 1);
+  };
+
+  const placeSelectedTower = (def: TowerDef, pos: Vec): Tower | null => {
+    const tower = game.placeTower(def, pos);
+    if (!tower) return null;
+    const bought = veteranDeployActiveRef.current ? applyVeteranDeploy(game, tower) : 0;
+    if (bought > 0) {
+      game.announce(`${tower.def.name} veteran deployed A${tower.tierA}/B${tower.tierB}`);
+    } else {
+      game.announce(`${tower.def.name} deployed`);
+    }
+    setTick((t) => t + 1);
+    return tower;
+  };
+
+  const focusSelectedUpgradePanel = () => {
+    if (!selectedRef.current) return;
+    if (!sideOpenRef.current) setSideOpen(true);
+    requestAnimationFrame(() => {
+      const first = document.querySelector<HTMLButtonElement>('.tower-detail .upgrade-btn:not(:disabled), .tower-detail .sell-btn');
+      first?.focus();
+    });
+  };
+
+  const cycleBuiltTower = (dir: 1 | -1) => {
+    if (game.towers.length === 0) {
+      game.announce('No built towers to inspect');
+      return;
+    }
+    const current = selectedRef.current;
+    const currentIndex = current ? game.towers.findIndex((tower) => tower.uid === current.uid) : keyboardTowerIndexRef.current;
+    const nextIndex = (Math.max(-1, currentIndex) + dir + game.towers.length) % game.towers.length;
+    keyboardTowerIndexRef.current = nextIndex;
+    const tower = game.towers[nextIndex];
+    setPlacementMode(null);
+    setSelectedUid(tower.uid);
+    if (!sideOpenRef.current) setSideOpen(true);
+    game.announce(`${tower.def.name} selected. Press Enter for upgrades.`);
+    sfx.click();
+  };
+
   // Touch placement is deliberate in portal/mobile embeds: first tap previews the
   // ghost/range, second tap in the same neighborhood confirms the build.
   const onCanvasTouch = (ev: React.TouchEvent) => {
@@ -463,9 +666,9 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         sfx.click();
         return;
       }
-      const placed = game.placeTower(placing, pos);
+      const placed = placeSelectedTower(placing, pos);
       if (placed) {
-        setPlacing(null);
+        setPlacementMode(null);
         setTouchPreview(null);
       } else {
         sfx.error();
@@ -477,8 +680,13 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     if (found) { if (!sideOpenRef.current) setSideOpen(true); sfx.click(); }
   };
 
-  const onCanvasMove = (ev: React.MouseEvent) => { hoverRef.current = toCanvas(ev); };
-  const onCanvasLeave = () => { hoverRef.current = null; };
+  const onCanvasMove = (ev: React.MouseEvent) => {
+    keyboardPlacementRef.current = false;
+    hoverRef.current = toCanvas(ev);
+  };
+  const onCanvasLeave = () => {
+    if (!keyboardPlacementRef.current) hoverRef.current = null;
+  };
   const onCanvasClick = (ev: React.MouseEvent) => {
     if (Date.now() < suppressMouseUntilRef.current) return;
     const pos = toCanvas(ev);
@@ -489,8 +697,8 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     }
     if (game.collectPickup(pos)) return;
     if (placing) {
-      const t = game.placeTower(placing, pos);
-      if (t && !ev.shiftKey) setPlacing(null);
+      const t = placeSelectedTower(placing, pos);
+      if (t && !ev.shiftKey) setPlacementMode(null);
       return;
     }
     // select tower under cursor
@@ -502,7 +710,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     ev.preventDefault();
     if (placing) game.recorder.recordControl(METRIC_EVENTS.PLACEMENT_CANCEL);
     if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
-    setPlacing(null);
+    setPlacementMode(null);
     setSelectedUid(null);
     setAiming(false);
   };
@@ -513,7 +721,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     if (a.targeted) {
       if (aiming) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
       setAiming((v) => !v);
-      setPlacing(null);
+      setPlacementMode(null);
       setSelectedUid(null);
     } else {
       game.castAbility(id);
@@ -580,10 +788,47 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         return;
       }
       if (utilityWidgetOpen() || blockingOverlayRef.current) return;
+      if (isControlTarget(ev.target) && ev.key !== 'Escape') return;
       if (ev.key === 'Escape') {
         if (placingRef.current) game.recorder.recordControl(METRIC_EVENTS.PLACEMENT_CANCEL);
         if (aimingRef.current) game.recorder.recordControl(METRIC_EVENTS.ABILITY_AIM_CANCEL);
-        setPlacing(null); setSelectedUid(null); setAiming(false);
+        setPlacementMode(null); setSelectedUid(null); setAiming(false);
+        return;
+      }
+      if (placingRef.current && keyboardPlacementRef.current) {
+        if (ev.key.startsWith('Arrow')) {
+          ev.preventDefault();
+          const current = keyboardCursorRef.current ?? findKeyboardStart();
+          const next = clampCursor({
+            x: current.x + (ev.key === 'ArrowLeft' ? -KEYBOARD_GRID : ev.key === 'ArrowRight' ? KEYBOARD_GRID : 0),
+            y: current.y + (ev.key === 'ArrowUp' ? -KEYBOARD_GRID : ev.key === 'ArrowDown' ? KEYBOARD_GRID : 0),
+          });
+          keyboardCursorRef.current = next;
+          hoverRef.current = next;
+          setTick((t) => t + 1);
+          return;
+        }
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          const def = placingRef.current;
+          const pos = keyboardCursorRef.current ?? findKeyboardStart();
+          if (!def) return;
+          const tower = placeSelectedTower(def, pos);
+          if (tower) setPlacementMode(null);
+          return;
+        }
+      }
+      if (!placingRef.current && (ev.key === 'Tab' || ev.key.startsWith('Arrow'))) {
+        if (game.towers.length > 0) {
+          ev.preventDefault();
+          cycleBuiltTower(ev.shiftKey || ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 1);
+          return;
+        }
+      }
+      if (!placingRef.current && selectedRef.current && ev.key === 'Enter') {
+        ev.preventDefault();
+        focusSelectedUpgradePanel();
+        return;
       }
       if (ev.key === ' ') {
         ev.preventDefault();
@@ -608,14 +853,12 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           return;
         }
         game.recorder.recordTowerShopSelect(def, game.credits >= game.cost(def) ? 'selected' : 'unaffordable');
-        setPlacing((p) => (p?.id === def.id ? null : def));
-        setSelectedUid(null);
-        setAiming(false);
+        setPlacementMode(placingRef.current?.id === def.id ? null : def, true);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [game]);
+  }, [game, muted]);
 
   const selected = selectedRef.current;
   const abortRisk = game.phase !== 'build' || game.wave > 0 || game.towers.length > 0 || game.totalKills > 0;
@@ -718,6 +961,15 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
       sfx.error();
     }
     setTick((t) => t + 1);
+  };
+
+  const nextWaveNumber = game.wave + 1;
+  const nextWavePreview = game.phase === 'build' ? summarizeWave(game.previewWave(nextWaveNumber)) : [];
+  const recordWavePreviewHover = () => {
+    const key = `${game.runId}:${nextWaveNumber}`;
+    if (previewHoverRef.current === key) return;
+    previewHoverRef.current = key;
+    game.recorder.recordWavePreview('hover');
   };
 
   return (
@@ -892,7 +1144,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
             <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
-                { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacing(null); setRun((r) => r + 1); } },
+                { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacementMode(null); setRun((r) => r + 1); } },
                 { label: 'MAIN MENU', fn: onExit },
               ]}
             />
@@ -950,14 +1202,20 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game-sidebar">
           {sideOpen ? (
             <div className="side-body">
+              {game.phase === 'build' && (
+                <WavePreviewPanel wave={nextWaveNumber} items={nextWavePreview} onHover={recordWavePreviewHover} />
+              )}
               {selected ? (
                 <UpgradePanel game={game} tower={selected}
                   sig={`${Math.floor(game.credits)}|${selected.tierA}|${selected.tierB}|${selected.committed}|${selected.invested}|${selected.kills}|${selected.target}|${selected.rateBuff.toFixed(2)}|${selected.rangeBuff.toFixed(2)}`}
                   onSold={() => setSelectedUid(null)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               ) : (
                 <Shop game={game} placing={placing}
-                  sig={`${Math.floor(game.credits)}|${game.totalKills}|${game.isDailyChallenge ? [...(game.dailyTowerIds ?? [])].join(',') : 'campaign'}`}
-                  setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
+                  sig={`${Math.floor(game.credits)}|${game.totalKills}|${game.isDailyChallenge ? [...(game.dailyTowerIds ?? [])].join(',') : 'campaign'}|${veteranDeployActive ? 'veteran' : 'standard'}`}
+                  veteranDeploy={veteranDeployActive}
+                  veteranDeployUnlocked={veteranDeployUnlocked}
+                  onVeteranDeployChange={(next) => { setVeteranDeploy(next); progress.veteranDeploy = next; sfx.click(); }}
+                  setPlacing={(d) => setPlacementMode(d)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               )}
             </div>
           ) : (
@@ -1348,6 +1606,44 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
   );
 }
 
+function WavePreviewPanel({
+  wave,
+  items,
+  onHover,
+}: {
+  wave: number;
+  items: ReturnType<typeof summarizeWave>;
+  onHover: () => void;
+}) {
+  const hasCloak = items.some((item) => item.cloaked);
+  const hasBoss = items.some((item) => item.boss);
+  return (
+    <div className="wave-preview-panel" data-testid="wave-preview" onMouseEnter={onHover} onFocus={onHover}>
+      <div className="wave-preview-head">
+        <span>NEXT WAVE {wave}</span>
+        <div className="wave-preview-flags">
+          {hasCloak && <b className="cloak">CLOAK</b>}
+          {hasBoss && <b className="boss">BOSS</b>}
+        </div>
+      </div>
+      <div className="wave-preview-list" aria-label={`Next wave ${wave} composition`}>
+        {items.map((item) => {
+          const seen = progress.enemiesSeen.includes(item.id);
+          const label = seen ? item.def.name : 'Unidentified hostile';
+          return (
+            <div key={item.id} className={`wave-preview-enemy ${item.cloaked ? 'cloaked' : ''} ${item.boss ? 'boss' : ''}`}
+              title={`${label} x${item.count}${item.cloaked ? ' cloaked' : ''}${item.boss ? ' boss' : ''}`}>
+              <EnemyPortrait def={item.def} unknown={!seen} className="wave-preview-portrait" />
+              <span className="wave-preview-count">x{item.count}</span>
+              {!seen && <span className="wave-preview-unknown">?</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ---------------- Shop ----------------
 
 // Memoized: the loop re-renders GameScreen ~8x/s, but the shop only needs to
@@ -1355,8 +1651,14 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
 // `sig` snapshots those so React.memo can skip otherwise-identical renders (the
 // inline callbacks change identity every parent render, so the comparator ignores
 // them — they close over stable useState setters, so old closures stay correct).
-const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
-  game: Game; placing: TowerDef | null; setPlacing: (d: TowerDef | null) => void; onCollapse?: () => void;
+const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, veteranDeployUnlocked, onVeteranDeployChange, onCollapse }: {
+  game: Game;
+  placing: TowerDef | null;
+  setPlacing: (d: TowerDef | null) => void;
+  veteranDeploy: boolean;
+  veteranDeployUnlocked: boolean;
+  onVeteranDeployChange: (next: boolean) => void;
+  onCollapse?: () => void;
   /** render signature: floor(credits)|totalKills — see comparator below */
   sig: string;
 }) {
@@ -1371,6 +1673,14 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
     <div className="panel panel-grow">
       <div className="panel-head">
         <div className="panel-title">ARSENAL</div>
+        {veteranDeployUnlocked && (
+          <div className="shop-mode-toggle" role="group" aria-label="Deploy mode">
+            <button type="button" className={veteranDeploy ? '' : 'on'} aria-pressed={!veteranDeploy}
+              onClick={() => onVeteranDeployChange(false)}>STANDARD</button>
+            <button type="button" className={veteranDeploy ? 'on' : ''} aria-pressed={veteranDeploy}
+              onClick={() => onVeteranDeployChange(true)}>VETERAN</button>
+          </div>
+        )}
         {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse arsenal panel" onClick={onCollapse}>⟩</button>}
       </div>
       <div className="shop-grid" data-testid="shop-grid">
@@ -1388,8 +1698,10 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
               </button>
             );
           }
-          const cost = game.cost(def);
-          const afford = game.credits >= cost;
+          const projection = veteranDeploy ? projectedVeteranDeploy(game, def) : null;
+          const baseCost = projection?.baseCost ?? game.cost(def);
+          const displayCost = projection && projection.upgrades > 0 ? projection.totalCost : baseCost;
+          const afford = game.credits >= baseCost;
           return (
             <button
               key={def.id}
@@ -1402,7 +1714,10 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
               <TowerIcon def={def} />
               <div className="shop-name">{def.name}</div>
               <div className="shop-foot">
-                <span className="shop-cost">⌬{cost}</span>
+                <span className="shop-cost">⌬{displayCost}</span>
+                {projection && projection.upgrades > 0 && (
+                  <span className="shop-veteran-tier">A{projection.tierA}/B{projection.tierB}</span>
+                )}
                 <span className={`shop-type t-${def.base.damageType}`}>{def.base.damageType}</span>
               </div>
               {i < 10 && <div className="shop-key">{(i + 1) % 10}</div>}
@@ -1485,6 +1800,7 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
       {state === 'ok' && next && (
         <button
           className={`upgrade-btn track-btn ${game.credits >= cost ? '' : 'poor'} ${isBonusNext ? 'bonus-up' : ''} ${armed ? 'armed' : ''}`}
+          data-testid={`upgrade-${tower.def.id}-${track === 0 ? 'a' : 'b'}`}
           title={willCommit ? 'BONUS TIER — buying this commits the tower to this track!' : next.desc}
           onClick={buy}
         >

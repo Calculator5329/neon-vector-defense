@@ -195,6 +195,8 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   m('towers.upgradePanelByTower', 'Upgrade panels by tower', 'towers', ['towerInterest', 'upgradePanelByTower'], 'record', 'top-record', 'Upgrade panel interest.'),
   m('towers.failedPlacements', 'Failed placements', 'towers', ['towerInterest', 'failedPlacements'], 'number', 'sum', 'Total failed placement attempts.'),
   m('towers.failedUpgrades', 'Failed upgrades', 'towers', ['towerInterest', 'failedUpgrades'], 'number', 'sum', 'Total failed upgrade attempts.'),
+  m('towers.wavePreviewViews', 'Wave preview views', 'towers', ['towerInterest', 'wavePreviewViews'], 'number', 'sum', 'Next-wave preview exposures.'),
+  m('towers.wavePreviewHovers', 'Wave preview hovers', 'towers', ['towerInterest', 'wavePreviewHovers'], 'number', 'sum', 'Next-wave preview hover/focus interest.'),
   m('towers.abilityUses', 'Ability uses', 'towers', ['towerInterest', 'abilityUses'], 'record', 'top-record', 'Ability use counts.'),
   m('progression.runsBeforeStart', 'Runs before start', 'progression', ['progression', 'runsBeforeStart'], 'number', 'distribution', 'Player run count before this run.'),
   m('progression.victoriesBeforeStart', 'Victories before start', 'progression', ['progression', 'victoriesBeforeStart'], 'number', 'distribution', 'Player victories before this run.'),
