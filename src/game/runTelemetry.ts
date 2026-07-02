@@ -17,8 +17,10 @@ export const RUN_TELEMETRY_SCHEMA = 2;
 /** Bump whenever a simulation-affecting engine change lands (not cosmetic/FX).
  *  Replays are exact re-simulations, so runs recorded under different engine
  *  behavior must verify as unverifiable rather than falsely divergent.
- *  v2: burn zones stopped stacking (strongest zone only). */
-export const REPLAY_ENGINE_VERSION = 2;
+ *  v2: burn zones stopped stacking (strongest zone only).
+ *  v3: tesla chains exclude already-hit hulls across hops; targeted abilities
+ *      require a position and cannot cast after the run ends. */
+export const REPLAY_ENGINE_VERSION = 3;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const SNAP_DOC_CAP = 115; // uploaded snapshot keyframes — under the firestore.rules snapshots<=120 bound
 const SNAP_MEM_CAP = 360; // in-memory keyframes before downsampling at upload (covers very long runs)
