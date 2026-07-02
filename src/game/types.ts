@@ -65,6 +65,9 @@ export interface Enemy {
   pulseCd?: number;
   /** transient per-tick: cloaked hull is inside a detector aura (precomputed) */
   revealed?: boolean;
+  /** replay-only provenance for compact death reconstruction */
+  replayWave?: number;
+  replaySpawnT?: number;
 }
 
 export interface TowerStats {

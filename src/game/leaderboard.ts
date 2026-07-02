@@ -13,7 +13,7 @@ import { canSubmitScore, canWriteAnalytics } from './consent';
 import { isSampledRun } from './writePolicy';
 import { sanitizeFirestoreData } from './firestoreSanitize';
 import { normalizeRunAnalyticsDoc, type NormalizedRunAnalytics } from './analyticsSchema';
-import type { PrivateRunAnalyticsDoc, RunCheckpointDoc, RunUploadBundle, PublicRunDoc } from './runTelemetry';
+import { hashRunDeathRecords, type PrivateRunAnalyticsDoc, type RunCheckpointDoc, type RunUploadBundle, type PublicRunDoc } from './runTelemetry';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
@@ -485,13 +485,38 @@ function replayEventHash(events: unknown[]): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-function validManifest(manifest: PublicRunDoc['manifest']): manifest is NonNullable<PublicRunDoc['manifest']> {
+function validDeathRecords(records: PublicRunDoc['deathRecords']): records is NonNullable<PublicRunDoc['deathRecords']> {
+  return !!records
+    && records.codec === 'd1'
+    && Number.isInteger(records.count)
+    && records.count >= 0
+    && Array.isArray(records.waves)
+    && records.waves.every((row) => (
+      Number.isInteger(row.wave)
+      && row.wave >= 0
+      && Number.isInteger(row.startDs)
+      && row.startDs >= 0
+      && typeof row.data === 'string'
+    ));
+}
+
+function validManifest(
+  manifest: PublicRunDoc['manifest'],
+  deathRecords: PublicRunDoc['deathRecords'],
+): manifest is NonNullable<PublicRunDoc['manifest']> {
+  const deathHashOk = deathRecords === undefined
+    ? manifest?.deathHash === undefined || (typeof manifest.deathHash === 'string' && /^[a-f0-9]{8}$/.test(manifest.deathHash))
+    : validDeathRecords(deathRecords)
+      && typeof manifest?.deathHash === 'string'
+      && /^[a-f0-9]{8}$/.test(manifest.deathHash)
+      && hashRunDeathRecords(deathRecords) === manifest.deathHash;
   return !!manifest
     && manifest.complete === true
     && Array.isArray(manifest.chunkEventCounts)
     && manifest.chunkEventCounts.every((count) => Number.isInteger(count) && count >= 0 && count <= MAX_REPLAY_CHUNK_EVENTS)
     && typeof manifest.eventHash === 'string'
-    && /^[a-f0-9]{8}$/.test(manifest.eventHash);
+    && /^[a-f0-9]{8}$/.test(manifest.eventHash)
+    && deathHashOk;
 }
 
 /** Read a run replay by id (public get), reassembling overflow event chunks. */
@@ -528,7 +553,7 @@ export async function fetchRunReplay(runId: string): Promise<RunReplayDoc | null
     }
     const integrity: ReplayIntegrity = (() => {
       if (!doc?.manifest) return 'partial';
-      if (!validManifest(doc.manifest)) return 'partial';
+      if (!validManifest(doc.manifest, doc.deathRecords)) return 'partial';
       if (chunkCount !== doc.manifest.chunkEventCounts.length) return 'partial';
       if (fetchedChunks.length !== chunkCount) return 'partial';
       for (let i = 0; i < chunkCount; i++) {

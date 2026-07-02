@@ -3,14 +3,14 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (Daily Challenge, arsenal balance, admin balance console)
+Last updated: 2026-07-02 (replay death fidelity, Daily Challenge, arsenal balance, admin balance console)
 
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
 | Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
-| Battle Plan replays | Public `runs/{runId}` docs with required manifests, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
+| Battle Plan replays | Public `runs/{runId}` docs with required manifests, compact death records, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayReconstruct.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, canonical score values, server-time ordering | `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
@@ -35,7 +35,7 @@ Last updated: 2026-07-02 (Daily Challenge, arsenal balance, admin balance consol
 - AI helper privacy copy now explains what the assistant sends and why.
 - Deploy checks now verify Node/Java/Firebase project prerequisites before rules/deploy work.
 - Leaderboard rows now use server timestamps for ordering instead of trusting client clocks.
-- Battle Plan replay fidelity improved with richer public events, enemy/tower re-enactment, safer public chunks, and stricter replay schema tests.
+- Battle Plan replay death fidelity now uses manifest-hashed compact death records, so killed enemies disappear at their real recorded death times while older replays keep the legacy best-effort path.
 - Global focus-visible styling and design tokens improved the contrast/accessibility baseline.
 - Operations palette re-equips are now silent while purchase/error feedback remains visible.
 - Leaderboard rows can highlight the current browser's anonymous uid, and privacy export/delete includes replay score tokens.
@@ -99,6 +99,7 @@ Last updated: 2026-07-02 (Daily Challenge, arsenal balance, admin balance consol
 - [x] App Check staged-enforcement runbook and deploy preflight
 - [x] Touch-first responsive command layout (short-landscape tier)
 - [x] Replay completion manifest and chunk validation (manifests now REQUIRED)
+- [x] Replay death records covered by the manifest
 - [x] Gameplay correctness audit fixes
 - [x] Guided onboarding funnel (action-gated coach)
 - [x] Balance CI gate on PRs
@@ -110,7 +111,7 @@ Last updated: 2026-07-02 (Daily Challenge, arsenal balance, admin balance consol
 - `meta.ts` must stay off the combat, score, and bot paths.
 - Public replay docs must remain compact and free of `undefined` values.
 - Replay read paths must reject or clearly label incomplete/malformed chunks; partial data should not masquerade as a full Battle Plan.
-- New public replay uploads must carry a manifest; missing manifests are incomplete and cannot back accepted scores.
+- New public replay uploads must carry a manifest with event and death hashes; missing manifests are incomplete and cannot back accepted scores.
 - Leaderboard score claims must include a matching replay token.
 - Privacy export/delete must cover every local key that can affect score retry, identity, consent, or private replies.
 - Admin allowlists in `firestore.rules`, Functions helpers, and client admin code must stay synchronized.

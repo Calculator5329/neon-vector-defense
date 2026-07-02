@@ -8,7 +8,7 @@ import { dailyChallenge, dailyModifierNames, type DailyChallenge } from '../../s
 import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
-import { buildRunManifest, hashRunEventPairs, type RunEvent } from '../../src/game/runTelemetry';
+import { buildRunManifest, hashRunDeathRecords, hashRunEventPairs, type RunDeathRecords, type RunEvent } from '../../src/game/runTelemetry';
 import { normalizeProgress, progress } from '../../src/game/storage';
 import { computeStats, TOWER_MAP, TOWERS } from '../../src/game/towers';
 import type { Enemy, EnemyDef, Tower } from '../../src/game/types';
@@ -212,16 +212,18 @@ describe('freeplay correctness guards', () => {
     const chunkEvents: RunEvent[] = [
       { type: 'run_end', t: 9.9, wave: 1, cash: 120, lives: 10 },
     ];
+    const deathRecords: RunDeathRecords = { codec: 'd1', count: 0, waves: [] };
     const manifest = buildRunManifest(docEvents, [{
       schemaVersion: 2,
       runId: 'r_manifest123',
       chunk: 0,
       events: chunkEvents,
-    }]);
+    }], deathRecords);
 
     assert.deepEqual(manifest, {
       chunkEventCounts: [1],
       eventHash: 'd8a6ffad',
+      deathHash: hashRunDeathRecords(deathRecords),
       complete: true,
     });
     assert.equal(hashRunEventPairs([...docEvents, ...chunkEvents]), manifest.eventHash);

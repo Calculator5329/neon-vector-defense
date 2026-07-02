@@ -144,3 +144,22 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
 - The shipped Battle Plan viewer remains a reconstruction from public snapshots
   and events. Stronger replay manifests, chunk hashes, and server re-simulation
   are separate hardening steps before high-stakes leaderboard incentives.
+
+## 2026-07-02 - Replay deaths are authoritative compact records
+
+- Battle Plan enemy deaths are stored in `deathRecords`, not as `enemy_kill`
+  events. The viewer treats this ledger as authoritative and uses the old
+  snapshot-delta inference only for legacy production replays that predate it.
+- Encoding `d1` groups deaths by wave and stores a separator-free varint stream:
+  real enemy uid delta, enemy type code, spawn decisecond offset, and death
+  decisecond offset. Rows are sorted by wave and uid, so identical seeded runs
+  produce byte-identical death records.
+- The replay manifest now includes `deathHash` alongside the event hash. New
+  public replay writes must include `deathRecords`, and server/client integrity
+  checks reject mismatched death ledgers.
+- Budget math: a 100-wave / 60,000-kill run averages about seven packed
+  characters per death (uid delta ~2, type 1, spawn offset ~2, death offset ~2),
+  or roughly 420 KB. Per-wave JSON overhead is about 5 KB, leaving more than
+  400 KB of the 900 KB run-doc safety budget for snapshots, events, setup, and
+  final tower data. Late runs that round closer to nine characters per death
+  still land around 540 KB for the ledger.

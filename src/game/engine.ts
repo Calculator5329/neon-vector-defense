@@ -893,6 +893,8 @@ export class Game {
 
   private spawnEnemy(typeId: string, cloaked: boolean) {
     const e = this.makeEnemy(typeId, cloaked);
+    e.replayWave = this.wave;
+    e.replaySpawnT = this.time;
     if (cloaked && !this.cloakTipShown && !progress.cloakTipSeen) {
       this.cloakTipShown = true;
       this.cloakTipPending = true;
@@ -906,6 +908,8 @@ export class Game {
       e.pos = { x: parent.pos.x + (this.rng() - 0.5) * 14, y: parent.pos.y + (this.rng() - 0.5) * 14 };
       e.wp = parent.wp;
       e.dist = Math.max(0, parent.dist - i * 12);
+      e.replayWave = parent.replayWave ?? this.wave;
+      e.replaySpawnT = this.time;
       this.enemies.push(e);
     }
   }
@@ -1008,6 +1012,7 @@ export class Game {
     this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
+    this.recorder.recordEnemyKill(this.telemetryState(), e);
     this.spawnChildren(e);
     if (e.def.boss) {
       sfx.bossDown();

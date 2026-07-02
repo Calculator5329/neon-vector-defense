@@ -1049,6 +1049,56 @@ test.describe('run telemetry model', () => {
   });
 });
 
+test.describe('replay reconstruction', () => {
+  test('removes killed enemy sprites after the reconstructed wave end', async ({ page }) => {
+    await openDemoMenu(page);
+
+    const replay = await page.evaluate(async () => {
+      const load = (path: string) => import(/* @vite-ignore */ path);
+      const [{ Game }, { ALL_MAPS, DIFFICULTIES }, { TOWER_MAP }, recon] = await Promise.all([
+        load('/src/game/engine.ts'),
+        load('/src/game/maps.ts'),
+        load('/src/game/towers.ts'),
+        load('/src/game/replayReconstruct.ts'),
+      ]);
+      const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 12345, lifetimeKills: 1_000_000 });
+      game.paused = false;
+      game.credits = 50_000;
+      const spots: { x: number; y: number }[] = [];
+      for (let y = 80; y <= 640 && spots.length < 8; y += 48) {
+        for (let x = 80; x <= 1200 && spots.length < 8; x += 48) {
+          const pos = { x, y };
+          if (game.canPlace(pos)) spots.push(pos);
+        }
+      }
+      for (const pos of spots) {
+        const tower = game.placeTower(TOWER_MAP.pulse, pos);
+        if (tower) {
+          for (let i = 0; i < 3; i++) game.upgradeTower(tower, 0);
+        }
+      }
+      game.startWave();
+      for (let i = 0; i < 20_000 && game.phase === 'wave'; i++) game.update(0.05);
+      const bundle = game.buildRunUploadBundle('E2EREPLAY', 'test-build');
+      const timeline = recon.buildReplayCombatTimeline(bundle.run);
+      const geom = recon.buildGeom(ALL_MAPS[0].path);
+      const waveEnd = bundle.run.events.find((event: { type: string }) => event.type === 'wave_end')?.t ?? bundle.run.summary.durationS;
+      const activeAfterEnd = recon.activeReplayGhosts(geom, timeline, waveEnd + 0.6, false, 9999).length;
+      return {
+        authoritative: timeline.authoritativeDeaths,
+        kills: bundle.run.summary.kills,
+        waveEnd,
+        activeAfterEnd,
+      };
+    });
+
+    expect(replay.authoritative).toBe(true);
+    expect(replay.kills).toBeGreaterThan(0);
+    expect(replay.waveEnd).toBeGreaterThan(0);
+    expect(replay.activeAfterEnd).toBe(0);
+  });
+});
+
 test.describe('browser perf harness', () => {
   test('keeps stress counters readable on desktop and mobile perf routes', async ({ page }) => {
     const firestorePosts: string[] = [];

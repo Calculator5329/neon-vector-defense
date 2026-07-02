@@ -21,7 +21,7 @@ import {
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
-import { replayEventHash } from '../../functions/src/replayIntegrity.ts';
+import { replayDeathHash, replayEventHash } from '../../functions/src/replayIntegrity.ts';
 import { replayTokenHash } from '../../functions/src/securityHelpers.ts';
 
 const PROJECT_ID = 'neon-vector-defense-7';
@@ -181,6 +181,7 @@ async function adminCollectionCount(path: string): Promise<number> {
 }
 
 const baseEvents = [{ type: 'run_start', t: 0 }];
+const emptyDeathRecords = { codec: 'd1', count: 0, waves: [] };
 
 async function seedReplayRun(options: {
   runId: string;
@@ -213,8 +214,10 @@ async function seedReplayRun(options: {
       manifest: {
         chunkEventCounts: [],
         eventHash,
+        deathHash: replayDeathHash(emptyDeathRecords),
         complete: true,
       },
+      deathRecords: emptyDeathRecords,
       summary: {
         wave,
         kills,

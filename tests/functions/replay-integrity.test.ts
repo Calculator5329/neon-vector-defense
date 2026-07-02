@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { replayEventHash, validateReplayManifest } from '../../functions/src/replayIntegrity';
+import { replayDeathHash, replayEventHash, validateReplayManifest } from '../../functions/src/replayIntegrity';
 
 const docEvents = [
   { type: 'run_start', t: 0 },
@@ -9,6 +9,7 @@ const docEvents = [
 const chunkEvents = [
   { type: 'run_end', t: 9.9 },
 ];
+const deathRecords = { codec: 'd1', count: 0, waves: [] };
 
 function manifestRun(patch: Record<string, unknown> = {}) {
   return {
@@ -18,8 +19,10 @@ function manifestRun(patch: Record<string, unknown> = {}) {
     manifest: {
       chunkEventCounts: [1],
       eventHash: replayEventHash([...docEvents, ...chunkEvents]),
+      deathHash: replayDeathHash(deathRecords),
       complete: true,
     },
+    deathRecords,
     ...patch,
   };
 }
@@ -44,7 +47,13 @@ describe('replay manifest integrity', () => {
     );
     assert.equal(
       validateReplayManifest(manifestRun({
-        manifest: { chunkEventCounts: [1], eventHash: '00000000', complete: true },
+        manifest: { chunkEventCounts: [1], eventHash: '00000000', deathHash: replayDeathHash(deathRecords), complete: true },
+      }), [{ exists: true, events: chunkEvents }]),
+      'manifest-mismatch',
+    );
+    assert.equal(
+      validateReplayManifest(manifestRun({
+        deathRecords: { codec: 'd1', count: 1, waves: [] },
       }), [{ exists: true, events: chunkEvents }]),
       'manifest-mismatch',
     );

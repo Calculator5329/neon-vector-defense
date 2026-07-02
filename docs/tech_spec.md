@@ -61,7 +61,8 @@ Key fields (`PublicRunDoc`):
   build: string;
   chunkCount: number;
   eventCount: number;
-  manifest: { chunkEventCounts: number[], eventHash: string, complete: true };
+  manifest: { chunkEventCounts: number[], eventHash: string, deathHash: string, complete: true };
+  deathRecords: { codec: 'd1', count: number, waves: { wave: number, startDs: number, data: string }[] };
   setup: { map, mapName, mapHash, diff, diffName, startingCash, startingLives, availableTowerIds, balanceVersion };
   summary: { callsign, map, diff, freeplay, daily?, wave, kills, credits, cashEarned, outcome, durationS, ... };
   snapshots: RunWaveSnapshot[];  // lean tower rows per wave
@@ -70,7 +71,7 @@ Key fields (`PublicRunDoc`):
 }
 ```
 
-Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Public replay docs must include a completion manifest so server validation can compare chunk event counts and event hash before accepting score claims. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
+Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Public replay docs must include a completion manifest so server validation can compare chunk event counts, event hash, and the compact death-record hash before accepting score claims. `deathRecords.codec = 'd1'` stores per-wave packed varints for real enemy uid delta, enemy type, spawn decisecond offset, and death decisecond offset; the viewer treats these as authoritative and falls back to snapshot kill deltas only for older production replays. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
 
 ### `runs/{runId}/chunks/c{n}`
 

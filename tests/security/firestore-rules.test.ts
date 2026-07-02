@@ -50,8 +50,10 @@ const validRun = {
   manifest: {
     chunkEventCounts: [],
     eventHash: '1234abcd',
+    deathHash: 'abcd1234',
     complete: true,
   },
+  deathRecords: { codec: 'd1', count: 0, waves: [] },
   summary: validSummary,
   setup: {},
   events: [{ type: 'run_start', t: 0 }],

@@ -35,7 +35,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `towers.ts` / `enemies.ts` / `waves.ts` | Static content definitions and stat computation |
 | `maps.ts` / `difficulty.ts` | 8 sectors x 4 protocols |
 | `bot.ts` | Headless AI at rookie / standard / expert tiers |
-| `runTelemetry.ts` | Run events, wave snapshots, public replay chunks, private checkpoint docs |
+| `runTelemetry.ts` | Run events, wave snapshots, compact death records, public replay chunks, private checkpoint docs |
 | `leaderboard.ts` | Firestore facade; replay upload/read; score submit via Cloud Functions |
 | `storage.ts` | localStorage progression (kills, archive, blueprints, settings) |
 | `meta.ts` | Warden Rank, Salvage, Operations Board quests, Watch Streak |
@@ -45,7 +45,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `freeplay.ts` | Freeplay contracts, relics, risk waves, score multiplier |
 | `ghostCurve.ts` / `ghostCurveData.ts` | Bot-rival pacing curves for in-run HUD |
 | `dossier.ts` / `DossierShare.tsx` | End-of-run share card generation |
-| `ReplayViewer.tsx` | Battle Plan flipbook (snapshot reconstruction, not re-sim) |
+| `replayReconstruct.ts` / `ReplayViewer.tsx` | Pure Battle Plan reconstruction model plus canvas flipbook (not re-sim) |
 | `adminAnalytics.ts` | Admin dashboard metric aggregation |
 | `functions/src/index.ts` | Server-side score validation, rate limits, feedback, admin-only data deletion |
 
@@ -72,16 +72,18 @@ The codebase follows a practical three-layer split. UI components observe game s
 
 1. `RunRecorder.makePublicRun()` builds a public replay bundle. The main run doc
    carries compact summary/setup/snapshots/final rows, the first event window,
-   and a required completion manifest.
+   a compact `deathRecords` ledger, and a required completion manifest.
 2. Overflow public events are written under `runs/{runId}/chunks/cN`.
 3. `submitRunReplay()` adds a browser-local replay token, stores its hash on the
    public run doc, and records ownership under `replayOwners/{uid}/runs/{runId}`.
 4. `submitScore` / `submitDailyScore` Cloud Functions verify the replay token,
-   validate manifest chunk counts and event hash, check the replay summary
-   against the claimed board, canonicalize score values, and write board rows
-   with server timestamps.
+   validate manifest chunk counts, event hash, and death hash, check the replay
+   summary against the claimed board, canonicalize score values, and write board
+   rows with server timestamps.
 5. `ReplayViewer` reads `runs/{runId}` plus public chunks and reconstructs the run
-   as a Battle Plan flipbook. It does not re-simulate combat.
+   as a Battle Plan flipbook. It uses `deathRecords` as the authoritative death
+   source when present and falls back to legacy snapshot inference for older docs.
+   It does not re-simulate combat.
 
 ### Telemetry flow
 
