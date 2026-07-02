@@ -23,7 +23,6 @@ import {
   dailyArsenalCatalog,
   dailyBoonCatalog,
   dailyChallengeForDate,
-  dailyModifierNames,
   dailyTwistCatalog,
   type DailyArsenalId,
   type DailyBoonId,
