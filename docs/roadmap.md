@@ -3,7 +3,7 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-06-28 (audit backlog implementation pass)
+Last updated: 2026-07-02 (release hardening pass)
 
 ## Current shipped pillars
 
@@ -17,7 +17,7 @@ Last updated: 2026-06-28 (audit backlog implementation pass)
 | AI rival ghosts | In-run HUD and modal comparing current run to bundled bot profiles | `BotGhostHud.tsx`, `ghostCurve.ts`, `ghostCurveData.ts` |
 | Privacy and admin | Age/consent gate, private feedback receipts, admin replies, admin-only deletion tooling | `consent.ts`, `leaderboard.ts`, `functions/src/index.ts`, `PrivacyView.tsx` |
 | Accessibility baseline | Reduced motion, colorblind palette, global focus-visible ring, stronger contrast tokens | `settings.ts`, `src/index.css`, `App.css` |
-| Live-ops hardening | Remote balance config, deploy preflight, CI/security/audit gates, App Check rollout hooks | `balanceConfig.ts`, `scripts/deploy-preflight.ts`, `.github/workflows/ci.yml` |
+| Live-ops hardening | Remote balance config, deploy preflight, CI/security/audit gates, App Check staged-rollout path | `balanceConfig.ts`, `scripts/deploy-preflight.ts`, `.github/workflows/ci.yml`, `docs/runbooks/app-check-rollout.md` |
 
 ## Recently shipped since the prior doc audit
 
@@ -51,15 +51,22 @@ Last updated: 2026-06-28 (audit backlog implementation pass)
 - **Perf/cost**: Firestore SDK lazy (−55KB gzip first paint), art WebP
   (63.7MB → 3.2MB), fonts self-hosted, global-top aggregate doc (1 read vs
   ~400), 11MB internal report evicted, perf smoke is a real CI gate.
+- **App Check staged-enforcement path**: deploy preflight now reports client
+  token and callable enforcement expectations, the operator runbook covers
+  reCAPTCHA Enterprise setup, production token probes, metrics watch, enforcement
+  flip, and rollback, and a Functions drift test guards callable App Check
+  options.
+- **Production release hardening**: callable integration tests now run against
+  Firebase emulators, manual deploy workflows fail outside `master` and record
+  audit summaries, and CI dry-runs the Cloudflare Worker before merge.
 
 ## Near-term priorities
 
 1. **Replay and score integrity** - add replay completion manifests, chunk hashes/count validation, malformed replay hardening, and server-side freeplay/mode validation before leaderboard incentives grow.
-2. **App Check enforcement** - staged rollout in production (plumbing is in place; flip `ENFORCE_APP_CHECK` + console enforcement after verifying token flow).
+2. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
 3. **Balance CI gate** - wire a semantic `public/balance-report.json` diff into CI so unintentional dead/op tower swings fail before release.
-4. **Production release hardening** - callable integration tests, Worker deploy dry-runs, branch/tag guards.
-5. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
-6. **Audio diet** - briefing.wav → compressed (needs ffmpeg locally).
+4. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
+5. **Audio diet** - briefing.wav → compressed (needs ffmpeg locally).
 
 ## Deferred / bigger bets
 
@@ -78,12 +85,13 @@ Last updated: 2026-06-28 (audit backlog implementation pass)
 - [x] Remote balance hot-patch
 - [x] Replay-of-the-Day menu spotlight
 - [x] Daily Freeplay seed
+- [x] App Check staged-enforcement runbook and deploy preflight
 - [ ] Touch-first responsive command layout
 - [ ] Replay completion manifest and chunk validation
 - [ ] Gameplay correctness audit fixes
 - [ ] Guided onboarding funnel
 - [ ] Balance CI gate on PRs
-- [ ] Production deploy hardening checks
+- [x] Production deploy hardening checks
 - [ ] Full PWA precache + build-tag reload toast
 
 ## Guardrails

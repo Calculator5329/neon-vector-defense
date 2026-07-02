@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 interface CheckResult {
   name: string;
   ok: boolean;
   detail: string;
   fix?: string;
+  level?: 'OK' | 'WARN' | 'FAIL';
 }
 
 function major(version: string): number {
@@ -19,6 +20,39 @@ function run(command: string, args: string[]): { status: number | null; output: 
     status: res.status,
     output: `${res.stdout ?? ''}${res.stderr ?? ''}`.trim(),
   };
+}
+
+function envFileValue(name: string): string | undefined {
+  for (const file of ['.env.production.local', '.env.production', '.env.local', '.env']) {
+    if (!existsSync(file)) continue;
+    const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const match = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(trimmed);
+      if (match?.[1] !== name) continue;
+      return match[2].replace(/^['"]|['"]$/g, '').trim();
+    }
+  }
+  return undefined;
+}
+
+function envValue(name: string): string | undefined {
+  return process.env[name] ?? envFileValue(name);
+}
+
+function isProductionTarget(): boolean {
+  const args = new Set(process.argv.slice(2));
+  if (args.has('--production') || args.has('--prod')) return true;
+  const values = [
+    process.env.NODE_ENV,
+    process.env.MODE,
+    process.env.VITE_MODE,
+    process.env.DEPLOY_ENV,
+    process.env.DEPLOY_TARGET,
+    process.env.FIREBASE_DEPLOY_TARGET,
+  ].filter((value): value is string => !!value).map((value) => value.toLowerCase());
+  return values.some((value) => value === 'production' || value === 'prod');
 }
 
 function checkNode(): CheckResult {
@@ -73,12 +107,37 @@ function checkFirebaseProject(): CheckResult {
   }
 }
 
+function checkAppCheck(): CheckResult {
+  const hasSiteKey = !!envValue('VITE_FIREBASE_APPCHECK_SITE_KEY');
+  const enforceFunctions = process.env.ENFORCE_APP_CHECK === 'true';
+  const productionTarget = isProductionTarget();
+  const appCheckState = hasSiteKey ? 'client token key configured' : 'client token key missing';
+  const functionsState = enforceFunctions ? 'Functions enforcement expected ON' : 'Functions enforcement expected OFF until rollout flip';
+  const firestoreState = 'Firestore enforcement is a Firebase Console switch after token metrics are clean';
+  return {
+    name: 'App Check',
+    ok: true,
+    level: !hasSiteKey && productionTarget ? 'WARN' : 'OK',
+    detail: `${appCheckState}; ${functionsState}; ${firestoreState}`,
+    fix: !hasSiteKey && productionTarget
+      ? 'Set VITE_FIREBASE_APPCHECK_SITE_KEY before the production Hosting build; keep ENFORCE_APP_CHECK=false until production token issuance is verified.'
+      : undefined,
+  };
+}
+
 const checks = [checkNode(), checkJava(), checkFirebaseProject()];
+const advisoryChecks = [checkAppCheck()];
 
 for (const check of checks) {
   const icon = check.ok ? 'OK' : 'FAIL';
   console.log(`${icon} ${check.name}: ${check.detail}`);
   if (!check.ok && check.fix) console.log(`  Fix: ${check.fix}`);
+}
+
+for (const check of advisoryChecks) {
+  const icon = check.level ?? (check.ok ? 'OK' : 'FAIL');
+  console.log(`${icon} ${check.name}: ${check.detail}`);
+  if (check.fix) console.log(`  Fix: ${check.fix}`);
 }
 
 if (checks.some((check) => !check.ok)) process.exit(1);

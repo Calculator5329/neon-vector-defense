@@ -3,6 +3,19 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Release hardening runs before deployment
+
+- Callable endpoints are now covered by Firebase emulator-backed integration
+  tests so auth, replay validation, rate limits, feedback receipts, and deletion
+  behavior are exercised through the real callable surface before merge.
+- Manual Firebase deploy workflows are allowed only from `master` and write ref,
+  commit SHA, and build-tag details to the job summary for operator auditability.
+- Worker deploy syntax is dry-run in CI without secrets, catching Cloudflare
+  configuration drift before a production deploy attempt.
+- App Check remains a staged rollout: preflight warns about missing production
+  site keys, a runbook verifies token issuance and metrics first, and callable
+  enforcement flips only after the operator validates production traffic.
+
 ## 2026-06-28 - Replay-backed scores stay pragmatic, not fully deterministic
 
 - Scores are accepted only through Cloud Functions (`submitScore` and
