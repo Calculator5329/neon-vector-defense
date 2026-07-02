@@ -17,7 +17,14 @@
  */
 
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  FieldValue,
+  type DocumentData,
+  type DocumentReference,
+  type Firestore,
+  type Query,
+} from 'firebase-admin/firestore';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
@@ -337,7 +344,7 @@ async function updateGlobalTop(entry: GlobalTopRow): Promise<void> {
   });
 }
 
-type ScoreRowRef = FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>;
+type ScoreRowRef = DocumentReference<DocumentData>;
 
 async function readReSimBundle(runId: string): Promise<{ bundle?: { run: Record<string, unknown>; chunks: Array<Record<string, unknown>> }; reason?: string }> {
   const runSnap = await db.doc(`runs/${runId}`).get();
@@ -627,7 +634,7 @@ interface DeleteResult {
 
 const BATCH = 300;
 
-async function deleteByQuery(build: () => FirebaseFirestore.Query): Promise<number> {
+async function deleteByQuery(build: () => Query): Promise<number> {
   let total = 0;
   for (;;) {
     const snap = await build().limit(BATCH).get();

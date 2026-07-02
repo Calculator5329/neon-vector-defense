@@ -3,6 +3,26 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Firebase Functions 7 and Admin 14 require Node 22
+
+- Firebase Functions 7 drops Node 16, removes the deprecated
+  `functions.config()` API, targets TS/ES2022, changes async `onRequest`
+  emulator error handling, supports ESM, and renames the v1 `Event` type to
+  `LegacyEvent`. This codebase was already on ESM, v2 `onCall`,
+  `CallableRequest`, `HttpsError`, `setGlobalOptions`, and `process.env`, with
+  no `functions.config()`, logger, params, or v1 event usage to migrate.
+- Firebase Admin 14 drops Node 18/20, removes legacy namespace imports, removes
+  Instance ID and legacy messaging types, revamps errors, and upgrades the
+  Firestore dependency. The functions already use modular `initializeApp`,
+  `getFirestore`, and `FieldValue`; the source fallout was limited to replacing
+  `FirebaseFirestore.*` namespace types with explicit `DocumentReference`,
+  `DocumentData`, and `Query` type imports.
+- Runtime moved from Node 20 to Node 22 in both `functions/package.json` and
+  `firebase.json` because Admin 14 requires Node >=22. `firebase-functions@7.2.5`
+  still declares a peer range ending at Admin 13, so `functions/.npmrc` enables
+  `legacy-peer-deps` until the upstream peer range catches up. The callable
+  emulator suite loads `node@22` and exercises the bundled re-sim engine.
+
 ## 2026-07-02 - Burn zones no longer stack; replay engine versioning
 
 - The dps-curve nerf barely moved the sims (opScore 5.14→5.12) because the OP

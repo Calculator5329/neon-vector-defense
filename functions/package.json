@@ -3,7 +3,7 @@
   "description": "Cloud Functions for Neon Vector Defense (leaderboard integrity + data deletion)",
   "type": "module",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "lib/index.js",
   "scripts": {
@@ -15,8 +15,8 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
-    "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.1.0"
+    "firebase-admin": "14.1.0",
+    "firebase-functions": "7.2.5"
   },
   "devDependencies": {
     "typescript": "~6.0.3"
