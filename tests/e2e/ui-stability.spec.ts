@@ -237,6 +237,11 @@ test.describe('UI stability guardrails', () => {
     await page.getByRole('button', { name: 'Messages' }).click();
     await expect(page.getByLabel('Message to the developer')).toBeVisible();
     await page.getByLabel('Message to the developer').fill('UI stability smoke.');
+    // Park the pointer off the widget: .fb-toggle scales on :hover, and a rect
+    // captured while the click-position hover is still applied reads ~45px
+    // instead of the settled 42px, tripping the guard on CI.
+    await page.mouse.move(0, 0);
+    await settleLayout(page);
     const feedbackBefore = await captureRects(page, {
       panel: '.fb-panel',
       toggle: '.fb-toggle',
@@ -245,6 +250,7 @@ test.describe('UI stability guardrails', () => {
     await resetLayoutShiftObserver(page);
     await page.getByRole('button', { name: 'Send message to developer' }).click();
     await expect(page.locator('.fb-replies')).toBeVisible({ timeout: 10_000 });
+    await page.mouse.move(0, 0);
     await settleLayout(page, 250);
     const feedbackAfter = await captureRects(page, {
       panel: '.fb-panel',
