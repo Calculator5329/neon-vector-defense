@@ -107,7 +107,7 @@ export function runStrategies(map: GameMap, diff: DifficultyDef, seeds: number):
   for (const strat of strategies()) {
     let waveSum = 0, best = 0, wins = 0, lives = 0;
     for (let s = 0; s < seeds; s++) {
-      const r = runInstrumented(map, diff, strat.profile);
+      const r = runInstrumented(map, diff, strat.profile, `strat-${strat.name}-${s}`);
       waveSum += r.finalWave;
       best = Math.max(best, r.finalWave);
       if (r.won) wins++;
@@ -141,7 +141,7 @@ export function runSoloViability(map: GameMap, diff: DifficultyDef, seeds: numbe
     const profile = spamProfile(def.id, 6, 0);
     let waveSum = 0, best = 0, wins = 0;
     for (let s = 0; s < seeds; s++) {
-      const r = runInstrumented(map, diff, profile);
+      const r = runInstrumented(map, diff, profile, `solo-${s}`);
       waveSum += r.finalWave;
       best = Math.max(best, r.finalWave);
       if (r.won) wins++;

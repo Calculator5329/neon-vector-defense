@@ -115,7 +115,7 @@ function buildCurves(): WaveCurve[] {
         const runs: WaveRecord[][] = [];
         let wins = 0, waveSum = 0;
         for (let s = 0; s < CURVE_SEEDS; s++) {
-          const r = runInstrumented(map, diff, skill);
+          const r = runInstrumented(map, diff, skill, `curve-${s}`);
           runs.push(r.waves);
           if (r.won) wins++;
           waveSum += r.finalWave;
@@ -144,7 +144,7 @@ function buildGrid(): GridCell[] {
       for (const diff of DIFFICULTIES) {
         let waveSum = 0, wins = 0, lives = 0;
         for (let s = 0; s < GRID_SEEDS; s++) {
-          const r = runInstrumented(map, diff, skill);
+          const r = runInstrumented(map, diff, skill, `grid-${s}`);
           waveSum += r.finalWave;
           if (r.won) wins++;
           lives += r.livesLeft;

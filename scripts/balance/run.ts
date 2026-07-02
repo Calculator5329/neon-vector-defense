@@ -48,13 +48,37 @@ function waveMaxLeak(waveNumber: number): number {
   return def.reduce((sum, grp) => sum + grp.count * rbe(grp.type), 0);
 }
 
+// Deterministic seeding: the CI balance gate compares quick runs against the
+// committed baseline, so identical inputs MUST produce identical results —
+// unseeded runs made the gate flake on borderline cells (same commit passed
+// one CI run and failed its twin).
+function fnv32(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry(seed: number): () => number {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export function runInstrumented(
   map: GameMap,
   diff: DifficultyDef,
   profile: BotSkill | Profile,
+  seedKey = 'default-0',
 ): RunResult {
-  const game = new Game(map, diff);
-  const bot = new Bot(game, profile);
+  const seed = fnv32(`${map.id}|${diff.id}|${typeof profile === 'string' ? profile : 'custom'}|${seedKey}`);
+  const game = new Game(map, diff, { seed, lifetimeKills: 0 });
+  const bot = new Bot(game, profile, mulberry(seed ^ 0x9e3779b9));
   const startingLives = game.lives;
   const waves: WaveRecord[] = [];
   let time = 0;
