@@ -4,6 +4,7 @@ import { Bot } from '../../src/game/bot';
 import { Game } from '../../src/game/engine';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { buildReplayCombatTimeline } from '../../src/game/replayReconstruct';
+import { createReplayPlayback, reSimulate } from '../../src/game/reSimulate';
 import type { PublicRunDoc, RunEvent, RunTelemetryState, RunUploadBundle } from '../../src/game/runTelemetry';
 import type { Enemy } from '../../src/game/types';
 
@@ -259,6 +260,54 @@ describe('replay death fidelity', () => {
     const fidelity = assertTimelineMatchesTruth(result);
     assert.equal(fidelity.maxError, 0);
     assert.ok(result.deathBytes / Math.max(1, result.deaths.length) < 10, 'death codec should stay compact');
+  });
+
+  test('frame-accurate playback driver reproduces a re-simulable run and is deterministic', () => {
+    // A faithfully-recorded run: no out-of-band credit/speed mutation after the
+    // recorder captured setup, so the recorded setup matches actual play (unlike
+    // runSeededReplay, which overrides credits post-construction for volume).
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[1], { seed: 20260702, lifetimeKills: 1_000_000 });
+    game.paused = false;
+    game.speed = 4; // captured per event via event.speed; re-sim reads it back
+    game.autoNext = true;
+    const bot = new Bot(game, 'expert', seededRng(4242));
+    game.startWave();
+    for (let i = 0; i < 120_000 && game.wave <= 12 && game.phase !== 'gameover'; i++) {
+      bot.act(game.time);
+      if (game.phase === 'build') game.startWave();
+      game.update(0.05);
+    }
+    const bundle = game.buildRunUploadBundle('DRIVER', 'test-build');
+    // the client merges chunk events back into run.events (see fetchRunReplay); mirror that
+    const run: PublicRunDoc = {
+      ...bundle.run,
+      events: [...bundle.run.events, ...bundle.chunks.flatMap((chunk) => chunk.events)],
+    };
+
+    // The server verifier accepts it — proof the recorded setup is faithful, so the
+    // driver (same stepping) must land on the same state.
+    assert.equal(reSimulate(bundle).verdict, 'verified', 'test run must be re-simulable');
+
+    const driver = createReplayPlayback(run);
+    assert.ok(driver, 'a current-engine campaign run should be drivable');
+
+    // stepping to the end reproduces the authentic run, not an approximation
+    driver.seekTo(driver.endT + 1);
+    const final = driver.game.buildRunUploadBundle('DRIVER', 'test-build').run.summary;
+    assert.equal(final.kills, run.summary.kills, 'kills must match the recorded run');
+    assert.equal(final.leaks, run.summary.leaks, 'leaks must match the recorded run');
+    assert.equal(final.wave, run.summary.wave, 'final wave must match the recorded run');
+
+    // seeking is deterministic: the same scrub time yields identical state regardless
+    // of whether we arrived by playing forward or by rewinding and replaying
+    const midT = driver.endT * 0.5;
+    driver.seekTo(midT);
+    const forwardKills = driver.game.totalKills;
+    const forwardEnemies = driver.game.enemies.length;
+    driver.seekTo(0);
+    driver.seekTo(midT);
+    assert.equal(driver.game.totalKills, forwardKills, 'kills at a scrub time must be seek-order independent');
+    assert.equal(driver.game.enemies.length, forwardEnemies, 'live enemy count must be seek-order independent');
   });
 
   test('umbra phase replay timeline matches recorded events', () => {

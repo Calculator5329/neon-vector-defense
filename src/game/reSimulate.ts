@@ -56,6 +56,37 @@ const ACTION_TYPES = new Set([
   'speed_change',
 ]);
 
+// Construct + prime a Game from a recorded run's setup. Shared by the server-side
+// verifier (reSimulate) and the client-side playback driver (createReplayPlayback)
+// so both step the exact same engine from the exact same starting state.
+function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } {
+  const map = ALL_MAPS.find((candidate) => candidate.id === run.setup.map);
+  const diff = DIFFICULTIES.find((candidate) => candidate.id === run.setup.diff);
+  if (!map || !diff) return { error: 'unknown map or difficulty' };
+
+  const game = new Game(map, diff, {
+    seed: run.setup.seed >>> 0,
+    lifetimeKills: 0,
+    availableTowerIds: run.setup.availableTowerIds,
+  });
+  game.paused = false;
+  game.speed = 1;
+  game.credits = Math.max(0, Math.floor(run.setup.startingCash));
+  game.lives = Math.max(1, Math.floor(run.setup.startingLives));
+  game.startingLives = game.lives;
+  game.recorder.setStartingResources(game.credits, game.lives);
+
+  if (run.summary.daily) {
+    const challenge = dailyChallengeForId(run.summary.daily);
+    if (!challenge) return { error: `unsupported daily id ${run.summary.daily}` };
+    if (challenge.mapId !== map.id || challenge.diffId !== diff.id) {
+      return { error: 'daily challenge does not match replay setup' };
+    }
+    game.startDailyChallenge(challenge);
+  }
+  return { game };
+}
+
 export function reSimulate(bundle: ReSimBundle): ReSimResult {
   const unverifiable = (reason: string): ReSimResult => ({ verdict: 'unverifiable', reason });
   const run = bundle.run;
@@ -93,30 +124,12 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult {
   }
 
   const map = ALL_MAPS.find((candidate) => candidate.id === run.setup.map);
-  const diff = DIFFICULTIES.find((candidate) => candidate.id === run.setup.diff);
-  if (!map || !diff) return unverifiable('unknown map or difficulty');
+  if (!map) return unverifiable('unknown map or difficulty');
   if (hashMap(map) !== run.setup.mapHash) return unverifiable('map hash mismatch');
 
-  const game = new Game(map, diff, {
-    seed: run.setup.seed >>> 0,
-    lifetimeKills: 0,
-    availableTowerIds: run.setup.availableTowerIds,
-  });
-  game.paused = false;
-  game.speed = 1;
-  game.credits = Math.max(0, Math.floor(run.setup.startingCash));
-  game.lives = Math.max(1, Math.floor(run.setup.startingLives));
-  game.startingLives = game.lives;
-  game.recorder.setStartingResources(game.credits, game.lives);
-
-  if (run.summary.daily) {
-    const challenge = dailyChallengeForId(run.summary.daily);
-    if (!challenge) return unverifiable(`unsupported daily id ${run.summary.daily}`);
-    if (challenge.mapId !== map.id || challenge.diffId !== diff.id) {
-      return unverifiable('daily challenge does not match replay setup');
-    }
-    game.startDailyChallenge(challenge);
-  }
+  const built = setupReplayGame(run);
+  if ('error' in built) return unverifiable(built.error);
+  const game = built.game;
 
   const allEvents = mergedEvents(run, bundle.chunks);
   const actions = allEvents
@@ -428,6 +441,104 @@ function hashMap(map: GameMap): string {
 
 export function reSimulateUploadBundle(bundle: RunUploadBundle): ReSimResult {
   return reSimulate(bundle);
+}
+
+// ── Deterministic playback driver ────────────────────────────────────────────
+// The replay viewer used to *cosmetically re-enact* a run (enemies streamed down
+// the path off scrub time, towers fired on a fake cadence) because the engine was
+// assumed non-deterministic. It isn't: gameplay routes through a seeded PRNG, and
+// the server already re-simulates runs bit-for-bit to verify them. This driver
+// exposes that same stepping incrementally so the viewer can render the REAL engine
+// state at any scrub position — a frame-accurate replay, not a reconstruction.
+export interface ReplayPlayback {
+  /** live engine — render it with the normal render() each frame */
+  readonly game: Game;
+  /** seconds of the final recorded tick (scrub domain upper bound) */
+  readonly endT: number;
+  /** advance/rewind the sim so game reflects state at scrub time `tSeconds` */
+  seekTo(tSeconds: number): void;
+}
+
+// Deep-freeplay marathons record tens of thousands of terminals; re-stepping the
+// whole run on every backward scrub would stutter, so those fall back to the
+// lightweight reconstruction. Campaign/daily clears sit far below this.
+const PLAYBACK_KILL_CAP = 30_000;
+
+/**
+ * Build a frame-accurate playback driver for a run, or null when the run cannot be
+ * faithfully re-simulated on this client (schema/engine/balance drift, unresolved
+ * daily, missing tick timing, or a marathon past the kill cap). Callers fall back
+ * to the cosmetic reconstruction on null. Expects `run.events` already merged with
+ * its chunk events (fetchRunReplay does this).
+ */
+export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
+  if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return null;
+  if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) return null;
+  if ((run.summary.kills ?? 0) > PLAYBACK_KILL_CAP) return null;
+
+  // Balance must match: re-running under different tower/enemy math would render a
+  // battle that never happened. Mirrors reSimulate's balance guard (the sentinel
+  // fallback to the build tag means "no remote balance doc" → identity config).
+  const currentBalance = balanceVersion();
+  const recordedBalance = run.setup.balanceVersion === run.build ? '' : (run.setup.balanceVersion ?? '');
+  if (recordedBalance !== currentBalance) return null;
+
+  const events = Array.isArray(run.events) ? run.events : [];
+  const actions = events
+    .filter((event) => ACTION_TYPES.has(event.type) && validSimTick(event))
+    .map((event) => ({ event, tick: simTick(event) }))
+    .sort((a, b) => a.tick - b.tick);
+  // Every action must carry exact tick timing, or the re-sim can't place it — same
+  // rule reSimulate enforces. A run with actions but no valid ticks is not drivable.
+  if (events.some((event) => ACTION_TYPES.has(event.type)) && actions.length === 0) return null;
+
+  const endEvent = [...events].reverse().find((event) => event.type === 'run_end');
+  const endTick = validSimTick(endEvent)
+    ? simTick(endEvent)
+    : actions.length ? actions[actions.length - 1].tick : 0;
+  const initialSpeed = eventSpeed(events[0]) ?? 1;
+
+  const first = setupReplayGame(run);
+  if ('error' in first) return null;
+
+  let game = first.game;
+  let cursor = 0;
+  let currentSpeed = initialSpeed;
+  game.speed = initialSpeed;
+
+  const reset = () => {
+    // Backward seeks rebuild from the recorded seed and replay forward — the engine
+    // is forward-only, and snapshots hold no restorable full state.
+    const rebuilt = setupReplayGame(run);
+    if ('error' in rebuilt) return;
+    game = rebuilt.game;
+    game.speed = initialSpeed;
+    cursor = 0;
+    currentSpeed = initialSpeed;
+  };
+
+  const currentTick = () => Math.round(game.time / Game.SIM_STEP);
+
+  const seekTo = (tSeconds: number) => {
+    const targetTick = Math.max(0, Math.round(tSeconds / Game.SIM_STEP));
+    if (targetTick < currentTick()) reset();
+    while (cursor < actions.length && actions[cursor].tick <= targetTick) {
+      const { event, tick } = actions[cursor];
+      game.speed = currentSpeed;
+      advanceToTick(game, tick);
+      applyAction(game, event);
+      currentSpeed = eventSpeed(event) ?? currentSpeed;
+      cursor++;
+    }
+    game.speed = currentSpeed;
+    advanceToTick(game, targetTick);
+  };
+
+  return {
+    get game() { return game; },
+    endT: endTick * Game.SIM_STEP,
+    seekTo,
+  };
 }
 
 // The functions bundle re-simulates outside the browser, where the boot-time

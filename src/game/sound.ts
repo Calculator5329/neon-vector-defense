@@ -88,6 +88,14 @@ export function audioDebug() {
 // ---- separate SFX / music controls ----
 let sfxOn = !progress.audioMuted;
 export function setSfx(on: boolean) { sfxOn = on; progress.audioMuted = !on; }
+
+// Replay playback drives the *real* engine, which fires the same sfx/vox calls a
+// live run does. We silence those while stepping the sim during a replay WITHOUT
+// touching the player's own sfx toggle (progress.audioMuted), so their setting is
+// intact on exit. The viewer wraps each sim step in setReplaySilent(true/false),
+// leaving the replay's own UI clicks audible.
+let replaySilent = false;
+export function setReplaySilent(on: boolean) { replaySilent = on; }
 export function isSfxOn() { return sfxOn; }
 // legacy aliases (muted == sfx off)
 export function setMuted(m: boolean) { setSfx(!m); }
@@ -179,7 +187,7 @@ let preBossPlaylist: string[] = [];
 export function setBossMusic(on: boolean): void {
   if (on === bossActive) return;
   bossActive = on;
-  if (typeof Audio === 'undefined' || !musicOn) return;
+  if (replaySilent || typeof Audio === 'undefined' || !musicOn) return;
   if (on) {
     preBossPlaylist = playlist;
     if (musicEl) { musicEl.pause(); musicEl = null; }
@@ -199,7 +207,7 @@ export function setBossMusic(on: boolean): void {
 const voxCache: Record<string, HTMLAudioElement> = {};
 let lastVox = 0;
 export function vox(name: string) {
-  if (!sfxOn || typeof Audio === 'undefined') return;
+  if (!sfxOn || replaySilent || typeof Audio === 'undefined') return;
   const now = performance.now();
   if (now - lastVox < 2500) return;
   lastVox = now;
@@ -224,7 +232,7 @@ export function playBriefing(src = '/audio/briefing.mp3'): () => void {
 
 /** short musical stinger for run endings */
 export function playStinger(name: 'victory' | 'defeat') {
-  if (!sfxOn || typeof Audio === 'undefined') return;
+  if (!sfxOn || replaySilent || typeof Audio === 'undefined') return;
   const el = new Audio(`/audio/stinger-${name}.mp3`);
   el.volume = 0.4;
   void el.play().catch(() => {});
@@ -280,7 +288,7 @@ function bump(node: AudioScheduledSourceNode) {
 }
 
 function voice(v: Voice) {
-  if (!sfxOn) return;
+  if (!sfxOn || replaySilent) return;
   const c = ensure();
   if (!c || !sfxBus || !delaySend || activeVoices >= MAX_VOICES) return;
   const t = c.currentTime;
@@ -322,7 +330,7 @@ function voice(v: Voice) {
 }
 
 function noiseBurst(dur: number, vol: number, opts: { bp?: number; q?: number; lp?: number; lp2?: number; echo?: number } = {}) {
-  if (!sfxOn) return;
+  if (!sfxOn || replaySilent) return;
   const c = ensure();
   if (!c || !sfxBus || !delaySend || activeVoices >= MAX_VOICES) return;
   const t = c.currentTime;

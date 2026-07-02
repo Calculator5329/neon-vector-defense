@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { W, H } from './game/engine';
-import { buildBackground, drawTowerBody, drawMarkers, drawBlockers, drawReplayEnemy, drawReplayMapEffects } from './game/render';
+import { buildBackground, drawTowerBody, drawMarkers, drawBlockers, drawReplayEnemy, drawReplayMapEffects, render } from './game/render';
+import { createReplayPlayback, type ReplayPlayback } from './game/reSimulate';
+import { setReplaySilent } from './game/sound';
 import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
 import { getWave } from './game/waves';
@@ -391,6 +393,30 @@ function drawCallout(ctx: CanvasRenderingContext2D, win: { wave: number; startT:
   ctx.restore();
 }
 
+// Frame-accurate playback renders the real engine with the live renderer; there is
+// no placement/selection/aim UI in a replay, so all interaction fields are inert.
+const REPLAY_RENDER_UI = { hover: null, placing: null, canPlaceHere: false, selected: null, aimingStrike: false } as const;
+
+/** Floating event feed (placements / upgrades / abilities) — shared by both replay paths. */
+function drawEventFeed(ctx: CanvasRenderingContext2D, events: RunEvent[], time: number) {
+  const feed = recentEvents(events, time, EVENT_FEED_S);
+  if (!feed.length) return;
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = "14px 'Orbitron', sans-serif";
+  ctx.shadowColor = 'rgba(0,0,0,0.85)';
+  ctx.shadowBlur = 4;
+  let ey = H - 130;
+  for (const ev of feed) {
+    ctx.globalAlpha = Math.min(1, (1 - ev.age / EVENT_FEED_S) * 1.5);
+    ctx.fillStyle = ev.label[0] === '✦' ? '#ffd34d' : '#cfe0ff';
+    ctx.fillText(ev.label, 28, ey);
+    ey -= 26;
+  }
+  ctx.restore();
+}
+
 type Phase = 'loading' | 'notfound' | 'ready';
 
 export default function ReplayViewer({ runId, onExit }: { runId: string; onExit: () => void }) {
@@ -475,6 +501,15 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const [speed, setSpeed] = useState(1);
   const [hud, setHud] = useState(() => reconstructAt(run, t0));
 
+  // Frame-accurate driver: re-runs the real deterministic engine so the replay
+  // matches the actual game. Null for runs that can't be faithfully re-simulated on
+  // this client (engine/balance drift, partial record, deep-freeplay marathon) — those
+  // fall back to the cosmetic reconstruction below.
+  const driver = useMemo<ReplayPlayback | null>(
+    () => (run.integrity === 'complete' ? createReplayPlayback(run) : null),
+    [run],
+  );
+
   const gameMap = useMemo(() => ALL_MAPS.find((m) => m.id === run.setup.map) ?? null, [run.setup.map]);
   const bg = useMemo(() => (gameMap ? buildBackground(gameMap) : null), [gameMap]);
   const geom = useMemo(() => (gameMap ? buildGeom(gameMap.path) : null), [gameMap]);
@@ -494,6 +529,18 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     const ctx = ctxRef.current ?? (ctxRef.current = c.getContext('2d'));
     if (!ctx) return;
     const time = tRef.current;
+
+    // Frame-accurate path: step the real engine to `time` and draw it with the live
+    // renderer. Audio is silenced only around the sim step so the engine's own
+    // sfx/vox don't fire, while the viewer's UI clicks stay audible.
+    if (driver) {
+      setReplaySilent(true);
+      try { driver.seekTo(time); } finally { setReplaySilent(false); }
+      render(ctx, driver.game, REPLAY_RENDER_UI);
+      drawCallout(ctx, waveWindow(run, time), time, span);
+      drawEventFeed(ctx, run.events, time);
+      return;
+    }
 
     if (bg && gameMap) {
       ctx.drawImage(bg, 0, 0);
@@ -575,24 +622,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     drawCallout(ctx, win, time, span);
 
     // floating event feed — placements / upgrades / abilities as they happen
-    const evWindow = EVENT_FEED_S;
-    const feed = recentEvents(run.events, time, evWindow);
-    if (feed.length) {
-      ctx.save();
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
-      ctx.font = "14px 'Orbitron', sans-serif";
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 4;
-      let ey = H - 130;
-      for (const ev of feed) {
-        ctx.globalAlpha = Math.min(1, (1 - ev.age / evWindow) * 1.5);
-        ctx.fillStyle = ev.label[0] === '✦' ? '#ffd34d' : '#cfe0ff';
-        ctx.fillText(ev.label, 28, ey);
-        ey -= 26;
-      }
-      ctx.restore();
-    }
+    drawEventFeed(ctx, run.events, time);
   };
 
   // ── animation / scrub loop ──
@@ -738,7 +768,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
 
       {hintOpen && (
         <div className="replay-hint" role="note">
-          <span>Reconstructed from saved snapshots. <b>Space</b> play/pause · <b>←/→</b> jump wave · <b>Shift+←/→</b> nudge · drag the bar to scrub.</span>
+          <span>{driver ? 'Frame-accurate replay of the recorded run.' : 'Reconstructed from saved snapshots.'} <b>Space</b> play/pause · <b>←/→</b> jump wave · <b>Shift+←/→</b> nudge · drag the bar to scrub.</span>
           <button className="replay-hint-x" aria-label="Dismiss tip" onClick={() => { setHintOpen(false); sfx.click(); }}>✕</button>
         </div>
       )}
