@@ -40,7 +40,8 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `storage.ts` | localStorage progression (kills, archive, blueprints, settings) |
 | `meta.ts` | Warden Rank, Salvage, Operations Board quests, Watch Streak |
 | `balanceConfig.ts` | Remote Firestore `config/balance` overrides (hot-patch) |
-| `freeplay.ts` | Daily seed, contracts, relics, risk waves, score multiplier |
+| `dailyChallenge.ts` | UTC daily challenge seed, modifier selection, arsenal/twist/boon helpers |
+| `freeplay.ts` | Freeplay contracts, relics, risk waves, score multiplier |
 | `ghostCurve.ts` / `ghostCurveData.ts` | Bot-rival pacing curves for in-run HUD |
 | `dossier.ts` / `DossierShare.tsx` | End-of-run share card generation |
 | `ReplayViewer.tsx` | Battle Plan flipbook (snapshot reconstruction, not re-sim) |
@@ -58,7 +59,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 
 ### Game loop (`App.tsx` + `engine.ts`)
 
-1. Player selects map, protocol, and optional freeplay modifiers from the menu
+1. Player selects map/protocol or the UTC Daily Challenge protocol from the menu
 2. `Game` instance runs a fixed-timestep update loop; `render()` draws to canvas each frame
 3. `RunRecorder` captures events and wave snapshots during play
 4. On terminal state: upload replay, optional leaderboard submit (via callable), meta credit, dossier share
@@ -135,7 +136,7 @@ Heavy surfaces are lazy-loaded off the player path:
 | Firestore | `runs/{runId}/chunks/cN` | Public overflow replay events |
 | Firestore | `replayOwners/{uid}/runs/{runId}` | Replay ownership index for admin deletion |
 | Firestore | `boards/{board}/scores` | Leaderboard rows (server-written only) |
-| Firestore | `dailyBoards/{daily}/scores` | Daily Freeplay leaderboard rows |
+| Firestore | `dailyBoards/{daily}/scores` | Daily Challenge leaderboard rows |
 | Firestore | `runAnalytics`, `runCheckpoints` | Private telemetry/checkpoints (consent-gated) |
 | Firestore | `feedback/{id}` | Server-created feedback and admin replies |
 | Firestore | `config/balance` | Optional live balance overrides |

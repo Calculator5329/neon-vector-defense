@@ -276,7 +276,7 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
   if (!validDailyBoard(board)) return false;
   const serverUid = await ensureServerUid();
   if (!serverUid) return false;
-  const payload = scorePayload({ ...entry, freeplay: true, daily: board }, serverUid);
+  const payload = scorePayload({ ...entry, freeplay: false, daily: board }, serverUid);
   try {
     const res = await withTimeout(callSubmitDailyScore({ dailyId: board, entry: payload }));
     if (res.data?.accepted) { invalidateDailyBoardCache(board); return true; }
@@ -736,7 +736,7 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
         cash: Number(data.cash ?? 0),
         kills: Number(data.kills ?? 0),
         wave: Number(data.wave ?? 0),
-        freeplay: true,
+        freeplay: false,
         ts: Number(data.ts ?? 0),
         uid: data.uid ?? '',
         runId: data.runId ?? '',

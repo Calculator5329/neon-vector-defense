@@ -3,7 +3,7 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (release hardening + single-ending sunset passes)
+Last updated: 2026-07-02 (Daily Challenge menu + release hardening passes)
 
 ## Current shipped pillars
 
@@ -12,7 +12,8 @@ Last updated: 2026-07-02 (release hardening + single-ending sunset passes)
 | Core tower-defense loop | 8 sectors, 4 protocols, 19 towers, 6 abilities, 18 enemy archetypes | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts` |
 | Battle Plan replays | Public `runs/{runId}` docs with required manifests, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, canonical score values, server-time ordering | `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
-| Freeplay | Campaign continuation, deterministic Daily Freeplay, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
+| Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
+| Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
 | Meta loop | Warden Rank, Salvage, Operations Board, Watch Streak; cosmetic/QoL only | `meta.ts`, `OperationsBoard.tsx`, `tests/e2e/ux-ui.spec.ts` |
 | AI rival ghosts | In-run HUD and modal comparing current run to bundled bot profiles | `BotGhostHud.tsx`, `ghostCurve.ts`, `ghostCurveData.ts` |
 | Privacy and admin | Age/consent gate, private feedback receipts, admin replies, admin-only deletion tooling | `consent.ts`, `leaderboard.ts`, `functions/src/index.ts`, `PrivacyView.tsx` |
@@ -27,6 +28,9 @@ Last updated: 2026-07-02 (release hardening + single-ending sunset passes)
 - Public replay manifests are now mandatory for new uploads, and score
   validation treats missing manifests as incomplete data rather than legacy
   compatibility.
+- Daily Challenge now appears as a fifth deploy protocol, starts as a normal
+  wave-1 run, and writes non-freeplay daily leaderboard rows ranked by wave and
+  kills.
 - AI-rival comparisons were deepened and the modal layout was polished.
 - AI helper privacy copy now explains what the assistant sends and why.
 - Deploy checks now verify Node/Java/Firebase project prerequisites before rules/deploy work.
@@ -70,7 +74,7 @@ Last updated: 2026-07-02 (release hardening + single-ending sunset passes)
 
 1. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
 2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
-3. **In flight (Codex missions)**: Daily Challenge rework + menu redesign; two new towers + balance pass + admin balance console.
+3. **In flight (Codex missions)**: two new towers + balance pass + admin balance console.
 4. **Replay re-simulation** - server-side freeplay/mode validation and re-simulation paths before leaderboard incentives grow (deterministic sim groundwork is in).
 
 ## Deferred / bigger bets
@@ -89,7 +93,7 @@ Last updated: 2026-07-02 (release hardening + single-ending sunset passes)
 - [x] Server-validated leaderboard writes with replay-token verification
 - [x] Remote balance hot-patch
 - [x] Replay-of-the-Day menu spotlight
-- [x] Daily Freeplay seed
+- [x] Daily Challenge protocol
 - [x] App Check staged-enforcement runbook and deploy preflight
 - [x] Touch-first responsive command layout (short-landscape tier)
 - [x] Replay completion manifest and chunk validation (manifests now REQUIRED)

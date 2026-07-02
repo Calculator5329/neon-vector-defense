@@ -867,9 +867,10 @@ test.describe('run telemetry model', () => {
     expect(freeplay.eventTypes).toContain('freeplay_checkpoint_submit');
   });
 
-  test('daily freeplay starts with a post-campaign bankroll', async ({ page }) => {
+  test('daily challenge starts as a wave-one daily protocol', async ({ page }) => {
     await openDemoMenu(page);
-    await page.getByRole('button', { name: 'DAILY FREEPLAY' }).click();
+    await page.getByTestId('diff-card-daily').click();
+    await page.getByTestId('deploy-button').click();
     await expect(page.getByTestId('game-root')).toBeVisible();
 
     const daily = await page.evaluate(() => {
@@ -877,12 +878,15 @@ test.describe('run telemetry model', () => {
       const setup = game.buildRunUploadBundle('DAILYTEST', 'test-build').run.setup;
       return {
         freeplay: game.freeplay,
-        isDaily: game.isDailyFreeplay,
+        isDaily: game.isDailyChallenge,
         wave: game.wave,
         credits: game.credits,
         lives: game.lives,
-        contractId: game.freeplayState.contract?.id,
-        dailyId: game.freeplayState.daily?.id,
+        contractId: game.freeplayState.contract?.id ?? null,
+        dailyId: game.dailyChallenge?.id,
+        summaryDaily: game.publicRunSummary('DAILYTEST', 'test-build').daily,
+        summaryFreeplay: game.publicRunSummary('DAILYTEST', 'test-build').freeplay,
+        summaryMultiplier: game.publicRunSummary('DAILYTEST', 'test-build').scoreMultiplierEnd,
         dailyTowerIds: [...game.dailyTowerIds],
         setupTowerIds: setup.availableTowerIds,
         setupCash: setup.startingCash,
@@ -891,24 +895,28 @@ test.describe('run telemetry model', () => {
       };
     });
 
-    expect(daily.freeplay).toBe(true);
+    expect(daily.freeplay).toBe(false);
     expect(daily.isDaily).toBe(true);
-    expect(daily.wave).toBeGreaterThanOrEqual(50);
-    expect(daily.credits).toBeGreaterThanOrEqual(18000);
+    expect(daily.wave).toBe(0);
+    expect(daily.credits).toBe(daily.setupCash);
     expect(daily.setupCash).toBe(daily.credits);
     expect(daily.lives).toBeGreaterThan(0);
-    expect(daily.contractId).toBeTruthy();
+    expect(daily.contractId).toBeNull();
     expect(daily.dailyId).toContain('daily-');
-    expect(daily.dailyTowerIds.length).toBeGreaterThanOrEqual(10);
+    expect(daily.summaryDaily).toBe(daily.dailyId);
+    expect(daily.summaryFreeplay).toBe(false);
+    expect(daily.summaryMultiplier).toBeUndefined();
+    expect(daily.dailyTowerIds.length).toBeGreaterThan(0);
     expect(daily.setupTowerIds.sort()).toEqual(daily.dailyTowerIds.sort());
-    expect(daily.relicOffers).toBeGreaterThan(0);
+    expect(daily.relicOffers).toBe(0);
     expect(daily.canBank).toBe(false);
   });
 
-  test('daily freeplay does not mutate campaign progress', async ({ page }) => {
+  test('daily challenge does not mutate campaign progress', async ({ page }) => {
     await seedProgress(page, { runs: 2, kills: 12, totalWaves: 4, archive: [], best: {}, history: [] });
     await page.goto('/');
-    await page.getByRole('button', { name: 'DAILY FREEPLAY' }).click();
+    await page.getByTestId('diff-card-daily').click();
+    await page.getByTestId('deploy-button').click();
     await expect(page.getByTestId('game-root')).toBeVisible();
 
     const daily = await page.evaluate(() => {
@@ -921,7 +929,7 @@ test.describe('run telemetry model', () => {
       game.queue = [];
       game.enemies = [];
       game.paused = false; // mobile portrait auto-pauses behind the rotate overlay
-      game.wave = 50;
+      game.wave = 4;
       game.update(0.05); // >= one full fixed sim step (1/60) — 0.016 banks in the accumulator and may run zero ticks
       game.finishRun(false, 'gameover');
       const after = window.localStorage.getItem('nvd-progress-v1');
@@ -929,12 +937,13 @@ test.describe('run telemetry model', () => {
         progressUnchanged: before === after,
         progress: after ? JSON.parse(after) : null,
         lockedText: lockedShop?.querySelector('.shop-cost')?.textContent ?? '',
+        hasLockedTower: Boolean(lockedShop),
         dailyIds,
       };
     });
 
-    expect(daily.dailyIds.length).toBeGreaterThanOrEqual(10);
-    expect(daily.lockedText).toBe('daily pool');
+    expect(daily.dailyIds.length).toBeGreaterThan(0);
+    if (daily.hasLockedTower) expect(daily.lockedText).toBe('daily pool');
     expect(daily.progressUnchanged).toBe(true);
     expect(daily.progress.runs).toBe(2);
     expect(daily.progress.kills).toBe(12);

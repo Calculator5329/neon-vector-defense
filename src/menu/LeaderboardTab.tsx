@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { boardId, fetchTopResult, fetchGlobalTopResult, type ScoreEntry, type RankedScoreEntry } from '../game/leaderboard';
+import { boardId, fetchTopResult, fetchGlobalTopResult, fetchDailyTop, type ScoreEntry, type RankedScoreEntry } from '../game/leaderboard';
+import { dailyChallenge, type DailyChallenge } from '../game/dailyChallenge';
 import { cachedServerUid } from '../game/anonAuth';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
@@ -32,12 +33,14 @@ function WatchCell({ runId }: { runId?: string }) {
   );
 }
 
-export function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDef }) {
-  const [fp, setFp] = useState(false);
+export function LeaderboardTab({ map, diff, daily = dailyChallenge() }: { map: GameMap; diff: DifficultyDef; daily?: DailyChallenge }) {
+  const [mode, setMode] = useState<'campaign' | 'freeplay' | 'daily'>('campaign');
   const [globalRows, setGlobalRows] = useState<RankedScoreEntry[] | null>(null);
   const [localRows, setLocalRows] = useState<ScoreEntry[] | null>(null);
+  const [dailyRows, setDailyRows] = useState<ScoreEntry[] | null>(null);
   const [globalError, setGlobalError] = useState(false);
   const [localError, setLocalError] = useState(false);
+  const fp = mode === 'freeplay';
   const board = boardId(map.id, diff.id, fp);
   // Server rows carry the authenticated anonymous uid; the local uid fallback
   // only covers browsers that read boards before anonymous sign-in has warmed.
@@ -46,8 +49,15 @@ export function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDe
     let live = true;
     setGlobalRows(null);
     setLocalRows(null);
+    setDailyRows(null);
     setGlobalError(false);
     setLocalError(false);
+    if (mode === 'daily') {
+      fetchDailyTop(daily.id, 20).then((rows) => { if (live) setDailyRows(rows); }).catch(() => {
+        if (live) { setDailyRows([]); setGlobalError(true); }
+      });
+      return () => { live = false; };
+    }
     Promise.all([fetchGlobalTopResult(fp, 20), fetchTopResult(board, 5)]).then(([global, local]) => {
       if (!live) return;
       setGlobalRows(global.rows);
@@ -56,16 +66,46 @@ export function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDe
       setLocalError(local.error);
     });
     return () => { live = false; };
-  }, [board, fp]);
+  }, [board, daily.id, fp, mode]);
   return (
     <div className="board-tab">
       <div className="board-head">
-        <div className="board-title">GLOBAL LEADERBOARD <span>{fp ? 'FREEPLAY' : 'CAMPAIGN'}</span></div>
+        <div className="board-title">GLOBAL LEADERBOARD <span>{mode === 'daily' ? 'DAILY' : fp ? 'FREEPLAY' : 'CAMPAIGN'}</span></div>
         <div className="board-modes">
-          <button className={!fp ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(false); setFp(false); sfx.click(); }}>CAMPAIGN</button>
-          <button className={fp ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(true); setFp(true); sfx.click(); }}>FREEPLAY</button>
+          <button className={mode === 'campaign' ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(false); setMode('campaign'); sfx.click(); }}>CAMPAIGN</button>
+          <button className={mode === 'freeplay' ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(true); setMode('freeplay'); sfx.click(); }}>FREEPLAY</button>
+          <button className={mode === 'daily' ? 'on' : ''} onClick={() => { setMode('daily'); sfx.click(); }}>DAILY</button>
         </div>
       </div>
+      {mode === 'daily' ? (
+        <div className="board-list board-global fp daily-board-mode" data-testid="daily-leaderboard-mode">
+          <div className="board-row board-row-head">
+            <span className="board-rank">#</span>
+            <span className="board-name">CALLSIGN</span>
+            <span className="board-wave">WAVE</span>
+            <span className="board-kills">HULLS</span>
+            <span className="board-cash">CREDITS</span>
+            <span className="board-watch">REPLAY</span>
+          </div>
+          {dailyRows === null ? (
+            <div className="board-empty">Checking today's daily board...</div>
+          ) : globalError ? (
+            <div className="board-empty">Daily leaderboard uplink failed - try again in a moment.</div>
+          ) : dailyRows.length === 0 ? (
+            <div className="board-empty">No daily records yet - deploy the challenge and set the pace.</div>
+          ) : dailyRows.map((r, i) => (
+            <div key={`${r.runId || r.name}-${i}`} className={`board-row ${r.uid === myUid ? 'me' : ''}`}>
+              <span className="board-rank">{i + 1}</span>
+              <BoardName r={r} mine={r.uid === myUid} fp />
+              <span className="board-wave">{r.wave}</span>
+              <span className="board-kills">{r.kills.toLocaleString()}</span>
+              <span className="board-cash">{`\u232c${r.cash.toLocaleString()}`}</span>
+              <WatchCell runId={r.runId} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
       <div className={`board-list board-global ${fp ? 'fp' : ''}`}>
         <div className="board-row board-row-head">
           <span className="board-rank">#</span>
@@ -129,6 +169,8 @@ export function LeaderboardTab({ map, diff }: { map: GameMap; diff: DifficultyDe
         )}
       </div>
       <div className="board-foot">{fp ? 'Global freeplay ranks by wave reached' : 'Global campaign ranks by credits earned'} - local board follows your deploy selection</div>
+        </>
+      )}
     </div>
   );
 }

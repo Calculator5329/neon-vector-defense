@@ -41,6 +41,7 @@ export const METRIC_EVENTS = {
   FREEPLAY_ENTER: 'freeplay_enter',
   FREEPLAY_CONTRACT_SELECT: 'freeplay_contract_select',
   FREEPLAY_DAILY_START: 'freeplay_daily_start',
+  DAILY_CHALLENGE_START: 'daily_challenge_start',
   FREEPLAY_RELIC_OFFER: 'freeplay_relic_offer',
   FREEPLAY_RELIC_SELECT: 'freeplay_relic_select',
   FREEPLAY_RISK_OFFER: 'freeplay_risk_offer',

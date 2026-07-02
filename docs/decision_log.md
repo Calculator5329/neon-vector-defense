@@ -16,6 +16,18 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   site keys, a runbook verifies token issuance and metrics first, and callable
   enforcement flips only after the operator validates production traffic.
 
+## 2026-07-02 - Daily Challenge replaces Daily Freeplay
+
+- Daily Challenge is a fifth deploy protocol on the menu, generated from the UTC
+  date with fixed map/protocol/modifier conditions for all players.
+- It starts at wave 1 with normal protocol cash and cores, does not enter
+  freeplay, and does not mutate campaign progress or blueprints.
+- Daily leaderboard rows live under `dailyBoards/daily-YYYY-MM-DD`, are
+  submitted with `summary.freeplay == false`, and are ranked by wave, then kills,
+  then server time.
+- Daily meta rewards are once per daily id and remain cosmetic/progression only:
+  they do not feed combat stats, unlock thresholds, score math, or bot pacing.
+
 ## 2026-07-02 - Long Watch and Diplomat's Gambit are retired
 
 - The active campaign is a single-ending flow across Recruit, Veteran, Apex, and
@@ -64,8 +76,9 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
 - Freeplay scoring is contract/relic/risk/rival driven. Contracts set the base
   multiplier; relics, risk packets, and rivals can alter income, pressure, and
   score multiplier.
-- Daily Freeplay uses a deterministic daily seed with a fixed tower pool and does
-  not mutate campaign progress.
+- Daily Challenge is intentionally separate from freeplay. It reuses the replay
+  validation path but not freeplay contracts, relics, checkpoint banking, or score
+  multipliers.
 
 ## 2026-06-28 - Meta progression must remain off the combat path
 

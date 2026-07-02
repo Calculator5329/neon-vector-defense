@@ -2469,7 +2469,7 @@ function FreeplayLabTab() {
     ['Adaptive Economy', 'If cash float stays high, freeplay can spawn bounty elites that cost attention to kill, while reducing passive wave bonuses.'],
     ['Tower Fusion Lab', 'At high waves, combine two maxed towers into a hybrid role with a downside. This gives excess cash a fantasy sink.'],
     ['Map Events', 'Random freeplay events per sector: lanes invert briefly, blockers power up, beacon zones move, storm disables sensors for one wave.'],
-    ['Daily Endless Seed', 'One global daily freeplay seed with fixed modifiers. Everyone competes on the same conditions, which makes scores feel fairer.'],
+    ['Daily Challenge', 'One global daily protocol with fixed modifiers. Everyone competes on the same conditions without freeplay contracts or score multipliers.'],
   ] as const;
   return (
     <div className="adm-content">

@@ -38,6 +38,8 @@ export interface MetaState {
   questProgress: Record<string, number>;
   questClaimed: string[];
   creditedRuns: string[];
+  creditedDailies: string[];
+  bestDailyWave: number;
   bestStreak: number;
   comebackSeenFor: string;
   cosmetics: string[];
@@ -47,8 +49,8 @@ export interface MetaState {
 function fresh(): MetaState {
   return {
     xp: 0, salvage: 0, salvageLifetime: 0, seeded: false,
-    questProgress: {}, questClaimed: [], creditedRuns: [],
-    bestStreak: 0, comebackSeenFor: '', cosmetics: [], cosmeticEquipped: {},
+    questProgress: {}, questClaimed: [], creditedRuns: [], creditedDailies: [],
+    bestDailyWave: 0, bestStreak: 0, comebackSeenFor: '', cosmetics: [], cosmeticEquipped: {},
   };
 }
 function load(): MetaState {
@@ -113,7 +115,7 @@ export function rankFromXp(xp: number): RankInfo {
 export type RunOutcome = 'victory' | 'gameover' | 'abandoned';
 export interface RunRewardInput {
   wave: number; kills: number; cashEarned: number; won: boolean;
-  freeplay: boolean; diffId: string; isDailyFreeplay: boolean; outcome: RunOutcome;
+  freeplay: boolean; diffId: string; isDailyChallenge: boolean; outcome: RunOutcome; dailyId?: string;
 }
 export interface RunMetaReward { xp: number; salvage: number; breakdown: { label: string; xp: number; salvage: number }[]; }
 
@@ -130,8 +132,6 @@ export function deriveRunReward(input: RunRewardInput): RunMetaReward {
   add(`Wave ${input.wave}`, input.wave * 10 * mult, input.wave * 2);
   add(`${input.kills.toLocaleString()} hulls`, input.kills * 1 * mult, input.cashEarned / 200);
   if (input.won) add('Sector held', 250 * mult, 60);
-  if (input.isDailyFreeplay) add('Daily op', 50, 20);
-
   const xp = breakdown.reduce((s, b) => s + b.xp, 0);
   const salvage = breakdown.reduce((s, b) => s + b.salvage, 0);
   return { xp: Math.round(xp), salvage: Math.round(salvage), breakdown };
@@ -236,6 +236,7 @@ export const meta = {
   get rank(): RankInfo { ensureSeeded(); return rankFromXp(cache.xp); },
   get salvage(): number { return cache.salvage; },
   get salvageLifetime(): number { return cache.salvageLifetime; },
+  get bestDailyWave(): number { return cache.bestDailyWave; },
   get streak(): StreakInfo { return computeStreak(progress.sessionDays); },
 
   board(now = new Date()): QuestWithProgress[] {
@@ -254,6 +255,17 @@ export const meta = {
     if (input.outcome === 'abandoned') return zero;
 
     const reward = deriveRunReward(input);
+    const dailyId = input.dailyId && /^daily-\d{4}-\d{2}-\d{2}$/.test(input.dailyId) ? input.dailyId : '';
+    if (input.isDailyChallenge && dailyId && !cache.creditedDailies.includes(dailyId)) {
+      const dailyXp = 120;
+      const dailySalvage = 45;
+      reward.xp += dailyXp;
+      reward.salvage += dailySalvage;
+      reward.breakdown.push({ label: 'Daily Challenge complete', xp: dailyXp, salvage: dailySalvage });
+      cache.creditedDailies.push(dailyId);
+      if (cache.creditedDailies.length > 45) cache.creditedDailies = cache.creditedDailies.slice(-45);
+    }
+    if (input.isDailyChallenge) cache.bestDailyWave = Math.max(cache.bestDailyWave, Math.max(0, Math.floor(input.wave)));
     if (input.won && !input.freeplay && input.diffId === 'extinction' && !cache.cosmetics.includes(EXTINCTION_CAPSTONE_PALETTE)) {
       cache.cosmetics.push(EXTINCTION_CAPSTONE_PALETTE);
       reward.salvage += EXTINCTION_CAPSTONE_SALVAGE;

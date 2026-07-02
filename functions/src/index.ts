@@ -122,6 +122,15 @@ function boardIsFreeplay(board: string): boolean {
   return board.endsWith('_fp');
 }
 
+function dailyIdForOffset(offsetDays: number): string {
+  const d = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  return `daily-${d.toISOString().slice(0, 10)}`;
+}
+
+function dailyIsCurrent(board: string): boolean {
+  return board === dailyIdForOffset(0) || board === dailyIdForOffset(-1);
+}
+
 function readClaim(raw: unknown): ClaimedScore | null {
   if (!raw || typeof raw !== 'object') return null;
   const d = raw as Record<string, unknown>;
@@ -198,7 +207,7 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   const endedAt = n(run.endedAt);
   if (createdAt <= 0 || endedAt < createdAt) return { reason: 'bad-timestamps' };
 
-  const wantFreeplay = isDaily || boardIsFreeplay(board);
+  const wantFreeplay = !isDaily && boardIsFreeplay(board);
   const canonicalCash = canonicalLeaderboardCash(Math.max(recCashEarned, recCredits), wantFreeplay, summary.scoreMultiplierEnd);
   const cashCeiling = Math.max(recCashEarned, recCredits, canonicalCash) * SCORE_SLACK + 5;
   if (claim.cash > cashCeiling) return { reason: 'cash-too-high' };
@@ -216,7 +225,7 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
     if (m?.groups && runDiff && runDiff !== m.groups.diff) return { reason: 'diff-mismatch' };
     if (summary.daily) return { reason: 'daily-on-board' };
   } else {
-    if (!summary.freeplay) return { reason: 'daily-not-freeplay' };
+    if (summary.freeplay) return { reason: 'daily-is-freeplay' };
     if (summary.daily !== board) return { reason: 'daily-mismatch' };
   }
 
@@ -246,7 +255,7 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
     cash: canonical.cash,
     kills: canonical.kills,
     wave: canonical.wave,
-    freeplay: isDaily ? true : boardIsFreeplay(board),
+    freeplay: !isDaily && boardIsFreeplay(board),
     ts: acceptedAt,
     clientTs: claim.ts,
     uid: claim.uid,
@@ -429,9 +438,10 @@ export const submitDailyScore = onCall(
     const authUid = requireAuthUid(req);
     const dailyId = String((req.data as Record<string, unknown> | undefined)?.dailyId ?? '');
     if (!DAILY_BOARD_RE.test(dailyId)) throw new HttpsError('invalid-argument', 'bad-daily');
+    if (!dailyIsCurrent(dailyId)) throw new HttpsError('failed-precondition', 'stale-daily');
     const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
     if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
-    return processSubmit({ ...claim, uid: authUid, freeplay: true, daily: dailyId }, dailyId, true);
+    return processSubmit({ ...claim, uid: authUid, freeplay: false, daily: dailyId }, dailyId, true);
   },
 );
 

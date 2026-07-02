@@ -198,6 +198,19 @@ describe('public replay rules', () => {
     }));
   });
 
+  test('allow daily challenge replay summaries without freeplay or multiplier', async () => {
+    const db = playerDb();
+    await assertSucceeds(setDoc(doc(db, 'runs', runId), {
+      ...validRun,
+      summary: { ...validSummary, freeplay: false, daily: 'daily-2026-07-01' },
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}dailybad`), {
+      ...validRun,
+      runId: `${runId}dailybad`,
+      summary: { ...validSummary, freeplay: false, daily: 'daily-2026-07-01', scoreMultiplierEnd: 2 },
+    }));
+  });
+
   test('allow replay chunk create and deny chunk updates', async () => {
     const db = playerDb();
     const ref = doc(db, 'runs', runId, 'chunks', 'c0');

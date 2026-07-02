@@ -5,7 +5,8 @@ import { ALL_MAPS, DIFFICULTIES } from '../game/maps';
 import { ENEMY_LIST } from '../game/enemies';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
-import type { DailyFreeplaySeed } from '../game/freeplay';
+import { dailyModifierNames, type DailyChallenge } from '../game/dailyChallenge';
+import { fetchDailyTop, type ScoreEntry } from '../game/leaderboard';
 import { fetchReplayOfTheDay, type ReplaySpotlight } from '../game/replaySpotlight';
 
 import { sfx } from '../game/sound';
@@ -13,7 +14,7 @@ import OperationsBoard from '../OperationsBoard';
 import Bestiary from '../Bestiary';
 import { meta, rankBandKey } from '../game/meta';
 import type { GameMap, DifficultyDef } from '../game/types';
-import { DEMO_MODE } from '../appShared';
+import { DEMO_MODE, isRunId } from '../appShared';
 import { LeaderboardTab } from './LeaderboardTab';
 import { HowToPlay } from '../game-ui/HowToPlay';
 import { SettingsPanel } from '../game-ui/SettingsPanel';
@@ -57,14 +58,116 @@ function ReplayOfTheDayCard() {
   );
 }
 
+function utcDailyId(offsetDays = 0): string {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offsetDays));
+  return `daily-${d.toISOString().slice(0, 10)}`;
+}
+
+function dailyCountdown(): string {
+  const now = new Date();
+  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  const ms = Math.max(0, next - now.getTime());
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+function DailyChallengePanel({ challenge }: { challenge: DailyChallenge }) {
+  const [today, setToday] = useState<ScoreEntry[] | null>(null);
+  const [yesterday, setYesterday] = useState<ScoreEntry[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    Promise.all([fetchDailyTop(challenge.id, 5), fetchDailyTop(utcDailyId(-1), 1)]).then(([t, y]) => {
+      if (!live) return;
+      setToday(t);
+      setYesterday(y);
+    });
+    return () => { live = false; };
+  }, [challenge.id]);
+  const top = today?.[0];
+  return (
+    <div className="daily-challenge-panel" data-testid="daily-challenge-panel">
+      <div className="daily-panel-head">
+        <div>
+          <div className="daily-freeplay-kicker">TODAY'S DAILY CHALLENGE</div>
+          <div className="daily-freeplay-title">{challenge.title}</div>
+        </div>
+        <div className="daily-countdown">ROLLOVER {dailyCountdown()}</div>
+      </div>
+      <div className="daily-mod-grid">
+        {[challenge.arsenal, challenge.twist, challenge.boon].map((mod) => (
+          <div key={mod.id} className="daily-mod">
+            <span>{mod.short}</span>
+            <b>{mod.name}</b>
+            <em>{mod.desc}</em>
+          </div>
+        ))}
+      </div>
+      <div className="daily-board-mini">
+        <div className="daily-board-title">
+          <span>Today's Top 5</span>
+          <b>{top ? `W${top.wave} · ${top.name}` : 'No score yet'}</b>
+        </div>
+        {today === null ? (
+          <div className="daily-empty">Checking daily uplink...</div>
+        ) : today.length === 0 ? (
+          <div className="daily-empty">No daily records yet.</div>
+        ) : today.map((row, i) => (
+          <div key={`${row.runId || row.name}-${i}`} className="daily-row">
+            <span>{i + 1}</span>
+            <b>{row.name}</b>
+            <em>W{row.wave}</em>
+            <small>{row.kills.toLocaleString()} hulls</small>
+            {isRunId(row.runId) ? <a href={`/?run=${row.runId}`}>WATCH</a> : <i />}
+          </div>
+        ))}
+      </div>
+      <div className="daily-yesterday">
+        Yesterday's winner: {yesterday === null ? 'checking...' : yesterday[0] ? `${yesterday[0].name} at W${yesterday[0].wave}` : 'no posted run'}
+      </div>
+    </div>
+  );
+}
+
+function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
+  const rank = meta.rank;
+  const streak = meta.streak;
+  return (
+    <aside className="commander-rail" data-testid="commander-rail">
+      <button className="rail-rank" onClick={onOpenOps} title="Open Operations">
+        <img className="rail-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
+        <span>
+          <b>{rank.title}</b>
+          <i><span style={{ width: `${rank.pct * 100}%` }} /></i>
+        </span>
+      </button>
+      <div className="rail-wallet">
+        <span><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()} Salvage</span>
+        <span>{streak.current} day watch</span>
+      </div>
+      <div className="rail-stats">
+        <div><b>{progress.record.victories}</b><span>lanterns held</span></div>
+        <div><b>{progress.record.kills.toLocaleString()}</b><span>hulls destroyed</span></div>
+        <div><b>{progress.totalWaves}</b><span>waves cleared</span></div>
+        <div><b>{meta.bestDailyWave || '-'}</b><span>best daily wave</span></div>
+      </div>
+      <ReplayOfTheDayCard />
+    </aside>
+  );
+}
+
 export function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
-  dailySeed: DailyFreeplaySeed;
+  dailySeed: DailyChallenge;
   onStart: () => void;
   onStartDaily: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
+  const [deployMode, setDeployMode] = useState<'campaign' | 'daily'>('campaign');
+  const [dailyRows, setDailyRows] = useState<ScoreEntry[] | null>(null);
+  const [rollover, setRollover] = useState(dailyCountdown());
   const [, bumpClaim] = useState(0); // re-read meta.claimableCount() for the nav badge after a claim
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -73,13 +176,21 @@ export function MainMenu(props: {
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
-  const selectedUnlocked = mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
+  const selectedUnlocked = deployMode === 'daily' || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
+  const dailyTop = dailyRows?.[0];
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
   // foesSeen must use the SAME basis the Bestiary acks with (ENEMY_LIST intersection, not the
   // raw persisted list) or a stale/removed enemy id would make the NEW badge stick forever.
   const claimable = DEMO_MODE ? 0 : meta.claimableCount();
   const foesSeen = ENEMY_LIST.filter((d) => progress.enemiesSeen.includes(d.id)).length;
   const foesNew = Math.max(0, foesSeen - progress.bestiaryAck);
+  useEffect(() => {
+    let live = true;
+    setDailyRows(null);
+    fetchDailyTop(props.dailySeed.id, 5).then((rows) => { if (live) setDailyRows(rows); });
+    const timer = window.setInterval(() => setRollover(dailyCountdown()), 30_000);
+    return () => { live = false; window.clearInterval(timer); };
+  }, [props.dailySeed.id]);
 
   return (
     <div className="menu-root">
@@ -154,7 +265,10 @@ export function MainMenu(props: {
         <div className="menu-firsttime-note">COMMANDER INITIALIZED · CLEAR A SECTOR TO EARN YOUR WARDEN RANK</div>
       ))}
 
-      <div className="menu-content">
+      <div className={`menu-layout menu-tab-${tab}`}>
+        <CommanderDossierRail onOpenOps={() => { setTab('ops'); sfx.click(); }} />
+        <main className="menu-main">
+          <div className="menu-content">
         {tab === 'deploy' ? (
           <>
             <div className="menu-col">
@@ -183,7 +297,7 @@ export function MainMenu(props: {
                       className={`map-card ${active ? 'active' : ''}`}
                       data-testid={`map-card-${m.id}`}
                       aria-label={`${m.name}. ${m.difficulty} sector. ${m.desc}`}
-                      onClick={() => { appMetrics.recordMapSelect(m.id); sfx.click(); props.setMap(m); }}
+                      onClick={() => { appMetrics.recordMapSelect(m.id); setDeployMode('campaign'); sfx.click(); props.setMap(m); }}
                       title={m.desc}
                     >
                       {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
@@ -222,7 +336,7 @@ export function MainMenu(props: {
                       </button>
                     );
                   }
-                  const active = props.diff.id === d.id;
+                  const active = deployMode === 'campaign' && props.diff.id === d.id;
                   return (
                     <button
                       key={d.id}
@@ -230,7 +344,7 @@ export function MainMenu(props: {
                       data-testid={`diff-card-${d.id}`}
                       aria-label={`${d.name} protocol. ${d.desc}`}
                       title={d.desc}
-                      onClick={() => { appMetrics.recordProtocolSelect(d.id); sfx.click(); props.setDiff(d); }}
+                      onClick={() => { appMetrics.recordProtocolSelect(d.id); setDeployMode('campaign'); sfx.click(); props.setDiff(d); }}
                     >
                       {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
                       <div className="diff-name">{d.name}</div>
@@ -238,31 +352,35 @@ export function MainMenu(props: {
                     </button>
                   );
                 })}
-              </div>
-              <div className="daily-freeplay-card">
-                <div>
-                  <div className="daily-freeplay-kicker">DAILY ENDLESS SEED</div>
-                  <div className="daily-freeplay-title">{props.dailySeed.title}</div>
-                  <div className="daily-freeplay-rules">
-                    {props.dailySeed.rules.slice(0, 2).join('  /  ')}
+                <button
+                  className={`diff-card daily-protocol ${deployMode === 'daily' ? 'active' : ''}`}
+                  data-testid="diff-card-daily"
+                  aria-label={`Daily Challenge protocol. ${dailyModifierNames(props.dailySeed).join(', ')}`}
+                  aria-pressed={deployMode === 'daily'}
+                  title={props.dailySeed.rules.join('\n')}
+                  onClick={() => { setDeployMode('daily'); sfx.click(); }}
+                >
+                  <div className="diff-name">DAILY CHALLENGE</div>
+                  <div className="diff-desc">{dailyModifierNames(props.dailySeed).join(' / ')}</div>
+                  <div className="daily-card-foot">
+                    <span>{dailyTop ? `TOP W${dailyTop.wave}` : 'TOP OPEN'}</span>
+                    <span>{rollover}</span>
                   </div>
-                  <div className="daily-freeplay-rules">
-                    {props.dailySeed.towerIds.length} fixed towers - no campaign unlocks or global score.
-                  </div>
-                </div>
-                <button className="tb-btn on" onClick={props.onStartDaily}>DAILY FREEPLAY</button>
+                </button>
               </div>
-              <ReplayOfTheDayCard />
+              {deployMode === 'daily' && <DailyChallengePanel challenge={props.dailySeed} />}
             </div>
           </>
         ) : tab === 'board' ? (
-          <LeaderboardTab map={props.map} diff={props.diff} />
+          <LeaderboardTab map={props.map} diff={props.diff} daily={props.dailySeed} />
         ) : (
           <OperationsBoard onClaimed={() => bumpClaim((n) => n + 1)} />
         )}
       </div>
 
       {/* sticky launch bar — always visible, reflects the current selection */}
+        </main>
+      </div>
       <div className="deploy-bar">
         <div className="deploy-bar-inner">
           <div className="menu-legal">
@@ -270,13 +388,25 @@ export function MainMenu(props: {
           </div>
           <div className="deploy-bar-sel">
             <span className="dbar-label">DEPLOYING TO</span>
-            <span className="dbar-sec">{props.map.name}</span>
+            <span className="dbar-sec">{deployMode === 'daily'
+              ? (ALL_MAPS.find((m) => m.id === props.dailySeed.mapId)?.name ?? props.dailySeed.mapId)
+              : props.map.name}</span>
             <span className="dbar-dot">·</span>
-            <span className="dbar-diff">{props.diff.name}</span>
+            <span className="dbar-diff">{deployMode === 'daily'
+              ? `Daily ${DIFFICULTIES.find((d) => d.id === props.dailySeed.diffId)?.name ?? props.dailySeed.diffId}`
+              : props.diff.name}</span>
           </div>
           <button className="start-btn deploy-bar-btn" data-testid="deploy-button" disabled={!selectedUnlocked}
-            onClick={() => { appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked); props.onStart(); }}>
-            {firstTime ? '▶ START MISSION' : '▶ DEPLOY'}
+            onClick={() => {
+              if (deployMode === 'daily') {
+                appMetrics.recordDeployAttempt(props.dailySeed.mapId, props.dailySeed.diffId, true);
+                props.onStartDaily();
+              } else {
+                appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked);
+                props.onStart();
+              }
+            }}>
+            {deployMode === 'daily' ? '▶ DAILY CHALLENGE' : firstTime ? '▶ START MISSION' : '▶ DEPLOY'}
           </button>
         </div>
       </div>

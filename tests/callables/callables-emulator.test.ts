@@ -226,7 +226,7 @@ async function seedReplayRun(options: {
         map,
         diff,
         outcome: 'victory',
-        ...(options.daily ? { daily: options.daily, scoreMultiplierEnd: 2 } : {}),
+        ...(options.daily ? { daily: options.daily } : {}),
       },
       setup: { map, diff },
       events: baseEvents,
@@ -296,29 +296,29 @@ describe('callable score submission', () => {
     assert.equal(row?.runId, seeded.runId);
   });
 
-  test('submitDailyScore accepts a freeplay daily replay and writes the daily board', async () => {
+  test('submitDailyScore accepts a daily challenge replay and writes the daily board', async () => {
     const user = signedInUser('dailyhappy');
-    const dailyId = 'daily-2026-07-01';
+    const dailyId = `daily-${new Date().toISOString().slice(0, 10)}`;
     const replayToken = `tok_${unique('daily')}`;
     const seeded = { runId: runId('daily'), replayToken };
     await seedReplayRun({
       ...seeded,
-      freeplay: true,
+      freeplay: false,
       daily: dailyId,
     });
 
     const result = await callCallable<SubmitResult>('submitDailyScore', {
       dailyId,
-      entry: scoreEntry(user, seeded, { cash: 2400, freeplay: true, daily: dailyId }),
+      entry: scoreEntry(user, seeded, { cash: 1200, freeplay: false, daily: dailyId }),
     }, user);
 
     assert.equal(result.accepted, true);
-    assert.deepEqual(result.accepted_values, { cash: 2400, kills: 40, wave: 5 });
+    assert.deepEqual(result.accepted_values, { cash: 1200, kills: 40, wave: 5 });
 
     const row = await adminDocData(`dailyBoards/${dailyId}/scores/${user.uid}_${seeded.runId}`);
     assert.equal(row?.daily, dailyId);
-    assert.equal(row?.freeplay, true);
-    assert.equal(row?.cash, 2400);
+    assert.equal(row?.freeplay, false);
+    assert.equal(row?.cash, 1200);
   });
 
   test('submitScore rejects tampered replay manifests without writing a board row', async () => {

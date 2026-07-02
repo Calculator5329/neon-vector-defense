@@ -24,11 +24,11 @@ import {
   applyMutatorsToWave,
   contractById,
   createFreeplayState,
-  dailyFreeplaySeed,
   freeplayIncomeMult,
   freeplayScoreMultiplier,
   freeplaySummary,
   freeplayWaveBonusMult,
+  mutatorById,
   nextMutators,
   relicOffer,
   rivalForWave,
@@ -40,6 +40,14 @@ import {
   type FreeplayState,
   type RiskWaveId,
 } from './freeplay';
+import {
+  applyDailyWaveTwist,
+  dailyAllowsTower,
+  dailyChallenge,
+  dailyModifierNames,
+  dailyTowerIds as challengeTowerIds,
+  type DailyChallenge,
+} from './dailyChallenge';
 
 export const W = 1280;
 export const H = 720;
@@ -130,9 +138,6 @@ export interface GameOptions {
 
 /** a forward (repel) gravity push can never shove a hull closer than this to the exit */
 const SAFE_EXIT_MARGIN = 80;
-const DAILY_FREEPLAY_MIN_CASH = 18000;
-const DAILY_FREEPLAY_CASH_PER_WAVE = 420;
-
 // Soft damage-type resistance for the legacy binary-immunity flags.
 // These hulls used to take 0 damage from the matching type; now they take a
 // reduced fraction instead. `shred` still strips resistances entirely.
@@ -258,7 +263,7 @@ export class Game {
   private queue: SpawnEntry[] = [];
   private segLengths: number[] = [];
   totalKills = 0;
-  readonly startingLives: number;
+  startingLives: number;
   private waveStartTotalKills = 0;
   /** guard so a win→freeplay→death session persists its lifetime record only once */
   private finishedPersisted = false;
@@ -267,7 +272,10 @@ export class Game {
   /** set when player chooses to continue past victory */
   freeplay = false;
   freeplayState: FreeplayState = createFreeplayState();
+  dailyChallenge: DailyChallenge | null = null;
   dailyTowerIds: Set<string> | null = null;
+  private dailyCreditCacheGranted = false;
+  private dailyAbilityRechargeUsed = false;
 
   constructor(map: GameMap, diff: DifficultyDef, opts: GameOptions = {}) {
     this.map = map;
@@ -306,14 +314,19 @@ export class Game {
   }
 
   get isDailyFreeplay(): boolean {
-    return this.freeplayState.daily !== null;
+    return this.isDailyChallenge;
+  }
+
+  get isDailyChallenge(): boolean {
+    return this.dailyChallenge !== null;
   }
 
   private campaignProgressEnabled(): boolean {
-    return !this.isDailyFreeplay;
+    return !this.isDailyChallenge;
   }
 
   towerAvailable(def: TowerDef): boolean {
+    if (this.dailyChallenge) return dailyAllowsTower(this.dailyChallenge, def);
     return this.dailyTowerIds ? this.dailyTowerIds.has(def.id) : def.unlockAt <= this.baseKills + this.totalKills;
   }
 
@@ -359,7 +372,7 @@ export class Game {
     this.freeplay = true;
     this.phase = 'build';
     this.freeplayState.daily = daily ?? this.freeplayState.daily;
-    this.dailyTowerIds = this.freeplayState.daily ? dailyTowerSet(this.freeplayState.daily) : null;
+    this.dailyTowerIds = this.freeplayState.daily ? freeplayDailyTowerSet(this.freeplayState.daily) : null;
     if (this.dailyTowerIds) this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
     this.freeplayState.contract = contractById(contractId);
     this.freeplayState.lastCheckpointWave = Math.max(this.freeplayState.lastCheckpointWave, this.wave);
@@ -379,38 +392,35 @@ export class Game {
     this.announce(`${this.freeplayState.contract.name} accepted - endless siege authorized`);
   }
 
-  startDailyFreeplay(seed = dailyFreeplaySeed()) {
-    this.freeplay = true;
+  startDailyChallenge(challenge = dailyChallenge()) {
+    this.freeplay = false;
     this.phase = 'build';
-    this.wave = this.diff.waves;
-    this.freeplayState.daily = seed;
-    this.dailyTowerIds = dailyTowerSet(seed);
+    this.wave = 0;
+    this.dailyChallenge = challenge;
+    this.dailyTowerIds = dailyChallengeTowerSet(challenge);
     this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
-    this.freeplayState.contract = contractById(seed.contractIds[0] ?? 'standard');
-    this.credits = dailyFreeplayStartingCash(this.diff);
-    if (this.freeplayState.contract.livesMult) {
-      this.lives = Math.max(1, Math.floor(this.diff.lives * this.freeplayState.contract.livesMult));
+    if (challenge.twist.startingLivesMultiplier) {
+      this.lives = Math.max(1, Math.round(this.lives * challenge.twist.startingLivesMultiplier));
+      this.startingLives = this.lives;
     }
     this.recorder.setStartingResources(this.credits, this.lives);
-    this.freeplayState.lastCheckpointWave = this.wave;
-    this.prepareFreeplayBuild();
-    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_ENTER, {
-      contractId: this.freeplayState.contract.id,
-      dailyId: seed.id,
-      wave: this.wave,
-    });
-    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_CONTRACT_SELECT, {
-      contractId: this.freeplayState.contract.id,
-      multiplier: this.freeplayState.contract.multiplier,
-    });
-    this.recordFreeplayEvent(METRIC_EVENTS.FREEPLAY_DAILY_START, {
-      dailyId: seed.id,
-      map: seed.mapId,
-      diff: seed.diffId,
+    this.recorder.recordCustom(METRIC_EVENTS.DAILY_CHALLENGE_START, this.telemetryState(), {
+      dailyId: challenge.id,
+      map: challenge.mapId,
+      diff: challenge.diffId,
       towerIds: [...this.dailyTowerIds],
       startingCash: this.credits,
       startingLives: this.lives,
+      arsenal: challenge.arsenal.id,
+      twist: challenge.twist.id,
+      boon: challenge.boon.id,
     });
+    this.announce(`Daily Challenge: ${dailyModifierNames(challenge).join(' / ')}`);
+  }
+
+  /** Compatibility alias for older tests/dev handles. Daily is no longer freeplay. */
+  startDailyFreeplay(challenge = dailyChallenge()) {
+    this.startDailyChallenge(challenge);
   }
 
   chooseRelic(id: FreeplayRelicId): FreeplayRelic | null {
@@ -472,6 +482,18 @@ export class Game {
     };
   }
 
+  dailyMeta() {
+    const challenge = this.dailyChallenge;
+    return {
+      daily: challenge?.id ?? '',
+      modifiers: challenge ? dailyModifierNames(challenge) : [],
+      summary: challenge ? dailyModifierNames(challenge).join(' / ') : '',
+      arsenal: challenge?.arsenal.name ?? '',
+      twist: challenge?.twist.name ?? '',
+      boon: challenge?.boon.name ?? '',
+    };
+  }
+
   private recordFreeplayEvent(type: string, payload: Record<string, unknown>) {
     this.recorder.recordCustom(type, this.telemetryState(), payload);
   }
@@ -491,9 +513,24 @@ export class Game {
     this.freeplayState.nextMutators = nextMutators(this.wave + 1, this.freeplayState.relics, this.freeplayState.daily, this.freeplayState.riskAccepted);
   }
 
+  private maybeGrantDailyCreditCache(nextWave: number) {
+    const boon = this.dailyChallenge?.boon;
+    if (!boon?.creditCacheWave || !boon.creditCacheAmount || this.dailyCreditCacheGranted) return;
+    if (nextWave !== boon.creditCacheWave) return;
+    this.dailyCreditCacheGranted = true;
+    this.earn(boon.creditCacheAmount);
+    this.recorder.recordCustom('daily_credit_cache', this.telemetryState(), {
+      dailyId: this.dailyChallenge?.id ?? '',
+      credits: boon.creditCacheAmount,
+      nextWave,
+    });
+    this.announce(`Daily cache opened: +${boon.creditCacheAmount} credits`);
+  }
+
   cost(def: TowerDef): number {
     const b = getBalance();
-    return Math.round((def.cost * b.tower(def.id).costMult * this.diff.costMult * b.diff(this.diff.id).costMult) / 5) * 5;
+    const dailyCost = this.dailyChallenge?.arsenal.costMultiplier ?? 1;
+    return Math.round((def.cost * b.tower(def.id).costMult * this.diff.costMult * b.diff(this.diff.id).costMult * dailyCost) / 5) * 5;
   }
 
   /** Blackout Reach: towers outside every beacon zone lose 35% range */
@@ -509,6 +546,8 @@ export class Game {
   /** null = maxed; otherwise why-locked reason or 'ok' */
   upgradeState(t: Tower, track: 0 | 1): 'ok' | 'maxed' | 'locked' {
     const tier = this.tierOf(t, track);
+    const cap = this.dailyChallenge?.arsenal.upgradeTierCap;
+    if (cap != null && tier >= cap) return 'maxed';
     if (tier >= 6) return 'maxed';
     if (tier >= 4 && t.committed !== null && t.committed !== track) return 'locked';
     return 'ok';
@@ -516,12 +555,15 @@ export class Game {
 
   upgradeCost(t: Tower, track: 0 | 1): number {
     const tier = this.tierOf(t, track);
+    const cap = this.dailyChallenge?.arsenal.upgradeTierCap;
+    if (cap != null && tier >= cap) return 0;
     if (tier >= 6) return 0;
     // the two committed bonus tiers cost dramatically more — a real late-game sink
     const freeplaySink = this.freeplay && tier >= 4 ? (tier === 4 ? 1.35 : 1.55) : 1;
     const bonusMult = (tier === 4 ? 3.2 : tier === 5 ? 6.5 : 1) * freeplaySink;
     const b = getBalance();
-    return Math.round((t.def.tracks[track].upgrades[tier].cost * b.tower(t.def.id).costMult * this.diff.costMult * b.diff(this.diff.id).costMult * bonusMult) / 5) * 5;
+    const dailyCost = this.dailyChallenge?.arsenal.costMultiplier ?? 1;
+    return Math.round((t.def.tracks[track].upgrades[tier].cost * b.tower(t.def.id).costMult * this.diff.costMult * b.diff(this.diff.id).costMult * bonusMult * dailyCost) / 5) * 5;
   }
 
   /** Committed bonus tiers make a tower genuinely overpowered — the payoff for the
@@ -532,9 +574,10 @@ export class Game {
   }
 
   freeplayTowerPower(t: Tower): number {
-    if (!this.freeplay) return 1;
+    let mult = this.dailyChallenge?.twist.towerDamageMultiplier ?? 1;
+    if (!this.freeplay) return mult;
     const top = Math.max(t.tierA, t.tierB);
-    let mult = top >= 6 ? 1.22 : top >= 5 ? 1.1 : 1;
+    mult *= top >= 6 ? 1.22 : top >= 5 ? 1.1 : 1;
     const type = t.stats.damageType;
     if (this.freeplayState.contract?.bonusType === type) mult *= 1.15;
     if (this.freeplayState.contract?.penaltyType === type) mult *= 0.88;
@@ -576,7 +619,7 @@ export class Game {
     }
     if (this.dailyTowerIds && !this.dailyTowerIds.has(def.id)) {
       this.recorder.recordFailedPlacement(this.telemetryState(), def.id, 'daily_pool', cost, pos);
-      this.announce(`${def.name} is not in today's Daily arsenal`);
+      this.announce(`${def.name} is not in today's Daily Challenge arsenal`);
       sfx.error();
       return null;
     }
@@ -662,7 +705,7 @@ export class Game {
 
   /** Save the current defense layout (positions + tiers) as this map's blueprint. */
   saveBlueprint(): number {
-    if (this.isDailyFreeplay) {
+    if (this.isDailyChallenge) {
       this.announce('Daily simulations do not overwrite campaign blueprints');
       sfx.error();
       return 0;
@@ -744,6 +787,12 @@ export class Game {
     this.wave++;
     this.phase = 'wave';
     let def = getWave(this.wave);
+    if (this.dailyChallenge) {
+      def = applyDailyWaveTwist(this.dailyChallenge, def);
+      if (this.dailyChallenge.twist.sensorBlackout) {
+        def = applyMutatorsToWave(this.wave, def, [mutatorById('sensorBlackout')], null, null);
+      }
+    }
     if (this.freeplay) {
       const mutators = this.freeplayState.nextMutators.length > 0
         ? this.freeplayState.nextMutators
@@ -819,7 +868,8 @@ export class Game {
       this.freeplay && def.boss && this.freeplayState.currentMutators.some((m) => m.id === 'shieldedBoss') ? 1.35 :
         this.freeplay && (def.armored || typeId === 'juggernaut' || typeId === 'aegis') && this.freeplayState.currentMutators.some((m) => m.id === 'armoredSwarm') ? 1.22 : 1;
     const rivalHp = this.freeplay && def.boss && this.freeplayState.rival ? 1 + this.freeplayState.rivalLevel * 0.12 : 1;
-    const hp = Math.ceil(def.hp * bo.enemy(typeId).hpMult * diffMult * late * fp * mutatorHp * rivalHp);
+    const dailyHp = this.dailyChallenge?.twist.enemyHpMultiplier ?? 1;
+    const hp = Math.ceil(def.hp * bo.enemy(typeId).hpMult * diffMult * late * fp * mutatorHp * rivalHp * dailyHp);
     return {
       uid: this.uidSeq++,
       def,
@@ -896,6 +946,7 @@ export class Game {
       if (e.def.immuneCryo && type === 'cryo') dmg *= RESIST_CRYO;
       const r = e.def.resist?.[type];
       if (r != null) dmg *= r;
+      if (this.dailyChallenge?.twist.enemyDamageTakenMultiplier) dmg *= this.dailyChallenge.twist.enemyDamageTakenMultiplier;
     }
     if (dmg <= 0) return 0;
     if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src) * this.freeplayTowerPower(src);
@@ -951,8 +1002,9 @@ export class Game {
   private killEnemy(e: Enemy) {
     if (e.dead) return;
     e.dead = true;
+    const dailyIncome = this.dailyChallenge?.twist.killRewardMultiplier ?? 1;
     const reward = Math.max(1, Math.round(e.def.reward * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
-      (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1)));
+      (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1) * dailyIncome));
     this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
@@ -975,7 +1027,8 @@ export class Game {
       // credit popup
       this.emit('text', e.pos.x, e.pos.y - e.def.radius - 4, 0, -26, 0.7, 10, '#ffd32a', `+${e.def.reward}`);
       // drop chance shrinks as kill volume grows in later waves
-      if (this.rng() < 0.022 / (1 + this.wave * 0.04)) this.dropPickup(e.pos, false);
+      const pickupMult = this.dailyChallenge?.boon.pickupDropMultiplier ?? 1;
+      if (this.rng() < (0.022 * pickupMult) / (1 + this.wave * 0.04)) this.dropPickup(e.pos, false);
     }
   }
 
@@ -1035,12 +1088,22 @@ export class Game {
 
   abilityReady(id: AbilityId): boolean {
     const a = this.abilities.find((x) => x.def.id === id)!;
-    return a.cd <= 0 && this.wave >= a.def.unlockWave;
+    const dailyRecharge = this.dailyChallenge?.boon.freeAbilityRecharge && !this.dailyAbilityRechargeUsed;
+    return this.wave >= a.def.unlockWave && (a.cd <= 0 || !!dailyRecharge);
   }
 
   castAbility(id: AbilityId, pos?: Vec): boolean {
     const a = this.abilities.find((x) => x.def.id === id)!;
     if (!this.abilityReady(id)) { sfx.error(); return false; }
+    if (a.cd > 0 && this.dailyChallenge?.boon.freeAbilityRecharge && !this.dailyAbilityRechargeUsed) {
+      this.dailyAbilityRechargeUsed = true;
+      a.cd = 0;
+      this.recorder.recordCustom('daily_ability_recharge', this.telemetryState(), {
+        dailyId: this.dailyChallenge.id,
+        abilityId: id,
+      });
+      this.announce(`Daily recharge spent: ${a.def.name}`);
+    }
     switch (id) {
       case 'strike': {
         if (!pos) return false;
@@ -1166,9 +1229,11 @@ export class Game {
 
     // wave completion
     if (this.phase === 'wave' && this.queue.length === 0 && this.enemies.length === 0) {
-      const bonus = Math.round(waveBonus(this.wave) * getBalance().waveBonusMult * (this.freeplay ? freeplayWaveBonusMult(this.wave) : 1));
+      const dailyWaveBonus = this.dailyChallenge?.twist.waveBonusMultiplier ?? 1;
+      const bonus = Math.round(waveBonus(this.wave) * getBalance().waveBonusMult * (this.freeplay ? freeplayWaveBonusMult(this.wave) : 1) * dailyWaveBonus);
       this.earn(bonus);
       this.recorder.recordWaveEnd(this.telemetryState(), bonus);
+      this.maybeGrantDailyCreditCache(this.wave + 1);
       if (this.freeplay) {
         if (this.freeplayState.rival) {
           const bounty = Math.round((this.freeplayState.rival.id === 'redSaint' ? 900 : 500) * (1 + this.freeplayState.rivalLevel * 0.12));
@@ -1402,7 +1467,7 @@ export class Game {
     if (!e.cloaked) return true;
     if (e.revealed) return true;
     if (!t.stats.detection) return false;
-    if (this.freeplay && this.freeplayState.currentMutators.some((m) => m.id === 'sensorBlackout') &&
+    if (((this.freeplay && this.freeplayState.currentMutators.some((m) => m.id === 'sensorBlackout')) || this.dailyChallenge?.twist.sensorBlackout) &&
         !this.freeplayState.relics.some((r) => r.id === 'sensorCrown')) {
       return Game.rankOf(t) >= 3;
     }
@@ -1417,7 +1482,7 @@ export class Game {
       if (e.cloaked) { e.revealed = false; anyCloaked = true; }
     }
     if (!anyCloaked) return;
-    const blackout = this.freeplay && this.freeplayState.currentMutators.some((m) => m.id === 'sensorBlackout');
+    const blackout = (this.freeplay && this.freeplayState.currentMutators.some((m) => m.id === 'sensorBlackout')) || !!this.dailyChallenge?.twist.sensorBlackout;
     const blackoutCountered = this.freeplayState.relics.some((r) => r.id === 'sensorCrown' || r.id === 'beaconChoir');
     for (const s of this.towers) {
       if (s.def.style === 'support' && s.stats.detection) {
@@ -2058,13 +2123,15 @@ function sqDist(a: Vec, b: Vec): number {
   return dx * dx + dy * dy;
 }
 
-function dailyFreeplayStartingCash(diff: DifficultyDef): number {
-  return Math.round(Math.max(DAILY_FREEPLAY_MIN_CASH, diff.cash + diff.waves * DAILY_FREEPLAY_CASH_PER_WAVE) * diff.costMult / 5) * 5;
-}
-
-function dailyTowerSet(seed: DailyFreeplaySeed): Set<string> {
+function freeplayDailyTowerSet(seed: DailyFreeplaySeed): Set<string> {
   const ids = seed.towerIds.filter((id) => TOWER_MAP[id]);
   if (!ids.includes('pulse')) ids.unshift('pulse');
+  return new Set(ids);
+}
+
+function dailyChallengeTowerSet(challenge: DailyChallenge): Set<string> {
+  const ids = (challengeTowerIds(challenge) ?? []).filter((id) => TOWER_MAP[id]);
+  if (!ids.includes('pulse') && dailyAllowsTower(challenge, TOWER_MAP.pulse)) ids.unshift('pulse');
   return new Set(ids);
 }
 

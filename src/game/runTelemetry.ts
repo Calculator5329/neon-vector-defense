@@ -430,6 +430,7 @@ const PUBLIC_CUSTOM_EVENTS = new Set<string>([
   METRIC_EVENTS.FREEPLAY_ENTER,
   METRIC_EVENTS.FREEPLAY_CONTRACT_SELECT,
   METRIC_EVENTS.FREEPLAY_DAILY_START,
+  METRIC_EVENTS.DAILY_CHALLENGE_START,
   METRIC_EVENTS.FREEPLAY_RELIC_OFFER,
   METRIC_EVENTS.FREEPLAY_RELIC_SELECT,
   METRIC_EVENTS.FREEPLAY_RISK_OFFER,
@@ -1330,6 +1331,9 @@ export class RunRecorder {
         this.freeplay.entered = true;
         this.freeplay.dailyId = getString(payload, 'dailyId') ?? this.freeplay.dailyId;
         break;
+      case METRIC_EVENTS.DAILY_CHALLENGE_START:
+        this.freeplay.dailyId = getString(payload, 'dailyId') ?? this.freeplay.dailyId;
+        break;
       case METRIC_EVENTS.FREEPLAY_RELIC_OFFER:
         this.freeplay.relicOffers++;
         break;
@@ -1513,8 +1517,8 @@ export class RunRecorder {
       durationS: clampInt(state.time, 99999),
     };
     if (this.freeplay.dailyId && /^daily-\d{4}-\d{2}-\d{2}$/.test(this.freeplay.dailyId)) summary.daily = this.freeplay.dailyId;
-    if (this.freeplay.contractId) summary.contractId = this.freeplay.contractId.slice(0, 30);
-    if (Number.isFinite(this.freeplay.scoreMultiplierEnd)) {
+    if (state.freeplay && this.freeplay.contractId) summary.contractId = this.freeplay.contractId.slice(0, 30);
+    if (state.freeplay && Number.isFinite(this.freeplay.scoreMultiplierEnd)) {
       summary.scoreMultiplierEnd = Math.max(0, Math.min(1000000000, Math.round(this.freeplay.scoreMultiplierEnd * 100) / 100));
     }
     return summary;

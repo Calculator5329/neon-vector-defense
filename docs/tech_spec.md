@@ -39,7 +39,9 @@ Valid diffs: `easy`, `normal`, `hard`, `extinction`
 
 ### `dailyBoards/{daily}/scores/{id}`
 
-Daily freeplay boards. Pattern: `daily-YYYY-MM-DD`. Server-written via `submitDailyScore`.
+Daily Challenge boards. Pattern: `daily-YYYY-MM-DD`. Server-written via
+`submitDailyScore`. Rows require replay `summary.daily` to match the board,
+`summary.freeplay == false`, and no freeplay score multiplier fields.
 
 ### `runs/{runId}`
 
@@ -61,7 +63,7 @@ Key fields (`PublicRunDoc`):
   eventCount: number;
   manifest: { chunkEventCounts: number[], eventHash: string, complete: true };
   setup: { map, mapName, mapHash, diff, diffName, startingCash, startingLives, availableTowerIds, balanceVersion };
-  summary: { callsign, map, diff, freeplay, wave, kills, credits, cashEarned, outcome, durationS, ... };
+  summary: { callsign, map, diff, freeplay, daily?, wave, kills, credits, cashEarned, outcome, durationS, ... };
   snapshots: RunWaveSnapshot[];  // lean tower rows per wave
   events: RunEvent[];            // first public event window
   final: { towers, damageByTower, killsByEnemy, ... };
@@ -125,7 +127,7 @@ Region: `us-central1`
 | Callable | Purpose |
 | --- | --- |
 | `submitScore` | Validate replay exists, sanity-bound claimed stats, rate-limit per uid, write board entry |
-| `submitDailyScore` | Same for daily freeplay boards |
+| `submitDailyScore` | Validate same-day/yesterday Daily Challenge replay and write the daily board row |
 | `submitFeedback` | Rate-limit feedback, write server-only feedback doc, return private reply receipt token |
 | `fetchFeedbackReplies` | Return admin replies only when the browser presents the matching private receipt token |
 | `deleteMyData` | Admin-only cascade delete for docs keyed by anonymous uid |
@@ -136,6 +138,15 @@ Score submit contract:
 2. Client keeps a private replay token in localStorage and sends it with the score claim.
 3. The callable hashes the token, checks `runs/{runId}.replayTokenHash`, verifies map/diff/freeplay/daily consistency, sanity-bounds duration and claimed stats, then canonicalizes accepted values from the replay summary.
 4. Accepted leaderboard rows include `serverTs` for ordering and retain client time as `clientTs`.
+
+Daily Challenge submit contract:
+
+1. Client starts `src/game/dailyChallenge.ts` from the current UTC date and records
+   `summary.daily = daily-YYYY-MM-DD` with `summary.freeplay = false`.
+2. `submitDailyScore` accepts only today or yesterday's daily id to allow near-
+   rollover submissions.
+3. Accepted daily rows force `freeplay: false` and rank by wave, then kills, then
+   server time.
 
 **Trust model:** Player callables (`submitScore`, `submitDailyScore`, `submitFeedback`) require Firebase Anonymous Auth; the uid comes from the verified callable auth context and payload uids are ignored. Rate limits key on that verified identity. A hand-crafted fake replay can still pass if it is internally consistent. Full re-simulation is deferred (see roadmap).
 

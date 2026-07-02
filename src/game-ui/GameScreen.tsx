@@ -28,11 +28,11 @@ import { appMetrics, METRIC_EVENTS } from '../game/metrics';
 import {
   FREEPLAY_CONTRACTS,
   rivalForWave,
-  type DailyFreeplaySeed,
   type FreeplayContractId,
   type FreeplayRelicId,
   type RiskWaveId,
 } from '../game/freeplay';
+import type { DailyChallenge } from '../game/dailyChallenge';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from '../game/sound';
 import DossierShare from '../DossierShare';
@@ -56,7 +56,7 @@ const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlo
 const GHOST_CURVES: GhostCurve[] = buildGhostCurves(GHOST_CURVES_RAW);
 
 function liveUnlockKills(game: Game): number {
-  if (game.isDailyFreeplay) return DEMO_UNLOCK_KILLS;
+  if (game.isDailyChallenge) return DEMO_UNLOCK_KILLS;
   return DEMO_MODE ? DEMO_UNLOCK_KILLS : progress.record.kills + game.totalKills;
 }
 
@@ -65,14 +65,14 @@ function towerAvailable(game: Game, def: TowerDef): boolean {
 }
 
 function towerLockText(game: Game, def: TowerDef): string {
-  if (game.isDailyFreeplay) return `${def.name} is not in today's Daily arsenal`;
+  if (game.isDailyChallenge) return `${def.name} is not in today's Daily arsenal`;
   const lockedBy = Math.max(1, def.unlockAt - liveUnlockKills(game));
   return `${def.name} locked - destroy ${lockedBy.toLocaleString()} more hostiles`;
 }
 
 // ---------------- Game screen ----------------
 
-export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: DifficultyDef; dailySeed?: DailyFreeplaySeed | null; onExit: () => void }) {
+export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: DifficultyDef; dailySeed?: DailyChallenge | null; onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [run, setRun] = useState(0); // bump to restart the sector
@@ -80,7 +80,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   const runRef = useRef(-1);
   if (!gameRef.current || runRef.current !== run) {
     const nextGame = new Game(map, diff);
-    if (dailySeed) nextGame.startDailyFreeplay(dailySeed);
+    if (dailySeed) nextGame.startDailyChallenge(dailySeed);
     // restore the player's preferred run speed (smart fast-forward persistence)
     if (PERF_MAP === null && progress.preferredSpeed > 0) nextGame.speed = progress.preferredSpeed;
     gameRef.current = nextGame;
@@ -358,7 +358,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         const reward = meta.creditRun(game.runId, {
           wave: game.wave, kills: game.totalKills, cashEarned: game.runStats.cashEarned,
           won: game.phase !== 'gameover', freeplay: game.freeplay, diffId: game.diff.id,
-          isDailyFreeplay: game.isDailyFreeplay, outcome: game.phase as 'victory' | 'gameover',
+          isDailyChallenge: game.isDailyChallenge, dailyId: game.dailyMeta().daily || undefined, outcome: game.phase as 'victory' | 'gameover',
         }, {
           towerKindsUsed: new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)]).size,
           abilitiesCast: game.runStats.abilitiesCast,
@@ -754,7 +754,12 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : diff.waves}` : ''}`}>
           WAVE {game.wave}{game.phase === 'build' ? ` / ${game.freeplay ? '∞' : diff.waves}` : ''}
         </div>
-        {!game.freeplay && (
+        {game.dailyChallenge && (
+          <div className="tb-stat daily-strip" title={game.dailyMeta().summary} aria-label={`Daily Challenge modifiers: ${game.dailyMeta().summary}`}>
+            DAILY <span>{game.dailyMeta().modifiers.join(' / ')}</span>
+          </div>
+        )}
+        {!game.freeplay && !game.isDailyChallenge && (
           <BotGhostHud curves={ghostCurvesForMap(GHOST_CURVES, map.id)} matchedDiffId={diff.id} wave={game.wave} cores={game.lives} currentStartingLives={game.startingLives} phase={game.phase} />
         )}
         {PERF_MAP !== null && (
@@ -951,7 +956,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
                   onSold={() => setSelectedUid(null)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               ) : (
                 <Shop game={game} placing={placing}
-                  sig={`${Math.floor(game.credits)}|${game.totalKills}|${game.isDailyFreeplay ? [...(game.dailyTowerIds ?? [])].join(',') : 'campaign'}`}
+                  sig={`${Math.floor(game.credits)}|${game.totalKills}|${game.isDailyChallenge ? [...(game.dailyTowerIds ?? [])].join(',') : 'campaign'}`}
                   setPlacing={(d) => { setPlacing(d); setSelectedUid(null); }} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               )}
             </div>
@@ -1115,7 +1120,7 @@ function MusicButton() {
 // Run-end report: a balanced 2-column layout (reward + after-action on the left,
 // score submit + dossier + leaderboard on the right) instead of one tall stack.
 function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null }) {
-  const ghost = game.freeplay ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id);
+  const ghost = game.freeplay || game.isDailyChallenge ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id);
   return (
     <div className="aar-layout">
       <div className="aar-reward"><MetaReward reward={reward} /></div>
@@ -1213,14 +1218,15 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const [dossier, setDossier] = useState<DossierInput | null>(null);
   const [sharedRunId, setSharedRunId] = useState<string | undefined>(undefined);
   const eligible = game.phase === 'victory' ||
-    (game.phase === 'gameover' && game.freeplay);
+    (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge));
   useEffect(() => {
     if (eligible && !DEMO_MODE) game.recorder.recordLeaderboardOpen();
   }, [eligible, game]);
   if (!eligible) return null;
   const board = boardId(map.id, diff.id, game.freeplay);
   const freeplayMeta = game.freeplay ? game.freeplayMeta() : null;
-  const dailyId = freeplayMeta?.daily ?? '';
+  const dailyMeta = game.isDailyChallenge ? game.dailyMeta() : null;
+  const dailyId = dailyMeta?.daily || freeplayMeta?.daily || '';
   const leaderboardTitle = dailyId
     ? `DAILY LEADERBOARD - ${dailyId.toUpperCase()}`
     : `GLOBAL LEADERBOARD - ${map.name.toUpperCase()} / ${diff.name.toUpperCase()}${game.freeplay ? ' / FREEPLAY' : ''}`;
@@ -1266,7 +1272,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       ts: Date.now(),
       runId: replay.runId,
       replayToken: replay.replayToken,
-      meta: freeplayMeta?.summary,
+      meta: dailyMeta?.summary ?? freeplayMeta?.summary,
       daily: dailyId || undefined,
       checkpoint: false,
     };
@@ -1294,12 +1300,12 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
           <div className="submit-row">
             <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
               value={name} onChange={(e) => setName(e.target.value)} />
-            <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{game.freeplay ? ` · W${game.wave}` : ''}</span>
+            <span className="submit-stats">⌬{Math.round(game.runStats.cashEarned).toLocaleString()} · ☠{game.totalKills}{(game.freeplay || game.isDailyChallenge) ? ` · W${game.wave}` : ''}</span>
             <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
               {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
             </button>
           </div>
-          <p className="submit-hint">Your callsign and score appear on the public global leaderboard.</p>
+          <p className="submit-hint">Your callsign and score appear on the public {dailyId ? 'daily' : 'global'} leaderboard.</p>
         </>
       )}
       {state === 'done' && top && (
@@ -1310,7 +1316,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
               <span className="lb-name">{r.name}</span>
               <span className="lb-cash">⌬{r.cash.toLocaleString()}</span>
               <span className="lb-kills">☠{r.kills}</span>
-              {r.freeplay && <span className="lb-wave">W{r.wave}</span>}
+              {(r.freeplay || dailyId) && <span className="lb-wave">W{r.wave}</span>}
             </div>
           ))}
         </div>
@@ -1356,7 +1362,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, onCollapse }: {
 }) {
   // lifetime kills (banked at run end) + this run's kills so the bar fills live
   const kills = liveUnlockKills(game);
-  const dailyMode = game.isDailyFreeplay;
+  const dailyMode = game.isDailyChallenge;
   // the next tower the player will unlock, for the BTD-style progress bar
   const next = dailyMode ? undefined : TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);

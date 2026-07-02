@@ -5,7 +5,7 @@ import { progress } from './game/storage';
 import { needsAgeGate } from './game/consent';
 import { buildAIHelpContext } from './game/aiContext';
 import { appMetrics } from './game/metrics';
-import { dailyFreeplaySeed } from './game/freeplay';
+import { dailyChallenge } from './game/dailyChallenge';
 
 import { sfx } from './game/sound';
 import { watchBuildFreshness } from './buildFreshness';
@@ -87,7 +87,7 @@ function Main() {
   const [diff, setDiff] = useState<DifficultyDef>(
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
-  const [dailySeed, setDailySeed] = useState(() => dailyFreeplaySeed());
+  const [dailySeed, setDailySeed] = useState(() => dailyChallenge());
   const [dailyMode, setDailyMode] = useState(false);
   const [comeback, setComeback] = useState(false);
   const [staleBuild, setStaleBuild] = useState(false);
@@ -98,7 +98,7 @@ function Main() {
   useEffect(() => {
     if (DEMO_MODE || PERF_MAP !== null) return;
     const refreshDailySeed = () => {
-      const next = dailyFreeplaySeed();
+      const next = dailyChallenge();
       setDailySeed((prev) => (prev.id === next.id ? prev : next));
     };
     const onVisibility = () => { if (!document.hidden) refreshDailySeed(); };

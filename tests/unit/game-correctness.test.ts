@@ -4,7 +4,7 @@ import { Bot } from '../../src/game/bot';
 import { setBalanceDoc } from '../../src/game/balanceConfig';
 import { Game } from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
-import { dailyFreeplaySeed } from '../../src/game/freeplay';
+import { dailyChallenge, dailyModifierNames, type DailyChallenge } from '../../src/game/dailyChallenge';
 import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
@@ -258,12 +258,59 @@ describe('freeplay correctness guards', () => {
     assert.equal(game.markFreeplayCheckpoint(), false);
   });
 
-  test('daily freeplay rotates the lead contract across seeded dates', () => {
-    const leadContracts = new Set<string>();
+  test('daily challenge is deterministic by UTC date and rotates modifiers', () => {
+    const a = dailyChallenge(new Date(Date.UTC(2026, 5, 1)));
+    const b = dailyChallenge(new Date(Date.UTC(2026, 5, 1, 18)));
+    const combos = new Set<string>();
     for (let day = 1; day <= 14; day++) {
-      leadContracts.add(dailyFreeplaySeed(new Date(Date.UTC(2026, 5, day))).contractIds[0]);
+      combos.add(dailyModifierNames(dailyChallenge(new Date(Date.UTC(2026, 5, day)))).join('|'));
     }
-    assert.ok(leadContracts.size > 1);
+    assert.deepEqual(a, b);
+    assert.ok(combos.size > 1);
+    assert.equal(a.id, 'daily-2026-06-01');
+    assert.equal(a.rules.length, 4);
+  });
+
+  test('daily challenge starts as a normal wave-1 run with no freeplay multiplier', () => {
+    const challenge = dailyChallenge(new Date(Date.UTC(2026, 5, 1)));
+    const game = new Game(ALL_MAPS.find((m) => m.id === challenge.mapId) ?? ALL_MAPS[0], DIFFICULTIES.find((d) => d.id === challenge.diffId) ?? DIFFICULTIES[1]);
+    const startingCash = game.credits;
+    game.startDailyChallenge(challenge);
+    const summary = game.publicRunSummary('DAILYTEST', 'test-build');
+
+    assert.equal(game.freeplay, false);
+    assert.equal(game.isDailyChallenge, true);
+    assert.equal(game.wave, 0);
+    assert.equal(game.credits, startingCash);
+    assert.equal(summary.daily, challenge.id);
+    assert.equal(summary.freeplay, false);
+    assert.equal('scoreMultiplierEnd' in summary, false);
+    game.startWave();
+    assert.equal(game.wave, 1);
+  });
+
+  test('daily challenge arsenal, twist, and boon knobs affect the Game', () => {
+    const base = dailyChallenge(new Date(Date.UTC(2026, 5, 3)));
+    const challenge: DailyChallenge = {
+      ...base,
+      arsenal: { id: 'budgetBuild', name: 'Budget Build', short: 'BUDGET', desc: 'Costs +25%.', costMultiplier: 1.25, upgradeTierCap: 4 },
+      twist: { id: 'glassCannon', name: 'Glass Cannon', short: 'GLASS', desc: 'Damage up, cores down.', towerDamageMultiplier: 1.3, startingLivesMultiplier: 0.6 },
+      boon: { id: 'abilityRecharge', name: 'Emergency Recharge', short: 'RECHARGE', desc: 'One cooldown bypass.', freeAbilityRecharge: true },
+    };
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[1]);
+    const normalCost = game.cost(TOWERS[0]);
+    const normalLives = game.lives;
+    game.startDailyChallenge(challenge);
+    const tower = game.placeTower(TOWERS[0], findPlaceable(game));
+    assert.ok(tower);
+    tower.tierA = 4;
+
+    assert.equal(game.lives, Math.round(normalLives * 0.6));
+    assert.equal(game.cost(TOWERS[0]), Math.round((normalCost * 1.25) / 5) * 5);
+    assert.equal(game.upgradeState(tower, 0), 'maxed');
+    game.wave = 2;
+    game.abilities[0].cd = 10;
+    assert.equal(game.abilityReady(game.abilities[0].def.id), true);
   });
 });
 

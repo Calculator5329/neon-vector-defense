@@ -64,7 +64,7 @@ service cloud.firestore {
         // freeplay score multiplier compounds across waves/risks/relics; it is a display-only
         // stat (ranking is verified server-side against the replay), so the bound is generous —
         // capping it at 100 used to reject deep freeplay runs and block their score submission.
-        && (!('scoreMultiplierEnd' in summary) || (summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 1000000000));
+        && (!('scoreMultiplierEnd' in summary) || (summary.freeplay == true && summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 1000000000));
     }
 
     function isRunManifest(data) {

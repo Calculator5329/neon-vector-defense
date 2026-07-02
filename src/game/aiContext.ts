@@ -145,7 +145,7 @@ export function buildAIHelpContext(args: {
   selectedTower?: Tower | null;
 }): AIHelpContext {
   const bankedKills = progress.record.kills + (args.game?.totalKills ?? 0);
-  const dailyGame = args.game?.isDailyFreeplay ? args.game : null;
+  const dailyGame = args.game?.isDailyChallenge ? args.game : null;
   const unlockedTowers = dailyGame
     ? TOWERS_BY_UNLOCK.filter((t) => dailyGame.towerAvailable(t)).map((t) => t.name)
     : TOWERS_BY_UNLOCK.filter((t) => t.unlockAt <= bankedKills).map((t) => t.name);
@@ -164,7 +164,7 @@ export function buildAIHelpContext(args: {
       startRun: 'DEPLOY',
       sectorStep: 'SELECT SECTOR',
       protocolStep: 'SELECT PROTOCOL',
-      leaderboardModes: ['CAMPAIGN', 'FREEPLAY'],
+      leaderboardModes: ['CAMPAIGN', 'FREEPLAY', 'DAILY'],
       inRunButtons: ['ABORT', 'AUTO', 'PAUSE', 'LAUNCH WAVE', 'ARSENAL'],
       victoryButtons: ['∞ FREEPLAY', 'MAIN MENU'],
       defeatButtons: ['RETRY SECTOR', 'MAIN MENU'],
@@ -174,6 +174,7 @@ export function buildAIHelpContext(args: {
         'Use these exact UI labels in answers.',
         'Do not say START MISSION; the start button is DEPLOY.',
         'Freeplay is offered after victory as ∞ FREEPLAY.',
+        'Daily Challenge is a separate daily protocol, not freeplay.',
       ],
     },
     player: {

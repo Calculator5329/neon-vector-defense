@@ -36,7 +36,7 @@ ok(pctOk, 'rankFromXp pct ∈ [0,1) and rank ≥ 1 across the XP range');
 ok(rankFromXp(0).rank === 1 && rankFromXp(1_000_000).rank > rankFromXp(1000).rank, 'rank grows with XP');
 
 // 3. reward bounds — non-negative, abandoned = 0, win > loss at same wave
-const base: RunRewardInput = { wave: 30, kills: 2000, cashEarned: 8000, won: false, freeplay: false, diffId: 'normal', isDailyFreeplay: false, outcome: 'gameover' };
+const base: RunRewardInput = { wave: 30, kills: 2000, cashEarned: 8000, won: false, freeplay: false, diffId: 'normal', isDailyChallenge: false, outcome: 'gameover' };
 const win = deriveRunReward({ ...base, won: true, outcome: 'victory' });
 const loss = deriveRunReward(base);
 const abandoned = deriveRunReward({ ...base, outcome: 'abandoned' });
