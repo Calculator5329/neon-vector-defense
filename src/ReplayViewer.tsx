@@ -5,6 +5,7 @@ import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
 import { getWave } from './game/waves';
 import { ENEMIES } from './game/enemies';
+import { ELITE_AFFIX_META } from './game/eliteAffixes';
 import { fetchRunReplay, type RunReplayDoc } from './game/leaderboard';
 import { appMetrics } from './game/metrics';
 import { sfx } from './game/sound';
@@ -16,6 +17,7 @@ import {
   buildReplayCombatTimeline,
   posAtDist,
   reconstructAt,
+  replayUmbraPhaseFromEvent,
   waveWindow,
   type Ghost,
   type PathGeom,
@@ -111,6 +113,7 @@ function drawGhost(ctx: CanvasRenderingContext2D, gh: Ghost) {
 
 function ghostToEnemy(gh: Ghost): Enemy {
   const maxHp = Math.max(1, gh.def.hp);
+  const eliteMeta = gh.elite ? ELITE_AFFIX_META[gh.elite] : null;
   return {
     uid: gh.uid,
     def: gh.def,
@@ -129,6 +132,14 @@ function ghostToEnemy(gh: Ghost): Enemy {
     phase: gh.uid * 0.013,
     dead: false,
     finished: false,
+    elite: gh.elite && eliteMeta ? {
+      id: gh.elite,
+      rewardMult: eliteMeta.rewardMult,
+      speedMult: eliteMeta.speedMult,
+      shield: gh.elite === 'shielded' ? 1 : undefined,
+      maxShield: gh.elite === 'shielded' ? 1 : undefined,
+    } : undefined,
+    umbraPhase: gh.umbraPhase,
   };
 }
 
@@ -147,6 +158,10 @@ function eventLabel(e: RunEvent): string | null {
     case 'tower_upgrade': return `⬆ ${TOWER_MAP[tid ?? '']?.short ?? ''} ${(e.upgradeName as string) ?? 'upgrade'}`.trim();
     case 'tower_sell': return `✖ Sold ${TOWER_MAP[tid ?? '']?.name ?? 'tower'}`;
     case 'ability_cast': return `✦ ${prettyAbility(e.abilityId as string)}`;
+    case 'umbra_phase': {
+      const phase = replayUmbraPhaseFromEvent(e);
+      return phase === 2 ? 'THE UMBRA phase-shifts' : phase === 3 ? 'THE UMBRA enrages' : null;
+    }
     default: return null;
   }
 }
