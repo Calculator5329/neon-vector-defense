@@ -3,6 +3,20 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-02 - Cinder Mortar burn-zone curve pulled ~15-18%
+
+- Owner play experience plus `npm run tower:deep-dive` agreed Cinder was still
+  the outlier after the arsenal pass: opScore 5.14 and 30% solo win rate versus
+  4.33/14% for the next tower, driven by burn-zone dps per credit. The zone dps
+  curve came down across both tracks (base 6→5, Thermite 12→10, Magma 16→14,
+  Firestorm 22→18, Ashfall 26→22, Long Summer 34→28 with +40% radius instead of
+  +50%), staying inside the ≤25% single-stat rule so the tower keeps its
+  fire-lane identity. Balance baseline regenerated with the change.
+- Owner UI feedback landed with it: the next-wave preview sits below the
+  arsenal panel, Standard/Veteran became real tabs under the ARSENAL header,
+  and protocol cards top-align title/description (the daily card pins its
+  footer with margin auto) instead of stranding space mid-card.
+
 ## 2026-07-02 - Portal SDKs live behind a build-time adapter
 
 - `VITE_PORTAL` selects `none`, `crazygames`, or `poki`. The default `none`

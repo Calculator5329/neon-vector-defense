@@ -69,7 +69,7 @@ describe('admin balance editor helpers', () => {
     assert.equal(base.overriddenStats.cost, Math.round(cinder.cost * 0.5));
     assert.equal(base.staticStats.splash, 27);
     assert.equal(base.overriddenStats.splash, 40.5);
-    assert.equal(base.staticStats.burnDps + base.staticStats.burnZoneDps, 9.75);
-    assert.equal(base.overriddenStats.burnDps + base.overriddenStats.burnZoneDps, 19.5);
+    assert.equal(base.staticStats.burnDps + base.staticStats.burnZoneDps, 8.75);
+    assert.equal(base.overriddenStats.burnDps + base.overriddenStats.burnZoneDps, 17.5);
   });
 });

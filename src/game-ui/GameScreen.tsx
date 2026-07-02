@@ -1339,9 +1339,6 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
         <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game-sidebar">
           {sideOpen ? (
             <div className="side-body">
-              {game.phase === 'build' && (
-                <WavePreviewPanel wave={nextWaveNumber} items={nextWavePreview} onHover={recordWavePreviewHover} />
-              )}
               {selected ? (
                 <UpgradePanel game={game} tower={selected}
                   sig={`${Math.floor(game.credits)}|${selected.tierA}|${selected.tierB}|${selected.committed}|${selected.invested}|${selected.kills}|${selected.target}|${selected.rateBuff.toFixed(2)}|${selected.rangeBuff.toFixed(2)}`}
@@ -1353,6 +1350,9 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
                   veteranDeployUnlocked={veteranDeployUnlocked}
                   onVeteranDeployChange={(next) => { setVeteranDeploy(next); progress.veteranDeploy = next; sfx.click(); }}
                   setPlacing={(d) => setPlacementMode(d)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
+              )}
+              {game.phase === 'build' && (
+                <WavePreviewPanel wave={nextWaveNumber} items={nextWavePreview} onHover={recordWavePreviewHover} />
               )}
             </div>
           ) : (
@@ -1810,16 +1810,16 @@ const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, vete
     <div className="panel panel-grow">
       <div className="panel-head">
         <div className="panel-title">ARSENAL</div>
-        {veteranDeployUnlocked && (
-          <div className="shop-mode-toggle" role="group" aria-label="Deploy mode">
-            <button type="button" className={veteranDeploy ? '' : 'on'} aria-pressed={!veteranDeploy}
-              onClick={() => onVeteranDeployChange(false)}>STANDARD</button>
-            <button type="button" className={veteranDeploy ? 'on' : ''} aria-pressed={veteranDeploy}
-              onClick={() => onVeteranDeployChange(true)}>VETERAN</button>
-          </div>
-        )}
         {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse arsenal panel" onClick={onCollapse}>⟩</button>}
       </div>
+      {veteranDeployUnlocked && (
+        <div className="shop-mode-tabs" role="tablist" aria-label="Deploy mode">
+          <button type="button" role="tab" className={veteranDeploy ? '' : 'on'} aria-selected={!veteranDeploy}
+            onClick={() => onVeteranDeployChange(false)}>STANDARD</button>
+          <button type="button" role="tab" className={veteranDeploy ? 'on' : ''} aria-selected={veteranDeploy}
+            onClick={() => onVeteranDeployChange(true)}>VETERAN</button>
+        </div>
+      )}
       <div className="shop-grid" data-testid="shop-grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
           const lockedBy = def.unlockAt - kills;

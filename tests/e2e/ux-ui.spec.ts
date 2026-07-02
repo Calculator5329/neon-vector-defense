@@ -643,15 +643,15 @@ test.describe('desktop UX layout', () => {
     await page.goto('/');
     await deployFromMenu(page);
     await acknowledgeBriefing(page);
-    await expect(page.locator('.shop-mode-toggle')).toHaveCount(0);
+    await expect(page.locator('.shop-mode-tabs')).toHaveCount(0);
 
     const veteranPage = await context.newPage();
     await seedProgress(veteranPage, { runs: 1, victories: 1 });
     await veteranPage.goto('/');
     await deployFromMenu(veteranPage);
     await acknowledgeBriefing(veteranPage);
-    await expect(veteranPage.locator('.shop-mode-toggle')).toBeVisible();
-    await expect(veteranPage.locator('.shop-mode-toggle').getByRole('button', { name: 'VETERAN' })).toBeVisible();
+    await expect(veteranPage.locator('.shop-mode-tabs')).toBeVisible();
+    await expect(veteranPage.locator('.shop-mode-tabs').getByRole('tab', { name: 'VETERAN' })).toBeVisible();
     await veteranPage.close();
   });
 
@@ -660,7 +660,7 @@ test.describe('desktop UX layout', () => {
     await page.goto('/');
     await deployFromMenu(page);
     await acknowledgeBriefing(page);
-    await page.locator('.shop-mode-toggle').getByRole('button', { name: 'VETERAN' }).click();
+    await page.locator('.shop-mode-tabs').getByRole('tab', { name: 'VETERAN' }).click();
 
     const expected = await page.evaluate(async () => {
       const game = (window as unknown as { game: any }).game;

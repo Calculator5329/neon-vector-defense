@@ -582,7 +582,10 @@
   min-height: 112px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  /* top-aligned so the description hugs the title; the daily card's footer is
+     pinned to the bottom with margin-top:auto instead of space-between, which
+     stranded empty space mid-card on the two-line campaign protocols */
+  justify-content: flex-start;
   gap: 7px;
   background: linear-gradient(180deg, rgba(14, 22, 45, 0.94), rgba(8, 13, 28, 0.94));
   border: 1px solid rgba(65, 86, 145, 0.62);
@@ -627,6 +630,7 @@
   justify-content: flex-end;
   gap: 2px;
   min-height: 25px;
+  margin-top: auto;
   color: var(--gold);
   font-size: 9px;
   letter-spacing: 0.8px;
@@ -1599,31 +1603,34 @@
   font-size: 10px;
 }
 
-.shop-mode-toggle {
+/* Deploy-mode tabs sit flush under the ARSENAL header; the active tab connects
+   to the shop content with an accent underline instead of a pill switch. */
+.shop-mode-tabs {
   display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px;
-  border: 1px solid var(--edge);
-  border-radius: 7px;
-  background: var(--panel2);
+  margin: -2px 0 10px;
+  border-bottom: 1px solid var(--edge);
 }
-.shop-mode-toggle button {
-  min-height: 24px;
-  padding: 3px 7px;
+.shop-mode-tabs button {
+  flex: 1 1 0;
+  min-height: 28px;
+  padding: 5px 8px;
   border: 0;
-  border-radius: 5px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 6px 6px 0 0;
   background: transparent;
   color: var(--dim);
   font-family: 'Orbitron', sans-serif;
-  font-size: 8px;
-  letter-spacing: 1px;
+  font-size: 9px;
+  letter-spacing: 1.4px;
   cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
 }
-.shop-mode-toggle button.on {
-  color: #021018;
-  background: var(--accent);
-  box-shadow: 0 0 10px rgba(75, 207, 250, 0.32);
+.shop-mode-tabs button:hover { color: var(--text); }
+.shop-mode-tabs button.on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: linear-gradient(180deg, rgba(75, 207, 250, 0.12), rgba(75, 207, 250, 0.02));
 }
 
 .shop-grid {

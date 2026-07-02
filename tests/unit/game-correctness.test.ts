@@ -555,7 +555,7 @@ describe('arsenal balance additions', () => {
     assert.equal(computeStats(TOWER_MAP.cryo, 0, 0).slowPower, 0.95);
     const cinder = computeStats(TOWER_MAP.cinder, 0, 0);
     assert.equal(cinder.burnDps, 7.5);
-    assert.equal(cinder.burnZoneDps, 12);
+    assert.equal(cinder.burnZoneDps, 10);
 
     const game = makeGame();
     assert.equal(game.castAbility('strike', { x: 0, y: 0 }), true);
