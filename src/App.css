@@ -1421,35 +1421,6 @@
   color: #63d9f4;
   margin-bottom: 8px;
 }
-.debrief-accolade {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 13px;
-  border: 1px solid rgba(255, 211, 42, 0.32);
-  border-radius: 8px;
-  background: rgba(255, 211, 42, 0.08);
-  color: #f5dc6b;
-}
-.debrief-accolade-star {
-  color: #ffd32a;
-  font-size: 18px;
-  line-height: 1;
-}
-.debrief-accolade b,
-.debrief-accolade span {
-  display: block;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 12px;
-  letter-spacing: 1px;
-}
-.debrief-accolade div span {
-  margin-top: 2px;
-  color: #9faad0;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-}
 .aar {
   text-align: left;
 }

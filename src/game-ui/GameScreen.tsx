@@ -43,7 +43,7 @@ import Modal from '../Modal';
 import EnemyPortrait from '../EnemyPortrait';
 import { UpgradeIcon, upgradeIconKey } from '../UpgradeIcon';
 import { meta, type RunMetaReward } from '../game/meta';
-import { buildGhostCurves, ghostCurveFor, ghostCurvesForMap, judgeRun, type GhostCurve } from '../game/ghostCurve';
+import { buildGhostCurves, ghostCurvesForMap, type GhostCurve } from '../game/ghostCurve';
 import { GHOST_CURVES_RAW } from '../game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from '../game/dossier';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec, EnemyDef, WaveGroup } from '../game/types';
@@ -1551,7 +1551,6 @@ function MusicButton() {
 // Run-end report: a balanced 2-column layout (reward + after-action on the left,
 // score submit + dossier + leaderboard on the right) instead of one tall stack.
 function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null }) {
-  const ghost = game.freeplay || game.isDailyChallenge ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id);
   const submitEligible = game.phase === 'victory' ||
     (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge));
   const stats = [
@@ -1572,7 +1571,6 @@ function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff
           ))}
         </div>
         <MetaReward reward={reward} />
-        <RunAccolade game={game} ghost={ghost} />
         <AfterAction game={game} />
       </div>
       {submitEligible && <div className="debrief-submit"><SubmitScore game={game} map={map} diff={diff} /></div>}
@@ -1613,25 +1611,6 @@ function MetaReward({ reward }: { reward: RunMetaReward | null }) {
   );
 }
 
-function RunAccolade({ game, ghost }: { game: Game; ghost?: GhostCurve | null }) {
-  const verdict = ghost ? judgeRun(ghost, game.wave, game.lives) : null;
-  const outWarded = verdict && (verdict.beatWave || verdict.beatCores);
-  if (!outWarded || !verdict) return null;
-  return (
-    <div className="debrief-accolade" title={`AI rival (${ghost!.skill}): ~${verdict.refCores} cores by wave ${verdict.refWave}.`}>
-      <span className="debrief-accolade-star">★</span>
-      <div>
-        <b>OUT-WARDED THE AI</b>
-        <span>
-          {verdict.beatWave ? `+${verdict.deltaWave} waves` : ''}
-          {verdict.beatWave && verdict.beatCores ? ' · ' : ''}
-          {verdict.beatCores ? `+${verdict.deltaCores} cores` : ''}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function AfterAction({ game }: { game: Game }) {
   const s = game.runStats;
   const dmg = Object.entries(s.dmg).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -1640,16 +1619,6 @@ function AfterAction({ game }: { game: Game }) {
   const name = (id: string) => TOWERS.find((t) => t.id === id)?.name ?? ENEMIES[id]?.name ?? id;
   return (
     <div className="aar">
-      {/*
-        <div className="aar-badge" title={`AI rival (${ghost!.skill}): ~${verdict.refCores} cores by wave ${verdict.refWave}.`}>
-          <span className="aar-badge-star">★</span> OUT-WARDED THE AI
-          <span className="aar-badge-sub">
-            {verdict.beatWave ? `+${verdict.deltaWave} waves` : ''}
-            {verdict.beatWave && verdict.beatCores ? ' · ' : ''}
-            {verdict.beatCores ? `+${verdict.deltaCores} cores` : ''}
-          </span>
-        </div>
-      */}
       <div className="debrief-section-title">AFTER-ACTION REPORT</div>
       <div className="aar-cols">
         <div className="aar-col">

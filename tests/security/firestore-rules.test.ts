@@ -14,6 +14,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 
 let testEnv: RulesTestEnvironment;
@@ -384,6 +385,39 @@ describe('public replay rules', () => {
     await assertFails(setDoc(doc(db, 'replayStreams', 'w_victim9', 'runs', runId, 'chunks', 'c0'), validReplayStreamChunk({
       uid: 'w_victim9',
     })));
+  });
+
+  test('allow final replay submit batch shape', async () => {
+    const db = playerDb();
+    const finalRunId = `${runId}batch`;
+    const finalRun = {
+      ...validRun,
+      runId: finalRunId,
+      summary: { ...validSummary },
+    };
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'replayOwners', playerUid, 'runs', finalRunId), {
+      schemaVersion: 1,
+      uid: playerUid,
+      runId: finalRunId,
+      createdAt: finalRun.createdAt,
+      build: finalRun.build,
+    });
+    batch.set(doc(db, 'replayStreams', playerUid, 'runs', finalRunId), {
+      schemaVersion: 1,
+      uid: playerUid,
+      runId: finalRunId,
+      build: finalRun.build,
+      updatedAt: 2,
+      submitted: true,
+      sealedAt: 2,
+      chunkCount: finalRun.chunkCount,
+      eventCount: finalRun.eventCount,
+      manifest: finalRun.manifest,
+      summary: finalRun.summary,
+    }, { merge: true });
+    batch.set(doc(db, 'runs', finalRunId), finalRun);
+    await assertSucceeds(batch.commit());
   });
 });
 
