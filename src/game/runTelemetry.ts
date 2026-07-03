@@ -10,10 +10,11 @@ import type {
   Vec,
 } from './types';
 import { appMetrics, METRIC_EVENTS, type AppMetricSnapshot, type InputKind, type MetricEventName } from './metrics';
-import { balanceVersion } from './balanceConfig';
-import { ENEMY_LIST } from './enemies';
+import { balanceDocSnapshot, balanceVersion, type BalanceConfigDoc } from './balanceConfig';
+import type { DailyChallenge } from './dailyChallenge';
+import { actionHash, encodeReplayActions, isReplayActionEvent, normalizeReplayActionEvents, type ReplayActionPack } from './replayCodec';
 
-export const RUN_TELEMETRY_SCHEMA = 2;
+export const RUN_TELEMETRY_SCHEMA = 3;
 /** Bump whenever a simulation-affecting engine change lands (not cosmetic/FX).
  *  Replays are exact re-simulations, so runs recorded under different engine
  *  behavior must verify as unverifiable rather than falsely divergent.
@@ -22,21 +23,9 @@ export const RUN_TELEMETRY_SCHEMA = 2;
  *      require a position and cannot cast after the run ends. */
 export const REPLAY_ENGINE_VERSION = 3;
 export const RUN_EVENT_CHUNK_SIZE = 650;
-const SNAP_DOC_CAP = 115; // uploaded snapshot keyframes — under the firestore.rules snapshots<=120 bound
-const SNAP_MEM_CAP = 360; // in-memory keyframes before downsampling at upload (covers very long runs)
+const FINAL_TOWER_DOC_CAP = 3;
 const IDLE_AFTER_S = 25;
 const QUICK_SELL_S = 30;
-
-/** Evenly thin a keyframe list to at most `cap`, always preserving the first and last entry so the
- *  replay timeline still spans the whole run (start → end), not just a slice of it. */
-function downsampleSnapshots<T>(snaps: T[], cap: number): T[] {
-  if (snaps.length <= cap || cap < 2) return snaps;
-  const out: T[] = [];
-  const step = (snaps.length - 1) / (cap - 1);
-  for (let i = 0; i < cap; i++) out.push(snaps[Math.round(i * step)]);
-  // Math.round can land on the same index twice at the tail; de-dup while keeping order.
-  return out.filter((s, i) => i === 0 || s !== out[i - 1]);
-}
 
 export type RunOutcome = 'victory' | 'gameover' | 'abandoned';
 export type RunPanelKind = 'none' | 'shop' | 'upgrade';
@@ -153,7 +142,6 @@ export interface PublicRunDoc {
   chunkCount: number;
   eventCount: number;
   manifest: RunManifest;
-  deathRecords?: RunDeathRecords;
   summary: {
     callsign: string;
     map: string;
@@ -185,11 +173,15 @@ export interface PublicRunDoc {
     startingLives: number;
     availableTowerIds: string[];
     balanceVersion: string;
+    balance?: BalanceConfigDoc;
+    daily?: DailyChallenge;
     /** REPLAY_ENGINE_VERSION at record time; absent on runs older than v2 */
     replayEngine?: number;
   };
-  events: RunEvent[];
-  snapshots: RunWaveSnapshot[];
+  actions: ReplayActionPack;
+  /** Legacy/local read-model fields only. New Firestore v3 run docs omit these. */
+  events?: RunEvent[];
+  snapshots?: RunWaveSnapshot[];
   final: {
     towers: RunTowerSnapshot[];
     damageByTower: Record<string, number>;
@@ -202,36 +194,15 @@ export interface PublicRunDoc {
 
 export interface RunManifest {
   chunkEventCounts: number[];
-  eventHash: string;
-  deathHash?: string;
+  actionHash: string;
   complete: true;
-}
-
-export interface RunDeathWaveRecord {
-  wave: number;
-  startDs: number;
-  data: string;
-}
-
-export interface RunDeathRecords {
-  codec: 'd1';
-  count: number;
-  waves: RunDeathWaveRecord[];
-}
-
-export interface DecodedReplayDeath {
-  uid: number;
-  enemyId: string;
-  wave: number;
-  spawnT: number;
-  deathT: number;
 }
 
 export interface RunEventChunkDoc {
   schemaVersion: number;
   runId: string;
   chunk: number;
-  events: RunEvent[];
+  actions: ReplayActionPack;
 }
 
 export type RunCheckpointReason = 'interval' | 'wave' | 'terminal' | 'visibility' | 'abort' | 'score' | 'bank';
@@ -497,15 +468,18 @@ export class RunRecorder {
   private endedAt = 0;
   private outcome: RunOutcome | null = null;
   private events: RunEvent[] = [];
-  private snapshots: RunWaveSnapshot[] = [];
+  private eventCount = 0;
+  private recentEvents: RunEvent[] = [];
+  private latestSnapshot: RunWaveSnapshot | null = null;
+  private snapshotCount = 0;
+  private cashFloatedMaxSnapshot = 0;
   private ledger = new Map<number, TowerLedger>();
+  private dailySnapshot: DailyChallenge | null = null;
   private cashSpent = 0;
   private cashRefunded = 0;
   private failedPlacements = 0;
   private failedUpgrades = 0;
   private leaksByEnemy: Record<string, number> = {};
-  private deathsByWave = new Map<number, { uid: number; enemyId: string; spawnDs: number; deathDs: number }[]>();
-  private waveStartDs = new Map<number, number>();
   private lastPurchaseAtS = 0;
   private lastInputAtMs = nowMs();
   private focusLosses = 0;
@@ -670,6 +644,10 @@ export class RunRecorder {
     this.start.startingLives = Math.max(0, Math.floor(lives));
   }
 
+  setDailyChallenge(challenge: DailyChallenge | null): void {
+    this.dailySnapshot = challenge ? JSON.parse(JSON.stringify(challenge)) as DailyChallenge : null;
+  }
+
   recordRunStart(state: RunTelemetryState): void {
     this.record('run_start', state, {
       map: this.start.map.id,
@@ -684,7 +662,6 @@ export class RunRecorder {
   recordWaveStart(state: RunTelemetryState, groups: RunWaveStartGroup[]): void {
     this.combat.waveStarts++;
     this.combat.currentWaveStartedAt = state.time;
-    this.waveStartDs.set(state.wave, roundDs(state.time));
     this.record('wave_start', state, { groups, towerCount: state.towers.length });
     this.snapshot('wave_start', state);
   }
@@ -830,25 +807,12 @@ export class RunRecorder {
   }
 
   recordEnemyKill(state: RunTelemetryState, enemy: Enemy): void {
-    const wave = Math.max(0, Math.floor(enemy.replayWave ?? state.wave));
-    const startDs = this.waveStartDs.get(wave) ?? 0;
-    const spawnAbsDs = roundDs(enemy.replaySpawnT ?? state.time);
-    const deathAbsDs = roundDs(state.time);
-    const spawnDs = Math.max(0, spawnAbsDs - startDs);
-    const deathDs = Math.max(spawnDs, deathAbsDs - startDs);
-    const rows = this.deathsByWave.get(wave) ?? [];
-    rows.push({
-      uid: Math.max(0, Math.floor(enemy.uid)),
-      enemyId: enemy.def.id,
-      spawnDs,
-      deathDs,
-    });
-    this.deathsByWave.set(wave, rows);
+    void state;
+    void enemy;
   }
 
-  // Per-enemy spawn/kill public events are intentionally NOT recorded: a long run produces
-  // hundreds of thousands of them, which blew past the chunk cap and truncated the replay.
-  // Death fidelity is carried by deathRecords, a compact manifest-hashed ledger.
+  // Per-enemy spawn/kill public events are intentionally NOT recorded. Replay v3
+  // replays the deterministic engine from seed + player actions instead.
 
   recordPickupCollect(state: RunTelemetryState, kind: PickupKind, pos: Vec, value: number): void {
     bump(this.towerInterest.pickupCollects, kind);
@@ -1106,19 +1070,21 @@ export class RunRecorder {
     // Firestore rules cap chunkCount <= 100 and eventCount <= 100000; stop emitting overflow
     // chunks at the ceiling so a marathon run's replay (and its score) never gets rejected.
     const MAX_CHUNKS = 100;
-    const allEvents = this.withSyntheticEnd(state);
-    const runEvents = allEvents.slice(0, RUN_EVENT_CHUNK_SIZE);
+    const allActions = normalizeReplayActionEvents(this.withSyntheticEnd(state));
+    const towerIds = replayTowerIds(allActions);
+    const runActions = allActions.slice(0, RUN_EVENT_CHUNK_SIZE);
+    const encodedRunActions = encodeReplayActions(runActions, { towerIds });
     const chunks: RunEventChunkDoc[] = [];
-    for (let i = RUN_EVENT_CHUNK_SIZE; i < allEvents.length && chunks.length < MAX_CHUNKS; i += RUN_EVENT_CHUNK_SIZE) {
+    for (let i = RUN_EVENT_CHUNK_SIZE; i < allActions.length && chunks.length < MAX_CHUNKS; i += RUN_EVENT_CHUNK_SIZE) {
       chunks.push(stripUndefined({
         schemaVersion: RUN_TELEMETRY_SCHEMA,
         runId: this.runId,
         chunk: chunks.length,
-        events: allEvents.slice(i, i + RUN_EVENT_CHUNK_SIZE),
+        actions: encodeReplayActions(allActions.slice(i, i + RUN_EVENT_CHUNK_SIZE), { towerIds }),
       }));
     }
-    const chunkEvents = chunks.reduce((n, c) => n + c.events.length, 0);
-    const deathRecords = this.makeDeathRecords();
+    const chunkEvents = chunks.reduce((n, c) => n + c.actions.count, 0);
+    const balance = balanceDocSnapshot();
     const run: PublicRunDoc = stripUndefined({
       schemaVersion: RUN_TELEMETRY_SCHEMA,
       runId: this.runId,
@@ -1126,9 +1092,8 @@ export class RunRecorder {
       endedAt: this.endedAt || Date.now(),
       build,
       chunkCount: chunks.length,
-      eventCount: runEvents.length + chunkEvents,
-      manifest: buildRunManifest(runEvents, chunks, deathRecords),
-      deathRecords,
+      eventCount: encodedRunActions.count + chunkEvents,
+      manifest: buildRunManifest(encodedRunActions, chunks),
       summary: this.summary(state, callsign),
       setup: {
         map: this.start.map.id,
@@ -1141,14 +1106,13 @@ export class RunRecorder {
         startingLives: this.start.startingLives,
         availableTowerIds: [...this.start.availableTowerIds],
         balanceVersion: balanceVersion() || build,
+        ...(balance ? { balance } : {}),
+        ...(this.dailySnapshot ? { daily: this.dailySnapshot } : {}),
         replayEngine: REPLAY_ENGINE_VERSION,
       },
-      events: runEvents,
-      // Evenly downsample to the rules cap while ALWAYS keeping the first + last keyframe, so the
-      // replay spans the whole run (wave 1 → end) instead of only the tail.
-      snapshots: downsampleSnapshots(this.snapshots, SNAP_DOC_CAP),
+      actions: encodedRunActions,
       final: {
-        towers: this.finalTowers(state),
+        towers: this.finalTowers(state, FINAL_TOWER_DOC_CAP),
         damageByTower: intRecord(state.runStats.dmg),
         killsByEnemy: intRecord(state.runStats.kills),
         abilitiesCast: Math.round(state.runStats.abilitiesCast),
@@ -1156,26 +1120,24 @@ export class RunRecorder {
         leaks: Math.round(state.runStats.leaks),
       },
     });
-    const refreshIntegrity = () => {
-      run.eventCount = run.events.length + chunkEvents;
-      run.manifest = buildRunManifest(run.events, chunks, run.deathRecords ?? emptyDeathRecords());
-    };
-    refreshIntegrity();
-    // Hard safety net: Firestore caps a single doc at 1 MB. Even with lean snapshots a very
-    // long run could approach it — thin snapshots EVENLY (keeping first + last so the replay
-    // still spans the whole run), then trim head events, so score submission never fails on size.
-    const DOC_LIMIT = 900_000;
-    const size = () => JSON.stringify(run).length;
-    while (size() > DOC_LIMIT && run.snapshots.length > 12) {
-      run.snapshots = downsampleSnapshots(run.snapshots, Math.floor(run.snapshots.length * 0.8));
-    }
-    while (size() > DOC_LIMIT && run.events.length > 40) {
-      run.events = run.events.slice(0, Math.floor(run.events.length * 0.6));
-      refreshIntegrity();
-    }
-    // keep eventCount honest after any head-event trim (it was computed pre-trim)
-    refreshIntegrity();
     return { run, chunks };
+  }
+
+  replayActionCount(): number {
+    return this.events.length;
+  }
+
+  buildReplayActionStreamChunk(fromActionIndex: number, chunk: number): RunEventChunkDoc | null {
+    const start = Math.max(0, Math.floor(fromActionIndex));
+    const actions = this.events.slice(start, start + RUN_EVENT_CHUNK_SIZE);
+    if (actions.length === 0) return null;
+    const towerIds = replayTowerIds(this.events);
+    return stripUndefined({
+      schemaVersion: RUN_TELEMETRY_SCHEMA,
+      runId: this.runId,
+      chunk: Math.max(0, Math.floor(chunk)),
+      actions: encodeReplayActions(actions, { towerIds }),
+    });
   }
 
   makePrivateAnalytics(state: RunTelemetryState, uid: string, callsign: string, build: string): PrivateRunAnalyticsDoc {
@@ -1218,7 +1180,7 @@ export class RunRecorder {
         cashSpent: Math.round(this.cashSpent),
         cashRefunded: Math.round(this.cashRefunded),
         cashFloatedEnd: summary.credits,
-        cashFloatedMaxSnapshot: Math.max(0, ...this.snapshots.map((s) => s.cash)),
+        cashFloatedMaxSnapshot: Math.max(0, this.cashFloatedMaxSnapshot),
         failedPurchaseAttempts: this.failedPlacements,
         failedUpgradeAttempts: this.failedUpgrades,
         sellCount: [...this.ledger.values()].filter((t) => t.soldAtS !== undefined).length,
@@ -1378,8 +1340,8 @@ export class RunRecorder {
         pausedS: analytics.attention.pausedS,
       },
       counters: {
-        events: this.events.length,
-        snapshots: this.snapshots.length,
+        events: this.eventCount,
+        snapshots: this.snapshotCount,
         towers: state.towers.length,
         enemies: state.enemyCount,
         waves: state.wave,
@@ -1387,8 +1349,8 @@ export class RunRecorder {
         scoreSubmitAttempts: Math.round(Number(analytics.leaderboard.scoreSubmitAttempts ?? 0)),
         checkpointSubmits: this.freeplay.checkpointSubmits,
       },
-      recentEvents: this.events.slice(-24),
-      latestSnapshot: this.snapshots.at(-1) ?? null,
+      recentEvents: this.recentEvents.slice(-24),
+      latestSnapshot: this.latestSnapshot,
     };
   }
 
@@ -1467,7 +1429,7 @@ export class RunRecorder {
   }
 
   private record(type: string, state: RunTelemetryState, payload: Record<string, unknown> = {}): void {
-    this.events.push({
+    const event: RunEvent = {
       type,
       t: roundS(state.time),
       simTick: Math.max(0, Math.round(state.time * 60)),
@@ -1476,7 +1438,11 @@ export class RunRecorder {
       lives: state.lives,
       speed: Math.max(1, Math.min(4, Math.round(state.speed))),
       ...payload,
-    });
+    };
+    this.eventCount++;
+    this.recentEvents.push(event);
+    if (this.recentEvents.length > 24) this.recentEvents.shift();
+    if (isReplayActionEvent(event)) this.events.push(event);
   }
 
   private privateEvent(type: string, state: RunTelemetryState, payload: Record<string, unknown>): void {
@@ -1488,7 +1454,8 @@ export class RunRecorder {
   }
 
   private snapshot(label: string, state: RunTelemetryState): void {
-    this.snapshots.push({
+    this.snapshotCount++;
+    const snapshot: RunWaveSnapshot = {
       label,
       t: roundS(state.time),
       wave: state.wave,
@@ -1501,8 +1468,9 @@ export class RunRecorder {
       damageByTower: intRecord(state.runStats.dmg),
       killsByEnemy: intRecord(state.runStats.kills),
       towers: this.snapshotTowers(state),
-    });
-    if (this.snapshots.length > SNAP_MEM_CAP) this.snapshots.splice(0, this.snapshots.length - SNAP_MEM_CAP);
+    };
+    this.latestSnapshot = snapshot;
+    this.cashFloatedMaxSnapshot = Math.max(this.cashFloatedMaxSnapshot, snapshot.cash);
   }
 
   private ensureTower(tower: Tower, state: RunTelemetryState): TowerLedger {
@@ -1529,7 +1497,7 @@ export class RunRecorder {
     return fallback;
   }
 
-  private finalTowers(state: RunTelemetryState): RunTowerSnapshot[] {
+  private finalTowers(state: RunTelemetryState, cap = Infinity): RunTowerSnapshot[] {
     for (const tower of state.towers) {
       const entry = this.ensureTower(tower, state);
       entry.tierA = tower.tierA;
@@ -1540,9 +1508,26 @@ export class RunRecorder {
       entry.kills = tower.kills;
       entry.damage = Math.round(state.runStats.dmgByTowerUid[tower.uid] ?? entry.damage ?? 0);
     }
-    return [...this.ledger.values()]
+    const rows = [...this.ledger.values()]
       .sort((a, b) => a.placedAtS - b.placedAtS || a.towerUid - b.towerUid)
-      .map(({ placedAtWave, ...tower }) => ({ ...tower, damage: Math.round(tower.damage) }));
+      .map((tower) => {
+        const row: RunTowerSnapshot = {
+          towerUid: tower.towerUid,
+          towerId: tower.towerId,
+          x: tower.x,
+          y: tower.y,
+          placedAtS: tower.placedAtS,
+          tierA: tower.tierA,
+          tierB: tower.tierB,
+          damage: Math.round(tower.damage),
+        };
+        if (tower.soldAtS !== undefined) row.soldAtS = tower.soldAtS;
+        return row;
+      });
+    if (!Number.isFinite(cap) || rows.length <= cap) return rows;
+    return rows
+      .sort((a, b) => b.damage - a.damage || a.placedAtS - b.placedAtS || a.towerUid - b.towerUid)
+      .slice(0, Math.max(0, Math.floor(cap)));
   }
 
   /** Lean per-snapshot tower roster — only the fields the replay flipbook needs. The full
@@ -1557,18 +1542,6 @@ export class RunRecorder {
       if (t.soldAtS !== undefined) tower.soldAtS = t.soldAtS;
       return tower;
     });
-  }
-
-  private makeDeathRecords(): RunDeathRecords {
-    const waves: RunDeathWaveRecord[] = [];
-    let count = 0;
-    for (const [wave, entries] of [...this.deathsByWave.entries()].sort((a, b) => a[0] - b[0])) {
-      const startDs = this.waveStartDs.get(wave) ?? 0;
-      const encoded = encodeDeathWave(entries);
-      count += entries.length;
-      if (encoded) waves.push({ wave, startDs, data: encoded });
-    }
-    return { codec: 'd1', count, waves };
   }
 
   private withSyntheticEnd(state: RunTelemetryState): RunEvent[] {
@@ -1638,104 +1611,12 @@ function roundS(n: number): number {
   return Math.max(0, Math.round(n * 10) / 10);
 }
 
-function roundDs(n: number): number {
-  return Math.max(0, Math.round(n * 10));
-}
-
 function roundPos(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
 function nowMs(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
-}
-
-const DEATH_PACK_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
-const DEATH_PACK_LOOKUP = new Map([...DEATH_PACK_ALPHABET].map((char, index) => [char, index]));
-const ENEMY_DEATH_CODE = new Map(ENEMY_LIST.map((enemy, index) => [enemy.id, index]));
-
-function emptyDeathRecords(): RunDeathRecords {
-  return { codec: 'd1', count: 0, waves: [] };
-}
-
-function encodePackedUInt(n: number): string {
-  let value = Math.max(0, Math.floor(n));
-  let out = '';
-  do {
-    let chunk = value % 32;
-    value = Math.floor(value / 32);
-    if (value > 0) chunk += 32;
-    out += DEATH_PACK_ALPHABET[chunk];
-  } while (value > 0);
-  return out;
-}
-
-function decodePackedUInt(data: string, index: number): { value: number; next: number } | null {
-  let value = 0;
-  let shift = 1;
-  let i = index;
-  while (i < data.length) {
-    const code = DEATH_PACK_LOOKUP.get(data[i++]);
-    if (code == null) return null;
-    value += (code % 32) * shift;
-    if (code < 32) return { value, next: i };
-    shift *= 32;
-    if (shift > 1_099_511_627_776) return null;
-  }
-  return null;
-}
-
-function encodeDeathWave(entries: { uid: number; enemyId: string; spawnDs: number; deathDs: number }[]): string {
-  let prevUid = 0;
-  let out = '';
-  const sorted = [...entries].sort((a, b) => a.uid - b.uid || a.deathDs - b.deathDs || a.enemyId.localeCompare(b.enemyId));
-  for (const entry of sorted) {
-    const typeCode = ENEMY_DEATH_CODE.get(entry.enemyId);
-    if (typeCode == null) continue;
-    const uid = Math.max(prevUid, Math.floor(entry.uid));
-    out += encodePackedUInt(uid - prevUid);
-    out += encodePackedUInt(typeCode);
-    out += encodePackedUInt(entry.spawnDs);
-    out += encodePackedUInt(entry.deathDs);
-    prevUid = uid;
-  }
-  return out;
-}
-
-export function decodeReplayDeathRecords(raw: unknown): DecodedReplayDeath[] {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
-  const records = raw as Partial<RunDeathRecords>;
-  if (records.codec !== 'd1' || !Array.isArray(records.waves)) return [];
-  const out: DecodedReplayDeath[] = [];
-  for (const row of records.waves) {
-    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
-    const waveRow = row as Partial<RunDeathWaveRecord>;
-    if (typeof waveRow.wave !== 'number' || typeof waveRow.startDs !== 'number' || typeof waveRow.data !== 'string') continue;
-    let index = 0;
-    let uid = 0;
-    while (index < waveRow.data.length) {
-      const uidDelta = decodePackedUInt(waveRow.data, index);
-      if (!uidDelta) break;
-      const typeCode = decodePackedUInt(waveRow.data, uidDelta.next);
-      if (!typeCode) break;
-      const spawnDs = decodePackedUInt(waveRow.data, typeCode.next);
-      if (!spawnDs) break;
-      const deathDs = decodePackedUInt(waveRow.data, spawnDs.next);
-      if (!deathDs) break;
-      index = deathDs.next;
-      uid += uidDelta.value;
-      const enemyId = ENEMY_LIST[typeCode.value]?.id;
-      if (!enemyId) continue;
-      out.push({
-        uid,
-        enemyId,
-        wave: Math.max(0, Math.floor(waveRow.wave)),
-        spawnT: roundS((Math.max(0, Math.floor(waveRow.startDs)) + spawnDs.value) / 10),
-        deathT: roundS((Math.max(0, Math.floor(waveRow.startDs)) + Math.max(spawnDs.value, deathDs.value)) / 10),
-      });
-    }
-  }
-  return out;
 }
 
 function bump(map: Record<string, number>, key: string): void {
@@ -1804,6 +1685,12 @@ function getStringArray(payload: Record<string, unknown>, key: string): string[]
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, 12) : [];
 }
 
+function replayTowerIds(actions: RunEvent[]): string[] {
+  return Array.from(new Set(actions
+    .map((event) => typeof event.towerId === 'string' ? event.towerId : '')
+    .filter(Boolean)));
+}
+
 function hashMap(map: GameMap): string {
   const data = JSON.stringify({
     id: map.id,
@@ -1849,37 +1736,10 @@ export function hashRunEventPairs(events: Array<Pick<RunEvent, 'type' | 't'> & {
   return fnv1aHex(events.map((event) => `${stableEventPair(event)}\n`));
 }
 
-function stableDeathRecordLines(raw: unknown): string[] {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ['invalid\n'];
-  const records = raw as Partial<RunDeathRecords>;
-  const lines = [
-    `codec:${records.codec === 'd1' ? 'd1' : 'invalid'}\n`,
-    `count:${typeof records.count === 'number' && Number.isFinite(records.count) ? Math.max(0, Math.floor(records.count)) : -1}\n`,
-  ];
-  if (!Array.isArray(records.waves)) return [...lines, 'waves:invalid\n'];
-  for (const row of records.waves) {
-    if (!row || typeof row !== 'object' || Array.isArray(row)) {
-      lines.push('wave:invalid\n');
-      continue;
-    }
-    const waveRow = row as Partial<RunDeathWaveRecord>;
-    const wave = typeof waveRow.wave === 'number' && Number.isFinite(waveRow.wave) ? Math.floor(waveRow.wave) : -1;
-    const startDs = typeof waveRow.startDs === 'number' && Number.isFinite(waveRow.startDs) ? Math.floor(waveRow.startDs) : -1;
-    const data = typeof waveRow.data === 'string' ? waveRow.data : '';
-    lines.push(`${wave}:${startDs}:${data}\n`);
-  }
-  return lines;
-}
-
-export function hashRunDeathRecords(records: RunDeathRecords): string {
-  return fnv1aHex(stableDeathRecordLines(records));
-}
-
-export function buildRunManifest(events: RunEvent[], chunks: RunEventChunkDoc[], deathRecords: RunDeathRecords): RunManifest {
+export function buildRunManifest(actions: ReplayActionPack, chunks: RunEventChunkDoc[]): RunManifest {
   return {
-    chunkEventCounts: chunks.map((chunk) => chunk.events.length),
-    eventHash: hashRunEventPairs([...events, ...chunks.flatMap((chunk) => chunk.events)]),
-    deathHash: hashRunDeathRecords(deathRecords),
+    chunkEventCounts: chunks.map((chunk) => chunk.actions.count),
+    actionHash: actionHash(actions, chunks),
     complete: true,
   };
 }

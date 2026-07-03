@@ -30,7 +30,7 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
 import { mergeGlobalTopRows, type GlobalTopRow } from './aggregateHelpers.js';
 import { partitionRunDeletions, validDeletedRunIds } from './deleteHelpers.js';
-import { reSimulate, setBalanceDoc, setDailyOverrideDoc, type ReSimResult } from './generated/reSimulate.js';
+import { dailyChallengeForId, reSimulate, setBalanceDoc, setDailyOverrideDoc, type ReSimResult } from './generated/reSimulate.js';
 import { validateReplayManifest, type ReplayChunkInput } from './replayIntegrity.js';
 import {
   canonicalLeaderboardCash,
@@ -211,7 +211,7 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
     const data = chunkSnap.exists ? chunkSnap.data() as Record<string, unknown> : {};
     return {
       exists: chunkSnap.exists,
-      events: Array.isArray(data.events) ? data.events : [],
+      actions: data.actions,
     };
   });
   const manifestStatus = validateReplayManifest(run, chunks);
@@ -442,21 +442,78 @@ async function writeVerificationReason(runId: string, result: ReSimResult, rows:
  *  the live config docs so re-simulation runs under the same math the player saw.
  *  reSimulate itself compares balance versions and returns 'unverifiable' when
  *  the run was recorded under a balance we no longer have. */
-async function loadReSimConfig(): Promise<void> {
+interface ReSimConfigDocs {
+  balance: Record<string, unknown> | null;
+  balanceExists: boolean;
+  dailyOverride: Record<string, unknown> | null;
+}
+
+async function loadReSimConfig(): Promise<ReSimConfigDocs> {
   const [balanceSnap, overrideSnap] = await Promise.all([
     db.doc('config/balance').get(),
     db.doc('config/dailyOverride').get(),
   ]);
-  setBalanceDoc(balanceSnap.exists ? balanceSnap.data() : null);
-  setDailyOverrideDoc(overrideSnap.exists ? overrideSnap.data() : null);
+  const balance = balanceSnap.exists ? balanceSnap.data() as Record<string, unknown> : null;
+  const dailyOverride = overrideSnap.exists ? overrideSnap.data() as Record<string, unknown> : null;
+  setBalanceDoc(balance);
+  setDailyOverrideDoc(dailyOverride);
+  return { balance, balanceExists: balanceSnap.exists, dailyOverride };
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      const entry = (value as Record<string, unknown>)[key];
+      if (entry !== undefined) out[key] = canonicalize(entry);
+    }
+    return out;
+  }
+  return value;
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalize(value));
+}
+
+function snapshotNotAuthentic(): ReSimResult {
+  return { verdict: 'unverifiable', reason: 'snapshot not authentic' };
+}
+
+function authenticateSetupSnapshots(run: Record<string, unknown>, config: ReSimConfigDocs): ReSimResult | null {
+  const setup = (run.setup ?? {}) as Record<string, unknown>;
+  // Presence must be symmetric: identity balance (no live doc) means the run
+  // must carry NO snapshot, and a published live doc means it must carry one
+  // that canonically matches. Either asymmetry is a forgery or a stale record.
+  if (config.balanceExists !== ('balance' in setup)) return snapshotNotAuthentic();
+  if (config.balanceExists && canonicalJson(setup.balance) !== canonicalJson(config.balance)) {
+    return snapshotNotAuthentic();
+  }
+
+  // setupReplayGame applies setup.daily whenever it is present, so it must be
+  // authenticated whenever present — a non-daily run smuggling a daily snapshot
+  // (easy boons) would otherwise re-simulate under forged rules.
+  const summary = (run.summary ?? {}) as Record<string, unknown>;
+  const dailyId = typeof summary.daily === 'string' ? summary.daily : '';
+  if (!dailyId && 'daily' in setup) return snapshotNotAuthentic();
+  if (dailyId) {
+    const expectedDaily = dailyChallengeForId(dailyId);
+    if (!expectedDaily || !('daily' in setup)) return snapshotNotAuthentic();
+    if (canonicalJson(setup.daily) !== canonicalJson(expectedDaily)) return snapshotNotAuthentic();
+  }
+  return null;
 }
 
 async function verifyRunCore(runId: string, explicitRows?: ScoreRowRef[], source = 'callable'): Promise<VerifyRunResult> {
   const bundle = await readReSimBundle(runId);
-  if (bundle.bundle) await loadReSimConfig();
-  const result: ReSimResult = bundle.bundle
-    ? reSimulate(bundle.bundle)
-    : { verdict: 'unverifiable', reason: bundle.reason ?? 'unverifiable' };
+  let result: ReSimResult;
+  if (bundle.bundle) {
+    const config = await loadReSimConfig();
+    result = authenticateSetupSnapshots(bundle.bundle.run, config) ?? reSimulate(bundle.bundle);
+  } else {
+    result = { verdict: 'unverifiable', reason: bundle.reason ?? 'unverifiable' };
+  }
   const rows = explicitRows ?? await scoreRowsForRun(runId);
   const rowsUpdated = await writeScoreVerdict(rows, result.verdict);
   await writeVerificationReason(runId, result, rows, source);

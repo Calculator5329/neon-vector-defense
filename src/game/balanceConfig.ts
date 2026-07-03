@@ -69,10 +69,12 @@ const IDENTITY: ResolvedBalance = {
 };
 
 let current: ResolvedBalance = IDENTITY;
+let currentDoc: BalanceConfigDoc | null = null;
 
 /** Validate + clamp a raw (untrusted) doc into the always-valid resolved view, or reset to identity. */
 export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
-  if (!raw || typeof raw !== 'object') { current = IDENTITY; return; }
+  if (!raw || typeof raw !== 'object') { current = IDENTITY; currentDoc = null; return; }
+  currentDoc = cloneBalanceDoc(raw);
   const version = typeof raw.version === 'string' ? raw.version.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 30) : '';
   const killMult = clampMult(raw.income?.killMult);
   const waveBonusMult = clampMult(raw.income?.waveBonusMult);
@@ -113,6 +115,13 @@ export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
 
 export function getBalance(): ResolvedBalance { return current; }
 export function balanceVersion(): string { return current.version; }
+export function balanceDocSnapshot(): BalanceConfigDoc | null {
+  return currentDoc ? cloneBalanceDoc(currentDoc) : null;
+}
+
+function cloneBalanceDoc(raw: BalanceConfigDoc): BalanceConfigDoc {
+  return JSON.parse(JSON.stringify(raw)) as BalanceConfigDoc;
+}
 
 /** Fetch config/balance once on boot (public read), races a timeout so a blocked/CSP
  *  Firestore promise can't hang. Any failure leaves identity balance in place. */

@@ -2,7 +2,6 @@ import { TOWER_MAP } from './towers';
 import { getWave } from './waves';
 import { ENEMIES } from './enemies';
 import {
-  decodeReplayDeathRecords,
   type PublicRunDoc,
   type RunEvent,
   type RunWaveSnapshot,
@@ -101,9 +100,18 @@ interface ReplayPlannedSpawn {
   consumed?: boolean;
 }
 
+function replayEvents(run: PublicRunDoc): RunEvent[] {
+  return Array.isArray(run.events) ? run.events : [];
+}
+
+function replaySnapshots(run: PublicRunDoc): RunWaveSnapshot[] {
+  return Array.isArray(run.snapshots) ? run.snapshots : [];
+}
+
 export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
-  const snaps = run.snapshots.length
-    ? run.snapshots
+  const sourceSnapshots = replaySnapshots(run);
+  const snaps = sourceSnapshots.length
+    ? sourceSnapshots
     : [synthSnapshot(run)];
   let idx = 0;
   for (let i = 0; i < snaps.length; i++) {
@@ -163,12 +171,13 @@ export function posAtDist(geom: PathGeom, d: number): { x: number; y: number; an
 
 export function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT: number } {
   let best: { wave: number; startT: number } | null = null;
-  for (const s of run.snapshots) {
+  const snapshots = replaySnapshots(run);
+  for (const s of snapshots) {
     if (s.t <= t && s.label === 'wave_start') best = { wave: s.wave, startT: s.t };
     else if (s.t > t) break;
   }
   if (best) return best;
-  const f = run.snapshots[0];
+  const f = snapshots[0];
   return { wave: f?.wave ?? run.summary.wave, startT: f?.t ?? 0 };
 }
 
@@ -245,15 +254,16 @@ function fallbackGroupsForWave(wave: number): ReplayWaveGroup[] {
 
 function waveStarts(run: PublicRunDoc): { wave: number; startT: number; event?: RunEvent }[] {
   const byWave = new Map<number, { wave: number; startT: number; event?: RunEvent }>();
-  for (const s of run.snapshots) {
+  const snapshots = replaySnapshots(run);
+  for (const s of snapshots) {
     if (s.label === 'wave_start') byWave.set(s.wave, { wave: s.wave, startT: s.t });
   }
-  for (const e of run.events) {
+  for (const e of replayEvents(run)) {
     if (e.type !== 'wave_start') continue;
     const wave = Math.max(0, Math.floor(e.wave));
     byWave.set(wave, { wave, startT: e.t, event: e });
   }
-  if (byWave.size === 0 && run.snapshots[0]) byWave.set(run.snapshots[0].wave, { wave: run.snapshots[0].wave, startT: run.snapshots[0].t });
+  if (byWave.size === 0 && snapshots[0]) byWave.set(snapshots[0].wave, { wave: snapshots[0].wave, startT: snapshots[0].t });
   return [...byWave.values()].sort((a, b) => a.startT - b.startT || a.wave - b.wave);
 }
 
@@ -282,62 +292,6 @@ function buildPlannedSpawns(run: PublicRunDoc): ReplayPlannedSpawn[] {
   return waveStarts(run).flatMap(plannedSpawnsForWave);
 }
 
-function planKey(wave: number, type: string, t: number): string {
-  return `${wave}\n${type}\n${roundReplayT(t)}`;
-}
-
-function planTypeKey(wave: number, type: string): string {
-  return `${wave}\n${type}`;
-}
-
-function makePlannedSpawnAssigner(plan: ReplayPlannedSpawn[]): (wave: number, type: string, spawnT: number) => ReplayPlannedSpawn | undefined {
-  const exact = new Map<string, ReplayPlannedSpawn[]>();
-  const byType = new Map<string, ReplayPlannedSpawn[]>();
-  for (const spawn of plan) {
-    const exactKey = planKey(spawn.wave, spawn.type, spawn.spawnT);
-    const exactRows = exact.get(exactKey) ?? [];
-    exactRows.push(spawn);
-    exact.set(exactKey, exactRows);
-
-    const typeKey = planTypeKey(spawn.wave, spawn.type);
-    const typeRows = byType.get(typeKey) ?? [];
-    typeRows.push(spawn);
-    byType.set(typeKey, typeRows);
-  }
-
-  return (wave: number, type: string, spawnT: number): ReplayPlannedSpawn | undefined => {
-    const exactRows = exact.get(planKey(wave, type, spawnT));
-    while (exactRows?.length && exactRows[0].consumed) exactRows.shift();
-    if (exactRows?.length) {
-      const spawn = exactRows.shift();
-      if (spawn) {
-        spawn.consumed = true;
-        return spawn;
-      }
-    }
-
-    const rows = byType.get(planTypeKey(wave, type));
-    if (!rows?.length) return undefined;
-    const target = roundReplayT(spawnT);
-    let bestIdx = -1;
-    let bestErr = 0.26;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (row.consumed) continue;
-      const err = Math.abs(row.spawnT - target);
-      if (err < bestErr) {
-        bestErr = err;
-        bestIdx = i;
-      }
-      if (row.spawnT > target + 0.3) break;
-    }
-    if (bestIdx < 0) return undefined;
-    const spawn = rows[bestIdx];
-    spawn.consumed = true;
-    return spawn;
-  };
-}
-
 function eliteSpeedMult(elite: EliteAffixId | undefined): number {
   return elite ? ELITE_AFFIX_META[elite].speedMult : 1;
 }
@@ -345,10 +299,11 @@ function eliteSpeedMult(elite: EliteAffixId | undefined): number {
 function legacySpawnRecords(run: PublicRunDoc): Map<number, ReplayEnemyRecord> {
   const records = new Map<number, ReplayEnemyRecord>();
   let syntheticUid = -1;
-  const hasSpawnEvents = run.events.some((e) => e.type === 'enemy_spawn');
+  const events = replayEvents(run);
+  const hasSpawnEvents = events.some((e) => e.type === 'enemy_spawn');
 
   if (hasSpawnEvents) {
-    for (const e of run.events) {
+    for (const e of events) {
       if (e.type !== 'enemy_spawn') continue;
       const def = ENEMIES[eventStr(e, 'enemyId')];
       if (!def) continue;
@@ -383,43 +338,9 @@ function legacySpawnRecords(run: PublicRunDoc): Map<number, ReplayEnemyRecord> {
   return records;
 }
 
-function applyLeakEvents(
-  run: PublicRunDoc,
-  records: Map<number, ReplayEnemyRecord>,
-  syntheticUid: { value: number },
-  takePlannedSpawn?: (wave: number, type: string, spawnT: number) => ReplayPlannedSpawn | undefined,
-): void {
-  for (const e of run.events) {
-    if (e.type !== 'leak') continue;
-    const def = ENEMIES[eventStr(e, 'enemyId')];
-    if (!def) continue;
-    const uid = typeof e.enemyUid === 'number' ? Math.floor(e.enemyUid) : syntheticUid.value--;
-    const dist = Math.max(0, eventNum(e, 'dist', 0));
-    const wave = Math.max(0, Math.floor(e.wave));
-    const planned = takePlannedSpawn?.(wave, def.id, Math.max(0, e.t - dist / Math.max(1, def.speed)));
-    const existing = records.get(uid);
-    const rec = existing ?? {
-      uid,
-      def,
-      wave,
-      spawnT: planned?.spawnT ?? Math.max(0, e.t - dist / Math.max(1, def.speed)),
-      spawnDist: 0,
-      cloaked: planned?.cloaked ?? false,
-      elite: planned?.elite,
-    };
-    if (rec.endKind === 'kill') continue;
-    rec.endT = e.t;
-    rec.endKind = 'leak';
-    rec.endDist = dist;
-    rec.endX = typeof e.x === 'number' ? e.x : undefined;
-    rec.endY = typeof e.y === 'number' ? e.y : undefined;
-    records.set(uid, rec);
-  }
-}
-
 function applyUmbraPhaseEvents(run: PublicRunDoc, records: Map<number, ReplayEnemyRecord>): ReplayUmbraPhasePoint[] {
   const phases: ReplayUmbraPhasePoint[] = [];
-  for (const e of run.events) {
+  for (const e of replayEvents(run)) {
     if (e.type !== 'umbra_phase') continue;
     const phase = replayUmbraPhaseFromEvent(e);
     if (!phase) continue;
@@ -442,37 +363,6 @@ function applyUmbraPhaseEvents(run: PublicRunDoc, records: Map<number, ReplayEne
   return phases;
 }
 
-function buildAuthoritativeTimeline(run: PublicRunDoc): ReplayCombatTimeline {
-  const records = new Map<number, ReplayEnemyRecord>();
-  const takePlannedSpawn = makePlannedSpawnAssigner(buildPlannedSpawns(run));
-  for (const death of decodeReplayDeathRecords(run.deathRecords)) {
-    const def = ENEMIES[death.enemyId];
-    if (!def) continue;
-    const planned = takePlannedSpawn(death.wave, death.enemyId, death.spawnT);
-    const elite = planned?.elite;
-    const duration = Math.max(0.05, death.deathT - death.spawnT);
-    records.set(death.uid, {
-      uid: death.uid,
-      def,
-      wave: death.wave,
-      spawnT: death.spawnT,
-      spawnDist: 0,
-      cloaked: planned?.cloaked ?? false,
-      elite,
-      endT: death.deathT,
-      endKind: 'kill',
-      endDist: Math.max(0, def.speed * eliteSpeedMult(elite) * duration),
-    });
-  }
-  applyLeakEvents(run, records, { value: -1 }, takePlannedSpawn);
-  const umbraPhases = applyUmbraPhaseEvents(run, records);
-  const enemies = [...records.values()].sort((a, b) => a.spawnT - b.spawnT || a.uid - b.uid);
-  const effects = enemies
-    .filter((e) => e.endT != null)
-    .sort((a, b) => (a.endT ?? 0) - (b.endT ?? 0) || a.uid - b.uid);
-  return { enemies, effects, authoritativeDeaths: true, umbraPhases };
-}
-
 function buildLegacyTimeline(run: PublicRunDoc): ReplayCombatTimeline {
   const records = legacySpawnRecords(run);
 
@@ -493,7 +383,7 @@ function buildLegacyTimeline(run: PublicRunDoc): ReplayCombatTimeline {
   };
 
   let hasKillEvents = false;
-  for (const e of run.events) {
+  for (const e of replayEvents(run)) {
     if (e.type === 'enemy_kill') {
       hasKillEvents = true;
       assignEnd('kill', e.t, eventStr(e, 'enemyId'), Math.floor(eventNum(e, 'enemyUid', NaN)), e);
@@ -504,7 +394,7 @@ function buildLegacyTimeline(run: PublicRunDoc): ReplayCombatTimeline {
   }
 
   if (!hasKillEvents) {
-    const snaps = [...run.snapshots].sort((a, b) => a.t - b.t);
+    const snaps = [...replaySnapshots(run)].sort((a, b) => a.t - b.t);
     for (let i = 1; i < snaps.length; i++) {
       const prev = snaps[i - 1];
       const snap = snaps[i];
@@ -526,7 +416,6 @@ function buildLegacyTimeline(run: PublicRunDoc): ReplayCombatTimeline {
 }
 
 export function buildReplayCombatTimeline(run: PublicRunDoc): ReplayCombatTimeline {
-  if (run.deathRecords?.codec === 'd1') return buildAuthoritativeTimeline(run);
   return buildLegacyTimeline(run);
 }
 

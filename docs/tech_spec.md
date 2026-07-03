@@ -53,37 +53,63 @@ Key fields (`PublicRunDoc`):
 
 ```typescript
 {
-  schemaVersion: 2;
+  schemaVersion: 3;
   runId: string;
-  replayTokenHash?: string;
+  replayTokenHash: string;
   createdAt: number;
   endedAt: number;
   build: string;
   chunkCount: number;
   eventCount: number;
-  manifest: { chunkEventCounts: number[], eventHash: string, deathHash: string, complete: true };
-  deathRecords: { codec: 'd1', count: number, waves: { wave: number, startDs: number, data: string }[] };
-  setup: { map, mapName, mapHash, diff, diffName, startingCash, startingLives, availableTowerIds, balanceVersion };
+  manifest: { chunkEventCounts: number[], actionHash: string, complete: true };
+  setup: {
+    map, mapName, mapHash, diff, diffName, seed,
+    startingCash, startingLives, availableTowerIds,
+    balanceVersion, balance?, daily?, replayEngine?
+  };
   summary: { callsign, map, diff, freeplay, daily?, wave, kills, credits, cashEarned, outcome, durationS, ... };
-  snapshots: RunWaveSnapshot[];  // lean tower rows per wave
-  events: RunEvent[];            // first public event window
+  actions: { codec: 'r3', count: number, towerIds: string[], data: string };
   final: { towers, damageByTower, killsByEnemy, ... };
 }
 ```
 
-Per-wave snapshots omit heavy tower fields to stay under Firestore's 1 MB document limit. Public replay docs must include a completion manifest so server validation can compare chunk event counts, event hash, and the compact death-record hash before accepting score claims. `deathRecords.codec = 'd1'` stores per-wave packed varints for real enemy uid delta, enemy type, spawn decisecond offset, and death decisecond offset; the viewer treats these as authoritative and falls back to snapshot kill deltas only for older production replays. Optional fields must be omitted or `null`, not `undefined`, because Firestore rejects undefined field values.
+Public replay docs must include a completion manifest so server validation can
+compare chunk action counts and the compact action hash before accepting score
+claims. `eventHash`, `deathHash`, `deathRecords`, `events`, and `snapshots` are
+v2 fields and are rejected for new public writes. Optional fields must be
+omitted or `null`, not `undefined`, because Firestore rejects undefined field
+values. Existing v2 replay links are intentionally unwatchable after the schema
+3 cutover; re-pin any Replay of the Day that points at a v2 run.
 
-Encounter metadata stays inside the existing replay event list. `wave_start`
-group rows may include compact elite entries (`elites: [{ i, a }]`, where `i`
-is the 0-based spawn index within the group and `a` is the affix id), and Umbra
-phase transitions are recorded as `umbra_phase` events with compact phase
-numbers. These payload additions do not change Firestore document schemas.
+The `r3` codec stores only player actions consumed by `reSimulate`:
+
+| Action | Args |
+| --- | --- |
+| `wave_start` | simTick delta, wave, speed |
+| `tower_place` | tower table index, tower uid, x/y in tenths |
+| `tower_upgrade` | tower uid, track |
+| `tower_sell` | tower uid |
+| `target_mode` | tower uid, target-mode enum |
+| `ability_cast` | ability enum, optional x/y in tenths |
+| `pickup_collect` | pickup enum, x/y in tenths |
+| `freeplay_enter` | contract enum |
+| `freeplay_relic_select` | relic enum |
+| `freeplay_risk_accept` / `freeplay_risk_decline` | risk enum |
+| `speed_change` | speed enum |
+| `run_end` | outcome enum |
+
+All actions encode monotonic simTick deltas plus small enum/integer args into
+the base64url-like `data` string. Tower ids are stored once in `towerIds`; chunk
+packs reuse that root table. Agent A measured a seeded freeplay wave-81 run at
+1,304,761 bytes for the old verbose public bundle, 5,569 bytes for verbose
+action JSON, 942 bytes for the r3 action payload object, and 701 bytes for the
+r3 `data` string.
 
 ### `runs/{runId}/chunks/c{n}`
 
-Public overflow replay event chunks. `ReplayViewer` reads these after loading the
-main run doc when `chunkCount > 0`. Replay docs and chunks use telemetry schema
-version 2.
+Public overflow replay action chunks. `ReplayViewer` reads these after loading
+the main run doc when `chunkCount > 0`. Replay docs and chunks use telemetry
+schema version 3 and contain `{ schemaVersion, runId, chunk, actions }`.
 
 ### `replayOwners/{uid}/runs/{runId}`
 
@@ -100,7 +126,7 @@ and visibility hide. These are not the public Battle Plan replay chunks.
 ### `runAnalytics/{id}`
 
 Private per-run analytics (consent-gated writes, admin-only reads). New writes
-must use schema version 2 and include the `menu`, `controls`, `combat`,
+must use schema version 3 and include the `menu`, `controls`, `combat`,
 `placement`, `assistance`, and `freeplay` sections.
 
 ### `runVerificationReasons/{runId}`
@@ -215,19 +241,18 @@ Replay re-simulation contract:
 
 1. Admin calls `verifyRun({ runId })` from the Operations Console.
 2. The callable loads `runs/{runId}` plus public chunks, validates the replay
-   manifest, and replays exact recorded player actions through the deterministic
+   action manifest, and replays exact recorded player actions through the deterministic
    engine build compiled into Functions.
 3. Result shape is `{ runId, verdict, reason?, divergence? }`.
-4. `verified` means summary and death records matched. `divergent` means the run
+4. `verified` means the action stream and summary matched. `divergent` means the run
    was readable but the simulated result disagreed; `divergence` is the first
    meaningful mismatch. `unverifiable` means the run cannot be compared
    confidently, for example due to missing chunks, unsupported schema, balance
    mismatch, invalid timing, or simulation guard limits.
-5. Normal runs use exact summary comparison and exact compact death-ledger
-   comparison with the existing small death-time tolerance. High-volume freeplay
-   ledgers keep exact summary comparison, then allow count-level ledger matching
-   for dense terminal runs where per-uid death ordering can drift without
-   changing score or outcome.
+5. Runs use exact summary comparison after applying the recorded action stream at
+   exact simTicks. `setup.balance` and `setup.daily` snapshots are preferred over
+   live config fallback so future live-ops publishes do not invalidate honest
+   replays.
 6. Enforcement is not automatic at launch. Admin badges and audit docs come
    first, soft flagging comes next, and score rejection is a later operator flip
    after production false positives are understood.

@@ -737,32 +737,28 @@ test.describe('desktop UX layout', () => {
       for (let i = 0; i < 5_000 && game.phase === 'wave'; i++) game.update(0.05);
       const bundle = game.buildRunUploadBundle('VETERANDEPLOY', 'test-build');
       const load = (path: string) => import(/* @vite-ignore */ path);
-      const recon = await load('/src/game/replayReconstruct.ts');
-      const waveStart = bundle.run.snapshots.find((snap: { label: string }) => snap.label === 'wave_start');
-      const frame = recon.reconstructAt(bundle.run, waveStart?.t ?? 0);
-      const tower = frame.towers[0];
-      const timeline = recon.buildReplayCombatTimeline(bundle.run);
+      const codec = await load('/src/game/replayCodec.ts');
+      const events = codec.decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
+      const upgrades = events.filter((event: { type: string }) => event.type === 'tower_upgrade');
       return {
-        snapshotTierA: tower?.tierA ?? -1,
-        snapshotTierB: tower?.tierB ?? -1,
         finalTierA: bundle.run.final.towers[0]?.tierA ?? -1,
         finalTierB: bundle.run.final.towers[0]?.tierB ?? -1,
-        finalUpgrades: bundle.run.final.towers[0]?.upgrades?.length ?? 0,
+        actionUpgrades: upgrades.length,
         kills: bundle.run.summary.kills,
-        deathCount: bundle.run.deathRecords?.count ?? -1,
-        deathHash: bundle.run.manifest.deathHash ?? '',
-        authoritativeDeaths: timeline.authoritativeDeaths,
+        actionHash: bundle.run.manifest.actionHash ?? '',
+        hasLegacyEvents: 'events' in bundle.run,
+        hasLegacySnapshots: 'snapshots' in bundle.run,
+        hasLegacyDeaths: 'deathRecords' in bundle.run,
       };
     });
 
-    expect(replay.snapshotTierA).toBe(expected.tierA);
-    expect(replay.snapshotTierB).toBe(expected.tierB);
     expect(replay.finalTierA).toBe(expected.tierA);
     expect(replay.finalTierB).toBe(expected.tierB);
-    expect(replay.finalUpgrades).toBe(expected.upgrades);
-    expect(replay.authoritativeDeaths).toBe(true);
-    expect(replay.deathHash).toMatch(/^[0-9a-f]{8}$/);
-    expect(replay.deathCount).toBe(replay.kills);
+    expect(replay.actionUpgrades).toBe(expected.upgrades);
+    expect(replay.actionHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(replay.hasLegacyEvents).toBe(false);
+    expect(replay.hasLegacySnapshots).toBe(false);
+    expect(replay.hasLegacyDeaths).toBe(false);
     expect(replay.kills).toBeGreaterThan(0);
   });
 
@@ -949,7 +945,9 @@ test.describe('run telemetry model', () => {
     await openDemoMenu(page);
     await deployFromMenu(page);
 
-    const telemetry = await page.evaluate(() => {
+    const telemetry = await page.evaluate(async () => {
+      const load = (path: string) => import(/* @vite-ignore */ path);
+      const codec = await load('/src/game/replayCodec.ts');
       const game = (window as unknown as { game: {
         runId: string;
         startWave: () => void;
@@ -963,9 +961,9 @@ test.describe('run telemetry model', () => {
             runId: string;
             chunkCount: number;
             eventCount: number;
-            events: { type: string }[];
+            actions: unknown;
             summary: Record<string, unknown>;
-            manifest?: { chunkEventCounts: number[]; eventHash: string; complete: boolean };
+            manifest?: { chunkEventCounts: number[]; actionHash: string; complete: boolean };
           };
           chunks: unknown[];
         };
@@ -981,11 +979,15 @@ test.describe('run telemetry model', () => {
       const analytics = game.buildRunAnalyticsDoc('PERFTEST', 'w_test123', 'test-build');
       const checkpoint = game.buildRunCheckpointDoc('PERFTEST', 'w_test123', 'test-build', 3, 'interval');
       const freeplay = analytics.freeplay as { relicSelections?: Record<string, number> } | undefined;
+      const eventTypes = codec.decodeReplayActionBundle(bundle.run.actions, bundle.chunks).map((event: { type: string }) => event.type);
       return {
         gameRunId: game.runId,
         bundleRunId: bundle.run.runId,
         schemaVersion: bundle.run.schemaVersion,
-        eventTypes: bundle.run.events.map((event) => event.type),
+        eventTypes,
+        publicHasEvents: 'events' in bundle.run,
+        publicHasSnapshots: 'snapshots' in bundle.run,
+        publicHasDeathRecords: 'deathRecords' in bundle.run,
         publicHasUid: 'uid' in bundle.run,
         publicHasAttention: 'attention' in bundle.run,
         publicHasAssistance: 'assistance' in bundle.run,
@@ -1008,16 +1010,18 @@ test.describe('run telemetry model', () => {
         chunkCount: bundle.chunks.length,
         manifestComplete: bundle.run.manifest?.complete ?? false,
         manifestChunks: bundle.run.manifest?.chunkEventCounts.length ?? -1,
-        manifestHash: bundle.run.manifest?.eventHash ?? '',
+        manifestHash: bundle.run.manifest?.actionHash ?? '',
         eventCount: bundle.run.eventCount,
       };
     });
 
     expect(telemetry.gameRunId).toBe(telemetry.bundleRunId);
-    expect(telemetry.schemaVersion).toBe(2);
-    expect(telemetry.eventTypes).toContain('run_start');
+    expect(telemetry.schemaVersion).toBe(3);
     expect(telemetry.eventTypes).toContain('wave_start');
     expect(telemetry.eventTypes).toContain('freeplay_relic_select');
+    expect(telemetry.publicHasEvents).toBe(false);
+    expect(telemetry.publicHasSnapshots).toBe(false);
+    expect(telemetry.publicHasDeathRecords).toBe(false);
     expect(telemetry.publicHasUid).toBe(false);
     expect(telemetry.publicHasAttention).toBe(false);
     expect(telemetry.publicHasAssistance).toBe(false);
@@ -1030,7 +1034,7 @@ test.describe('run telemetry model', () => {
     expect(telemetry.analyticsHasAssistance).toBe(true);
     expect(telemetry.analyticsHasFreeplay).toBe(true);
     expect(telemetry.freeplayRelicSelections.beaconChoir).toBe(1);
-    expect(telemetry.checkpointSchema).toBe(2);
+    expect(telemetry.checkpointSchema).toBe(3);
     expect(telemetry.checkpointRunId).toBe(telemetry.gameRunId);
     expect(telemetry.checkpointChunk).toBe(3);
     expect(telemetry.checkpointReason).toBe('interval');
@@ -1065,7 +1069,9 @@ test.describe('run telemetry model', () => {
     await expect(page.getByTestId('diff-card-hard')).toHaveAttribute('aria-disabled', 'true');
     await deployFromMenu(page);
 
-    const metrics = await page.evaluate(() => {
+    const metrics = await page.evaluate(async () => {
+      const load = (path: string) => import(/* @vite-ignore */ path);
+      const codec = await load('/src/game/replayCodec.ts');
       const { game, appMetrics } = window as unknown as {
         game: any;
         appMetrics: {
@@ -1087,13 +1093,14 @@ test.describe('run telemetry model', () => {
       game.recorder.recordReplaySubmitResult(false);
       const analytics = game.buildRunAnalyticsDoc('FRICTION', 'w_test123', 'test-build');
       const bundle = game.buildRunUploadBundle('FRICTION', 'test-build');
+      const eventTypes = codec.decodeReplayActionBundle(bundle.run.actions, bundle.chunks).map((event: { type: string }) => event.type);
       return {
         lockedProtocolClicks: analytics.menu.lockedProtocolClicks ?? {},
         failedPlacementReasons: analytics.placement.failedByReason ?? {},
         failedPlacementTowers: analytics.placement.failedByTower ?? {},
         assistance: analytics.assistance,
         leaderboard: analytics.leaderboard,
-        eventTypes: bundle.run.events.map((event: { type: string }) => event.type),
+        eventTypes,
       };
     });
 
@@ -1168,7 +1175,9 @@ test.describe('run telemetry model', () => {
     await openDemoMenu(page);
     await deployFromMenu(page);
 
-    const freeplay = await page.evaluate(() => {
+    const freeplay = await page.evaluate(async () => {
+      const load = (path: string) => import(/* @vite-ignore */ path);
+      const codec = await load('/src/game/replayCodec.ts');
       const game = (window as unknown as { game: any }).game;
       game.phase = 'victory';
       game.enterFreeplay('leanGrid');
@@ -1192,6 +1201,7 @@ test.describe('run telemetry model', () => {
       const canBankAgain = game.canBankFreeplay();
       const meta = game.freeplayMeta();
       const bundle = game.buildRunUploadBundle('FREEPLAYTEST', 'test-build');
+      const eventTypes = codec.decodeReplayActionBundle(bundle.run.actions, bundle.chunks).map((event: { type: string }) => event.type);
       return {
         contract: game.freeplayState.contract?.id,
         freeplay: game.freeplay,
@@ -1206,7 +1216,7 @@ test.describe('run telemetry model', () => {
         canBankAgain,
         lastCheckpointWave: game.freeplayState.lastCheckpointWave,
         meta,
-        eventTypes: bundle.run.events.map((event: { type: string }) => event.type),
+        eventTypes,
       };
     });
 
@@ -1224,10 +1234,8 @@ test.describe('run telemetry model', () => {
     expect(freeplay.meta.contractId).toBe('leanGrid');
     expect(freeplay.meta.relicIds).toContain(freeplay.pickedRelic);
     expect(freeplay.eventTypes).toContain('freeplay_enter');
-    expect(freeplay.eventTypes).toContain('freeplay_contract_select');
     expect(freeplay.eventTypes).toContain('freeplay_relic_select');
     expect(freeplay.eventTypes).toContain('freeplay_risk_accept');
-    expect(freeplay.eventTypes).toContain('freeplay_checkpoint_submit');
   });
 
   test('daily challenge starts as a wave-one daily protocol', async ({ page }) => {
@@ -1360,21 +1368,23 @@ test.describe('run telemetry model', () => {
   });
 });
 
-test.describe('replay reconstruction', () => {
-  test('removes killed enemy sprites after the reconstructed wave end', async ({ page }) => {
+test.describe('replay re-simulation', () => {
+  test('replays a recorded action stream to the exact final summary', async ({ page }) => {
     await openDemoMenu(page);
 
     const replay = await page.evaluate(async () => {
       const load = (path: string) => import(/* @vite-ignore */ path);
-      const [{ Game }, { ALL_MAPS, DIFFICULTIES }, { TOWER_MAP }, recon] = await Promise.all([
+      const [{ Game }, { ALL_MAPS, DIFFICULTIES }, { TOWER_MAP }, codec, resim] = await Promise.all([
         load('/src/game/engine.ts'),
         load('/src/game/maps.ts'),
         load('/src/game/towers.ts'),
-        load('/src/game/replayReconstruct.ts'),
+        load('/src/game/replayCodec.ts'),
+        load('/src/game/reSimulate.ts'),
       ]);
       const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 12345, lifetimeKills: 1_000_000 });
       game.paused = false;
       game.credits = 50_000;
+      game.recorder.setStartingResources(game.credits, game.lives);
       const spots: { x: number; y: number }[] = [];
       for (let y = 80; y <= 640 && spots.length < 8; y += 48) {
         for (let x = 80; x <= 1200 && spots.length < 8; x += 48) {
@@ -1391,22 +1401,35 @@ test.describe('replay reconstruction', () => {
       game.startWave();
       for (let i = 0; i < 20_000 && game.phase === 'wave'; i++) game.update(0.05);
       const bundle = game.buildRunUploadBundle('E2EREPLAY', 'test-build');
-      const timeline = recon.buildReplayCombatTimeline(bundle.run);
-      const geom = recon.buildGeom(ALL_MAPS[0].path);
-      const waveEnd = bundle.run.events.find((event: { type: string }) => event.type === 'wave_end')?.t ?? bundle.run.summary.durationS;
-      const activeAfterEnd = recon.activeReplayGhosts(geom, timeline, waveEnd + 0.6, false, 9999).length;
+      const events = codec.decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
+      const endEvent = [...events].reverse().find((event: { type: string }) => event.type === 'run_end');
+      const playback = resim.createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+      if (!playback || !endEvent) return { ok: false, reason: playback ? 'missing run_end' : 'playback unavailable' };
+      playback.seekTo(playback.endT + 0.1);
+      const simulated = playback.game.buildRunUploadBundle(bundle.run.summary.callsign, bundle.run.build).run.summary;
       return {
-        authoritative: timeline.authoritativeDeaths,
-        kills: bundle.run.summary.kills,
-        waveEnd,
-        activeAfterEnd,
+        ok: true,
+        expected: bundle.run.summary,
+        simulated,
+        actionCount: events.length,
       };
     });
 
-    expect(replay.authoritative).toBe(true);
-    expect(replay.kills).toBeGreaterThan(0);
-    expect(replay.waveEnd).toBeGreaterThan(0);
-    expect(replay.activeAfterEnd).toBe(0);
+    expect(replay.ok).toBe(true);
+    expect(replay.actionCount).toBeGreaterThan(0);
+    expect(replay.simulated).toMatchObject({
+      map: replay.expected.map,
+      diff: replay.expected.diff,
+      outcome: replay.expected.outcome,
+      phase: replay.expected.phase,
+      wave: replay.expected.wave,
+      kills: replay.expected.kills,
+      credits: replay.expected.credits,
+      cashEarned: replay.expected.cashEarned,
+      leaks: replay.expected.leaks,
+      coresLeft: replay.expected.coresLeft,
+      durationS: replay.expected.durationS,
+    });
   });
 });
 

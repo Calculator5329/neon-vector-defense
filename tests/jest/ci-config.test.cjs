@@ -13,6 +13,7 @@ describe('CI/CD guardrails', () => {
   const functionsIndex = fs.readFileSync('functions/src/index.ts', 'utf8');
   const clientAdminAuth = fs.readFileSync('src/game/adminAuth.ts', 'utf8');
   const clientLeaderboard = fs.readFileSync('src/game/leaderboard.ts', 'utf8');
+  const gameScreen = fs.readFileSync('src/game-ui/GameScreen.tsx', 'utf8');
   const privacyView = fs.readFileSync('src/PrivacyView.tsx', 'utf8');
   const balanceScript = fs.readFileSync('scripts/balance.ts', 'utf8');
   const balanceCheckScript = fs.readFileSync('scripts/balance-check.ts', 'utf8');
@@ -142,8 +143,8 @@ describe('CI/CD guardrails', () => {
     expect(clientLeaderboard).not.toContain('uid: progress.uid');
   });
 
-  test('private analytics rules require the clean-slate v2 schema', () => {
-    expect(firestoreRules).toContain('return data.schemaVersion == 2');
+  test('private analytics rules require the clean-slate v3 schema', () => {
+    expect(firestoreRules).toContain('return data.schemaVersion == 3');
     expect(firestoreRules).not.toContain('schemaVersion in [1, 2]');
     expect(firestoreRules).not.toContain("request.resource.data.schemaVersion == 1\n            && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid'");
     expect(firestoreRules).toContain("'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay'");
@@ -156,6 +157,16 @@ describe('CI/CD guardrails', () => {
     expect(firestoreRules).toContain('match /replayOwners/{uid}/runs/{runId}');
     expect(firestoreRules).toContain('request.resource.data.uid == uid');
     expect(firestoreRules).toContain('request.resource.data.runId == runId');
+  });
+
+  test('live replay stream flushes at every build-wave boundary', () => {
+    expect(clientLeaderboard).toContain('export async function streamRunReplayChunk');
+    expect(gameScreen).toContain('streamRunReplayChunk');
+    expect(gameScreen).toContain('buildReplayActionStreamChunk(replayStreamAckRef.current, replayStreamSeqRef.current)');
+
+    const boundaryBlock = /if \(PERF_MAP === null && !DEMO_MODE && game\.phase === 'build' && game\.wave > checkpointWaveRef\.current\) \{[\s\S]*?\n      \}/.exec(gameScreen)?.[0] ?? '';
+    expect(boundaryBlock).toContain('flushReplayStreamBoundary();');
+    expect(boundaryBlock.indexOf('flushReplayStreamBoundary();')).toBeLessThan(boundaryBlock.indexOf("flushRunCheckpoint('wave')"));
   });
 
   test('leaderboard score timestamps are server-controlled', () => {

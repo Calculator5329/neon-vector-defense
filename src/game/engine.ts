@@ -155,6 +155,9 @@ export interface GameOptions {
   /** Explicit replay-time arsenal. Live play leaves this unset and uses normal
    *  lifetime-kill unlock progression. */
   availableTowerIds?: string[];
+  /** Engine-driven replay/re-simulation: keep recorder local, but do not mutate
+   *  player progression while the historical run is being replayed. */
+  replayMode?: boolean;
 }
 
 /** a forward (repel) gravity push can never shove a hull closer than this to the exit */
@@ -274,6 +277,7 @@ export class Game {
   /** lifetime-kills snapshot taken at construction (see GameOptions.lifetimeKills) */
   private readonly baseKills: number;
   private readonly availableTowerIdsOverride: Set<string> | null;
+  private readonly replayMode: boolean;
   /** per-instance entity uid sequence — module-global counters made uids
    *  irreproducible across runs, which blocks deterministic re-simulation */
   private uidSeq = 1;
@@ -310,6 +314,7 @@ export class Game {
     this.availableTowerIdsOverride = opts.availableTowerIds
       ? new Set(opts.availableTowerIds.filter((id) => TOWER_MAP[id]))
       : null;
+    this.replayMode = opts.replayMode === true;
     const bdiff = getBalance().diff(diff.id);
     this.credits = Math.round(diff.cash * bdiff.cashMult);
     this.lives = Math.max(1, Math.round(diff.lives * bdiff.livesMult));
@@ -349,7 +354,7 @@ export class Game {
   }
 
   private campaignProgressEnabled(): boolean {
-    return !this.isDailyChallenge;
+    return !this.replayMode && !this.isDailyChallenge;
   }
 
   towerAvailable(def: TowerDef): boolean {
@@ -432,6 +437,7 @@ export class Game {
     this.phase = 'build';
     this.wave = 0;
     this.dailyChallenge = challenge;
+    this.recorder.setDailyChallenge(challenge);
     this.dailyTowerIds = dailyChallengeTowerSet(challenge);
     this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
     if (challenge.twist.startingLivesMultiplier) {

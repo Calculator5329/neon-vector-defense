@@ -8,7 +8,8 @@ import { dailyChallenge, dailyModifierNames, type DailyChallenge } from '../../s
 import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
-import { buildRunManifest, hashRunDeathRecords, hashRunEventPairs, type RunDeathRecords, type RunEvent } from '../../src/game/runTelemetry';
+import { buildRunManifest, type RunEvent } from '../../src/game/runTelemetry';
+import { actionHash, decodeReplayActionBundle, encodeReplayActions } from '../../src/game/replayCodec';
 import { normalizeProgress, progress } from '../../src/game/storage';
 import { computeStats, TOWER_MAP, TOWERS, TOWERS_BY_UNLOCK } from '../../src/game/towers';
 import type { Enemy, EnemyDef, Tower } from '../../src/game/types';
@@ -90,10 +91,9 @@ describe('damage resistance rules', () => {
 
 describe('elite affixes and Umbra encounter rules', () => {
   function waveStartGroups(game: Game): Array<{ type: string; elites?: { i: number; a: string }[] }> {
-    const event = game.buildRunUploadBundle('TEST', 'test-build').run.events.find((e) => e.type === 'wave_start');
-    assert.ok(event);
-    assert.ok(Array.isArray(event.groups));
-    return event.groups as Array<{ type: string; elites?: { i: number; a: string }[] }>;
+    const queue = (game as unknown as { queue: Array<{ group: { type: string; elites?: { i: number; a: string }[] } }> }).queue;
+    assert.ok(Array.isArray(queue));
+    return queue.map((entry) => entry.group);
   }
 
   test('elite affix planning is deterministic and skips boss groups', () => {
@@ -175,10 +175,9 @@ describe('elite affixes and Umbra encounter rules', () => {
     assert.equal(umbra.umbraPhase, 3);
     assert.equal(umbra.cloaked, false);
 
-    const phases = game.buildRunUploadBundle('TEST', 'test-build').run.events
-      .filter((event) => event.type === 'umbra_phase')
-      .map((event) => event.p);
-    assert.deepEqual(phases, [2, 3]);
+    const bundle = game.buildRunUploadBundle('TEST', 'test-build');
+    const actions = decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
+    assert.equal(actions.some((event) => event.type === 'umbra_phase'), false);
   });
 });
 
@@ -296,32 +295,30 @@ describe('freeplay correctness guards', () => {
     assert.equal(findUndefined(bundle), null);
     assert.equal(bundle.run.manifest?.complete, true);
     assert.equal(bundle.run.manifest?.chunkEventCounts.length, bundle.chunks.length);
-    assert.match(bundle.run.manifest?.eventHash ?? '', /^[a-f0-9]{8}$/);
+    assert.match(bundle.run.manifest?.actionHash ?? '', /^[a-f0-9]{8}$/);
   });
 
-  test('replay manifest hashes event type/time/tick identity in stable chunk order', () => {
+  test('replay manifest hashes encoded r3 action packs in stable chunk order', () => {
     const docEvents: RunEvent[] = [
-      { type: 'run_start', t: 0, simTick: 0, wave: 0, cash: 100, lives: 10, speed: 1 },
       { type: 'wave_start', t: 1.2, simTick: 72, wave: 1, cash: 100, lives: 10, speed: 1 },
     ];
     const chunkEvents: RunEvent[] = [
       { type: 'run_end', t: 9.9, simTick: 594, wave: 1, cash: 120, lives: 10, speed: 1 },
     ];
-    const deathRecords: RunDeathRecords = { codec: 'd1', count: 0, waves: [] };
-    const manifest = buildRunManifest(docEvents, [{
-      schemaVersion: 2,
+    const root = encodeReplayActions(docEvents);
+    const chunk = {
+      schemaVersion: 3,
       runId: 'r_manifest123',
       chunk: 0,
-      events: chunkEvents,
-    }], deathRecords);
+      actions: encodeReplayActions(chunkEvents, { towerIds: root.towerIds }),
+    };
+    const manifest = buildRunManifest(root, [chunk]);
 
     assert.deepEqual(manifest, {
       chunkEventCounts: [1],
-      eventHash: 'bc9e57d4',
-      deathHash: hashRunDeathRecords(deathRecords),
+      actionHash: actionHash(root, [chunk]),
       complete: true,
     });
-    assert.equal(hashRunEventPairs([...docEvents, ...chunkEvents]), manifest.eventHash);
   });
 
   test('risk packets cannot be accepted unless they were actually offered', () => {
@@ -519,7 +516,8 @@ describe('engine correctness fixes', () => {
     }
     internals(game).updateEnemies(0.016);
     assert.equal(game.phase, 'gameover');
-    const events = game.buildRunUploadBundle('TEST', 'test-build').run.events as { type: string }[];
+    const bundle = game.buildRunUploadBundle('TEST', 'test-build');
+    const events = decodeReplayActionBundle(bundle.run.actions, bundle.chunks) as { type: string }[];
     assert.equal(events.filter((ev) => ev.type === 'run_end').length, 1);
   });
 

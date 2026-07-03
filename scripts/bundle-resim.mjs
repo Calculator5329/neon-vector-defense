@@ -82,7 +82,6 @@ export interface ReSimResult {
   reason?: string;
   divergence?: ReSimDivergence;
   summary?: unknown;
-  deathRecords?: unknown;
 }
 
 export interface ReSimBundle {
@@ -94,4 +93,5 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult;
 export function reSimulateUploadBundle(bundle: ReSimBundle): ReSimResult;
 export function setBalanceDoc(raw: unknown): void;
 export function setDailyOverrideDoc(raw: unknown): void;
+export function dailyChallengeForId(id: string): unknown;
 `);

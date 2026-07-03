@@ -1,60 +1,81 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { replayDeathHash, replayEventHash, validateReplayManifest } from '../../functions/src/replayIntegrity';
+import { replayActionHash, validateReplayManifest } from '../../functions/src/replayIntegrity';
 
-const docEvents = [
-  { type: 'run_start', t: 0 },
-  { type: 'wave_start', t: 1.2 },
-];
-const chunkEvents = [
-  { type: 'run_end', t: 9.9 },
-];
-const deathRecords = { codec: 'd1', count: 0, waves: [] };
+const rootActions = {
+  codec: 'r3',
+  count: 2,
+  towerIds: ['pulse'],
+  data: '012345',
+};
+const chunkActions = {
+  codec: 'r3',
+  count: 1,
+  towerIds: ['pulse'],
+  data: '6789',
+};
 
 function manifestRun(patch: Record<string, unknown> = {}) {
   return {
     chunkCount: 1,
     eventCount: 3,
-    events: docEvents,
+    actions: rootActions,
     manifest: {
       chunkEventCounts: [1],
-      eventHash: replayEventHash([...docEvents, ...chunkEvents]),
-      deathHash: replayDeathHash(deathRecords),
+      actionHash: replayActionHash(rootActions, [chunkActions]),
       complete: true,
     },
-    deathRecords,
     ...patch,
   };
 }
 
 describe('replay manifest integrity', () => {
-  test('accepts complete manifests and rejects manifest-less uploads', () => {
+  test('accepts complete r3 action manifests and rejects manifest-less uploads', () => {
     assert.equal(
-      validateReplayManifest(manifestRun(), [{ exists: true, events: chunkEvents }]),
+      validateReplayManifest(manifestRun(), [{ exists: true, actions: chunkActions }]),
       'complete',
     );
-    assert.equal(validateReplayManifest({ eventCount: 1, events: docEvents }, []), 'manifest-missing');
+    assert.equal(validateReplayManifest({ eventCount: 1, actions: rootActions }, []), 'manifest-missing');
   });
 
   test('returns manifest-mismatch for missing, truncated, or tampered chunks', () => {
     assert.equal(
-      validateReplayManifest(manifestRun(), [{ exists: false, events: [] }]),
+      validateReplayManifest(manifestRun(), [{ exists: false, actions: chunkActions }]),
       'manifest-mismatch',
     );
     assert.equal(
-      validateReplayManifest(manifestRun(), [{ exists: true, events: [] }]),
+      validateReplayManifest(manifestRun(), [{ exists: true, actions: { ...chunkActions, count: 0 } }]),
+      'manifest-mismatch',
+    );
+    assert.equal(
+      validateReplayManifest(manifestRun(), [{ exists: true, actions: { ...chunkActions, data: 'tampered' } }]),
       'manifest-mismatch',
     );
     assert.equal(
       validateReplayManifest(manifestRun({
-        manifest: { chunkEventCounts: [1], eventHash: '00000000', deathHash: replayDeathHash(deathRecords), complete: true },
-      }), [{ exists: true, events: chunkEvents }]),
+        manifest: { chunkEventCounts: [1], actionHash: '00000000', complete: true },
+      }), [{ exists: true, actions: chunkActions }]),
+      'manifest-mismatch',
+    );
+  });
+
+  test('rejects v2 replay manifest and public root fields', () => {
+    assert.equal(
+      validateReplayManifest(manifestRun({
+        manifest: { chunkEventCounts: [1], actionHash: replayActionHash(rootActions, [chunkActions]), eventHash: '1234abcd', complete: true },
+      }), [{ exists: true, actions: chunkActions }]),
       'manifest-mismatch',
     );
     assert.equal(
-      validateReplayManifest(manifestRun({
-        deathRecords: { codec: 'd1', count: 1, waves: [] },
-      }), [{ exists: true, events: chunkEvents }]),
+      validateReplayManifest(manifestRun({ deathRecords: { codec: 'd1', count: 0, waves: [] } }), [{ exists: true, actions: chunkActions }]),
+      'manifest-mismatch',
+    );
+    assert.equal(
+      validateReplayManifest(manifestRun({ events: [{ type: 'run_start', t: 0 }] }), [{ exists: true, actions: chunkActions }]),
+      'manifest-mismatch',
+    );
+    assert.equal(
+      validateReplayManifest(manifestRun({ snapshots: [] }), [{ exists: true, actions: chunkActions }]),
       'manifest-mismatch',
     );
   });

@@ -3,14 +3,14 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (portal SDK adapter, replay re-simulation audit, replay death fidelity, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
+Last updated: 2026-07-02 (Replay v3 action codec, portal SDK adapter, replay re-simulation audit, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
 
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
 | Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
-| Battle Plan replays | Public `runs/{runId}` docs with required manifests, compact death records, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayReconstruct.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
+| Battle Plan replays | Public schema-v3 `runs/{runId}` docs with setup snapshots, r3 player-action packs, manifest `actionHash`, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayCodec.ts`, `reSimulate.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
@@ -37,7 +37,9 @@ Last updated: 2026-07-02 (portal SDK adapter, replay re-simulation audit, replay
 - AI helper privacy copy now explains what the assistant sends and why.
 - Deploy checks now verify Node/Java/Firebase project prerequisites before rules/deploy work.
 - Leaderboard rows now use server timestamps for ordering instead of trusting client clocks.
-- Battle Plan replay death fidelity now uses manifest-hashed compact death records, so killed enemies disappear at their real recorded death times while older replays keep the legacy best-effort path.
+- Battle Plan replay integrity moved past the short-lived compact death ledger:
+  schema v3 now stores only the manifest-hashed r3 action stream and re-simulates
+  enemies from setup.
 - Admin replay re-simulation now has an Operations Console path: inspect a run,
   press VERIFY, review `verified` / `divergent` / `unverifiable`, and badge
   admin board or spotlight candidate rows when stored verification data exists.
@@ -51,6 +53,9 @@ Last updated: 2026-07-02 (portal SDK adapter, replay re-simulation audit, replay
   shipped as QoL layers over the canonical engine placement and upgrade actions.
 - CrazyGames and Poki portal SDK builds now share a no-op-default adapter,
   portal-only CSP injection, lifecycle events, and natural-pause ad hooks.
+- Replay v3 replaces public events, snapshots, and death ledgers with the
+  compact r3 action stream. Old v2 replay links are unwatchable after this
+  cutover and pinned spotlight runs should be refreshed to v3.
 
 - Elite variants add capped Shielded, Frenzied, Splitting, and Bulwark hulls to
   regular waves, and the Umbra now has lattice, phase-shift, and enrage phases
@@ -112,7 +117,7 @@ Last updated: 2026-07-02 (portal SDK adapter, replay re-simulation audit, replay
 - [x] App Check staged-enforcement runbook and deploy preflight
 - [x] Touch-first responsive command layout (short-landscape tier)
 - [x] Replay completion manifest and chunk validation (manifests now REQUIRED)
-- [x] Replay death records covered by the manifest
+- [x] Replay v3 action stream covered by the manifest
 - [x] Gameplay correctness audit fixes
 - [x] Guided onboarding funnel (action-gated coach)
 - [x] Balance CI gate on PRs
@@ -126,9 +131,9 @@ Last updated: 2026-07-02 (portal SDK adapter, replay re-simulation audit, replay
 - `meta.ts` must stay off the combat, score, and bot paths.
 - QoL preferences may improve control flow, but must not change tower/enemy
   stats, score math, bot plans, or unlock thresholds.
-- Public replay docs must remain compact and free of `undefined` values.
+- Public replay docs must remain compact, schema-v3 only, and free of `undefined` values.
 - Replay read paths must reject or clearly label incomplete/malformed chunks; partial data should not masquerade as a full Battle Plan.
-- New public replay uploads must carry a manifest with event and death hashes; missing manifests are incomplete and cannot back accepted scores.
+- New public replay uploads must carry a manifest with action chunk counts and `actionHash`; missing manifests are incomplete and cannot back accepted scores.
 - Leaderboard score claims must include a matching replay token.
 - `verifyRun` verdicts are admin audit data until the enforcement flip; player-facing
   views must not expose verification badges or divergence details.

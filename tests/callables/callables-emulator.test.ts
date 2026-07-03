@@ -14,6 +14,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -21,15 +22,18 @@ import {
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
+import { setBalanceDoc } from '../../src/game/balanceConfig';
+import { dailyChallengeForDate } from '../../src/game/dailyChallenge';
 import { Game } from '../../src/game/engine';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import type { RunUploadBundle } from '../../src/game/runTelemetry';
-import { replayDeathHash, replayEventHash } from '../../functions/src/replayIntegrity.ts';
+import { replayActionHash } from '../../functions/src/replayIntegrity.ts';
 import { replayTokenHash } from '../../functions/src/securityHelpers.ts';
 
 const PROJECT_ID = 'neon-vector-defense-7';
 const REGION = 'us-central1';
 const ADMIN_EMAIL = '5329548871.eg@gmail.com';
+const LIVE_BALANCE_DOC = { version: 'callables-live-1', towers: { pulse: { damageMult: 1 } } };
 
 interface SubmitResult {
   accepted: boolean;
@@ -190,8 +194,7 @@ async function adminCollectionCount(path: string): Promise<number> {
   return withAdminDb(async (db) => (await getDocs(collection(db, path))).size);
 }
 
-const baseEvents = [{ type: 'run_start', t: 0 }];
-const emptyDeathRecords = { codec: 'd1', count: 0, waves: [] };
+const baseActions = { codec: 'r3', count: 1, towerIds: [], data: '0123' };
 
 async function seedReplayRun(options: {
   runId: string;
@@ -203,32 +206,31 @@ async function seedReplayRun(options: {
   cashEarned?: number;
   kills?: number;
   wave?: number;
-  manifestMismatch?: boolean;
+  actionMismatch?: boolean;
 }): Promise<void> {
   const map = options.map ?? 'orbital';
   const diff = options.diff ?? 'easy';
   const cashEarned = options.cashEarned ?? 1200;
   const kills = options.kills ?? 40;
   const wave = options.wave ?? 5;
-  const eventHash = options.manifestMismatch ? '00000000' : replayEventHash(baseEvents);
+  const actionHash = options.actionMismatch ? '00000000' : replayActionHash(baseActions);
   await withAdminDb(async (db) => {
     await setDoc(doc(db, 'runs', options.runId), {
-      schemaVersion: 2,
+      schemaVersion: 3,
       runId: options.runId,
       replayTokenHash: replayTokenHash(options.replayToken),
       createdAt: 1_000,
       endedAt: 61_000,
       build: 'callables-emulator-test',
       chunkCount: 0,
-      eventCount: baseEvents.length,
+      eventCount: baseActions.count,
       manifest: {
         chunkEventCounts: [],
-        eventHash,
-        deathHash: replayDeathHash(emptyDeathRecords),
+        actionHash,
         complete: true,
       },
-      deathRecords: emptyDeathRecords,
       summary: {
+        callsign: 'CALL',
         wave,
         kills,
         credits: cashEarned,
@@ -241,9 +243,20 @@ async function seedReplayRun(options: {
         outcome: 'victory',
         ...(options.daily ? { daily: options.daily } : {}),
       },
-      setup: { map, diff },
-      events: baseEvents,
-      snapshots: [],
+      setup: {
+        map,
+        mapName: 'Orbital Relay',
+        mapHash: '1234abcd',
+        diff,
+        diffName: 'Recruit',
+        seed: 1234,
+        startingCash: 500,
+        startingLives: 20,
+        availableTowerIds: ['pulse'],
+        balanceVersion: 'callables-emulator-test',
+        replayEngine: 3,
+      },
+      actions: baseActions,
       final: {},
     });
   });
@@ -269,33 +282,65 @@ function cloneBundle(bundle: RunUploadBundle): RunUploadBundle {
 }
 
 function makeRealRunBundle(): RunUploadBundle {
-  const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 4242, lifetimeKills: 1_000_000 });
-  game.paused = false;
-  game.speed = 4;
-  game.startWave();
-  for (let i = 0; i < 8_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i += 1) {
-    if (game.phase === 'build') game.startWave();
-    game.update(0.05);
+  setBalanceDoc(LIVE_BALANCE_DOC);
+  try {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 4242, lifetimeKills: 1_000_000 });
+    game.paused = false;
+    game.speed = 4;
+    game.startWave();
+    for (let i = 0; i < 8_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i += 1) {
+      if (game.phase === 'build') game.startWave();
+      game.update(0.05);
+    }
+    return game.buildRunUploadBundle('VERIFY', 'callables-emulator-test');
+  } finally {
+    setBalanceDoc(null);
   }
-  return game.buildRunUploadBundle('VERIFY', 'callables-emulator-test');
 }
 
-async function seedRunBundle(bundle: RunUploadBundle, rowId: string): Promise<void> {
+function makeRealDailyRunBundle(dateKey = '2026-06-01'): RunUploadBundle {
+  const challenge = dailyChallengeForDate(dateKey);
+  const map = ALL_MAPS.find((candidate) => candidate.id === challenge.mapId) ?? ALL_MAPS[0];
+  const diff = DIFFICULTIES.find((candidate) => candidate.id === challenge.diffId) ?? DIFFICULTIES[1];
+  setBalanceDoc(LIVE_BALANCE_DOC);
+  try {
+    const game = new Game(map, diff, { seed: 5252, lifetimeKills: 1_000_000 });
+    game.paused = false;
+    game.speed = 4;
+    game.startDailyChallenge(challenge);
+    game.startWave();
+    for (let i = 0; i < 8_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i += 1) {
+      if (game.phase === 'build') game.startWave();
+      game.update(0.05);
+    }
+    return game.buildRunUploadBundle('DAILYVERIFY', 'callables-emulator-test');
+  } finally {
+    setBalanceDoc(null);
+  }
+}
+
+async function seedRunBundle(bundle: RunUploadBundle, rowId: string, options: { replayToken?: string; seedBoardRow?: boolean } = {}): Promise<void> {
   await withAdminDb(async (db) => {
-    await setDoc(doc(db, 'runs', bundle.run.runId), bundle.run);
+    await setDoc(doc(db, 'config/balance'), LIVE_BALANCE_DOC);
+    const runDoc = options.replayToken
+      ? { ...bundle.run, replayTokenHash: replayTokenHash(options.replayToken) }
+      : bundle.run;
+    await setDoc(doc(db, 'runs', bundle.run.runId), runDoc);
     for (const chunk of bundle.chunks) {
       await setDoc(doc(db, 'runs', bundle.run.runId, 'chunks', `c${chunk.chunk}`), chunk);
     }
-    await setDoc(doc(db, 'boards/orbital_easy/scores', rowId), {
-      name: 'VERIFY',
-      cash: bundle.run.summary.cashEarned,
-      kills: bundle.run.summary.kills,
-      wave: bundle.run.summary.wave,
-      freeplay: false,
-      ts: Date.now(),
-      uid: `w_${unique('verifyrow')}`.slice(0, 40),
-      runId: bundle.run.runId,
-    });
+    if (options.seedBoardRow ?? true) {
+      await setDoc(doc(db, 'boards/orbital_easy/scores', rowId), {
+        name: 'VERIFY',
+        cash: bundle.run.summary.cashEarned,
+        kills: bundle.run.summary.kills,
+        wave: bundle.run.summary.wave,
+        freeplay: false,
+        ts: Date.now(),
+        uid: `w_${unique('verifyrow')}`.slice(0, 40),
+        runId: bundle.run.runId,
+      });
+    }
   });
 }
 
@@ -309,6 +354,15 @@ async function assertCallableError(fn: () => Promise<unknown>, expectedCode: str
       return code === expectedCode || code === `functions/${expectedCode}`;
     },
   );
+}
+
+async function waitForRowVerify(path: string, verdict: VerifyRunResult['verdict'], attempts = 30): Promise<Record<string, unknown> | null> {
+  for (let i = 0; i < attempts; i += 1) {
+    const row = await adminDocData(path);
+    if (row?.verify === verdict) return row;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return adminDocData(path);
 }
 
 before(async () => {
@@ -373,7 +427,7 @@ describe('callable score submission', () => {
     const user = signedInUser('manifestmismatch');
     const replayToken = `tok_${unique('badmanifest')}`;
     const seeded = { runId: runId('badmanifest'), replayToken };
-    await seedReplayRun({ ...seeded, manifestMismatch: true });
+    await seedReplayRun({ ...seeded, actionMismatch: true });
 
     const result = await callCallable<SubmitResult>('submitScore', {
       board: 'orbital_easy',
@@ -475,7 +529,27 @@ describe('verifyRun callable', () => {
     assert.equal(await adminDocData(`runVerificationReasons/${bundle.run.runId}`), null);
   });
 
-  test('admin verifyRun records divergent reason docs for tampered runs', async () => {
+  test('admin verifyRun records unverifiable reason docs for tampered action data', async () => {
+    const bundle = cloneBundle(makeRealRunBundle());
+    bundle.run.actions.data = `${bundle.run.actions.data}0`;
+    const rowId = `verify-${unique('badaction')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'unverifiable');
+    assert.match(result.reason ?? '', /action hash|manifest/i);
+    assert.equal(result.rowsUpdated, 1);
+
+    const row = await adminDocData(`boards/orbital_easy/scores/${rowId}`);
+    assert.equal(row?.verify, 'unverifiable');
+
+    const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
+    assert.equal(reason?.verdict, 'unverifiable');
+    assert.match(String(reason?.reason ?? ''), /action hash|manifest/i);
+  });
+
+  test('admin verifyRun records divergent reason docs for tampered summaries', async () => {
     const bundle = cloneBundle(makeRealRunBundle());
     bundle.run.summary.kills += 1;
     const rowId = `verify-${unique('bad')}`;
@@ -492,6 +566,112 @@ describe('verifyRun callable', () => {
     const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
     assert.equal(reason?.verdict, 'divergent');
     assert.equal(reason?.reason, 'summary.kills');
+  });
+
+  test('verifyRun rejects forged balance snapshots before re-simulation', async () => {
+    const bundle = cloneBundle(makeRealRunBundle());
+    bundle.run.setup.balance = { ...LIVE_BALANCE_DOC, towers: { pulse: { damageMult: 1.25 } } };
+    const rowId = `verify-${unique('forgedbalance')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'unverifiable');
+    assert.equal(result.reason, 'snapshot not authentic');
+    const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
+    assert.equal(reason?.reason, 'snapshot not authentic');
+  });
+
+  test('verifyRun rejects forged daily snapshots before re-simulation', async () => {
+    const bundle = cloneBundle(makeRealDailyRunBundle('2026-06-01'));
+    assert.ok(bundle.run.setup.daily);
+    bundle.run.setup.daily = { ...bundle.run.setup.daily, title: 'Forged Daily' };
+    const rowId = `verify-${unique('forgeddaily')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'unverifiable');
+    assert.equal(result.reason, 'snapshot not authentic');
+    const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
+    assert.equal(reason?.reason, 'snapshot not authentic');
+  });
+
+  test('verifyRun rejects a daily snapshot smuggled onto a non-daily run', async () => {
+    const bundle = cloneBundle(makeRealRunBundle());
+    assert.equal(bundle.run.summary.daily ?? '', '');
+    const donor = makeRealDailyRunBundle('2026-06-01');
+    // setupReplayGame applies setup.daily whenever present; a campaign run must
+    // never be allowed to re-simulate under smuggled daily rules/boons.
+    bundle.run.setup.daily = donor.run.setup.daily;
+    const rowId = `verify-${unique('smuggleddaily')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'unverifiable');
+    assert.equal(result.reason, 'snapshot not authentic');
+  });
+
+  test('verifyRun requires snapshot presence to mirror the live balance doc', async () => {
+    // Snapshot present while no live doc would exist is covered by symmetry:
+    // here the run drops its snapshot while config/balance IS published.
+    const bundle = cloneBundle(makeRealRunBundle());
+    assert.ok(bundle.run.setup.balance);
+    delete bundle.run.setup.balance;
+    const rowId = `verify-${unique('droppedbalance')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'unverifiable');
+    assert.equal(result.reason, 'snapshot not authentic');
+  });
+
+  test('verifyRun verifies identity-balance runs when no live balance doc exists', async () => {
+    // Prod runs with an unpublished config/balance record NO snapshot; the
+    // authenticity gate must treat matching absence as authentic, not reject
+    // every honest run (symmetry check, not unconditional presence).
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 777, lifetimeKills: 1_000_000 });
+    game.paused = false;
+    game.speed = 4;
+    game.startWave();
+    for (let i = 0; i < 8_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i += 1) {
+      if (game.phase === 'build') game.startWave();
+      game.update(0.05);
+    }
+    const bundle = game.buildRunUploadBundle('IDENTITY', 'callables-emulator-test');
+    assert.equal('balance' in bundle.run.setup, false);
+    const rowId = `verify-${unique('identitybal')}`;
+    await seedRunBundle(bundle, rowId);
+    try {
+      await withAdminDb(async (db) => { await deleteDoc(doc(db, 'config/balance')); });
+      const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+      assert.equal(result.verdict, 'verified', result.reason ?? '');
+    } finally {
+      await withAdminDb(async (db) => { await setDoc(doc(db, 'config/balance'), LIVE_BALANCE_DOC); });
+    }
+  });
+
+  test('post-accept verification marks an honest authenticated score as verified', async () => {
+    const user = signedInUser('postacceptverify');
+    const replayToken = `tok_${unique('postaccept')}`;
+    const bundle = makeRealRunBundle();
+    await seedRunBundle(bundle, `unused-${unique('postaccept')}`, { replayToken, seedBoardRow: false });
+
+    const result = await callCallable<SubmitResult>('submitScore', {
+      board: 'orbital_easy',
+      entry: scoreEntry(user, { runId: bundle.run.runId, replayToken }, {
+        cash: bundle.run.summary.cashEarned,
+        kills: bundle.run.summary.kills,
+        wave: bundle.run.summary.wave,
+      }),
+    }, user);
+
+    assert.equal(result.accepted, true, result.reason ?? '');
+    const rowPath = `boards/orbital_easy/scores/${user.uid}_${bundle.run.runId}`;
+    const row = await waitForRowVerify(rowPath, 'verified');
+    assert.equal(row?.verify, 'verified');
   });
 
   test('verifyRun is admin-only', async () => {

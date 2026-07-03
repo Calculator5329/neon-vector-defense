@@ -16,6 +16,7 @@ import {
   fetchTop,
   fetchDailyTop,
   submitRunReplay,
+  streamRunReplayChunk,
   submitRunAnalytics,
   submitRunCheckpoint,
   logTelemetry,
@@ -379,10 +380,16 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   const checkpointSeqRef = useRef(0);
   const checkpointBusyRef = useRef(false);
   const checkpointWaveRef = useRef(game.wave);
+  const replayStreamSeqRef = useRef(0);
+  const replayStreamAckRef = useRef(0);
+  const replayStreamBusyRef = useRef(false);
   useEffect(() => {
     checkpointSeqRef.current = 0;
     checkpointBusyRef.current = false;
     checkpointWaveRef.current = game.wave;
+    replayStreamSeqRef.current = 0;
+    replayStreamAckRef.current = 0;
+    replayStreamBusyRef.current = false;
   }, [game, run]);
 
   const submitCheckpointNow = useCallback(async (reason: RunCheckpointReason) => {
@@ -397,6 +404,20 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
     checkpointBusyRef.current = true;
     void submitCheckpointNow(reason).finally(() => { checkpointBusyRef.current = false; });
   }, [submitCheckpointNow]);
+
+  const flushReplayStreamBoundary = useCallback(() => {
+    if (PERF_MAP !== null || DEMO_MODE || replayStreamBusyRef.current) return;
+    const chunk = game.recorder.buildReplayActionStreamChunk(replayStreamAckRef.current, replayStreamSeqRef.current);
+    if (!chunk) return;
+    replayStreamBusyRef.current = true;
+    void streamRunReplayChunk(chunk, TELEMETRY_BUILD)
+      .then((ok) => {
+        if (!ok) return;
+        replayStreamAckRef.current += chunk.actions.count;
+        replayStreamSeqRef.current++;
+      })
+      .finally(() => { replayStreamBusyRef.current = false; });
+  }, [game]);
 
   const requestPortalAdBreak = useCallback(async (type: AdBreakType, placement: AdBreakPlacement): Promise<AdBreakResult> => {
     if (!portal.isPortal) return skippedAdBreak(type, 'no_portal');
@@ -579,6 +600,7 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
       // additionally self-gates on consent + per-run sampling, so most runs write none.
       if (PERF_MAP === null && !DEMO_MODE && game.phase === 'build' && game.wave > checkpointWaveRef.current) {
         checkpointWaveRef.current = game.wave;
+        flushReplayStreamBoundary();
         if (isMilestoneWave(game.wave)) flushRunCheckpoint('wave');
       }
       // fire one anonymous telemetry event when a run ends (skip perf bot runs)

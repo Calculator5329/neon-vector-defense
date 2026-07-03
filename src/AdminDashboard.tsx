@@ -2040,7 +2040,7 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
               <div className="adm-insight"><b>Analytics</b><span>{analytics === undefined ? 'loading' : analytics ? 'present' : 'missing or unsampled'}</span></div>
               <div className="adm-insight"><b>Leaderboard</b><span>{boards === null ? 'loading' : boards.length ? `${boards.length} row(s)` : 'no row found'}</span></div>
               <div className="adm-insight"><b>Verify</b><span><VerifyBadge verify={verify ?? undefined} /> {verifySummary(verify)}</span><span>{verify ? firstDivergenceText(verify) : 'server callable not run'}</span></div>
-              <div className="adm-insight"><b>Manifest</b><span>{manifest?.complete ? 'complete' : replay ? 'partial' : 'n/a'}</span><span>{manifest?.eventHash ? `hash ${manifest.eventHash}` : 'no hash'}</span></div>
+              <div className="adm-insight"><b>Manifest</b><span>{manifest?.complete ? 'complete' : replay ? 'partial' : 'n/a'}</span><span>{manifest?.actionHash ? `hash ${manifest.actionHash}` : 'no hash'}</span></div>
             </div>
             {summary && (
               <div className="adm-devs">

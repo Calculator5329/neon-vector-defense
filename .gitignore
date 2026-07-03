@@ -21,6 +21,8 @@ playwright-report/
 blob-report/
 .npm-cache/
 .tmp-config/
+.tmp-firebase-config/
+.tmp-npm-cache/
 
 # Editor directories and files
 .vscode/*

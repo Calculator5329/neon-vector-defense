@@ -37,9 +37,23 @@ const validSummary = {
   coresLeft: 99,
   durationS: 10,
 };
+const validActions = { codec: 'r3', count: 1, towerIds: ['pulse'], data: '1234' };
+const validSetup = {
+  map: 'orbital',
+  mapName: 'Orbital Relay',
+  mapHash: '1234abcd',
+  diff: 'easy',
+  diffName: 'Recruit',
+  seed: 1234,
+  startingCash: 500,
+  startingLives: 20,
+  availableTowerIds: ['pulse'],
+  balanceVersion: 'test',
+  replayEngine: 2,
+};
 
 const validRun = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   runId,
   replayTokenHash: 'a'.repeat(64),
   createdAt: 1,
@@ -49,21 +63,18 @@ const validRun = {
   eventCount: 1,
   manifest: {
     chunkEventCounts: [],
-    eventHash: '1234abcd',
-    deathHash: 'abcd1234',
+    actionHash: '1234abcd',
     complete: true,
   },
-  deathRecords: { codec: 'd1', count: 0, waves: [] },
   summary: validSummary,
-  setup: {},
-  events: [{ type: 'run_start', t: 0 }],
-  snapshots: [],
+  setup: validSetup,
+  actions: validActions,
   final: {},
 };
 
 function validAnalytics(overrides: Record<string, unknown> = {}) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     runId,
     uid: playerUid,
     createdAt: 1,
@@ -85,6 +96,32 @@ function validAnalytics(overrides: Record<string, unknown> = {}) {
     leaderboard: {},
     attention: {},
     performance: {},
+    ...overrides,
+  };
+}
+
+function validReplayStreamParent(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 1,
+    uid: playerUid,
+    runId,
+    build: 'test',
+    updatedAt: 1,
+    expiresAt: new Date(4102444800000), // TTL Timestamp field
+    ...overrides,
+  };
+}
+
+function validReplayStreamChunk(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 3,
+    uid: playerUid,
+    runId,
+    chunk: 0,
+    actions: validActions,
+    createdAt: 1,
+    build: 'test',
+    expiresAt: new Date(4102444800000), // TTL Timestamp field
     ...overrides,
   };
 }
@@ -131,7 +168,7 @@ describe('public replay rules', () => {
   test('deny unauthenticated replay and chunk creates', async () => {
     const db = anonDb();
     await assertFails(setDoc(doc(db, 'runs', runId), validRun));
-    await assertFails(setDoc(doc(db, 'runs', runId, 'chunks', 'c0'), { schemaVersion: 2, runId, chunk: 0, events: [] }));
+    await assertFails(setDoc(doc(db, 'runs', runId, 'chunks', 'c0'), { schemaVersion: 3, runId, chunk: 0, actions: validActions }));
   });
 
   test('deny malformed public replay docs', async () => {
@@ -157,13 +194,42 @@ describe('public replay rules', () => {
     await assertFails(setDoc(doc(db, 'runs', `${runId}b`), {
       ...validRun,
       runId: `${runId}b`,
-      manifest: { chunkEventCounts: [], eventHash: 'bad', complete: true },
+      manifest: { chunkEventCounts: [], actionHash: 'bad', complete: true },
     }));
     await assertFails(setDoc(doc(db, 'runs', `${runId}c`), {
       ...validRun,
       runId: `${runId}c`,
       chunkCount: 1,
-      manifest: { chunkEventCounts: [], eventHash: '1234abcd', complete: true },
+      manifest: { chunkEventCounts: [], actionHash: '1234abcd', complete: true },
+    }));
+  });
+
+  test('reject v2 public replay fields and hashes', async () => {
+    const db = playerDb();
+    await assertFails(setDoc(doc(db, 'runs', `${runId}legacy`), {
+      ...validRun,
+      runId: `${runId}legacy`,
+      events: [{ type: 'run_start', t: 0 }],
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}snapshot`), {
+      ...validRun,
+      runId: `${runId}snapshot`,
+      snapshots: [],
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}death`), {
+      ...validRun,
+      runId: `${runId}death`,
+      deathRecords: { codec: 'd1', count: 0, waves: [] },
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}hash`), {
+      ...validRun,
+      runId: `${runId}hash`,
+      manifest: { ...validRun.manifest, deathHash: 'abcd1234' },
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}eventhash`), {
+      ...validRun,
+      runId: `${runId}eventhash`,
+      manifest: { ...validRun.manifest, eventHash: '1234abcd' },
     }));
   });
 
@@ -217,8 +283,9 @@ describe('public replay rules', () => {
   test('allow replay chunk create and deny chunk updates', async () => {
     const db = playerDb();
     const ref = doc(db, 'runs', runId, 'chunks', 'c0');
-    await assertSucceeds(setDoc(ref, { schemaVersion: 2, runId, chunk: 0, events: [] }));
+    await assertSucceeds(setDoc(ref, { schemaVersion: 3, runId, chunk: 0, actions: validActions }));
     await assertFails(updateDoc(ref, { chunk: 1 }));
+    await assertFails(setDoc(doc(db, 'runs', runId, 'chunks', 'c1'), { schemaVersion: 3, runId, chunk: 1, events: [] }));
   });
 
   test('allow private replay owner index creates and deny public reads or updates', async () => {
@@ -265,6 +332,34 @@ describe('public replay rules', () => {
       createdAt: 1,
       build: 'test',
     }));
+  });
+
+  test('allow uid-bound live replay stream parent upserts and keep reads admin-only', async () => {
+    const db = playerDb();
+    const ref = doc(db, 'replayStreams', playerUid, 'runs', runId);
+    await assertSucceeds(setDoc(ref, validReplayStreamParent()));
+    await assertSucceeds(updateDoc(ref, { updatedAt: 2 }));
+    await assertFails(getDoc(ref));
+    await assertSucceeds(getDoc(doc(adminDb(), 'replayStreams', playerUid, 'runs', runId)));
+    await assertFails(setDoc(doc(db, 'replayStreams', 'w_victim9', 'runs', runId), validReplayStreamParent({
+      uid: 'w_victim9',
+    })));
+  });
+
+  test('allow live replay stream chunk creates and deny mutation or malformed actions', async () => {
+    const db = playerDb();
+    const ref = doc(db, 'replayStreams', playerUid, 'runs', runId, 'chunks', 'c0');
+    await assertSucceeds(setDoc(ref, validReplayStreamChunk()));
+    await assertFails(updateDoc(ref, { chunk: 1 }));
+    await assertFails(getDoc(ref));
+    await assertSucceeds(getDoc(doc(adminDb(), 'replayStreams', playerUid, 'runs', runId, 'chunks', 'c0')));
+    await assertFails(setDoc(doc(db, 'replayStreams', playerUid, 'runs', runId, 'chunks', 'c1'), validReplayStreamChunk({
+      chunk: 1,
+      actions: { ...validActions, codec: 'r2' },
+    })));
+    await assertFails(setDoc(doc(db, 'replayStreams', 'w_victim9', 'runs', runId, 'chunks', 'c0'), validReplayStreamChunk({
+      uid: 'w_victim9',
+    })));
   });
 });
 
@@ -357,7 +452,7 @@ describe('leaderboard and telemetry write rules', () => {
     const db = playerDb();
     const ref = doc(db, 'runCheckpoints', runId, 'chunks', 'c0');
     await assertSucceeds(setDoc(ref, {
-      schemaVersion: 2,
+      schemaVersion: 3,
       runId,
       uid: playerUid,
       chunk: 0,
@@ -380,7 +475,7 @@ describe('leaderboard and telemetry write rules', () => {
     const db = playerDb();
     await assertFails(setDoc(doc(db, 'runAnalytics', runId), validAnalytics({ uid: 'w_victim9' })));
     await assertFails(setDoc(doc(db, 'runCheckpoints', runId, 'chunks', 'c0'), {
-      schemaVersion: 2,
+      schemaVersion: 3,
       runId,
       uid: 'w_victim9',
       chunk: 0,

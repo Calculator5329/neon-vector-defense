@@ -13,7 +13,8 @@ import { canSubmitScore, canWriteAnalytics } from './consent';
 import { isSampledRun } from './writePolicy';
 import { sanitizeFirestoreData } from './firestoreSanitize';
 import { normalizeRunAnalyticsDoc, type NormalizedRunAnalytics } from './analyticsSchema';
-import { hashRunDeathRecords, type PrivateRunAnalyticsDoc, type RunCheckpointDoc, type RunUploadBundle, type PublicRunDoc } from './runTelemetry';
+import { type PrivateRunAnalyticsDoc, type RunCheckpointDoc, type RunEvent, type RunEventChunkDoc, type RunUploadBundle, type PublicRunDoc, type RunWaveSnapshot } from './runTelemetry';
+import { actionHash, decodeReplayActionBundle, type ReplayActionPack } from './replayCodec';
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
@@ -35,6 +36,7 @@ const MAX_REPLAY_CHUNK_EVENTS = 650;
 // to TTL, which is why raw streams never expired before this.
 const CHECKPOINT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // live diagnostics: 30 days
 const TELEMETRY_TTL_MS = 180 * 24 * 60 * 60 * 1000; // compact outcome rows: 180 days
+const REPLAY_STREAM_TTL_MS = 3 * 24 * 60 * 60 * 1000; // unsubmitted live replay chunks
 function ttlTimestamp(fs: FirestoreNS, ms: number) {
   return fs.Timestamp.fromMillis(Date.now() + ms);
 }
@@ -107,6 +109,9 @@ export type ReplayIntegrity = 'complete' | 'partial';
 
 export interface RunReplayDoc extends PublicRunDoc {
   integrity: ReplayIntegrity;
+  chunks: RunEventChunkDoc[];
+  events: RunEvent[];
+  snapshots: RunWaveSnapshot[];
 }
 
 function cloneScores<T extends ScoreEntry>(rows: T[]): T[] {
@@ -479,6 +484,44 @@ function sameReplayDoc(existing: PublicRunDoc | null, run: PublicRunDoc): boolea
     && JSON.stringify(existing.manifest ?? null) === JSON.stringify(run.manifest ?? null);
 }
 
+export async function streamRunReplayChunk(chunk: RunEventChunkDoc, build: string): Promise<boolean> {
+  if (!canSubmitScore()) return false;
+  if (!isValidRunId(chunk.runId) || !validActionPack(chunk.actions)) return false;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
+  const { fs, db } = await firestore();
+  const now = Date.now();
+  const expiresAt = ttlTimestamp(fs, REPLAY_STREAM_TTL_MS);
+  const parentDoc = sanitizeFirestoreData({
+    schemaVersion: 1,
+    uid: serverUid,
+    runId: chunk.runId,
+    build: build.slice(0, 30),
+    updatedAt: now,
+    expiresAt,
+  });
+  const chunkDoc = sanitizeFirestoreData({
+    schemaVersion: chunk.schemaVersion,
+    uid: serverUid,
+    runId: chunk.runId,
+    chunk: Math.max(0, Math.floor(chunk.chunk)),
+    actions: chunk.actions,
+    createdAt: now,
+    build: build.slice(0, 30),
+    expiresAt,
+  });
+  try {
+    const batch = fs.writeBatch(db);
+    batch.set(fs.doc(db, 'replayStreams', serverUid, 'runs', chunk.runId), parentDoc, { merge: true });
+    batch.set(fs.doc(db, 'replayStreams', serverUid, 'runs', chunk.runId, 'chunks', `c${chunkDoc.chunk}`), chunkDoc, { merge: false });
+    await withTimeout(batch.commit());
+    return true;
+  } catch (error) {
+    console.warn('Run replay stream failed', error);
+    return false;
+  }
+}
+
 export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunReplaySubmitResult> {
   // Replay backs leaderboard verification, so it is SCORE-tier (every adult who posts),
   // not analytics-tier — a privacy-conscious adult must still produce a verifiable replay.
@@ -496,6 +539,19 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
     createdAt: run.createdAt,
     build: run.build,
   });
+  const streamSealDoc = sanitizeFirestoreData({
+    schemaVersion: 1,
+    uid: serverUid,
+    runId: run.runId,
+    build: run.build,
+    updatedAt: Date.now(),
+    submitted: true,
+    sealedAt: Date.now(),
+    chunkCount: run.chunkCount,
+    eventCount: run.eventCount,
+    manifest: run.manifest,
+    summary: run.summary,
+  });
   const chunks = bundle.chunks.map((chunk) => sanitizeFirestoreData(chunk));
   const { fs, db } = await firestore();
   try {
@@ -504,6 +560,7 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
     // stream exhausted maximum allowed queued writes") and time out the whole submit.
     const batch = fs.writeBatch(db);
     batch.set(fs.doc(db, 'replayOwners', serverUid, 'runs', run.runId), ownerDoc);
+    batch.set(fs.doc(db, 'replayStreams', serverUid, 'runs', run.runId), streamSealDoc, { merge: true });
     batch.set(fs.doc(db, 'runs', run.runId), run);
     for (const chunk of chunks) {
       batch.set(fs.doc(db, 'runs', run.runId, 'chunks', `c${chunk.chunk}`), chunk);
@@ -525,64 +582,29 @@ export async function submitRunReplay(bundle: RunUploadBundle): Promise<RunRepla
 
 const replayCache = new Map<string, { expires: number; doc: RunReplayDoc | null }>();
 
-function eventIdentity(event: unknown): string {
-  if (!event || typeof event !== 'object') return JSON.stringify(['', 0]);
-  const data = event as Record<string, unknown>;
-  const type = typeof data.type === 'string' ? data.type : String(data.type ?? '');
-  const t = typeof data.t === 'number' && Number.isFinite(data.t) ? data.t : 0;
-  const simTick = typeof data.simTick === 'number' && Number.isFinite(data.simTick)
-    ? Math.max(0, Math.floor(data.simTick))
-    : null;
-  return JSON.stringify([type, t, simTick]);
+function validActionPack(pack: unknown): pack is ReplayActionPack {
+  if (!pack || typeof pack !== 'object' || Array.isArray(pack)) return false;
+  const data = pack as Partial<ReplayActionPack>;
+  return data.codec === 'r3'
+    && Number.isInteger(data.count)
+    && (data.count ?? -1) >= 0
+    && (data.count ?? 0) <= MAX_REPLAY_CHUNK_EVENTS
+    && Array.isArray(data.towerIds)
+    && data.towerIds.every((id) => typeof id === 'string' && id.length <= 40)
+    && typeof data.data === 'string'
+    && data.data.length <= 200_000;
 }
 
-function replayEventHash(events: unknown[]): string {
-  let hash = 2166136261;
-  for (const event of events) {
-    const data = `${eventIdentity(event)}\n`;
-    for (let i = 0; i < data.length; i++) {
-      hash ^= data.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
-function validDeathRecords(records: PublicRunDoc['deathRecords']): records is NonNullable<PublicRunDoc['deathRecords']> {
-  return !!records
-    && records.codec === 'd1'
-    && Number.isInteger(records.count)
-    && records.count >= 0
-    && Array.isArray(records.waves)
-    && records.waves.every((row) => (
-      Number.isInteger(row.wave)
-      && row.wave >= 0
-      && Number.isInteger(row.startDs)
-      && row.startDs >= 0
-      && typeof row.data === 'string'
-    ));
-}
-
-function validManifest(
-  manifest: PublicRunDoc['manifest'],
-  deathRecords: PublicRunDoc['deathRecords'],
-): manifest is NonNullable<PublicRunDoc['manifest']> {
-  const deathHashOk = deathRecords === undefined
-    ? manifest?.deathHash === undefined || (typeof manifest.deathHash === 'string' && /^[a-f0-9]{8}$/.test(manifest.deathHash))
-    : validDeathRecords(deathRecords)
-      && typeof manifest?.deathHash === 'string'
-      && /^[a-f0-9]{8}$/.test(manifest.deathHash)
-      && hashRunDeathRecords(deathRecords) === manifest.deathHash;
+function validManifest(manifest: PublicRunDoc['manifest']): manifest is NonNullable<PublicRunDoc['manifest']> {
   return !!manifest
     && manifest.complete === true
     && Array.isArray(manifest.chunkEventCounts)
     && manifest.chunkEventCounts.every((count) => Number.isInteger(count) && count >= 0 && count <= MAX_REPLAY_CHUNK_EVENTS)
-    && typeof manifest.eventHash === 'string'
-    && /^[a-f0-9]{8}$/.test(manifest.eventHash)
-    && deathHashOk;
+    && typeof manifest.actionHash === 'string'
+    && /^[a-f0-9]{8}$/.test(manifest.actionHash);
 }
 
-/** Read a run replay by id (public get), reassembling overflow event chunks. */
+/** Read a run replay by id (public get), reassembling overflow action chunks. */
 export async function fetchRunReplay(runId: string): Promise<RunReplayDoc | null> {
   if (!isValidRunId(runId)) return null;
   const cached = replayCache.get(runId);
@@ -591,49 +613,62 @@ export async function fetchRunReplay(runId: string): Promise<RunReplayDoc | null
     const { fs, db } = await firestore();
     const snap = await withTimeout(fs.getDoc(fs.doc(db, 'runs', runId)));
     const doc = snap.exists() ? (snap.data() as PublicRunDoc) : null;
-    const docEvents = Array.isArray(doc?.events) ? doc.events : [];
-    let events = docEvents;
     const chunkCount = Math.max(0, Math.min(100, Math.floor(Number(doc?.chunkCount ?? 0))));
-    const fetchedChunks: { i: number; exists: boolean; events: PublicRunDoc['events'] }[] = [];
+    const fetchedChunks: { i: number; exists: boolean; actions: ReplayActionPack | null }[] = [];
     if (doc && chunkCount > 0) {
       const chunkSnaps = await withTimeout(Promise.all(
         Array.from({ length: chunkCount }, (_, i) => fs.getDoc(fs.doc(db, 'runs', runId, 'chunks', `c${i}`))),
       ));
-      const chunkEvents = chunkSnaps
+      chunkSnaps
         .map((chunkSnap, i) => {
-          const data = chunkSnap.exists() ? chunkSnap.data() as { chunk?: number; events?: unknown } : null;
+          const data = chunkSnap.exists() ? chunkSnap.data() as { chunk?: number; actions?: unknown } : null;
           const chunk = {
             i,
             exists: chunkSnap.exists(),
-            events: Array.isArray(data?.events) ? data.events as PublicRunDoc['events'] : [],
+            actions: validActionPack((data as { actions?: unknown } | null)?.actions) ? (data as { actions: ReplayActionPack }).actions : null,
           };
           fetchedChunks.push(chunk);
           return chunk;
-        })
-        .sort((a, b) => a.i - b.i)
-        .flatMap((chunk) => chunk.events);
-      events = [...events, ...chunkEvents];
+        });
     }
     const integrity: ReplayIntegrity = (() => {
       if (!doc?.manifest) return 'partial';
-      if (!validManifest(doc.manifest, doc.deathRecords)) return 'partial';
+      if (!validActionPack(doc.actions) || !validManifest(doc.manifest)) return 'partial';
       if (chunkCount !== doc.manifest.chunkEventCounts.length) return 'partial';
       if (fetchedChunks.length !== chunkCount) return 'partial';
       for (let i = 0; i < chunkCount; i++) {
         const chunk = fetchedChunks.find((row) => row.i === i);
-        if (!chunk?.exists || chunk.events.length !== doc.manifest.chunkEventCounts[i]) return 'partial';
+        if (!chunk?.exists || !chunk.actions || chunk.actions.count !== doc.manifest.chunkEventCounts[i]) return 'partial';
       }
-      const expectedEventCount = docEvents.length + doc.manifest.chunkEventCounts.reduce((sum, count) => sum + count, 0);
+      const expectedEventCount = doc.actions.count + doc.manifest.chunkEventCounts.reduce((sum, count) => sum + count, 0);
       if (Number(doc.eventCount ?? 0) !== expectedEventCount) return 'partial';
-      if (replayEventHash(events) !== doc.manifest.eventHash) return 'partial';
+      const sortedChunks = fetchedChunks
+        .filter((chunk): chunk is { i: number; exists: boolean; actions: ReplayActionPack } => !!chunk.actions)
+        .sort((a, b) => a.i - b.i)
+        .map((chunk) => ({ actions: chunk.actions }));
+      if (actionHash(doc.actions, sortedChunks) !== doc.manifest.actionHash) return 'partial';
       return 'complete';
     })();
     // light defensive normalization so a partial doc can't crash the viewer
+    const chunks = fetchedChunks
+      .filter((chunk): chunk is { i: number; exists: boolean; actions: ReplayActionPack } => !!chunk.actions)
+      .sort((a, b) => a.i - b.i)
+      .map((chunk) => ({
+        schemaVersion: doc?.schemaVersion ?? 0,
+        runId,
+        chunk: chunk.i,
+        actions: chunk.actions,
+      }));
+    const events = doc && validActionPack(doc.actions)
+      ? decodeReplayActionBundle(doc.actions, chunks)
+      : Array.isArray(doc?.events) ? doc.events : [];
+    const snapshots = Array.isArray(doc?.snapshots) ? doc.snapshots : [];
     const safe = doc && doc.summary && doc.setup ? {
       ...doc,
-      snapshots: Array.isArray(doc.snapshots) ? doc.snapshots : [],
-      events,
       final: doc.final ?? { towers: [], damageByTower: {}, killsByEnemy: {}, abilitiesCast: 0, cashEarned: 0, leaks: 0 },
+      chunks,
+      events,
+      snapshots,
       integrity,
     } : null;
     replayCache.set(runId, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, doc: safe });
@@ -662,7 +697,7 @@ export async function fetchRunSnapshots(max = 300): Promise<RunSnapshotRow[]> {
       return {
         map: r.summary?.map ?? '', diff: r.summary?.diff ?? '', wave: r.summary?.wave ?? 0,
         outcome: r.summary?.outcome ?? '',
-        snapshots: (Array.isArray(r.snapshots) ? r.snapshots : []).map((s) => ({ wave: s.wave, lives: s.lives, leaks: s.leaks })),
+        snapshots: [],
       };
     }).filter((r) => r.map && r.diff);
   } catch (error) {

@@ -37,6 +37,23 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   recorded in run setup and checked by reSimulate: a mismatch is `unverifiable`,
   never falsely `divergent`. Bump it on every future sim-behavior change.
 
+## 2026-07-02 - Replay v3 stores player actions only
+
+- Public Battle Plan data is now schema v3: setup, summary/final aggregates, and
+  the encoded `r3` player-action stream. Enemy events, snapshots, and compact
+  death ledgers were removed from public run docs because the deterministic
+  engine can reconstruct combat from seed/setup plus exact player actions.
+- The manifest keeps per-chunk action counts and one FNV `actionHash` over the
+  encoded root/chunk action packs. `eventHash`, `deathHash`, `deathRecords`,
+  `events`, and `snapshots` are v2 fields and are rejected for new public
+  uploads. Existing v2 replay links are not watchable after this cutover; any
+  pinned Replay of the Day should be re-pinned to a v3 run.
+- Byte measurements on Agent A's seeded freeplay wave-81 run: verbose public
+  bundle 1,304,761 bytes; verbose action JSON 5,569 bytes; r3 action payload
+  object 942 bytes; r3 `data` string 701 bytes. That is the reason the new cap
+  is sized around compact action chunks instead of Firestore's 1 MB document
+  ceiling.
+
 ## 2026-07-02 - Cinder Mortar burn-zone curve pulled ~15-18%
 
 - Owner play experience plus `npm run tower:deep-dive` agreed Cinder was still
@@ -300,6 +317,8 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
 
 ## 2026-07-02 - Replay deaths are authoritative compact records
 
+- Superseded by Replay v3 above for new uploads. This section documents the
+  short-lived v2 design only; schema v3 no longer stores public death records.
 - Battle Plan enemy deaths are stored in `deathRecords`, not as `enemy_kill`
   events. The viewer treats this ledger as authoritative and uses the old
   snapshot-delta inference only for legacy production replays that predate it.

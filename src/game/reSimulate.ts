@@ -1,4 +1,4 @@
-import { balanceVersion } from './balanceConfig';
+import { balanceDocSnapshot, balanceVersion, setBalanceDoc as applyBalanceDoc } from './balanceConfig';
 import { dailyChallengeForId } from './dailyChallenge';
 import { Game } from './engine';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
@@ -6,15 +6,12 @@ import {
   REPLAY_ENGINE_VERSION,
   RUN_TELEMETRY_SCHEMA,
   buildRunManifest,
-  decodeReplayDeathRecords,
-  hashRunDeathRecords,
-  hashRunEventPairs,
   type PublicRunDoc,
-  type RunDeathRecords,
   type RunEvent,
   type RunEventChunkDoc,
   type RunUploadBundle,
 } from './runTelemetry';
+import { decodeReplayActionBundle } from './replayCodec';
 import { TOWER_MAP } from './towers';
 import type { AbilityId, GameMap, TargetMode, Vec } from './types';
 import type { FreeplayContractId, FreeplayRelicId, RiskWaveId } from './freeplay';
@@ -33,7 +30,6 @@ export interface ReSimResult {
   reason?: string;
   divergence?: ReSimDivergence;
   summary?: PublicRunDoc['summary'];
-  deathRecords?: RunDeathRecords;
 }
 
 export interface ReSimBundle {
@@ -41,7 +37,7 @@ export interface ReSimBundle {
   chunks: RunEventChunkDoc[];
 }
 
-const ACTION_TYPES = new Set([
+export const REPLAY_ACTION_TYPES = new Set([
   'wave_start',
   'tower_place',
   'tower_upgrade',
@@ -56,10 +52,11 @@ const ACTION_TYPES = new Set([
   'speed_change',
 ]);
 
-// Construct + prime a Game from a recorded run's setup. Shared by the server-side
-// verifier (reSimulate) and the client-side playback driver (createReplayPlayback)
-// so both step the exact same engine from the exact same starting state.
-function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } {
+// Construct + prime a Game from a recorded run's setup. This may apply embedded
+// setup.balance/setup.daily snapshots so deterministic playback can reproduce the
+// historical run; authenticity of those client-supplied snapshots is the caller's
+// responsibility. Functions verifyRunCore enforces authenticity before trusting a verdict.
+export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } {
   const map = ALL_MAPS.find((candidate) => candidate.id === run.setup.map);
   const diff = DIFFICULTIES.find((candidate) => candidate.id === run.setup.diff);
   if (!map || !diff) return { error: 'unknown map or difficulty' };
@@ -68,6 +65,7 @@ function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } 
     seed: run.setup.seed >>> 0,
     lifetimeKills: 0,
     availableTowerIds: run.setup.availableTowerIds,
+    replayMode: true,
   });
   game.paused = false;
   game.speed = 1;
@@ -76,8 +74,8 @@ function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } 
   game.startingLives = game.lives;
   game.recorder.setStartingResources(game.credits, game.lives);
 
-  if (run.summary.daily) {
-    const challenge = dailyChallengeForId(run.summary.daily);
+  if (run.summary.daily || run.setup.daily) {
+    const challenge = run.setup.daily ?? (run.summary.daily ? dailyChallengeForId(run.summary.daily) : null);
     if (!challenge) return { error: `unsupported daily id ${run.summary.daily}` };
     if (challenge.mapId !== map.id || challenge.diffId !== diff.id) {
       return { error: 'daily challenge does not match replay setup' };
@@ -88,13 +86,26 @@ function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } 
 }
 
 export function reSimulate(bundle: ReSimBundle): ReSimResult {
+  const balanceSnapshot = bundle.run?.setup?.balance;
+  if (balanceSnapshot) {
+    const previous = balanceDocSnapshot();
+    applyBalanceDoc(balanceSnapshot);
+    try {
+      return reSimulateCore(bundle, true);
+    } finally {
+      applyBalanceDoc(previous);
+    }
+  }
+  return reSimulateCore(bundle, false);
+}
+
+function reSimulateCore(bundle: ReSimBundle, hasBalanceSnapshot: boolean): ReSimResult {
   const unverifiable = (reason: string): ReSimResult => ({ verdict: 'unverifiable', reason });
   const run = bundle.run;
   if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return unverifiable(`unsupported schemaVersion ${run.schemaVersion}`);
   if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) {
     return unverifiable(`engine mismatch: run=${run.setup.replayEngine ?? 1} current=${REPLAY_ENGINE_VERSION}`);
   }
-  if (!run.deathRecords) return unverifiable('missing deathRecords');
   if (!run.manifest?.complete) return unverifiable('missing complete replay manifest');
   if (!Array.isArray(bundle.chunks) || bundle.chunks.length !== run.chunkCount) {
     return unverifiable('chunk count does not match run manifest');
@@ -102,10 +113,9 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult {
 
   const chunkError = validateChunks(run, bundle.chunks);
   if (chunkError) return unverifiable(chunkError);
-  const expectedManifest = buildRunManifest(run.events, bundle.chunks, run.deathRecords);
+  const expectedManifest = buildRunManifest(run.actions, bundle.chunks);
   if (
-    expectedManifest.eventHash !== run.manifest.eventHash
-    || expectedManifest.deathHash !== run.manifest.deathHash
+    expectedManifest.actionHash !== run.manifest.actionHash
     || JSON.stringify(expectedManifest.chunkEventCounts) !== JSON.stringify(run.manifest.chunkEventCounts)
   ) {
     return unverifiable('manifest hashes do not match supplied replay data');
@@ -117,10 +127,12 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult {
   // we would re-simulate under different tower/enemy math — an honest run would
   // falsely diverge, so it is unverifiable instead. The server injects the live
   // config/balance doc via setBalanceDoc before calling reSimulate.
-  const currentBalance = balanceVersion();
-  const recordedBalance = run.setup.balanceVersion === run.build ? '' : (run.setup.balanceVersion ?? '');
-  if (recordedBalance !== currentBalance) {
-    return unverifiable(`balance mismatch: run=${recordedBalance || 'identity'} current=${currentBalance || 'identity'}`);
+  if (!hasBalanceSnapshot) {
+    const currentBalance = balanceVersion();
+    const recordedBalance = run.setup.balanceVersion === run.build ? '' : (run.setup.balanceVersion ?? '');
+    if (recordedBalance !== currentBalance) {
+      return unverifiable(`balance mismatch: run=${recordedBalance || 'identity'} current=${currentBalance || 'identity'}`);
+    }
   }
 
   const map = ALL_MAPS.find((candidate) => candidate.id === run.setup.map);
@@ -131,10 +143,11 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult {
   if ('error' in built) return unverifiable(built.error);
   const game = built.game;
 
-  const allEvents = mergedEvents(run, bundle.chunks);
+  const allEvents = decodeReplayActionBundle(run.actions, bundle.chunks);
+  if (allEvents.length !== run.eventCount) return unverifiable('action decode count mismatch');
   const actions = allEvents
     .map((event, index) => ({ event, index }))
-    .filter(({ event }) => ACTION_TYPES.has(event.type));
+    .filter(({ event }) => REPLAY_ACTION_TYPES.has(event.type));
   if (actions.some(({ event }) => !validSimTick(event))) {
     return unverifiable('replay action events are missing exact simTick timing');
   }
@@ -175,13 +188,9 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult {
   const simulated = game.buildRunUploadBundle(run.summary.callsign, run.build).run;
   const summaryDivergence = compareSummary(run.summary, simulated.summary);
   if (summaryDivergence) {
-    return { verdict: 'divergent', reason: `summary.${summaryDivergence.field}`, divergence: summaryDivergence, summary: simulated.summary, deathRecords: simulated.deathRecords };
+    return { verdict: 'divergent', reason: `summary.${summaryDivergence.field}`, divergence: summaryDivergence, summary: simulated.summary };
   }
-  const deathDivergence = compareDeathRecords(run.deathRecords, simulated.deathRecords);
-  if (deathDivergence) {
-    return { verdict: 'divergent', reason: deathDivergence.field, divergence: deathDivergence, summary: simulated.summary, deathRecords: simulated.deathRecords };
-  }
-  return { verdict: 'verified', summary: simulated.summary, deathRecords: simulated.deathRecords };
+  return { verdict: 'verified', summary: simulated.summary };
 }
 
 function validateChunks(run: PublicRunDoc, chunks: RunEventChunkDoc[]): string | null {
@@ -191,19 +200,12 @@ function validateChunks(run: PublicRunDoc, chunks: RunEventChunkDoc[]): string |
     if (chunk.schemaVersion !== RUN_TELEMETRY_SCHEMA) return `unsupported chunk schemaVersion ${chunk.schemaVersion}`;
     if (chunk.runId !== run.runId) return 'chunk runId mismatch';
     if (chunk.chunk !== i) return 'missing or out-of-order replay chunk';
-    if ((run.manifest.chunkEventCounts[i] ?? -1) !== chunk.events.length) return 'chunk event count mismatch';
+    if ((run.manifest.chunkEventCounts[i] ?? -1) !== chunk.actions.count) return 'chunk event count mismatch';
   }
-  const eventCount = run.events.length + chunks.reduce((sum, chunk) => sum + chunk.events.length, 0);
+  const eventCount = run.actions.count + chunks.reduce((sum, chunk) => sum + chunk.actions.count, 0);
   if (eventCount !== run.eventCount) return 'eventCount mismatch';
-  if (hashRunEventPairs(mergedEvents(run, chunks)) !== run.manifest.eventHash) return 'event hash mismatch';
-  if (run.manifest.deathHash && hashRunDeathRecords(run.deathRecords ?? { codec: 'd1', count: 0, waves: [] }) !== run.manifest.deathHash) {
-    return 'death hash mismatch';
-  }
+  if (buildRunManifest(run.actions, chunks).actionHash !== run.manifest.actionHash) return 'action hash mismatch';
   return null;
-}
-
-function mergedEvents(run: PublicRunDoc, chunks: RunEventChunkDoc[]): RunEvent[] {
-  return [...run.events, ...[...chunks].sort((a, b) => a.chunk - b.chunk).flatMap((chunk) => chunk.events)];
 }
 
 function advanceToEvent(game: Game, event: RunEvent): ReSimResult | null {
@@ -333,35 +335,6 @@ function compareSummary(expected: PublicRunDoc['summary'], actual: PublicRunDoc[
   return null;
 }
 
-function compareDeathRecords(expected: RunDeathRecords, actual?: RunDeathRecords): ReSimDivergence | null {
-  if (!actual) return { field: 'deathRecords', expected: expected.count, actual: null };
-  if (JSON.stringify(expected) === JSON.stringify(actual)) return null;
-  if (expected.count !== actual.count) return { field: 'deathRecords.count', expected: expected.count, actual: actual.count };
-  const expectedDeaths = decodeReplayDeathRecords(expected);
-  const actualDeaths = decodeReplayDeathRecords(actual);
-  if (expectedDeaths.length !== actualDeaths.length) {
-    return { field: 'deathRecords.decodedCount', expected: expectedDeaths.length, actual: actualDeaths.length };
-  }
-  // Freeplay ledgers above 50k terminals are used as a count-level guard. The
-  // exact score summary has already matched, and per-uid terminal ordering can
-  // diverge in dense waves without changing the accepted leaderboard outcome.
-  if (expectedDeaths.length >= 50_000) return null;
-  let mismatches = 0;
-  let firstMismatch: ReSimDivergence | null = null;
-  for (let i = 0; i < expectedDeaths.length; i++) {
-    const a = expectedDeaths[i];
-    const b = actualDeaths[i];
-    const spawnDelta = Math.abs(a.spawnT - b.spawnT);
-    const deathDelta = Math.abs(a.deathT - b.deathT);
-    if (a.uid !== b.uid || a.enemyId !== b.enemyId || a.wave !== b.wave || spawnDelta > 0.11 || deathDelta > 0.11) {
-      mismatches++;
-      firstMismatch ??= { field: `deathRecords[${i}]`, expected: a, actual: b };
-    }
-  }
-  if (mismatches > 0) return firstMismatch;
-  return null;
-}
-
 function validSimTick(event: RunEvent | undefined): event is RunEvent & { simTick: number } {
   return !!event && typeof event.simTick === 'number' && Number.isInteger(event.simTick) && event.simTick >= 0;
 }
@@ -471,7 +444,7 @@ const PLAYBACK_KILL_CAP = 30_000;
  * to the cosmetic reconstruction on null. Expects `run.events` already merged with
  * its chunk events (fetchRunReplay does this).
  */
-export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
+export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChunkDoc[] }): ReplayPlayback | null {
   if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return null;
   if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) return null;
   if ((run.summary.kills ?? 0) > PLAYBACK_KILL_CAP) return null;
@@ -479,18 +452,32 @@ export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
   // Balance must match: re-running under different tower/enemy math would render a
   // battle that never happened. Mirrors reSimulate's balance guard (the sentinel
   // fallback to the build tag means "no remote balance doc" → identity config).
-  const currentBalance = balanceVersion();
-  const recordedBalance = run.setup.balanceVersion === run.build ? '' : (run.setup.balanceVersion ?? '');
-  if (recordedBalance !== currentBalance) return null;
+  const balanceSnapshot = run.setup.balance;
+  if (!balanceSnapshot) {
+    const currentBalance = balanceVersion();
+    const recordedBalance = run.setup.balanceVersion === run.build ? '' : (run.setup.balanceVersion ?? '');
+    if (recordedBalance !== currentBalance) return null;
+  }
+  const withPlaybackBalance = <T,>(fn: () => T): T => {
+    if (!balanceSnapshot) return fn();
+    const previous = balanceDocSnapshot();
+    applyBalanceDoc(balanceSnapshot);
+    try {
+      return fn();
+    } finally {
+      applyBalanceDoc(previous);
+    }
+  };
 
-  const events = Array.isArray(run.events) ? run.events : [];
+  if (!run.actions) return null;
+  const events = decodeReplayActionBundle(run.actions, run.chunks ?? []);
   const actions = events
-    .filter((event) => ACTION_TYPES.has(event.type) && validSimTick(event))
+    .filter((event) => REPLAY_ACTION_TYPES.has(event.type) && validSimTick(event))
     .map((event) => ({ event, tick: simTick(event) }))
     .sort((a, b) => a.tick - b.tick);
   // Every action must carry exact tick timing, or the re-sim can't place it — same
   // rule reSimulate enforces. A run with actions but no valid ticks is not drivable.
-  if (events.some((event) => ACTION_TYPES.has(event.type)) && actions.length === 0) return null;
+  if (events.some((event) => REPLAY_ACTION_TYPES.has(event.type)) && actions.length === 0) return null;
 
   const endEvent = [...events].reverse().find((event) => event.type === 'run_end');
   const endTick = validSimTick(endEvent)
@@ -498,7 +485,7 @@ export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
     : actions.length ? actions[actions.length - 1].tick : 0;
   const initialSpeed = eventSpeed(events[0]) ?? 1;
 
-  const first = setupReplayGame(run);
+  const first = withPlaybackBalance(() => setupReplayGame(run));
   if ('error' in first) return null;
 
   let game = first.game;
@@ -509,7 +496,7 @@ export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
   const reset = () => {
     // Backward seeks rebuild from the recorded seed and replay forward — the engine
     // is forward-only, and snapshots hold no restorable full state.
-    const rebuilt = setupReplayGame(run);
+    const rebuilt = withPlaybackBalance(() => setupReplayGame(run));
     if ('error' in rebuilt) return;
     game = rebuilt.game;
     game.speed = initialSpeed;
@@ -520,18 +507,20 @@ export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
   const currentTick = () => Math.round(game.time / Game.SIM_STEP);
 
   const seekTo = (tSeconds: number) => {
-    const targetTick = Math.max(0, Math.round(tSeconds / Game.SIM_STEP));
-    if (targetTick < currentTick()) reset();
-    while (cursor < actions.length && actions[cursor].tick <= targetTick) {
-      const { event, tick } = actions[cursor];
+    withPlaybackBalance(() => {
+      const targetTick = Math.max(0, Math.round(tSeconds / Game.SIM_STEP));
+      if (targetTick < currentTick()) reset();
+      while (cursor < actions.length && actions[cursor].tick <= targetTick) {
+        const { event, tick } = actions[cursor];
+        game.speed = currentSpeed;
+        advanceToTick(game, tick);
+        applyAction(game, event);
+        currentSpeed = eventSpeed(event) ?? currentSpeed;
+        cursor++;
+      }
       game.speed = currentSpeed;
-      advanceToTick(game, tick);
-      applyAction(game, event);
-      currentSpeed = eventSpeed(event) ?? currentSpeed;
-      cursor++;
-    }
-    game.speed = currentSpeed;
-    advanceToTick(game, targetTick);
+      advanceToTick(game, targetTick);
+    });
   };
 
   return {
@@ -545,4 +534,4 @@ export function createReplayPlayback(run: PublicRunDoc): ReplayPlayback | null {
 // config fetches never run. The server injects the live config/balance and
 // config/dailyOverride docs through these before verifying.
 export { setBalanceDoc } from './balanceConfig';
-export { setDailyOverrideDoc } from './dailyChallenge';
+export { dailyChallengeForId, setDailyOverrideDoc } from './dailyChallenge';

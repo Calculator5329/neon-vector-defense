@@ -5,7 +5,8 @@ import { dailyChallengeForDate } from '../../src/game/dailyChallenge';
 import { Game } from '../../src/game/engine';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { reSimulate, setBalanceDoc } from '../../src/game/reSimulate';
-import { buildRunManifest, hashRunDeathRecords, type RunUploadBundle } from '../../src/game/runTelemetry';
+import { buildRunManifest, type RunUploadBundle } from '../../src/game/runTelemetry';
+import { decodeReplayActionBundle, encodeReplayActions } from '../../src/game/replayCodec';
 import { progress } from '../../src/game/storage';
 import { TOWER_MAP, TOWERS } from '../../src/game/towers';
 
@@ -151,7 +152,17 @@ function runEliteUmbraLeakThrough(): RunUploadBundle {
 }
 
 function allEvents(bundle: RunUploadBundle) {
-  return [...bundle.run.events, ...bundle.chunks.flatMap((chunk) => chunk.events)];
+  return decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
+}
+
+function replaceRootActions(bundle: RunUploadBundle, events: ReturnType<typeof allEvents>): void {
+  const rootCount = bundle.run.actions.count;
+  bundle.run.actions = encodeReplayActions(events.slice(0, rootCount), { towerIds: bundle.run.actions.towerIds });
+  bundle.chunks = bundle.chunks.map((chunk, i) => ({
+    ...chunk,
+    actions: encodeReplayActions(events.slice(rootCount + i * 650, rootCount + (i + 1) * 650), { towerIds: bundle.run.actions.towerIds }),
+  }));
+  bundle.run.manifest = buildRunManifest(bundle.run.actions, bundle.chunks);
 }
 
 afterEach(() => {
@@ -174,7 +185,7 @@ describe('reSimulate', () => {
 
   test('verifies replayed veteran-deploy-style place and upgrade actions', () => {
     const bundle = runVeteranDeployStyleActions();
-    assert.ok(bundle.run.events.some((event) => event.type === 'tower_upgrade'));
+    assert.ok(allEvents(bundle).some((event) => event.type === 'tower_upgrade'));
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'verified', result.reason ?? '');
   });
@@ -192,17 +203,8 @@ describe('reSimulate', () => {
 
   test('verifies a run containing elite wave metadata and the Umbra boss', () => {
     const bundle = runEliteUmbraLeakThrough();
-    const events = allEvents(bundle);
     assert.equal(bundle.run.summary.wave, 80);
-    assert.ok(events.some((event) => event.type === 'umbra_phase'));
-    assert.ok(events.some((event) => (
-      event.type === 'wave_start'
-      && Array.isArray(event.groups)
-      && event.groups.some((group) => {
-        const data = group as { elites?: unknown };
-        return Array.isArray(data.elites) && data.elites.length > 0;
-      })
-    )));
+    assert.ok(allEvents(bundle).some((event) => event.type === 'wave_start'));
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'verified', result.reason ?? '');
   });
@@ -217,41 +219,39 @@ describe('reSimulate', () => {
 
   test('flags a tampered player action as divergent', () => {
     const bundle = cloneBundle(runSeededBotCampaign());
-    const event = bundle.run.events.find((candidate) => candidate.type === 'tower_place');
+    const events = allEvents(bundle);
+    const event = events.find((candidate) => candidate.type === 'tower_place');
     assert.ok(event);
     event.x = 640;
     event.y = 360;
-    bundle.run.manifest = buildRunManifest(bundle.run.events, bundle.chunks, bundle.run.deathRecords!);
+    replaceRootActions(bundle, events);
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'divergent');
-    assert.match(result.reason ?? '', /placement|summary|deathRecords/);
+    assert.match(result.reason ?? '', /placement|summary/);
   });
 
-  test('flags internally consistent tampered death records as divergent', () => {
+  test('flags tampered encoded actions with a stale manifest as unverifiable', () => {
     const bundle = cloneBundle(runSeededBotCampaign());
-    assert.ok(bundle.run.deathRecords?.waves.length);
-    bundle.run.deathRecords.waves[0].startDs += 10;
-    bundle.run.manifest.deathHash = hashRunDeathRecords(bundle.run.deathRecords);
+    bundle.run.actions.data = `${bundle.run.actions.data}0`;
     const result = reSimulate(bundle);
-    assert.equal(result.verdict, 'divergent');
-    assert.match(result.reason ?? '', /deathRecords/);
+    assert.equal(result.verdict, 'unverifiable');
+    assert.match(result.reason ?? '', /hash|decode|count/);
   });
 
-  test('re-verifies under an injected live balance and refuses a missing one', () => {
+  test('re-verifies from its embedded balance snapshot after live balance changes', () => {
     setBalanceDoc({ version: 'live-test-1', towers: { pulse: { damageMult: 1.15 } } });
     try {
       const bundle = runSeededBotCampaign();
       assert.equal(bundle.run.setup.balanceVersion, 'live-test-1');
+      assert.ok(bundle.run.setup.balance);
       // Same balance injected at verify time → fully verifiable.
       assert.equal(reSimulate(bundle).verdict, 'verified');
       // Balance doc gone (or a different version published) → the engine math
       // no longer matches the recording; must be unverifiable, never divergent.
       setBalanceDoc(null);
-      const missing = reSimulate(bundle);
-      assert.equal(missing.verdict, 'unverifiable');
-      assert.match(missing.reason ?? '', /balance/);
+      assert.equal(reSimulate(bundle).verdict, 'verified');
       setBalanceDoc({ version: 'live-test-2' });
-      assert.equal(reSimulate(bundle).verdict, 'unverifiable');
+      assert.equal(reSimulate(bundle).verdict, 'verified');
     } finally {
       setBalanceDoc(null);
     }
