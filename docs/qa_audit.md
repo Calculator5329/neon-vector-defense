@@ -1,74 +1,59 @@
-# QA Audit Scaffold
+# QA Audit
 
-Last updated: 2026-07-02
+Last updated: 2026-07-03
 
-This audit is a screenshot scaffold for the current screen inventory. The Playwright spec at `tests/e2e/qa-screens.spec.ts` captures named screenshots into `test-results/qa/<playwright-project>/` with explicit `page.screenshot()` calls. It does not change the global Playwright screenshot policy.
+## 2026-07-03 Replay v3 Launch-Gate Regression Audit
 
-## Viewports
+Scope: post-churn regression pass for the live replay v3 state from `.codex/shared-context.md`. Primary viewports were desktop `1440x900` and landscape-mobile `844x390`. The audit used real Playwright flows where churn risk was highest, including an actual game run, actual recorder output, score submission through the debrief UI, and replay viewing through `?run=`.
 
-| Viewport | Playwright project | Approximate size | Artifact directory |
-| --- | --- | --- | --- |
-| Desktop | `chromium-desktop` | 1440 x 900 | `test-results/qa/chromium-desktop/` |
-| Mobile | `chromium-mobile` | Pixel 5 profile | `test-results/qa/chromium-mobile/` |
-| Short landscape | run-once viewport override | 844 x 390 | `test-results/qa/short-landscape/` |
-| Menu polish matrix | run-once viewport overrides | 1920 x 930, 1440 x 900, 844 x 390, Pixel 5 portrait | `test-results/qa/menu-polish/` |
+Artifacts refreshed under `test-results/qa/` by `tests/e2e/qa-screens.spec.ts`. The new real-flow regression coverage is in `tests/e2e/qa-regression.spec.ts`.
 
-## Acceptance Criteria
+## Prioritized Findings
 
-| Criterion | Status |
-| --- | --- |
-| Automated rows have explicit screenshot artifacts in `test-results/qa/` for every applicable viewport. | READY |
-| Screenshots are produced by the QA spec itself, not by changing Playwright's global screenshot config. | READY |
-| External Firestore reads are isolated from live data; live-data rows are marked deferred instead of passed. | READY |
-| Write-path coverage uses anonymous auth and callable mocks. | READY |
-| Rows that cannot be truly verified locally are marked `DEFERRED` or `NEEDS MANUAL` with a reason. | READY |
+| severity (P0 blocks launch / P1 player-visible / P2 polish) | screen/flow | viewport | repro | proposed fix | status |
+| --- | --- | --- | --- | --- | --- |
+| P0 blocks launch | Launch blocker sweep | Desktop 1440x900 and landscape-mobile 844x390 | Ran the full gate plus screen inventory and real replay/debrief flows. No blank screen, uncaught exception, broken deploy, broken debrief submit, or broken replay viewer path was found. | None. | VERIFIED |
+| P1 player-visible | Replay viewer speed controls | Desktop 1440x900 and landscape-mobile 844x390 | Open a real submitted v3 run via `?run=<runId>` and inspect playback speeds. The viewer had 1x and 2x but did not offer the required 4x control. | Add `4` to `REPLAY_SPEEDS` without changing other playback behavior. | FIXED in `src/ReplayViewer.tsx`; covered by `tests/e2e/qa-regression.spec.ts`. |
+| P1 player-visible | Replay v3 round trip | Desktop 1440x900 and landscape-mobile 844x390 | Drive the app from menu to game, place a tower, launch a wave, force a terminal victory, submit the debrief, then open the returned `?run=` viewer. | No product fix required after the 4x control fix. Keep real recorder payload coverage. | VERIFIED. Test asserts schema v3, replay engine 3, 8-char hex `mapHash`, `r3` actions, complete manifest/hash, no `events`/`snapshots`/`deathRecords`, no `undefined`, frame-accurate viewer text, play/pause, 1x/2x/4x, deterministic seek, and no submit/view console errors. |
+| P1 player-visible | Run-end debrief | Desktop 1440x900 and landscape-mobile 844x390 | Finish a real victory run and submit the score; separately finish a defeat, click Retry Sector, finish again, and click Main Menu. | No product fix required. | VERIFIED by `qa-regression.spec.ts`; stats preview renders Credits/Kills, submitted row shows the real callsign, Retry returns to a fresh build state, and Main Menu returns to deploy without overflow or console errors. |
+| P1 player-visible | Replay-of-the-Day dead pinned run | Desktop 1440x900 and landscape-mobile 844x390 | Seed the spotlight card with a dead legacy/v2 run id and click Watch. | No product fix required. | VERIFIED. The menu remains usable, the viewer shows `REPLAY UNAVAILABLE`, and Return to the Grid restores the deploy menu. |
+| P1 player-visible | Steepened unlocks and arsenal state | Desktop, mobile, and 844x390 short landscape | Inspect early-game arsenal and seeded unlocked states through the existing UX suites. | No product fix required. | VERIFIED by `ux-ui.spec.ts` and `qa-screens.spec.ts`: 21-tower arsenal renders, locked/unlocked gates hold, unlock curve guard passes, and short-landscape arsenal stays complete. |
+| P1 player-visible | Tesla chain and targeted ability churn | Engine suite plus desktop/mobile e2e surfaces | Run the engine correctness suite and game UI coverage. | No product fix required. | VERIFIED by unit coverage for targeted strike requiring a target and no-oping after game over, plus Tesla chain not re-hitting already chained hulls. Full e2e still passes game controls and telemetry paths. |
+| P1 player-visible | Daily Challenge, Veteran Deploy, wave preview, keyboard placement, leaderboard tabs, Operations, settings, bestiary, age gate, privacy | Desktop 1440x900, mobile project, and 844x390 menu/game captures | Run the screen inventory, UX suite, and UI-stability guards. | No product fix required. | VERIFIED. Daily starts as wave-one daily protocol, Veteran Deploy gates and spends projected credits, keyboard placement works, leaderboard and Operations tabs render, modals/routes render, and CLS guardrails pass. |
+| P2 polish | QA screenshot scaffold console noise under blocked Firestore | Desktop and mobile scaffold rows only | `qa-screens.spec.ts` intentionally aborts Firestore reads for shell screenshots, which causes expected Firestore offline console noise in the runner output. | Optional harness improvement: module-stub read-only leaderboard/replay calls in the screenshot scaffold, matching the stricter regression spec. | DOCUMENTED. Not a product bug; `qa-regression.spec.ts` asserts no console errors on the real submit/view flows. |
 
-## Inventory
+## Validation Evidence
 
-| ID | Screen / state | Route or entry | Desktop | Mobile | Status | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| 01 | Age gate entry | `/` with empty local storage | `01-age-gate-entry.png` | `01-age-gate-entry.png` | AUTOMATED | Verifies the blocking entry dialog only. |
-| 02 | Deploy menu | `/?demo=1` with seeded local state | `02-deploy-menu.png` | `02-deploy-menu.png` | AUTOMATED | Demo mode exposes the full sector/protocol inventory deterministically. |
-| 02b | Menu polish deploy and Daily selected states | `/?demo=1`, required viewport matrix | `menu-polish/{1920x930,1440x900,844x390}-{deploy-menu,daily-selected}.png` | `menu-polish/pixel-5-portrait-{deploy-menu,daily-selected}.png` | AUTOMATED | Verifies the non-scrolling header, full-size utility icons, compact Daily Challenge card, and deploy-bar daily selection state. |
-| 03 | Leaderboard tab shell | Menu `LEADERBOARD` tab | `03-leaderboard-tab-shell.png` | `03-leaderboard-tab-shell.png` | AUTOMATED SHELL | Firestore reads are blocked, so live rows/replay links are not verified. |
-| 04 | Operations board | Menu `OPERATIONS` tab | `04-operations-board.png` | `04-operations-board.png` | AUTOMATED | Uses seeded local progress/meta only. |
-| 05 | How to play modal | Menu `?` control | `05-how-to-play-modal.png` | `05-how-to-play-modal.png` | AUTOMATED | Modal visibility and layout shell. |
-| 06 | Settings modal | Menu settings control | `06-settings-modal.png` | `06-settings-modal.png` | AUTOMATED | Modal visibility and layout shell. |
-| 07 | Bestiary modal | Menu bestiary control | `07-bestiary-modal.png` | `07-bestiary-modal.png` | AUTOMATED | Uses seeded enemy discovery. |
-| 08 | Warden AI widget | Menu AI control | `08-ai-help-widget.png` | `08-ai-help-widget.png` | AUTOMATED SHELL | Does not send an AI request. |
-| 09 | Feedback compose | Menu message control | `09-feedback-compose.png` | `09-feedback-compose.png` | AUTOMATED | Adult consent fixture. |
-| 10 | Feedback submitted | Mocked feedback callable | `10-feedback-submitted.png` | `10-feedback-submitted.png` | AUTOMATED | Uses `mockAnonAuth` plus callable mocks. |
-| 11 | Privacy route | `/privacy` | `11-privacy-route.png` | `11-privacy-route.png` | AUTOMATED | Static route shell and controls. |
-| 12 | Admin login shell | `/admin` | `12-admin-login-shell.png` | `12-admin-login-shell.png` | AUTOMATED SHELL | Authenticated dashboard is not verified. |
-| 13 | Game briefing overlay | Campaign deploy | `13-game-briefing-overlay.png` | `13-game-briefing-overlay.png` | AUTOMATED | Uses adult consent and seeded progress. |
-| 14 | Game board HUD | Acknowledged campaign briefing | `14-game-board-hud.png` | `14-game-board-hud.png` | AUTOMATED | Captures canvas, topbar, arsenal, and utility dock. |
-| 15 | Portrait rotate guidance | Mobile campaign game | N/A | `15-game-portrait-rotate.png` | AUTOMATED MOBILE | Mobile-only state; desktop has no corresponding overlay. |
-| 15b | Short-landscape game layout | 844 x 390 viewport override | N/A | `short-landscape/15b-short-landscape-game.png` | AUTOMATED SHORT | Verifies game layout in the required short-landscape viewport without expanding every Playwright project. |
-| 16 | After-action report shell | Demo game with dev-state terminal phase | `16-after-action-report.png` | `16-after-action-report.png` | AUTOMATED SHELL | Does not submit score or generate a dossier. |
-| 17 | Replay unavailable shell | `/?run=r_qaunavailable01` | `17-replay-unavailable-route.png` | `17-replay-unavailable-route.png` | AUTOMATED SHELL | Verifies the route/error shell with Firestore blocked. |
-| 18 | Loaded replay viewer | `/?run=<live run id>` | DEFERRED | DEFERRED | DEFERRED | Needs a valid replay document or a purpose-built Firestore fixture. |
-| 19 | Authenticated admin dashboard | `/admin` after Google auth | NEEDS MANUAL | NEEDS MANUAL | NEEDS MANUAL | Requires an allowlisted Google account and live Firestore reads. |
-| 20 | Score submit success and dossier share | Terminal eligible run | NEEDS MANUAL | NEEDS MANUAL | NEEDS MANUAL | Needs either a deterministic full terminal run with replay upload mocks or manual live validation. |
-| 21 | Live leaderboard rows and watch links | Menu leaderboard with production data | DEFERRED | DEFERRED | DEFERRED | Current automation only proves the tab shell under blocked Firebase reads. |
-
-## Current Status
-
-The QA screenshot scaffold is implemented and was verified on 2026-07-02, including the Menu polish matrix for 1920 x 930, 1440 x 900, 844 x 390, and Pixel 5 portrait.
-
-Focused checks run:
+Focused QA:
 
 ```sh
-npm.cmd run typecheck:all
-npm.cmd test
-node .\tests\e2e\run-playwright.mjs tests/e2e/qa-screens.spec.ts
-```
-
-Results: typecheck passed; the full Playwright dev suite passed; and the QA screenshot spec refreshed the core desktop/mobile artifacts plus `test-results/qa/menu-polish/` deploy and Daily-selected captures.
-
-Run the focused spec with:
-
-```sh
+node ./tests/e2e/run-playwright.mjs tests/e2e/qa-regression.spec.ts
 node ./tests/e2e/run-playwright.mjs tests/e2e/qa-screens.spec.ts
 ```
 
-Expected output artifacts are under `test-results/qa/`. The generated screenshots are intentionally ignored by git through the existing `test-results/` rule.
+Results: `qa-regression` 6 passed across desktop and landscape-mobile; `qa-screens` 5 passed / 1 expected skip.
+
+Full gate:
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd run typecheck:all` | PASS |
+| `npm.cmd run build` | PASS, existing Vite chunk-size warning only |
+| `npm.cmd run test:jest` | PASS, 16 tests |
+| `npm.cmd run test:engine` | PASS, 77 tests |
+| `npm.cmd run test:worker` | PASS, 9 tests |
+| `npm.cmd run test:rules` | PASS, 33 tests with Java 21 and workspace `XDG_CONFIG_HOME` after configstore EPERM |
+| `npm.cmd --prefix functions ci` | PASS, existing 6 moderate npm audit advisories reported |
+| `npm.cmd run test:functions` | PASS, 16 tests |
+| `npm.cmd run test:callables` | PASS, 17 tests with Java 21 and workspace `XDG_CONFIG_HOME` |
+| `npm.cmd test` | PASS, 62 passed / 24 skipped |
+| `npm.cmd run test:e2e:prod` | PASS, 6 tests |
+| `npm.cmd run perf:quick` | PASS, avg update 0.04 ms in quick stress output |
+| `npm.cmd run meta:sim` | PASS |
+| `npm.cmd run balance:gate` | PASS, no balance regressions |
+
+Notes:
+
+- PowerShell blocked `npm.ps1`, so validation used `npm.cmd`.
+- Firebase Tools attempted to read the user-profile configstore during emulator suites; reruns used workspace-local `XDG_CONFIG_HOME` and `npm_config_cache` as requested.
+- No deploy, no push, and no master ref write was performed.

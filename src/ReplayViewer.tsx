@@ -38,7 +38,7 @@ import type { AbilityId, Enemy, TowerDef } from './game/types';
 // motion is driven off the scrub time only, never RNG, so frames are stable.
 
 const FADE_S = 0.45;     // tower fade-in duration (game-seconds) after placedAtS
-const REPLAY_SPEEDS = [0.5, 1, 2, 5, 10] as const;
+const REPLAY_SPEEDS = [0.5, 1, 2, 4, 5, 10] as const;
 const CALLOUT_S = 1.8;
 const EVENT_FEED_S = 3.2;
 const ABILITY_DURATIONS: Partial<Record<AbilityId, number>> = {
