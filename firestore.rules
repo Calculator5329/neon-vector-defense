@@ -233,7 +233,7 @@ service cloud.firestore {
           && pack.towerIds is list
           && pack.towerIds.size() <= 40
           && pack.data is string
-          && pack.data.size() <= 20000;
+          && pack.data.size() <= 200000;
     }
 
     function isValidReplayEngineVersion(n) {

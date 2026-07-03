@@ -288,6 +288,30 @@ describe('public replay rules', () => {
     await assertFails(setDoc(doc(db, 'runs', runId, 'chunks', 'c1'), { schemaVersion: 3, runId, chunk: 1, events: [] }));
   });
 
+  test('allow replay action packs up to the client and function validation cap', async () => {
+    const db = playerDb();
+    const largeActions = { ...validActions, data: '1'.repeat(50_000) };
+    await assertSucceeds(setDoc(doc(db, 'runs', runId), {
+      ...validRun,
+      actions: largeActions,
+    }));
+    await assertSucceeds(setDoc(doc(db, 'runs', runId, 'chunks', 'c0'), {
+      schemaVersion: 3,
+      runId,
+      chunk: 0,
+      actions: largeActions,
+    }));
+  });
+
+  test('reject replay action packs above the upload cap', async () => {
+    const db = playerDb();
+    await assertFails(setDoc(doc(db, 'runs', `${runId}huge`), {
+      ...validRun,
+      runId: `${runId}huge`,
+      actions: { ...validActions, data: '1'.repeat(200_001) },
+    }));
+  });
+
   test('allow private replay owner index creates and deny public reads or updates', async () => {
     const db = playerDb();
     const ref = doc(db, 'replayOwners', playerUid, 'runs', runId);
