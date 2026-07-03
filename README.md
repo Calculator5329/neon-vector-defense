@@ -69,8 +69,9 @@ follow the recovered signal fragments.
   `balance-report.json`.
 - **Bot simulation** - `npm run sim` runs rookie, standard, and expert bot
   tiers through the public game API to keep difficulty targets honest.
-- **Procedural audio** - layered synth effects and generated ambient scoring
-  with no runtime audio asset dependency for core effects.
+- **Procedural audio + generated score** - layered synth effects for core
+  combat, plus generated music packs, sector ambience, stingers, and announcer
+  lines from `public/audio/`.
 - **Generated art pipeline** - optional scripts generate menu, sector,
   briefing, victory, defeat, and archive images through OpenRouter image
   models.
@@ -127,17 +128,25 @@ data generated from the balance harness, not as production telemetry.
 ## Generated Art
 
 Generated art lives in `public/art/`; generated audio lives in `public/audio/`.
-Regeneration is optional and requires an OpenRouter key. Keep keys in
-`.env.local`, which is gitignored.
+The committed set is trimmed to assets the current runtime or lore data can
+reach: map thumbnails, ability icons, rank crests, rival portraits, result and
+briefing art, fragment art, music packs, ambience, stingers, briefing audio, and
+announcer/ability voice lines. Enemies are drawn on canvas, so generated enemy
+portrait files are not kept. Regeneration is optional and requires an OpenRouter
+key. Keep keys in `.env.local`, which is gitignored.
 
 ```powershell
 $env:OPENROUTER_API_KEY="sk-or-..."
 node scripts/genart.mjs
 ```
 
-Some one-off generation scripts also read `.env.local` directly. Do not commit
-local key files. Source code and docs are MIT licensed; generated art/audio are
-reserved project assets. See [docs/asset_provenance.md](docs/asset_provenance.md).
+Generation helpers under `scripts/` are kept when they are wired to npm/CI/deploy
+or still describe the current art, audio, music, lore, sector, meta, or ghost
+curve pipelines. Obsolete one-off debug and duplicate generation scripts are
+removed during cleanup. Some generation scripts also read `.env.local` directly.
+Do not commit local key files. Source code and docs are MIT licensed; generated
+art/audio are reserved project assets. See
+[docs/asset_provenance.md](docs/asset_provenance.md).
 
 ## Documentation
 

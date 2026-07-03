@@ -29,6 +29,7 @@ blob-report/
 !.vscode/extensions.json
 .idea
 .claude/
+.codex/
 .codex-artifacts/
 .orc/
 .cursor/

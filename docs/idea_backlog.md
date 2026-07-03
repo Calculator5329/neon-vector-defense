@@ -13,6 +13,15 @@ not as a current status report.
 
 **For current shipped status and next priorities, see [roadmap.md](./roadmap.md).** This file is the historical idea catalog; many top bets and quick wins listed below are now shipped.
 
+**2026-07-03 cleanup note:** the active source of truth remains
+`docs/roadmap.md`. The older backlog below is preserved for ideation, but the
+following items are no longer open implementation gaps: replay manifests and v3
+action codec, replay viewer hardening, server-mediated score writes,
+freeplay/daily leaderboard validation, cloaked targeting fixes, burn
+attribution, same-tick terminal guards, engine-enforced unlocks, keyboard
+placement, action-gated onboarding, production/SW e2e gates, balance CI,
+portal SDK build flavors, short-landscape layout, and media asset diet.
+
 ## 2026-06-28 active audit backlog refresh
 
 These are the remaining items from the multi-agent audit after the UX retrofit
@@ -21,33 +30,16 @@ mining the older historical backlog below.
 
 ### P0 - Replay, score, and security integrity
 
-- Add a replay completion manifest: expected chunk count, event count, checksum
-  or content hash, schema version, mode/freeplay summary, and a final complete
-  marker. The viewer and score functions should distinguish complete, partial,
-  expired, and malformed replays.
-- Harden `fetchRunReplay` and the viewer against malformed docs/chunks. Missing
-  or invalid chunk data should not crash the viewer or silently present a full
-  reconstruction.
-- Move score-critical freeplay and multiplier checks server-side: compare board
-  mode to replay `summary.freeplay`, recompute/validate freeplay contract/risk
-  multiplier fields, and reject stale or impossible claims.
-- Tighten write trust: deploy App Check enforcement once verified in production,
-  keep direct board writes denied, and prefer callable/server mediation for any
+- Execute App Check enforcement once production token metrics are clean.
+- Promote replay re-simulation from admin `verifyRun` audit data to soft flags,
+  then rejection once false positives are understood.
+- Keep direct board writes denied and prefer callable/server mediation for any
   new score-adjacent writes.
-- Extend privacy and deletion tests around replay ownership, local replay tokens,
-  and operator-run deletion so server data cannot be stranded unexpectedly.
 
 ### P1 - Gameplay correctness and replay fidelity
 
-- Fix support-revealed cloaked enemies so targeting and projectile collision use
-  the same revealed/visible predicate.
-- Audit burn zones and damage-over-time attribution so stacking/source ownership
-  matches the tower that created the effect.
-- Stop same-tick terminal leaks or duplicate terminal transitions after gameover,
-  victory, armistice, or freeplay bank.
-- Enforce campaign tower unlocks in `Game.placeTower`, not only in the shop UI.
-- Make checkpoint leaderboard rows point at immutable replay data rather than
-  mutable or partial run state.
+- Continue replay-fidelity QA as new towers, enemies, or balance versions ship.
+- Add a textual replay event/narration rail for canvas-only Battle Plan action.
 
 ### P1 - UX, accessibility, and portal usability
 

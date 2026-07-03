@@ -238,18 +238,6 @@ export function playStinger(name: 'victory' | 'defeat') {
   void el.play().catch(() => {});
 }
 
-/** archive narration; stops any previous reading */
-let narrationEl: HTMLAudioElement | null = null;
-export function playNarration(index: number): () => void {
-  if (typeof Audio === 'undefined') return () => {};
-  narrationEl?.pause();
-  const el = new Audio(`/audio/vox/frag-read-${index}.mp3`);
-  el.volume = 0.85;
-  narrationEl = el;
-  void el.play().catch(() => {});
-  return () => { el.pause(); };
-}
-
 // ---------------- synth primitives ----------------
 
 interface Voice {

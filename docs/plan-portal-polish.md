@@ -4,7 +4,7 @@ Tactical launch-polish checklist grounded in the current code. For the broader
 source-of-truth status, see [roadmap.md](./roadmap.md); for historical ideation,
 see [idea_backlog.md](./idea_backlog.md).
 
-Updated: 2026-06-28.
+Updated: 2026-07-03.
 
 ## Status
 
@@ -12,27 +12,19 @@ Updated: 2026-06-28.
 - [x] Damage-type resistance matrix: soft resistances and energy counterplay are
   present in source/tests.
 - [x] Replay-of-the-Day spotlight: menu card and `replaySpotlight.ts` shipped.
-- [ ] Balance CI gate: semantic `public/balance-report.json` diff in CI.
-- [ ] Responsive touch layout: finish the mobile command surface.
-- [ ] Guided first build: replace static tutorial with action-gated coaching.
+- [x] Balance CI gate: semantic `public/balance-report.json` diff in CI.
+- [x] Responsive touch layout: short-landscape command surface is live and
+  covered by QA.
+- [x] Guided first build: action-gated coach replaced the static tutorial wall.
+- [ ] Remaining portal work is ops and polish: external account submission,
+  screenshots/store copy, and additional mid-band viewport QA.
 
 ## Balance CI Gate
 
-Prerequisites already exist:
-
-- `public/balance-report.json` is committed demo/admin data.
-- `npm run balance` regenerates the report.
-- `scripts/balance/` produces tower verdicts, strategy grids, win rates, and
-  average progress values.
-
-Recommended implementation:
-
-- Add a semantic balance check that ignores timestamps and generated metadata.
-- Fail on dead/op verdict flips, large win-rate swings, and large average-wave
-  regressions.
-- Allow intentional tuning by committing an updated baseline in the same PR.
-- Keep the gate separate from quick unit tests; balance sims are slower and are
-  easier to reason about as a named CI step.
+Shipped. `npm run balance:gate` writes a quick report under `test-results/` and
+compares it against committed `public/balance-report.json` with
+`scripts/balance-check.ts`. Intentional tuning still updates the committed
+baseline with `npm run balance`.
 
 ## Damage Resistance Follow-Up
 
@@ -75,12 +67,14 @@ Remaining work:
 
 ## Guided First Build
 
-The static tutorial is still the weak onboarding surface.
+Shipped. The in-run coach advances on real actions: first placement, first wave
+launch, and first upgrade. The full How To Play reference remains available
+from the menu.
 
-Recommended sequence:
+## Remaining Portal Polish
 
-1. Pulse the first recommended tower.
-2. Show a valid placement ghost/range.
-3. Gate progression on first placement, first wave launch, and first upgrade.
-4. Introduce cloak detection only when the first cloaked wave is relevant.
-5. Stop showing guidance once the player has demonstrated the action.
+- Run dedicated QA at 560-820 px and 981-1024 px widths in addition to the
+  short-landscape tier.
+- Revisit bottom-dock arsenal and bottom-sheet upgrades if portal iframe tests
+  show repeated touch friction.
+- Consider optional haptics behind settings after core submission work.
