@@ -1703,7 +1703,9 @@ function hashMap(map: GameMap): string {
     hash ^= data.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
-  return (hash >>> 0).toString(36);
+  // 8-char hex to satisfy the rules' ^[a-f0-9]{8}$ bound (base36 output was
+  // variable-length with g-z letters and made every real submit fail rules).
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 function sanitizeCallsign(name: string): string {

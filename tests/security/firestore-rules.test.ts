@@ -658,3 +658,96 @@ describe('feedback and config rules', () => {
     }));
   });
 });
+
+describe('real recorder payload end-to-end (regression: prod submit rejected)', () => {
+  test('a real bot-run bundle passes stream and submit batches', async () => {
+    const { Game } = await import('../../src/game/engine');
+    const { Bot } = await import('../../src/game/bot');
+    const { ALL_MAPS, DIFFICULTIES } = await import('../../src/game/maps');
+
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 90210, lifetimeKills: 1_000_000 });
+    game.paused = false;
+    game.speed = 4;
+    game.autoNext = true;
+    const bot = new Bot(game, 'expert');
+    game.startWave();
+    // Human-ish noise so the action stream carries the control opcodes a real
+    // run produces (speed changes, target modes) — fixtures never exercise these.
+    let flip = 0;
+    for (let i = 0; i < 60_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i++) {
+      bot.act(game.time);
+      if (game.phase === 'build') {
+        if (game.towers.length > 0) {
+          const t = game.towers[flip % game.towers.length];
+          game.setTargetMode(t, flip % 2 === 0 ? 'strong' : 'first');
+        }
+        game.setSpeed(flip % 2 === 0 ? 2 : 4);
+        flip++;
+        game.startWave();
+      }
+      game.update(0.05);
+    }
+    const bundle = game.buildRunUploadBundle('ETHAN', 'rules-e2e-test');
+    const uid = playerUid;
+    const db = playerDb();
+    const rid = bundle.run.runId;
+    const ttl = new Date(Date.now() + 7 * 86_400_000);
+
+    // (1) the exact streaming batch streamRunReplayChunk() commits per boundary
+    const streamChunk = bundle.chunks[0] ?? {
+      schemaVersion: bundle.run.schemaVersion,
+      runId: rid,
+      chunk: 0,
+      actions: bundle.run.actions,
+    };
+    const streamBatch = writeBatch(db);
+    streamBatch.set(doc(db, 'replayStreams', uid, 'runs', rid), {
+      schemaVersion: 1,
+      uid,
+      runId: rid,
+      build: 'rules-e2e-test',
+      updatedAt: Date.now(),
+      expiresAt: ttl,
+    }, { merge: true });
+    streamBatch.set(doc(db, 'replayStreams', uid, 'runs', rid, 'chunks', 'c0'), {
+      schemaVersion: streamChunk.schemaVersion,
+      uid,
+      runId: rid,
+      chunk: 0,
+      actions: streamChunk.actions,
+      createdAt: Date.now(),
+      build: 'rules-e2e-test',
+      expiresAt: ttl,
+    });
+    await assertSucceeds(streamBatch.commit());
+
+    // (2) the exact submit batch submitRunReplay() commits
+    const run = { ...bundle.run, replayTokenHash: 'a'.repeat(64) };
+    const submitBatch = writeBatch(db);
+    submitBatch.set(doc(db, 'replayOwners', uid, 'runs', rid), {
+      schemaVersion: 1,
+      uid,
+      runId: rid,
+      createdAt: run.createdAt,
+      build: run.build,
+    });
+    submitBatch.set(doc(db, 'replayStreams', uid, 'runs', rid), {
+      schemaVersion: 1,
+      uid,
+      runId: rid,
+      build: run.build,
+      updatedAt: Date.now(),
+      submitted: true,
+      sealedAt: Date.now(),
+      chunkCount: run.chunkCount,
+      eventCount: run.eventCount,
+      manifest: run.manifest,
+      summary: run.summary,
+    }, { merge: true });
+    submitBatch.set(doc(db, 'runs', rid), run);
+    for (const chunk of bundle.chunks) {
+      submitBatch.set(doc(db, 'runs', rid, 'chunks', `c${chunk.chunk}`), chunk);
+    }
+    await assertSucceeds(submitBatch.commit());
+  });
+});

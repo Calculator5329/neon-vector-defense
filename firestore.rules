@@ -246,7 +246,10 @@ service cloud.firestore {
           && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion', 'balance', 'daily', 'replayEngine'])
           && data.map is string && isValidMapId(data.map)
           && data.mapName is string && data.mapName.size() <= 80
-          && data.mapHash is string && data.mapHash.matches('^[a-f0-9]{8}$')
+          // 8-hex from current clients; 1-7 char base36 from the first v3 client
+          // build (hashMap used toString(36) — the mismatch rejected every real
+          // submit at launch). Both stay accepted so open sessions can retry.
+          && data.mapHash is string && data.mapHash.matches('^[0-9a-z]{1,13}$')
           && data.diff is string && isValidDiffId(data.diff)
           && data.diffName is string && data.diffName.size() <= 80
           && data.seed is int && data.seed >= 0

@@ -409,7 +409,9 @@ function hashMap(map: GameMap): string {
     hash ^= data.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
-  return (hash >>> 0).toString(36);
+  // Must stay byte-identical to runTelemetry's hashMap: 8-char hex per the
+  // rules' ^[a-f0-9]{8}$ bound on setup.mapHash.
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 export function reSimulateUploadBundle(bundle: RunUploadBundle): ReSimResult {
