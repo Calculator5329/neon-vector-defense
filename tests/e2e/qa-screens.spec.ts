@@ -299,6 +299,22 @@ test.describe('QA audit screen screenshots', () => {
       await page.evaluate(() => {
         const game = (window as unknown as { game?: any }).game;
         if (!game) throw new Error('game dev handle missing');
+        game.phase = 'victory';
+        game.wave = 50;
+        game.lives = 12;
+        game.totalKills = 28084;
+        game.runStats.dmg = { mortar: 12300, gauss: 8800, battery: 6200, rail: 4300 };
+        game.runStats.kills = { scout: 4992, raider: 4892, stinger: 4806, phantom: 4706, wraith: 4620 };
+        game.runStats.leaks = 0;
+        game.runStats.abilitiesCast = 30;
+        game.runStats.cashEarned = 105786;
+      });
+      await expect(page.getByRole('heading', { name: 'SECTOR SECURED' })).toBeVisible();
+      await capture(page, testInfo, '16-victory-debrief');
+
+      await page.evaluate(() => {
+        const game = (window as unknown as { game?: any }).game;
+        if (!game) throw new Error('game dev handle missing');
         game.phase = 'gameover';
         game.wave = 7;
         game.lives = 0;
@@ -307,16 +323,17 @@ test.describe('QA audit screen screenshots', () => {
         game.runStats.kills = { scout: 28, raider: 14 };
         game.runStats.leaks = 18;
         game.runStats.abilitiesCast = 1;
+        game.runStats.cashEarned = 760;
       });
       await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeVisible();
-      await capture(page, testInfo, '16-after-action-report');
+      await capture(page, testInfo, '17-defeat-debrief');
     });
 
     await test.step('replay unavailable shell', async () => {
       await page.goto('/?run=r_qaunavailable01');
       await expect(page.getByTestId('replay-root')).toBeVisible();
       await expect(page.getByText('REPLAY UNAVAILABLE')).toBeVisible({ timeout: 15_000 });
-      await capture(page, testInfo, '17-replay-unavailable-route');
+      await capture(page, testInfo, '18-replay-unavailable-route');
     });
   });
 

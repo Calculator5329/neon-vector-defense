@@ -1552,12 +1552,30 @@ function MusicButton() {
 // score submit + dossier + leaderboard on the right) instead of one tall stack.
 function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null }) {
   const ghost = game.freeplay || game.isDailyChallenge ? null : ghostCurveFor(GHOST_CURVES, map.id, diff.id);
+  const submitEligible = game.phase === 'victory' ||
+    (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge));
+  const stats = [
+    { label: game.phase === 'victory' && !game.freeplay ? 'Waves Cleared' : 'Wave Reached', value: game.phase === 'victory' && !game.freeplay ? `${diff.waves}` : `${game.wave}` },
+    { label: 'Hostiles Destroyed', value: game.totalKills.toLocaleString() },
+    { label: game.lives > 0 ? 'Cores Remaining' : 'Cores Lost', value: game.lives > 0 ? game.lives.toLocaleString() : game.runStats.leaks.toLocaleString() },
+    { label: 'Credits Earned', value: Math.round(game.runStats.cashEarned).toLocaleString() },
+  ];
   return (
-    <div className="aar-layout">
-      <div className="aar-reward"><MetaReward reward={reward} /></div>
-      {/* mobile order (reward → action → detail) is set by grid-template-areas; see .aar-layout @820px in App.css */}
-      <div className="aar-action"><SubmitScore game={game} map={map} diff={diff} /></div>
-      <div className="aar-detail"><AfterAction game={game} ghost={ghost} /></div>
+    <div className={`debrief-layout ${submitEligible ? 'has-submit' : ''}`}>
+      <div className="debrief-main">
+        <div className="debrief-stat-strip" aria-label="Run summary statistics">
+          {stats.map((item) => (
+            <div className="debrief-stat" key={item.label}>
+              <span>{item.label}</span>
+              <b>{item.value}</b>
+            </div>
+          ))}
+        </div>
+        <MetaReward reward={reward} />
+        <RunAccolade game={game} ghost={ghost} />
+        <AfterAction game={game} />
+      </div>
+      {submitEligible && <div className="debrief-submit"><SubmitScore game={game} map={map} diff={diff} /></div>}
     </div>
   );
 }
@@ -1582,6 +1600,7 @@ function MetaReward({ reward }: { reward: RunMetaReward | null }) {
   const rank = meta.rank;
   return (
     <div className="meta-reward" data-testid="meta-reward">
+      <div className="debrief-section-title">OPERATIONS REWARD</div>
       <div className="meta-reward-head">
         <span className="meta-reward-xp">+{reward.xp.toLocaleString()} XP</span>
         <span className="meta-reward-salvage">+<i className="ico-diamond" aria-hidden="true" />{reward.salvage.toLocaleString()} SALVAGE</span>
@@ -1594,17 +1613,34 @@ function MetaReward({ reward }: { reward: RunMetaReward | null }) {
   );
 }
 
-function AfterAction({ game, ghost }: { game: Game; ghost?: GhostCurve | null }) {
+function RunAccolade({ game, ghost }: { game: Game; ghost?: GhostCurve | null }) {
+  const verdict = ghost ? judgeRun(ghost, game.wave, game.lives) : null;
+  const outWarded = verdict && (verdict.beatWave || verdict.beatCores);
+  if (!outWarded || !verdict) return null;
+  return (
+    <div className="debrief-accolade" title={`AI rival (${ghost!.skill}): ~${verdict.refCores} cores by wave ${verdict.refWave}.`}>
+      <span className="debrief-accolade-star">★</span>
+      <div>
+        <b>OUT-WARDED THE AI</b>
+        <span>
+          {verdict.beatWave ? `+${verdict.deltaWave} waves` : ''}
+          {verdict.beatWave && verdict.beatCores ? ' · ' : ''}
+          {verdict.beatCores ? `+${verdict.deltaCores} cores` : ''}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AfterAction({ game }: { game: Game }) {
   const s = game.runStats;
   const dmg = Object.entries(s.dmg).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxDmg = dmg[0]?.[1] ?? 1;
   const kills = Object.entries(s.kills).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const name = (id: string) => TOWERS.find((t) => t.id === id)?.name ?? ENEMIES[id]?.name ?? id;
-  const verdict = ghost ? judgeRun(ghost, game.wave, game.lives) : null;
-  const outWarded = verdict && (verdict.beatWave || verdict.beatCores);
   return (
     <div className="aar">
-      {outWarded && verdict && (
+      {/*
         <div className="aar-badge" title={`AI rival (${ghost!.skill}): ~${verdict.refCores} cores by wave ${verdict.refWave}.`}>
           <span className="aar-badge-star">★</span> OUT-WARDED THE AI
           <span className="aar-badge-sub">
@@ -1613,8 +1649,8 @@ function AfterAction({ game, ghost }: { game: Game; ghost?: GhostCurve | null })
             {verdict.beatCores ? `+${verdict.deltaCores} cores` : ''}
           </span>
         </div>
-      )}
-      <div className="aar-title">AFTER-ACTION REPORT</div>
+      */}
+      <div className="debrief-section-title">AFTER-ACTION REPORT</div>
       <div className="aar-cols">
         <div className="aar-col">
           <div className="aar-head">DAMAGE BY INSTRUMENT</div>
@@ -1665,7 +1701,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   if (DEMO_MODE) {
     return (
       <div className="submit-score demo-score-disabled">
-        <div className="aar-title">RECRUITER DEMO RUN</div>
+        <div className="debrief-section-title">RECRUITER DEMO RUN</div>
         <p>Leaderboard submission is disabled in demo mode so live score data stays clean.</p>
       </div>
     );
@@ -1674,7 +1710,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   if (!canSubmitScore()) {
     return (
       <div className="submit-score demo-score-disabled">
-        <div className="aar-title">SAFE MODE</div>
+        <div className="debrief-section-title">SAFE MODE</div>
         <p>Leaderboard callsigns, public replays, and feedback messages are disabled, so nothing personal is sent off this device.</p>
       </div>
     );
@@ -1725,17 +1761,17 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
 
   return (
     <div className="submit-score">
-      <div className="aar-title">{leaderboardTitle}</div>
+      <div className="debrief-section-title">{leaderboardTitle}</div>
       {state !== 'done' && (
         <>
+          <div className="submit-score-preview" aria-label={`Credits earned ${Math.round(game.runStats.cashEarned)}, kills ${game.totalKills}${(game.freeplay || game.isDailyChallenge) ? `, wave ${game.wave}` : ''}`}>
+            <span><b>Credits</b> {Math.round(game.runStats.cashEarned).toLocaleString()}</span>
+            <span><b>Kills</b> {game.totalKills.toLocaleString()}</span>
+            {(game.freeplay || game.isDailyChallenge) && <span><b>Wave</b> {game.wave}</span>}
+          </div>
           <div className="submit-row">
             <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
               value={name} onChange={(e) => setName(e.target.value)} />
-            <span className="submit-stats" aria-label={`Credits earned ${Math.round(game.runStats.cashEarned)}, kills ${game.totalKills}${(game.freeplay || game.isDailyChallenge) ? `, wave ${game.wave}` : ''}`}>
-              <span><b>Credits</b> {Math.round(game.runStats.cashEarned).toLocaleString()}</span>
-              <span><b>Kills</b> {game.totalKills.toLocaleString()}</span>
-              {(game.freeplay || game.isDailyChallenge) && <span><b>Wave</b> {game.wave}</span>}
-            </span>
             <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
               {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
             </button>
@@ -1743,9 +1779,12 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
           <p className="submit-hint">Your callsign and score appear on the public {dailyId ? 'daily' : 'global'} leaderboard.</p>
         </>
       )}
+      {state === 'done' && (
+        <p className="submit-hint success">Score uploaded. Current board snapshot:</p>
+      )}
       {state === 'done' && top && (
         <div className="lb-table">
-          {top.map((r, i) => (
+          {top.slice(0, 6).map((r, i) => (
             <div key={i} className={`lb-row ${r.name === name.trim() ? 'me' : ''}`}>
               <span className="lb-rank">{i + 1}</span>
               <span className="lb-name">{r.name}</span>
@@ -1756,7 +1795,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
           ))}
         </div>
       )}
-      {state === 'done' && dossier && <DossierShare input={dossier} runId={sharedRunId} />}
+      {state === 'done' && dossier && <DossierShare input={dossier} runId={sharedRunId} compact />}
     </div>
   );
 }
@@ -1768,10 +1807,12 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
   // lose the unsubmitted score. Players leave via the explicit buttons (onClose is unreachable).
   return (
     <Modal onClose={() => {}} closeOnBackdrop={false} closeOnEsc={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
-      {props.art && <img className="overlay-art" src={props.art} alt="" />}
-      <h2 id="result-overlay-title">{props.title}</h2>
-      <div className="overlay-copy">
-        {props.lines.map((l, i) => <p key={i}>{l}</p>)}
+      <div className="result-hero">
+        {props.art && <img className="overlay-art" src={props.art} alt="" />}
+        <h2 id="result-overlay-title">{props.title}</h2>
+        <div className="overlay-copy">
+          {props.lines.map((l, i) => <p key={i}>{l}</p>)}
+        </div>
       </div>
       {props.report}
       <div className="overlay-btns">
