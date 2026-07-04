@@ -7,6 +7,7 @@
 // Requires the Anonymous provider to be enabled in the Firebase console
 // (Authentication -> Sign-in method -> Anonymous), or every player write fails.
 import { app } from './firebaseClient';
+import type { User } from 'firebase/auth';
 
 const CACHED_UID_KEY = 'nvd-server-uid-v1';
 
@@ -55,7 +56,7 @@ export function ensureServerUid(): Promise<string | null> {
       try {
         const { getAuth, onAuthStateChanged, signInAnonymously } = await import('firebase/auth');
         const auth = getAuth(app);
-        const restored = await new Promise<{ uid: string } | null>((resolve) => {
+        const restored = await new Promise<User | null>((resolve) => {
           const unsub = onAuthStateChanged(auth, (user) => {
             unsub();
             resolve(user);
@@ -64,7 +65,24 @@ export function ensureServerUid(): Promise<string | null> {
             resolve(null);
           });
         });
-        const uid = restored?.uid ?? (await signInAnonymously(auth)).user.uid;
+        // A persisted anonymous session can outlive its account — the user is
+        // deleted or expires server-side, but onAuthStateChanged still restores
+        // the cached user object. Firestore then can't refresh a valid ID token,
+        // so request.auth is empty and EVERY uid-bound write (replayStreams,
+        // replayOwners, runAnalytics) is rejected with permission-denied even
+        // though the rules are correct. Force a token refresh to prove the
+        // session is live; if it fails, discard it and mint a fresh anonymous
+        // user so the client self-heals on the next load instead of getting
+        // permanently stuck unable to save.
+        let user = restored;
+        if (user) {
+          try {
+            await user.getIdToken(true);
+          } catch {
+            user = null;
+          }
+        }
+        const uid = user?.uid ?? (await signInAnonymously(auth)).user.uid;
         knownUid = uid;
         writeCachedUid(uid);
         return uid;
