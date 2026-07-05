@@ -2,6 +2,61 @@
 
 > Full 80-idea audit (8 dimensions) + code-grounded planning pass. Generated 2026-06.
 
+## 2026-07-04 content-expansion triage (owner-reviewed)
+
+A fresh post-launch-hardening ideas audit, triaged with the owner. Priorities
+below are HIS calls, not suggestions. Execution runs through Codex missions;
+the balance harness gates every gameplay addition (`[balance-intended]` +
+baseline regen when sim-affecting, REPLAY_ENGINE_VERSION bump when replays
+are affected).
+
+### Executing now (wave 1 — see roadmap)
+- **Weekly Champion's Gauntlet** — each Monday the prior week's top verified
+  run becomes a fixed-seed challenge board (same map/protocol/seed; beat their
+  wave). Leans on determinism + verifyRun: the champion run is provably legit.
+- **Weekly Mutation** — the daily system at weekly cadence with 3 stacked
+  modifiers and its own board.
+- **Exposed stacking debuff** (owner: "amazing") — `shred` becomes a timed,
+  stackable vulnerability so shredders set up kinetic finishers. Explained
+  in-game via bestiary/help popups for the damage-type system.
+- **Target-priority filters** — stackable archetype filters (Boss/Armored/
+  Healer/Spawner first) over the existing 4 sort modes; recorded actions, so
+  replay/verify-safe.
+
+### Wave 2 (queued behind wave 1 file overlap)
+- **Mirror Hull adaptive flagship** — reads your top-DPS tower type at spawn,
+  goes immune to it, announces it. Makes adaptation legible.
+- **Recalibrate ability** — clears the armada's current adaptive resist on
+  cooldown. (Owner rejected smart fast-forward; do NOT build it.)
+- **Gauntlet Protocol** — 3 maps back-to-back, shared cores/credits bank,
+  relic draft between sectors (chains the existing freeplay draft plumbing).
+  Owner: "shouldn't be too hard" — needs a short design brief first.
+
+### Backlog (owner-approved, discuss implementation before starting)
+- Ghost Armada async PvP (`?armada=runId` — your leaked wave-set attacks a
+  friend; the replay bundle IS the attack, verifyRun authenticates it).
+- Map family: The Splice (branching lanes + player blast-door — needs engine
+  multi-path support first), Tidal Reach (advancing dark), The Carousel
+  (rotating hub), Foundry Floor (conveyor speed segments), Relay Garden
+  (purchasable demolition plots), Mirror Array (2-minute portal-session map).
+- **Main-menu reorg to showcase more maps** — prerequisite for shipping the
+  map family; several directions possible, owner wants design options.
+- Doctrine picks at veterancy rank 3; Curfew Siren tempo-control tower; tower
+  loadout presets; ability loadout choice (pick 4) once 7+ abilities exist.
+- Salvage Convoy enemies (pickup thieves + Foundry Barge spawner); The Chorus
+  linked elites; The Cartographer path-redrawing Apex boss.
+- Meta: Map Mastery stars, Commendations ledger, personal-best ghost (feed
+  your own replay to the bot-rival HUD), codex completion meter.
+- Social: duel links (`?duel=runId`), leaderboard hover-preview/watch-top-3.
+- Live-ops: balance canary v2 (live replayStreams curves vs bot baseline),
+  replay heatmaps for map design, client crash beacon.
+- Monetization-adjacent (post-Stripe): Warden's Commission one-time unlock,
+  palette/kill-effect cosmetics, Signal Pass (lore-not-power, later).
+- Lower priority per owner: The Queue pacifist protocol, Iron Warden hardcore
+  toggle.
+- Rejected: smart fast-forward.
+
+
 **2026-06-28 source-truth note:** The long-form audit below intentionally
 preserves older observations for context. Several statements in the original
 "State of the Game" are now obsolete: Battle Plan replay read paths and

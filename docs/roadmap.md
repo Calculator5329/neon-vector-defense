@@ -3,7 +3,19 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-02 (Replay v3 action codec, portal SDK adapter, replay re-simulation audit, Daily Challenge, arsenal balance, admin balance console, in-run QoL)
+Last updated: 2026-07-04 (replay seek performance, content-expansion triage; see idea_backlog.md 2026-07-04 section for the owner-reviewed content plan)
+
+## Next up (owner-triaged, 2026-07-04)
+
+- **Wave 1 (Codex, in flight):** Weekly Champion's Gauntlet + Weekly Mutation
+  (weekly seed + boards); Exposed stacking debuff + target-priority filters
+  (+ bestiary/help popups explaining the type system; balance-gated).
+- **Wave 2 (after wave 1 lands):** Mirror Hull adaptive flagship + Recalibrate
+  ability; Gauntlet Protocol design brief -> implementation.
+- **Owner-side launch gate (unchanged):** App Check console registration,
+  Stripe MVP (with owner), CrazyGames/Poki accounts + art, main-menu map
+  showcase design discussion.
+
 
 ## Current shipped pillars
 
