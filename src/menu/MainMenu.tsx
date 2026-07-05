@@ -91,6 +91,11 @@ function mapProgressed(m: GameMap): boolean {
 }
 function mapUnlocked(idx: number): boolean {
   if (DEMO_MODE) return true;
+  // Grandfather: a sector the player has already played (any wave recorded or a
+  // clear) never re-locks — inserting new maps into the chain must not take away
+  // access veterans earned under the old ordering.
+  const m = ALL_MAPS[idx];
+  if (m && (progress.mapCleared(m.id) || progress.bestWaveAny(m.id) > 0)) return true;
   if (idx < 2) return true;
   for (let i = 0; i < idx; i++) if (!mapProgressed(ALL_MAPS[i])) return false;
   return true;
