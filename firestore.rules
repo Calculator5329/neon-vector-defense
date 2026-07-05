@@ -82,6 +82,26 @@ service cloud.firestore {
         && (!('source' in data) || (data.source is string && data.source.size() <= 30));
     }
 
+    function isValidGauntletProtocolSetup(data) {
+      return data is map
+        && data.keys().hasAll(['week', 'gauntletRunId', 'leg', 'route', 'startingCredits', 'startingCores', 'relicIds'])
+        && data.keys().hasOnly(['week', 'gauntletRunId', 'leg', 'route', 'startingCredits', 'startingCores', 'relicIds', 'draftOfferIds', 'pickedRelicId', 'previousRunId', 'nextRunId'])
+        && data.week is string && isValidWeeklyBoard(data.week)
+        && data.gauntletRunId is string && data.gauntletRunId.matches('^gp_[A-Za-z0-9_-]{8,80}$')
+        && data.leg is int && data.leg >= 1 && data.leg <= 3
+        && data.route is list && data.route.size() == 3
+        && data.route[0] is string && data.route[0].size() <= 30
+        && data.route[1] is string && data.route[1].size() <= 30
+        && data.route[2] is string && data.route[2].size() <= 30
+        && data.startingCredits is int && data.startingCredits >= 0 && data.startingCredits < 100000000
+        && data.startingCores is int && data.startingCores >= 1 && data.startingCores < 1000000
+        && data.relicIds is list && data.relicIds.size() <= 2
+        && (!('draftOfferIds' in data) || (data.draftOfferIds is list && data.draftOfferIds.size() <= 3))
+        && (!('pickedRelicId' in data) || data.pickedRelicId is string)
+        && (!('previousRunId' in data) || (data.previousRunId is string && isValidRunId(data.previousRunId)))
+        && (!('nextRunId' in data) || (data.nextRunId is string && isValidRunId(data.nextRunId)));
+    }
+
     function isValidMapId(map) {
       return map in ['orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat', 'umbral', 'cinder'];
     }
@@ -223,7 +243,7 @@ service cloud.firestore {
     function isRunSummary(summary) {
       return summary is map
         && summary.keys().hasAll(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS'])
-        && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'weekly', 'gauntlet', 'contractId', 'scoreMultiplierEnd'])
+        && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'weekly', 'gauntlet', 'gauntletRunId', 'gauntletLeg', 'gauntletNextRunId', 'contractId', 'scoreMultiplierEnd'])
         && summary.callsign is string && summary.callsign.size() <= 20
         && summary.map is string && summary.map.size() <= 30 && isValidMapId(summary.map)
         && summary.mapName is string && summary.mapName.size() <= 80
@@ -285,7 +305,7 @@ service cloud.firestore {
     function isValidRunSetup(data) {
       return data is map
           && data.keys().hasAll(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion'])
-          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion', 'balance', 'daily', 'weekly', 'gauntlet', 'replayEngine'])
+          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion', 'balance', 'daily', 'weekly', 'gauntlet', 'gauntletProtocol', 'replayEngine'])
           && data.map is string && isValidMapId(data.map)
           && data.mapName is string && data.mapName.size() <= 80
           // 8-hex from current clients; 1-7 char base36 from the first v3 client
@@ -303,6 +323,7 @@ service cloud.firestore {
           && (!('daily' in data) || isValidDailyChallengeSnapshot(data.daily))
           && (!('weekly' in data) || (data.weekly.id is string && isValidWeeklyBoard(data.weekly.id)))
           && (!('gauntlet' in data) || (data.gauntlet.week is string && isValidWeeklyBoard(data.gauntlet.week) && data.gauntlet.runId is string && isValidRunId(data.gauntlet.runId)))
+          && (!('gauntletProtocol' in data) || data.gauntletProtocol is map)
           && (!('replayEngine' in data) || isValidReplayEngineVersion(data.replayEngine));
     }
 
@@ -435,6 +456,11 @@ service cloud.firestore {
     }
 
     match /gauntletBoards/{weekly}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /gauntletProtocolBoards/{weekly}/scores/{id} {
       allow read: if true;
       allow create, update, delete: if false;
     }

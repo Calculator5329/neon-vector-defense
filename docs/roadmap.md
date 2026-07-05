@@ -3,15 +3,15 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-05 (wave 2 adaptation package implemented through replay engine v5; Gauntlet Protocol design remains next)
+Last updated: 2026-07-05 (Gauntlet Protocol implemented through replay engine v6)
 
 ## Next up (owner-triaged, 2026-07-04)
 
 - **Wave 1 — DONE:** Weekly Champion's Gauntlet + Weekly Mutation (weekly seed
   + boards); Exposed stacking debuff + target-priority filters through replay
   v4 with bestiary/help copy and regenerated balance-gate artifacts.
-- **Wave 2 (partial):** Mirror Hull adaptive flagship + Recalibrate ability
-  through replay v5; Gauntlet Protocol design brief -> implementation remains.
+- **Wave 2 - DONE:** Mirror Hull adaptive flagship + Recalibrate ability
+  through replay v5; Gauntlet Protocol weekly route through replay v6.
 - **Owner-side launch gate (unchanged):** App Check console registration,
   Stripe MVP (with owner), CrazyGames/Poki accounts + art, main-menu map
   showcase design discussion.
@@ -25,6 +25,7 @@ Last updated: 2026-07-05 (wave 2 adaptation package implemented through replay e
 | Battle Plan replays | Public schema-v3 `runs/{runId}` docs with setup snapshots, r3 player-action packs, manifest `actionHash`, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayCodec.ts`, `reSimulate.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Weekly Arena | UTC ISO-week Weekly Mutation boards, admin-crowned Champion's Gauntlet seeded from verified campaign runs, replay-backed weekly/gauntlet score submission | `weeklyChallenge.ts`, `leaderboard.ts`, `engine.ts`, `functions/src/index.ts`, `AdminDashboard.tsx` |
+| Gauntlet Protocol | Weekly three-leg route, shortened 20/25/30-wave tables, core carry, 60% credit carry, relic drafts, aggregate protocol leaderboard | `gauntletProtocol.ts`, `GameScreen.tsx`, `leaderboard.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
 | Meta loop | Warden Rank, Salvage, Operations Board, Watch Streak; cosmetic/QoL only | `meta.ts`, `OperationsBoard.tsx`, `tests/e2e/ux-ui.spec.ts` |
@@ -83,6 +84,10 @@ Last updated: 2026-07-05 (wave 2 adaptation package implemented through replay e
   run's leading damage type, while Recalibrate lets players clear current
   adaptation pressure and temporarily soften living Mirror Hulls through replay
   engine v5.
+- Gauntlet Protocol adds a weekly three-leg route from the Weekly Ops strip:
+  shortened 20/25/30-wave legs, full core carry, 60% credit carry, between-leg
+  relic drafts, aggregate protocol leaderboards, and replay engine v6
+  verification.
 
 ## Shipped 2026-07-01 (review-plan implementation pass)
 

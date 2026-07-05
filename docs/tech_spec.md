@@ -366,6 +366,15 @@ firebase deploy --only functions
 - Admin gate: verified Google email in allowlist (sync `firestore.rules` ↔ `src/game/firebaseClient.ts`)
 - Updates and deletes denied except admin feedback replies and admin-only deletion tooling
 
+Gauntlet Protocol adds `gauntletProtocolBoards/{weekly}/scores/{id}` as a
+server-written, public-read board. A protocol replay stores
+`summary.gauntlet`, `summary.gauntletRunId`, `summary.gauntletLeg`, optional
+`summary.gauntletNextRunId`, and `setup.gauntletProtocol` with week, route,
+leg, bank, relic, and linked-run metadata. The callable
+`submitGauntletProtocolScore` accepts one to three consecutive run ids: earlier
+legs must be verified victories, the final submitted leg may be the first
+overrun, and bank continuity is enforced before re-simulation.
+
 Deploy rules before release:
 
 ```bash

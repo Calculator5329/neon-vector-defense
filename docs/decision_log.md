@@ -405,3 +405,16 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   400 KB of the 900 KB run-doc safety budget for snapshots, events, setup, and
   final tower data. Late runs that round closer to nine characters per death
   still land around 540 KB for the ledger.
+
+## 2026-07-05 - Gauntlet Protocol is a verified three-leg weekly route
+
+- Gauntlet Protocol is a weekly three-sector route in the Weekly Ops strip, not
+  a sector-menu reorganization. Its menu footprint is one card.
+- Each leg is a fresh build on a shortened table: 20 Recruit waves, 25 Veteran
+  waves, then 30 Apex waves. Cores carry in full; credits carry at 60% rounded
+  down; towers reset; relic drafts happen between legs.
+- Protocol runs do not mutate campaign progress. They write protocol metadata
+  into replay setup/summary and submit aggregate rows through
+  `submitGauntletProtocolScore`.
+- `REPLAY_ENGINE_VERSION` is 6 because protocol wave selection, bank state, and
+  drafted relic setup are simulation-affecting replay inputs.

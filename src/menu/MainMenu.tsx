@@ -7,6 +7,7 @@ import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
 import { dailyModifierNames, type DailyChallenge } from '../game/dailyChallenge';
 import { weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from '../game/weeklyChallenge';
+import type { GauntletProtocolRoute } from '../game/gauntletProtocol';
 import { fetchReplayOfTheDay, type ReplaySpotlight } from '../game/replaySpotlight';
 
 import { sfx } from '../game/sound';
@@ -22,7 +23,7 @@ import { IS_PORTAL_BUILD } from '../game/portal';
 
 // ---------------- Main menu ----------------
 
-type DeployMode = 'campaign' | 'daily' | 'weekly' | 'gauntlet';
+type DeployMode = 'campaign' | 'daily' | 'weekly' | 'gauntlet' | 'gauntletProtocol';
 
 const ATLAS_POS: Record<string, [number, number]> = {
   orbital: [10, 38],
@@ -135,6 +136,8 @@ function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
 function WeeklyOpsSection(props: {
   weeklySeed: WeeklyChallenge;
   gauntlet: WeeklyGauntletDoc | null;
+  gauntletProtocol: GauntletProtocolRoute;
+  gauntletProtocolUnlocked: boolean;
   deployMode: DeployMode;
   setDeployMode: (mode: DeployMode) => void;
 }) {
@@ -162,6 +165,17 @@ function WeeklyOpsSection(props: {
         <span>CHAMPION GAUNTLET</span>
         <b>{props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Not crowned yet'}</b>
       </button>
+      <button
+        className={`weekly-op-card ${props.deployMode === 'gauntletProtocol' ? 'active' : ''}`}
+        data-testid="gauntlet-protocol-card"
+        aria-pressed={props.deployMode === 'gauntletProtocol'}
+        aria-disabled={!props.gauntletProtocolUnlocked}
+        title={props.gauntletProtocolUnlocked ? `Route: ${routeNames(props.gauntletProtocol.route)}` : 'Win any campaign to unlock.'}
+        onClick={() => { if (props.gauntletProtocolUnlocked) { props.setDeployMode('gauntletProtocol'); sfx.click(); } }}
+      >
+        <span>GAUNTLET PROTOCOL</span>
+        <b>{props.gauntletProtocolUnlocked ? `Route: ${routeNames(props.gauntletProtocol.route)}` : 'Win any campaign'}</b>
+      </button>
     </div>
   );
 }
@@ -176,6 +190,8 @@ function SectorAtlas(props: {
   dailySeed: DailyChallenge;
   weeklySeed: WeeklyChallenge;
   gauntlet: WeeklyGauntletDoc | null;
+  gauntletProtocol: GauntletProtocolRoute;
+  gauntletProtocolUnlocked: boolean;
   firstTime: boolean;
   apexLocked: boolean;
 }) {
@@ -393,6 +409,8 @@ function SectorAtlas(props: {
           <WeeklyOpsSection
             weeklySeed={props.weeklySeed}
             gauntlet={props.gauntlet}
+            gauntletProtocol={props.gauntletProtocol}
+            gauntletProtocolUnlocked={props.gauntletProtocolUnlocked}
             deployMode={props.deployMode}
             setDeployMode={props.setDeployMode}
           />
@@ -408,10 +426,12 @@ export function MainMenu(props: {
   dailySeed: DailyChallenge;
   weeklySeed: WeeklyChallenge;
   gauntlet: WeeklyGauntletDoc | null;
+  gauntletProtocol: GauntletProtocolRoute;
   onStart: () => void;
   onStartDaily: () => void;
   onStartWeekly: () => void;
   onStartGauntlet: () => void;
+  onStartGauntletProtocol: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
   const [deployMode, setDeployMode] = useState<DeployMode>('campaign');
@@ -423,7 +443,10 @@ export function MainMenu(props: {
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
-  const selectedUnlocked = deployMode === 'daily' || deployMode === 'weekly' || deployMode === 'gauntlet' || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
+  const gauntletProtocolUnlocked = DEMO_MODE || progress.record.victories >= 1;
+  const selectedUnlocked = deployMode === 'daily' || deployMode === 'weekly' || deployMode === 'gauntlet'
+    || (deployMode === 'gauntletProtocol' && gauntletProtocolUnlocked)
+    || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
   // foesSeen must use the SAME basis the Bestiary acks with (ENEMY_LIST intersection, not the
   // raw persisted list) or a stale/removed enemy id would make the NEW badge stick forever.
@@ -523,6 +546,8 @@ export function MainMenu(props: {
             dailySeed={props.dailySeed}
             weeklySeed={props.weeklySeed}
             gauntlet={props.gauntlet}
+            gauntletProtocol={props.gauntletProtocol}
+            gauntletProtocolUnlocked={gauntletProtocolUnlocked}
             firstTime={firstTime}
             apexLocked={apexLocked}
           />
@@ -556,7 +581,9 @@ export function MainMenu(props: {
                 ? (ALL_MAPS.find((m) => m.id === props.weeklySeed.mapId)?.name ?? props.weeklySeed.mapId)
                 : deployMode === 'gauntlet' && props.gauntlet
                   ? (ALL_MAPS.find((m) => m.id === props.gauntlet?.map)?.name ?? props.gauntlet.map)
-                  : props.map.name}</span>
+                  : deployMode === 'gauntletProtocol'
+                    ? (ALL_MAPS.find((m) => m.id === props.gauntletProtocol.route[0])?.name ?? props.gauntletProtocol.route[0])
+                    : props.map.name}</span>
             <span className="dbar-dot">·</span>
             <span className="dbar-diff">{deployMode === 'daily'
               ? 'DAILY CHALLENGE'
@@ -564,7 +591,9 @@ export function MainMenu(props: {
                 ? 'WEEKLY MUTATION'
                 : deployMode === 'gauntlet'
                   ? 'CHAMPION GAUNTLET'
-                  : props.diff.name}</span>
+                  : deployMode === 'gauntletProtocol'
+                    ? 'GAUNTLET PROTOCOL'
+                    : props.diff.name}</span>
           </div>
           <button className={`start-btn deploy-bar-btn ${deployMode !== 'campaign' ? 'daily' : ''}`} data-testid="deploy-button" disabled={!selectedUnlocked || (deployMode === 'gauntlet' && !props.gauntlet)}
             onClick={() => {
@@ -576,6 +605,8 @@ export function MainMenu(props: {
                 props.onStartWeekly();
               } else if (deployMode === 'gauntlet') {
                 props.onStartGauntlet();
+              } else if (deployMode === 'gauntletProtocol') {
+                props.onStartGauntletProtocol();
               } else {
                 appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked);
                 props.onStart();
@@ -587,7 +618,9 @@ export function MainMenu(props: {
                 ? '▶ WEEKLY MUTATION'
                 : deployMode === 'gauntlet'
                   ? '▶ GAUNTLET'
-                  : firstTime
+                  : deployMode === 'gauntletProtocol'
+                    ? 'GAUNTLET PROTOCOL'
+                    : firstTime
                     ? '▶ START MISSION'
                     : '▶ DEPLOY'}
           </button>
@@ -597,3 +630,6 @@ export function MainMenu(props: {
   );
 }
 
+function routeNames(route: readonly string[]): string {
+  return route.map((id) => ALL_MAPS.find((map) => map.id === id)?.name ?? id).join(' -> ');
+}

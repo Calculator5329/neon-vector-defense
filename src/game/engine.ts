@@ -61,6 +61,12 @@ import {
   type DailyChallenge,
 } from './dailyChallenge';
 import { weeklyChallenge, weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from './weeklyChallenge';
+import {
+  gauntletProtocolRelics,
+  gauntletProtocolWave,
+  gauntletProtocolWaveCount,
+  type GauntletProtocolLeg,
+} from './gauntletProtocol';
 
 export const W = 1280;
 export const H = 720;
@@ -317,6 +323,7 @@ export class Game {
   dailyChallenge: DailyChallenge | null = null;
   private challengeMode: 'daily' | 'weekly' | null = null;
   gauntletChallenge: WeeklyGauntletDoc | null = null;
+  gauntletProtocol: GauntletProtocolLeg | null = null;
   dailyTowerIds: Set<string> | null = null;
   private dailyCreditCacheGranted = false;
   private dailyAbilityRechargeUsed = false;
@@ -376,11 +383,15 @@ export class Game {
   }
 
   get isGauntletChallenge(): boolean {
-    return this.gauntletChallenge !== null;
+    return this.gauntletChallenge !== null || this.gauntletProtocol !== null;
+  }
+
+  get isGauntletProtocol(): boolean {
+    return this.gauntletProtocol !== null;
   }
 
   private campaignProgressEnabled(): boolean {
-    return !this.replayMode && !this.isDailyChallenge;
+    return !this.replayMode && !this.isDailyChallenge && !this.isGauntletProtocol;
   }
 
   towerAvailable(def: TowerDef): boolean {
@@ -517,6 +528,39 @@ export class Game {
   setGauntletChallenge(challenge: WeeklyGauntletDoc | null) {
     this.gauntletChallenge = challenge;
     this.recorder.setGauntletChallenge(challenge);
+  }
+
+  startGauntletProtocolLeg(meta: GauntletProtocolLeg) {
+    this.freeplay = false;
+    this.phase = 'build';
+    this.wave = 0;
+    this.dailyChallenge = null;
+    this.challengeMode = null;
+    this.gauntletChallenge = null;
+    this.gauntletProtocol = { ...meta, route: [...meta.route] as [string, string, string], relicIds: [...meta.relicIds] };
+    this.recorder.setGauntletProtocol(this.gauntletProtocol);
+    this.credits = Math.max(0, Math.floor(meta.startingCredits));
+    this.lives = Math.max(1, Math.floor(meta.startingCores));
+    this.startingLives = this.lives;
+    this.abilities = ABILITIES.map((def) => ({ def, cd: 0 }));
+    this.freeplayState.relics = gauntletProtocolRelics(meta.relicIds);
+    this.freeplayState.nextRelicOffer = [];
+    this.freeplayState.lastRelicOfferWave = 0;
+    this.freeplayState.currentMutators = [];
+    this.freeplayState.nextMutators = [];
+    this.freeplayState.riskOffer = null;
+    this.freeplayState.riskAccepted = null;
+    this.recorder.setStartingResources(this.credits, this.lives);
+    this.recorder.recordCustom('gauntlet_protocol_leg_start', this.telemetryState(), {
+      week: meta.week,
+      gauntletRunId: meta.gauntletRunId,
+      leg: meta.leg,
+      route: meta.route,
+      relicIds: meta.relicIds,
+      startingCash: this.credits,
+      startingLives: this.lives,
+    });
+    this.announce(`Gauntlet Protocol leg ${meta.leg}: ${this.map.name}`);
   }
 
   /** Compatibility alias for older tests/dev handles. Daily is no longer freeplay. */
@@ -887,7 +931,9 @@ export class Game {
   // ---------- waves ----------
 
   private prepareWave(wave: number): PreparedWave {
-    let groups: Wave = getWave(wave).map((group) => ({ ...group }));
+    let groups: Wave = this.gauntletProtocol
+      ? gauntletProtocolWave(this.gauntletProtocol.leg, wave)
+      : getWave(wave).map((group) => ({ ...group }));
     if (this.dailyChallenge) {
       groups = applyDailyWaveTwist(this.dailyChallenge, groups);
       if (this.dailyChallenge.twist.sensorBlackout) {
@@ -1661,7 +1707,8 @@ export class Game {
           vox('archive');
         }
       });
-      if (this.wave >= this.diff.waves && !this.freeplay) {
+      const finalWave = this.gauntletProtocol ? gauntletProtocolWaveCount(this.gauntletProtocol.leg) : this.diff.waves;
+      if (this.wave >= finalWave && !this.freeplay) {
         this.phase = 'victory';
         if (this.campaignProgressEnabled()) progress.recordWave(this.map.id, this.diff.id, this.wave);
         if (this.campaignProgressEnabled()) progress.addWaves(1);

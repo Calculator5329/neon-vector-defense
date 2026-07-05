@@ -19,6 +19,8 @@ import {
   fetchDailyTop,
   fetchWeeklyTop,
   fetchGauntletTop,
+  submitGauntletProtocolScore,
+  fetchGauntletProtocolTop,
   submitRunReplay,
   streamRunReplayChunk,
   submitRunAnalytics,
@@ -27,7 +29,7 @@ import {
   TELEMETRY_BUILD,
   type ScoreEntry,
 } from '../game/leaderboard';
-import type { RunCheckpointReason } from '../game/runTelemetry';
+import type { RunCheckpointReason, RunUploadBundle } from '../game/runTelemetry';
 import { buildAIHelpContext } from '../game/aiContext';
 import { appMetrics, METRIC_EVENTS } from '../game/metrics';
 import {
@@ -39,6 +41,17 @@ import {
 } from '../game/freeplay';
 import type { DailyChallenge } from '../game/dailyChallenge';
 import type { WeeklyChallenge, WeeklyGauntletDoc } from '../game/weeklyChallenge';
+import {
+  GAUNTLET_PROTOCOL_START_CORES,
+  currentGauntletProtocolId,
+  gauntletProtocolDifficulty,
+  gauntletProtocolDraftOffer,
+  gauntletProtocolMap,
+  gauntletProtocolWaveCount,
+  nextGauntletCredits,
+  type GauntletProtocolLeg,
+  type GauntletProtocolRoute,
+} from '../game/gauntletProtocol';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from '../game/sound';
 import { portal, type AdBreakResult, type AdBreakType } from '../game/portal';
@@ -232,24 +245,47 @@ function towerLockText(game: Game, def: TowerDef): string {
 
 // ---------------- Game screen ----------------
 
-export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit }: {
+export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntletProtocol, onExit }: {
   map: GameMap;
   diff: DifficultyDef;
   dailySeed?: DailyChallenge | null;
   weeklySeed?: WeeklyChallenge | null;
   gauntlet?: WeeklyGauntletDoc | null;
+  gauntletProtocol?: GauntletProtocolRoute | null;
   onExit: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [run, setRun] = useState(0); // bump to restart the sector
+  const [gauntletLeg, setGauntletLeg] = useState<1 | 2 | 3>(1);
+  const [gauntletCredits, setGauntletCredits] = useState<number | null>(null);
+  const [gauntletCores, setGauntletCores] = useState<number>(GAUNTLET_PROTOCOL_START_CORES);
+  const [gauntletRelicIds, setGauntletRelicIds] = useState<FreeplayRelicId[]>([]);
+  const [gauntletRunId] = useState(() => `gp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`);
+  const [gauntletLegRunIds, setGauntletLegRunIds] = useState<string[]>([]);
+  const [gauntletDraft, setGauntletDraft] = useState<ReturnType<typeof gauntletProtocolDraftOffer> | null>(null);
+  const pendingGauntletReplayRef = useRef<{ leg: 1 | 2; bundle: RunUploadBundle } | null>(null);
+  const activeGauntletRoute = gauntletProtocol ?? null;
+  const activeMap = activeGauntletRoute ? gauntletProtocolMap(activeGauntletRoute, gauntletLeg) : map;
+  const activeDiff = activeGauntletRoute ? gauntletProtocolDifficulty(gauntletLeg) : diff;
+  const activeGauntletMeta: GauntletProtocolLeg | null = activeGauntletRoute ? {
+    week: activeGauntletRoute.week || currentGauntletProtocolId(),
+    gauntletRunId,
+    leg: gauntletLeg,
+    route: activeGauntletRoute.route,
+    startingCredits: gauntletCredits ?? gauntletProtocolDifficulty(1).cash,
+    startingCores: gauntletCores,
+    relicIds: gauntletRelicIds,
+    previousRunId: gauntletLegRunIds[gauntletLeg - 2],
+  } : null;
   const gameRef = useRef<Game | null>(null);
   const runRef = useRef(-1);
   if (!gameRef.current || runRef.current !== run) {
-    const nextGame = new Game(map, diff, gauntlet ? { seed: gauntlet.seed } : {});
+    const nextGame = new Game(activeMap, activeDiff, gauntlet ? { seed: gauntlet.seed } : {});
     if (dailySeed) nextGame.startDailyChallenge(dailySeed);
     if (weeklySeed) nextGame.startWeeklyChallenge(weeklySeed);
     if (gauntlet) nextGame.setGauntletChallenge(gauntlet);
+    if (activeGauntletMeta) nextGame.startGauntletProtocolLeg(activeGauntletMeta);
     // restore the player's preferred run speed (smart fast-forward persistence)
     if (PERF_MAP === null && progress.preferredSpeed > 0) nextGame.speed = progress.preferredSpeed;
     gameRef.current = nextGame;
@@ -331,6 +367,14 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
     if (coachStage !== null) game.recorder.recordControl(METRIC_EVENTS.TUTORIAL_VIEW);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- record once per run, not per stage
   }, [game]);
+  useEffect(() => {
+    const pending = pendingGauntletReplayRef.current;
+    if (!pending || !activeGauntletRoute || !game.gauntletProtocol || game.gauntletProtocol.leg !== pending.leg + 1) return;
+    pending.bundle.run.summary.gauntletNextRunId = game.runId;
+    if (pending.bundle.run.setup.gauntletProtocol) pending.bundle.run.setup.gauntletProtocol.nextRunId = game.runId;
+    pendingGauntletReplayRef.current = null;
+    void submitRunReplay(pending.bundle);
+  }, [activeGauntletRoute, game]);
   useEffect(() => {
     if (!briefed) game.recorder.recordControl(METRIC_EVENTS.BRIEFING_VIEW);
   }, [briefed, game]);
@@ -1108,6 +1152,34 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
     sfx.upgrade();
   };
 
+  const openGauntletDraft = () => {
+    if (!activeGauntletRoute || !game.gauntletProtocol || gauntletLeg >= 3) return;
+    const offer = gauntletProtocolDraftOffer(game.seed, (gauntletLeg + 1) as 2 | 3, gauntletRelicIds);
+    const callsign = (progress.playerName.trim() || 'WARDEN').slice(0, 20);
+    pendingGauntletReplayRef.current = { leg: gauntletLeg as 1 | 2, bundle: game.buildRunUploadBundle(callsign, TELEMETRY_BUILD) };
+    setGauntletLegRunIds((ids) => {
+      const next = [...ids];
+      next[gauntletLeg - 1] = game.runId;
+      return next;
+    });
+    setGauntletCredits(nextGauntletCredits(game.credits));
+    setGauntletCores(game.lives);
+    setGauntletDraft(offer);
+    sfx.click();
+  };
+
+  const chooseGauntletDraft = (id: FreeplayRelicId) => {
+    const picked = gauntletDraft?.find((relic) => relic.id === id);
+    if (!picked || gauntletLeg >= 3) return;
+    setGauntletRelicIds((ids) => [...ids, picked.id]);
+    setGauntletDraft(null);
+    setSelectedUid(null);
+    setPlacementMode(null);
+    setGauntletLeg((leg) => Math.min(3, leg + 1) as 1 | 2 | 3);
+    setRun((r) => r + 1);
+    sfx.upgrade();
+  };
+
   const acceptRisk = (id: RiskWaveId) => {
     if (game.acceptRisk(id)) {
       setTick((t) => t + 1);
@@ -1172,6 +1244,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
 
   const nextWaveNumber = game.wave + 1;
   const nextWavePreview = game.phase === 'build' ? summarizeWave(game.previewWave(nextWaveNumber)) : [];
+  const displayedWaveLimit = activeGauntletRoute ? gauntletProtocolWaveCount(gauntletLeg) : activeDiff.waves;
   const adaptationType = game.adaptation.type;
   const adaptationResist = Math.round(game.adaptation.resist * 100);
   const recordWavePreviewHover = () => {
@@ -1212,8 +1285,8 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
         <div className="tb-stat credits" title="Credits — earned per kill, spent on towers & upgrades." aria-label={`Credits ${Math.floor(game.credits)}`}>
           <span className="tb-glyph" aria-hidden="true">⌬</span> <span className="tb-stat-num no-shift-counter">{Math.floor(game.credits)}</span><span className="tb-tag">CREDITS</span>
         </div>
-        <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : diff.waves}` : ''}`}>
-          WAVE <span className="tb-stat-num no-shift-counter">{game.wave}</span>{game.phase === 'build' ? <> / <span className="tb-stat-num no-shift-counter">{game.freeplay ? '∞' : diff.waves}</span></> : ''}
+        <div className="tb-stat wave" aria-label={`Wave ${game.wave}${game.phase === 'build' ? ` of ${game.freeplay ? 'endless' : displayedWaveLimit}` : ''}`}>
+          WAVE <span className="tb-stat-num no-shift-counter">{game.wave}</span>{game.phase === 'build' ? <> / <span className="tb-stat-num no-shift-counter">{game.freeplay ? '∞' : displayedWaveLimit}</span></> : ''}
         </div>
         {game.dailyChallenge && (
           <div className="tb-stat daily-strip" title={game.dailyMeta().summary} aria-label={`${game.dailyMeta().label} modifiers: ${game.dailyMeta().summary}`}>
@@ -1221,7 +1294,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
           </div>
         )}
         {!game.freeplay && !game.isDailyChallenge && (
-          <BotGhostHud curves={ghostCurvesForMap(GHOST_CURVES, map.id)} matchedDiffId={diff.id} wave={game.wave} cores={game.lives} currentStartingLives={game.startingLives} phase={game.phase} />
+          <BotGhostHud curves={ghostCurvesForMap(GHOST_CURVES, activeMap.id)} matchedDiffId={activeDiff.id} wave={game.wave} cores={game.lives} currentStartingLives={game.startingLives} phase={game.phase} />
         )}
         {PERF_MAP !== null && (
           <div className="tb-stat" style={{ color: '#7bed9f' }} title="Perf harness: expert bot, 4x, auto-freeplay">
@@ -1353,7 +1426,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.webp" report={<EndReport game={game} map={activeMap} diff={activeDiff} reward={metaReward} gauntletProtocolRunIds={activeGauntletRoute ? [...gauntletLegRunIds.slice(0, gauntletLeg - 1), game.runId] : undefined} />}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacementMode(null); setRun((r) => r + 1); } },
@@ -1401,14 +1474,22 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'victory' && (
-            <Overlay title="SECTOR SECURED" color="#2ed573" art="/art/victory.webp" report={<EndReport game={game} map={map} diff={diff} reward={metaReward} />}
-              lines={[`All ${diff.waves} waves repelled on ${map.name}.`, `${game.totalKills} hostiles destroyed.`]}
-              buttons={[
-                { label: 'CONTINUE FREEPLAY', fn: () => chooseContract('standard') },
-                { label: 'MAIN MENU', fn: exitToMenu },
-              ]}
+            <Overlay title={activeGauntletRoute && gauntletLeg < 3 ? `LEG ${gauntletLeg} SECURED` : 'SECTOR SECURED'} color="#2ed573" art="/art/victory.webp" report={<EndReport game={game} map={activeMap} diff={activeDiff} reward={metaReward} gauntletProtocolRunIds={activeGauntletRoute ? [...gauntletLegRunIds.slice(0, gauntletLeg - 1), game.runId] : undefined} />}
+              lines={[`All ${activeGauntletRoute ? gauntletProtocolWaveCount(gauntletLeg) : activeDiff.waves} waves repelled on ${activeMap.name}.`, `${game.totalKills} hostiles destroyed.`]}
+              buttons={activeGauntletRoute
+                ? [
+                    gauntletLeg < 3
+                      ? { label: 'DRAFT RELIC', fn: openGauntletDraft }
+                      : { label: 'MAIN MENU', fn: exitToMenu },
+                    { label: 'MAIN MENU', fn: exitToMenu },
+                  ]
+                : [
+                    { label: 'CONTINUE FREEPLAY', fn: () => chooseContract('standard') },
+                    { label: 'MAIN MENU', fn: exitToMenu },
+                  ]}
             />
           )}
+          {gauntletDraft && <GauntletRelicModal offer={gauntletDraft} onSelect={chooseGauntletDraft} leg={gauntletLeg + 1} />}
         </div>
 
         <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game-sidebar">
@@ -1560,6 +1641,25 @@ function FreeplayRelicModal({ game, onSelect }: { game: Game; onSelect: (id: Fre
   );
 }
 
+function GauntletRelicModal({ offer, onSelect, leg }: { offer: ReturnType<typeof gauntletProtocolDraftOffer>; onSelect: (id: FreeplayRelicId) => void; leg: number }) {
+  return (
+    <Modal onClose={() => {}} overlayClass="cutscene-overlay gauntlet-draft-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="gauntlet-relic-title" closeOnBackdrop={false} closeOnEsc={false}>
+      <div className="cutscene-title" id="gauntlet-relic-title">GAUNTLET RELIC DRAFT</div>
+      <p className="tip-text">Pick one modifier for leg {leg}. Cores carry, credits carry at 60%, towers reset.</p>
+      <div className="relic-grid">
+        {offer.map((r) => (
+          <button key={r.id} className="relic-card" onClick={() => onSelect(r.id)}>
+            <span className="contract-mult">{r.scoreMult.toFixed(2)}x</span>
+            <b>{r.name}</b>
+            <p>{r.desc}</p>
+            <em>{r.downside}</em>
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
 function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => void; lines: string[]; portrait: string; audio: string }) {
   const stopRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -1589,11 +1689,14 @@ function MusicButton() {
 
 // Run-end report: a balanced 2-column layout (reward + after-action on the left,
 // score submit + dossier + leaderboard on the right) instead of one tall stack.
-function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null }) {
+function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null; gauntletProtocolRunIds?: string[] }) {
   const submitEligible = game.phase === 'victory' ||
-    (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge));
+    (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge || game.isGauntletProtocol));
+  const clearedWaves = game.isGauntletProtocol && game.gauntletProtocol
+    ? gauntletProtocolWaveCount(game.gauntletProtocol.leg)
+    : diff.waves;
   const stats = [
-    { label: game.phase === 'victory' && !game.freeplay ? 'Waves Cleared' : 'Wave Reached', value: game.phase === 'victory' && !game.freeplay ? `${diff.waves}` : `${game.wave}` },
+    { label: game.phase === 'victory' && !game.freeplay ? 'Waves Cleared' : 'Wave Reached', value: game.phase === 'victory' && !game.freeplay ? `${clearedWaves}` : `${game.wave}` },
     { label: 'Hostiles Destroyed', value: game.totalKills.toLocaleString() },
     { label: game.lives > 0 ? 'Cores Remaining' : 'Cores Lost', value: game.lives > 0 ? game.lives.toLocaleString() : game.runStats.leaks.toLocaleString() },
     { label: 'Credits Earned', value: Math.round(game.runStats.cashEarned).toLocaleString() },
@@ -1612,7 +1715,7 @@ function EndReport({ game, map, diff, reward }: { game: Game; map: GameMap; diff
         <MetaReward reward={reward} />
         <AfterAction game={game} />
       </div>
-      {submitEligible && <div className="debrief-submit"><SubmitScore game={game} map={map} diff={diff} /></div>}
+      {submitEligible && <div className="debrief-submit"><SubmitScore game={game} map={map} diff={diff} gauntletProtocolRunIds={gauntletProtocolRunIds} /></div>}
     </div>
   );
 }
@@ -1686,7 +1789,7 @@ function AfterAction({ game }: { game: Game }) {
 }
 
 
-function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: DifficultyDef }) {
+function SubmitScore({ game, map, diff, gauntletProtocolRunIds }: { game: Game; map: GameMap; diff: DifficultyDef; gauntletProtocolRunIds?: string[] }) {
   const [name, setName] = useState(progress.playerName);
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
   const [top, setTop] = useState<ScoreEntry[] | null>(null);
@@ -1704,7 +1807,10 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const dailyId = dailyMeta?.daily || freeplayMeta?.daily || '';
   const weeklyId = game.isWeeklyChallenge ? dailyMeta?.weekly || '' : '';
   const gauntletWeek = game.gauntletChallenge?.week ?? '';
-  const leaderboardTitle = gauntletWeek
+  const gauntletProtocolWeek = game.gauntletProtocol?.week ?? '';
+  const leaderboardTitle = gauntletProtocolWeek
+    ? `GAUNTLET PROTOCOL - ${gauntletProtocolWeek.toUpperCase()}`
+    : gauntletWeek
     ? `GAUNTLET LEADERBOARD - ${gauntletWeek.toUpperCase()}`
     : weeklyId
       ? `WEEKLY LEADERBOARD - ${weeklyId.toUpperCase()}`
@@ -1756,10 +1862,12 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       meta: dailyMeta?.summary ?? freeplayMeta?.summary,
       daily: dailyId || undefined,
       weekly: weeklyId || undefined,
-      gauntlet: gauntletWeek || undefined,
+      gauntlet: gauntletWeek || gauntletProtocolWeek || undefined,
       checkpoint: false,
     };
-    const ok = gauntletWeek
+    const ok = gauntletProtocolWeek
+      ? await submitGauntletProtocolScore(gauntletProtocolWeek, scoreEntry, gauntletProtocolRunIds ?? [game.runId])
+      : gauntletWeek
       ? await submitGauntletScore(gauntletWeek, scoreEntry)
       : weeklyId
         ? await submitWeeklyScore(weeklyId, scoreEntry)
@@ -1769,7 +1877,9 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
     game.recorder.recordScoreSubmitResult(ok);
     void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
     if (ok) {
-      setTop(gauntletWeek
+      setTop(gauntletProtocolWeek
+        ? await fetchGauntletProtocolTop(gauntletProtocolWeek)
+        : gauntletWeek
         ? await fetchGauntletTop(gauntletWeek)
         : weeklyId
           ? await fetchWeeklyTop(weeklyId)
@@ -1800,7 +1910,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
               {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
             </button>
           </div>
-          <p className="submit-hint">Your callsign and score appear on the public {gauntletWeek ? 'gauntlet' : weeklyId ? 'weekly' : dailyId ? 'daily' : 'global'} leaderboard.</p>
+          <p className="submit-hint">Your callsign and score appear on the public {gauntletProtocolWeek ? 'gauntlet protocol' : gauntletWeek ? 'gauntlet' : weeklyId ? 'weekly' : dailyId ? 'daily' : 'global'} leaderboard.</p>
         </>
       )}
       {state === 'done' && (
@@ -1814,7 +1924,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
               <span className="lb-name">{r.name}</span>
               <span className="lb-cash">CR {r.cash.toLocaleString()}</span>
               <span className="lb-kills">K {r.kills.toLocaleString()}</span>
-              {(r.freeplay || dailyId || weeklyId || gauntletWeek) && <span className="lb-wave">W{r.wave}</span>}
+              {(r.freeplay || dailyId || weeklyId || gauntletWeek || gauntletProtocolWeek) && <span className="lb-wave">W{r.wave}</span>}
             </div>
           ))}
         </div>

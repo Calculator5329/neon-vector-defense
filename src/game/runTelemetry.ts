@@ -14,6 +14,7 @@ import { appMetrics, METRIC_EVENTS, type AppMetricSnapshot, type InputKind, type
 import { balanceDocSnapshot, balanceVersion, type BalanceConfigDoc } from './balanceConfig';
 import type { DailyChallenge } from './dailyChallenge';
 import type { WeeklyChallenge, WeeklyGauntletDoc } from './weeklyChallenge';
+import type { GauntletProtocolLeg } from './gauntletProtocol';
 import { actionHash, encodeReplayActions, isReplayActionEvent, normalizeReplayActionEvents, type ReplayActionPack } from './replayCodec';
 
 export const RUN_TELEMETRY_SCHEMA = 3;
@@ -26,8 +27,9 @@ export const RUN_TELEMETRY_SCHEMA = 3;
  *  v4: Exposed replaces instant shred resistance bypass; towers can record
  *      target_filter preferences that affect deterministic target selection.
  *  v5: Mirror Hull snapshots top damage type at spawn; Recalibrate clears
- *      adaptive resistance and weakens live Mirror Hull snapshots. */
-export const REPLAY_ENGINE_VERSION = 5;
+ *      adaptive resistance and weakens live Mirror Hull snapshots.
+ *  v6: Gauntlet Protocol shortened wave tables, leg bank, and drafted relic setup. */
+export const REPLAY_ENGINE_VERSION = 6;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const FINAL_TOWER_DOC_CAP = 3;
 const IDLE_AFTER_S = 25;
@@ -158,6 +160,9 @@ export interface PublicRunDoc {
     daily?: string;
     weekly?: string;
     gauntlet?: string;
+    gauntletRunId?: string;
+    gauntletLeg?: number;
+    gauntletNextRunId?: string;
     contractId?: string;
     scoreMultiplierEnd?: number;
     outcome: RunOutcome;
@@ -185,6 +190,7 @@ export interface PublicRunDoc {
     daily?: DailyChallenge;
     weekly?: WeeklyChallenge;
     gauntlet?: WeeklyGauntletDoc;
+    gauntletProtocol?: GauntletProtocolLeg;
     /** REPLAY_ENGINE_VERSION at record time; absent on runs older than v2 */
     replayEngine?: number;
   };
@@ -487,6 +493,7 @@ export class RunRecorder {
   private dailySnapshot: DailyChallenge | null = null;
   private weeklySnapshot: WeeklyChallenge | null = null;
   private gauntletSnapshot: WeeklyGauntletDoc | null = null;
+  private gauntletProtocolSnapshot: GauntletProtocolLeg | null = null;
   private cashSpent = 0;
   private cashRefunded = 0;
   private failedPlacements = 0;
@@ -668,6 +675,11 @@ export class RunRecorder {
 
   setGauntletChallenge(challenge: WeeklyGauntletDoc | null): void {
     this.gauntletSnapshot = challenge ? JSON.parse(JSON.stringify(challenge)) as WeeklyGauntletDoc : null;
+  }
+
+  setGauntletProtocol(meta: GauntletProtocolLeg | null): void {
+    this.gauntletProtocolSnapshot = meta ? JSON.parse(JSON.stringify(meta)) as GauntletProtocolLeg : null;
+    if (meta) this.gauntletSnapshot = null;
   }
 
   recordRunStart(state: RunTelemetryState): void {
@@ -1142,6 +1154,7 @@ export class RunRecorder {
           ...(this.dailySnapshot ? { daily: this.dailySnapshot } : {}),
           ...(this.weeklySnapshot ? { weekly: this.weeklySnapshot } : {}),
           ...(this.gauntletSnapshot ? { gauntlet: this.gauntletSnapshot } : {}),
+          ...(this.gauntletProtocolSnapshot ? { gauntletProtocol: this.gauntletProtocolSnapshot } : {}),
           replayEngine: REPLAY_ENGINE_VERSION,
         },
       actions: encodedRunActions,
@@ -1622,7 +1635,12 @@ export class RunRecorder {
     if (this.dailySnapshot) summary.daily = this.dailySnapshot.id;
     else if (this.freeplay.dailyId && /^daily-\d{4}-\d{2}-\d{2}$/.test(this.freeplay.dailyId)) summary.daily = this.freeplay.dailyId;
     if (this.weeklySnapshot) summary.weekly = this.weeklySnapshot.id;
-    if (this.gauntletSnapshot) summary.gauntlet = this.gauntletSnapshot.week;
+    if (this.gauntletProtocolSnapshot) {
+      summary.gauntlet = this.gauntletProtocolSnapshot.week;
+      summary.gauntletRunId = this.gauntletProtocolSnapshot.gauntletRunId;
+      summary.gauntletLeg = this.gauntletProtocolSnapshot.leg;
+      if (this.gauntletProtocolSnapshot.nextRunId) summary.gauntletNextRunId = this.gauntletProtocolSnapshot.nextRunId;
+    } else if (this.gauntletSnapshot) summary.gauntlet = this.gauntletSnapshot.week;
     if (state.freeplay && this.freeplay.contractId) summary.contractId = this.freeplay.contractId.slice(0, 30);
     if (state.freeplay && Number.isFinite(this.freeplay.scoreMultiplierEnd)) {
       summary.scoreMultiplierEnd = Math.max(0, Math.min(1000000000, Math.round(this.freeplay.scoreMultiplierEnd * 100) / 100));

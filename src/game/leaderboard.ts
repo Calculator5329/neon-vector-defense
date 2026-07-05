@@ -62,6 +62,10 @@ export interface ScoreEntry {
   daily?: string;
   weekly?: string;
   gauntlet?: string;
+  gauntletRunId?: string;
+  gauntletLeg?: number;
+  gauntletRunIds?: string[];
+  route?: string[];
   checkpoint?: boolean;
   verify?: RunVerifyRowStatus;
 }
@@ -253,6 +257,10 @@ function scorePayload(entry: ScoreEntry, serverUid: string): ScoreEntry {
   if (entry.daily) payload.daily = entry.daily.slice(0, 80);
   if (entry.weekly) payload.weekly = entry.weekly.slice(0, 80);
   if (entry.gauntlet) payload.gauntlet = entry.gauntlet.slice(0, 80);
+  if (entry.gauntletRunId) payload.gauntletRunId = entry.gauntletRunId.slice(0, 80);
+  if (entry.gauntletLeg !== undefined) payload.gauntletLeg = Math.max(1, Math.min(3, Math.floor(entry.gauntletLeg)));
+  if (entry.gauntletRunIds) payload.gauntletRunIds = entry.gauntletRunIds.filter(isValidRunId).slice(0, 3);
+  if (entry.route) payload.route = entry.route.map((id) => id.slice(0, 30)).slice(0, 3);
   if (entry.checkpoint !== undefined) payload.checkpoint = !!entry.checkpoint;
   return payload;
 }
@@ -326,6 +334,8 @@ const callSubmitWeeklyScore =
   httpsCallable<{ weeklyId: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitWeeklyScore');
 const callSubmitGauntletScore =
   httpsCallable<{ week: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitGauntletScore');
+const callSubmitGauntletProtocolScore =
+  httpsCallable<{ week: string; entry: ScoreEntry; runIds: string[] }, SubmitScoreResult>(functions, 'submitGauntletProtocolScore');
 const callSubmitFeedback =
   httpsCallable<{ uid: string; text: string; ctx: string }, SubmitFeedbackResult>(functions, 'submitFeedback');
 const callFetchFeedbackReplies =
@@ -405,6 +415,24 @@ export async function submitGauntletScore(week: string, entry: ScoreEntry): Prom
     if (res.data?.reason) { console.warn('Gauntlet score rejected by server', res.data.reason); return false; }
   } catch (error) {
     console.warn('Gauntlet score submit failed', error);
+  }
+  return false;
+}
+
+export async function submitGauntletProtocolScore(week: string, entry: ScoreEntry, runIds: string[]): Promise<boolean> {
+  if (!canSubmitScore()) return false;
+  const board = weeklyBoardId(week);
+  const cleanRunIds = runIds.filter(isValidRunId).slice(0, 3);
+  if (!validWeeklyBoard(board) || cleanRunIds.length !== 3) return false;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
+  const payload = scorePayload({ ...entry, freeplay: false, gauntlet: board, gauntletRunIds: cleanRunIds }, serverUid);
+  try {
+    const res = await withTimeout(callSubmitGauntletProtocolScore({ week: board, entry: payload, runIds: cleanRunIds }), 60_000);
+    if (res.data?.accepted) { invalidateRitualBoardCache('gauntlet', board); return true; }
+    if (res.data?.reason) { console.warn('Gauntlet Protocol score rejected by server', res.data.reason); return false; }
+  } catch (error) {
+    console.warn('Gauntlet Protocol score submit failed', error);
   }
   return false;
 }
@@ -1005,7 +1033,11 @@ export async function fetchGauntletTop(week: string, limit = 10): Promise<ScoreE
   return fetchRitualTop('gauntletBoards', week, 'gauntlet', limit);
 }
 
-async function fetchRitualTop(collectionName: 'weeklyBoards' | 'gauntletBoards', boardIdValue: string, field: 'weekly' | 'gauntlet', limit = 10): Promise<ScoreEntry[]> {
+export async function fetchGauntletProtocolTop(week: string, limit = 10): Promise<ScoreEntry[]> {
+  return fetchRitualTop('gauntletProtocolBoards', week, 'gauntlet', limit);
+}
+
+async function fetchRitualTop(collectionName: 'weeklyBoards' | 'gauntletBoards' | 'gauntletProtocolBoards', boardIdValue: string, field: 'weekly' | 'gauntlet', limit = 10): Promise<ScoreEntry[]> {
   const board = weeklyBoardId(boardIdValue);
   if (!validWeeklyBoard(board)) return [];
   const cacheKey = `${field}:${board}:${limit}`;
@@ -1030,6 +1062,10 @@ async function fetchRitualTop(collectionName: 'weeklyBoards' | 'gauntletBoards',
         daily: data.daily ?? '',
         weekly: field === 'weekly' ? data.weekly ?? board : data.weekly ?? '',
         gauntlet: field === 'gauntlet' ? data.gauntlet ?? board : data.gauntlet ?? '',
+        gauntletRunId: data.gauntletRunId ?? '',
+        gauntletLeg: Number(data.gauntletLeg ?? 0) || undefined,
+        gauntletRunIds: Array.isArray(data.gauntletRunIds) ? data.gauntletRunIds.filter((id): id is string => typeof id === 'string') : undefined,
+        route: Array.isArray(data.route) ? data.route.filter((id): id is string => typeof id === 'string') : undefined,
         checkpoint: data.checkpoint ?? false,
       };
     });

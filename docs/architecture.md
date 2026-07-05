@@ -126,6 +126,10 @@ Private analytics and live checkpoint data are separate from Battle Plan replays
 
 Firebase Hosting rewrites all paths to `index.html` (SPA).
 
+Weekly Ops owns Daily/Weekly/Champion/Gauntlet Protocol entry points. Gauntlet
+Protocol intentionally uses a single Weekly Ops card and leaves the sector grid
+unchanged.
+
 ## Code splitting
 
 Heavy surfaces are lazy-loaded off the player path:
@@ -169,6 +173,9 @@ Use these rules for all new React chrome:
 | Firestore | `replayOwners/{uid}/runs/{runId}` | Replay ownership index for admin deletion |
 | Firestore | `boards/{board}/scores` | Leaderboard rows (server-written only) |
 | Firestore | `dailyBoards/{daily}/scores` | Daily Challenge leaderboard rows |
+| Firestore | `weeklyBoards/{weekly}/scores` | Weekly Mutation leaderboard rows |
+| Firestore | `gauntletBoards/{weekly}/scores` | Weekly Champion Gauntlet rows |
+| Firestore | `gauntletProtocolBoards/{weekly}/scores` | Gauntlet Protocol aggregate rows |
 | Firestore | `runAnalytics`, `runCheckpoints` | Private telemetry/checkpoints (consent-gated) |
 | Firestore | `feedback/{id}` | Server-created feedback and admin replies |
 | Firestore | `config/balance` | Optional live balance overrides; public-read, admin-write |

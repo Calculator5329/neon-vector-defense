@@ -99,6 +99,15 @@ const validGauntlet = {
   wave: 60,
   kills: 6000,
 };
+const validGauntletProtocol = {
+  week: 'weekly-2026-W27',
+  gauntletRunId: 'gp_rules_12345678',
+  leg: 1,
+  route: ['orbital', 'reactor', 'hyperlane'],
+  startingCredits: 900,
+  startingCores: 150,
+  relicIds: [],
+};
 
 const validRun = {
   schemaVersion: 3,
@@ -341,6 +350,12 @@ describe('public replay rules', () => {
       summary: { ...validSummary, freeplay: false, gauntlet: 'weekly-2026-W27' },
       setup: { ...validSetup, gauntlet: validGauntlet },
     }));
+    await assertSucceeds(setDoc(doc(db, 'runs', `${runId}gp`), {
+      ...validRun,
+      runId: `${runId}gp`,
+      summary: { ...validSummary, freeplay: false, gauntlet: 'weekly-2026-W27', gauntletRunId: 'gp_rules_12345678', gauntletLeg: 1 },
+      setup: { ...validSetup, gauntletProtocol: validGauntletProtocol },
+    }));
     await assertFails(setDoc(doc(db, 'runs', `${runId}wbad`), {
       ...validRun,
       runId: `${runId}wbad`,
@@ -497,6 +512,7 @@ describe('leaderboard and telemetry write rules', () => {
     await assertFails(setDoc(doc(db, 'dailyBoards', 'daily-2026-06-27', 'scores', 's1'), { ...score, freeplay: true }));
     await assertFails(setDoc(doc(db, 'weeklyBoards', 'weekly-2026-W27', 'scores', 's1'), { ...score, weekly: 'weekly-2026-W27' }));
     await assertFails(setDoc(doc(db, 'gauntletBoards', 'weekly-2026-W27', 'scores', 's1'), { ...score, gauntlet: 'weekly-2026-W27' }));
+    await assertFails(setDoc(doc(db, 'gauntletProtocolBoards', 'weekly-2026-W27', 'scores', 's1'), { ...score, gauntlet: 'weekly-2026-W27' }));
   });
 
   test('allow bounded telemetry creates and deny updates', async () => {

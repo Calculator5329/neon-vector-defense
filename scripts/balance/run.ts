@@ -43,8 +43,8 @@ export interface RunResult {
 }
 
 /** Sum of layered hull counts a wave can leak (count × recursive children). */
-function waveMaxLeak(waveNumber: number): number {
-  const def = getWave(waveNumber);
+function waveMaxLeak(waveNumber: number, waveForMaxLeak: (wave: number) => ReturnType<typeof getWave> = getWave): number {
+  const def = waveForMaxLeak(waveNumber);
   return def.reduce((sum, grp) => sum + grp.count * rbe(grp.type), 0);
 }
 
@@ -75,9 +75,11 @@ export function runInstrumented(
   diff: DifficultyDef,
   profile: BotSkill | Profile,
   seedKey = 'default-0',
+  opts: { configureGame?: (game: Game, seed: number) => void; waveForMaxLeak?: (wave: number) => ReturnType<typeof getWave> } = {},
 ): RunResult {
   const seed = fnv32(`${map.id}|${diff.id}|${typeof profile === 'string' ? profile : 'custom'}|${seedKey}`);
   const game = new Game(map, diff, { seed, lifetimeKills: 0 });
+  opts.configureGame?.(game, seed);
   const bot = new Bot(game, profile, mulberry(seed ^ 0x9e3779b9));
   const startingLives = game.lives;
   const waves: WaveRecord[] = [];
@@ -89,7 +91,7 @@ export function runInstrumented(
 
   const close = (livesEnd: number) => {
     if (!open) return;
-    const maxLeak = Math.max(1, waveMaxLeak(open.wave));
+    const maxLeak = Math.max(1, waveMaxLeak(open.wave, opts.waveForMaxLeak));
     const livesLost = Math.max(0, open.livesStart - livesEnd);
     waves.push({
       wave: open.wave,

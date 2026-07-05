@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T03:32:17.641Z",
+  "generatedAt": "2026-07-05T05:35:57.999Z",
   "meta": {
     "quick": false,
     "gate": false,
@@ -20,6 +20,9 @@
     "soloArena": {
       "map": "orbital",
       "diff": "normal"
+    },
+    "gauntletProfile": {
+      "routeWeek": "weekly-2026-W27"
     },
     "medianDpsPerCredit": 0.0029
   },
@@ -35648,6 +35651,89 @@
       "avgWave": 29,
       "bestWave": 30,
       "winRate": 0
+    }
+  ],
+  "gauntletProfile": [
+    {
+      "leg": 1,
+      "map": "orbital",
+      "diff": "easy",
+      "skill": "rookie",
+      "avgWave": 20,
+      "winRate": 1,
+      "avgLives": 150
+    },
+    {
+      "leg": 1,
+      "map": "orbital",
+      "diff": "easy",
+      "skill": "standard",
+      "avgWave": 20,
+      "winRate": 1,
+      "avgLives": 150
+    },
+    {
+      "leg": 1,
+      "map": "orbital",
+      "diff": "easy",
+      "skill": "expert",
+      "avgWave": 20,
+      "winRate": 1,
+      "avgLives": 150
+    },
+    {
+      "leg": 2,
+      "map": "reactor",
+      "diff": "normal",
+      "skill": "rookie",
+      "avgWave": 25,
+      "winRate": 1,
+      "avgLives": 0
+    },
+    {
+      "leg": 2,
+      "map": "reactor",
+      "diff": "normal",
+      "skill": "standard",
+      "avgWave": 25,
+      "winRate": 1,
+      "avgLives": 0
+    },
+    {
+      "leg": 2,
+      "map": "reactor",
+      "diff": "normal",
+      "skill": "expert",
+      "avgWave": 25,
+      "winRate": 1,
+      "avgLives": 0
+    },
+    {
+      "leg": 3,
+      "map": "umbral",
+      "diff": "hard",
+      "skill": "rookie",
+      "avgWave": 4,
+      "winRate": 0,
+      "avgLives": 0
+    },
+    {
+      "leg": 3,
+      "map": "umbral",
+      "diff": "hard",
+      "skill": "standard",
+      "avgWave": 3,
+      "winRate": 0,
+      "avgLives": 0
+    },
+    {
+      "leg": 3,
+      "map": "umbral",
+      "diff": "hard",
+      "skill": "expert",
+      "avgWave": 3,
+      "winRate": 0,
+      "avgLives": 0
     }
   ]
 }

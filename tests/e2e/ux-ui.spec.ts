@@ -1429,6 +1429,51 @@ test.describe('run telemetry model', () => {
     expect(weekly.modifiers.length).toBeGreaterThanOrEqual(5);
   });
 
+  test('gauntlet protocol card deploys and advances from leg one draft to leg two at desktop and mobile widths', async ({ page }) => {
+    test.setTimeout(45_000);
+    await seedProgress(page, { runs: 2, victories: 1, kills: 1_000_000 });
+
+    for (const viewport of [{ width: 1365, height: 768 }, { width: 844, height: 390 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      await page.evaluate(() => {
+        localStorage.setItem('nvd-consent-v1', JSON.stringify({ ageBand: 'under13', sell: 'no', gpc: false, ts: 1 }));
+      });
+      await expect(page.getByTestId('gauntlet-protocol-card')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('gauntlet-protocol-card')).toHaveAttribute('aria-disabled', 'false');
+      await page.getByTestId('gauntlet-protocol-card').click();
+      await expect(page.locator('.deploy-bar-sel')).toContainText('GAUNTLET PROTOCOL');
+      await page.getByTestId('deploy-button').click();
+      await expect(page.getByTestId('game-root')).toBeVisible();
+      await acknowledgeBriefing(page);
+
+      await page.evaluate(() => {
+        const game = (window as unknown as { game: any }).game;
+        game.paused = false;
+        game.phase = 'wave';
+        game.wave = 20;
+        game.enemies = [];
+        game.queue = [];
+        game.totalKills = Math.max(game.totalKills, 25);
+        game.runStats.cashEarned = Math.max(game.runStats.cashEarned, 500);
+        game.finishRun(true, 'victory');
+      });
+      await expect(page.getByRole('heading', { name: 'LEG 1 SECURED' })).toBeVisible({ timeout: 10_000 });
+      await page.getByRole('button', { name: 'DRAFT RELIC' }).click();
+      await expect(page.getByText('GAUNTLET RELIC DRAFT')).toBeVisible();
+      await page.locator('.freeplay-modal .relic-card').first().click();
+      await expect.poll(() => page.evaluate(() => {
+        const game = (window as unknown as { game: any }).game;
+        return {
+          leg: game.gauntletProtocol?.leg,
+          wave: game.wave,
+          hud: document.querySelector('.tb-stat.wave')?.textContent?.replace(/\s+/g, ' ').trim(),
+          phase: game.phase,
+        };
+      })).toEqual({ leg: 2, wave: 0, hud: 'WAVE 0 / 25', phase: 'build' });
+    }
+  });
+
   test('daily challenge does not mutate campaign progress', async ({ page }) => {
     await seedProgress(page, { runs: 2, kills: 12, totalWaves: 4, archive: [], best: {}, history: [] });
     await page.goto('/');

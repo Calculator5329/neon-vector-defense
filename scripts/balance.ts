@@ -16,6 +16,13 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 import { ALL_MAPS, DIFFICULTIES } from '../src/game/maps';
+import {
+  GAUNTLET_PROTOCOL_START_CORES,
+  gauntletProtocolDifficulty,
+  gauntletProtocolRouteForWeek,
+  gauntletProtocolWave,
+  gauntletProtocolWaveCount,
+} from '../src/game/gauntletProtocol';
 import { setMuted, setMusic } from '../src/game/sound';
 import { runInstrumented, type WaveRecord } from './balance/run';
 import { analyzeEfficiency, type TowerEfficiency } from './balance/efficiency';
@@ -135,6 +142,7 @@ function buildCurves(): WaveCurve[] {
 // ---------- 2. win grid ----------
 
 interface GridCell { map: string; diff: string; skill: BotSkill; avgWave: number; winRate: number; avgLives: number }
+interface GauntletProfileCell { leg: number; map: string; diff: string; skill: BotSkill; avgWave: number; winRate: number; avgLives: number }
 
 function buildGrid(): GridCell[] {
   const skills: BotSkill[] = ['rookie', 'standard', 'expert'];
@@ -161,6 +169,46 @@ function buildGrid(): GridCell[] {
   return cells;
 }
 
+function buildGauntletProfile(): GauntletProfileCell[] {
+  const route = gauntletProtocolRouteForWeek('weekly-2026-W27');
+  const cells: GauntletProfileCell[] = [];
+  const skills: BotSkill[] = ['rookie', 'standard', 'expert'];
+  for (const leg of [1, 2, 3] as const) {
+    const map = ALL_MAPS.find((m) => m.id === route.route[leg - 1]) ?? ALL_MAPS[0];
+    const diff = gauntletProtocolDifficulty(leg);
+    for (const skill of skills) {
+      let waveSum = 0, wins = 0, lives = 0;
+      for (let s = 0; s < GRID_SEEDS; s++) {
+        const r = runInstrumented(map, diff, skill, `gauntlet-${leg}-${s}`, {
+          configureGame: (game) => game.startGauntletProtocolLeg({
+            week: route.week,
+            gauntletRunId: `gp_balance_${leg}_${s}`,
+            leg,
+            route: route.route,
+            startingCredits: diff.cash,
+            startingCores: GAUNTLET_PROTOCOL_START_CORES,
+            relicIds: leg === 1 ? [] : leg === 2 ? ['salvageTax'] : ['salvageTax', 'siegeDoctrine'],
+          }),
+          waveForMaxLeak: (wave) => gauntletProtocolWave(leg, wave),
+        });
+        waveSum += r.finalWave;
+        if (r.finalWave >= gauntletProtocolWaveCount(leg)) wins++;
+        lives += r.livesLeft;
+      }
+      cells.push({
+        leg,
+        map: map.id,
+        diff: diff.id,
+        skill,
+        avgWave: round(waveSum / GRID_SEEDS, 1),
+        winRate: round(wins / GRID_SEEDS, 2),
+        avgLives: Math.round(lives / GRID_SEEDS),
+      });
+    }
+  }
+  return cells;
+}
+
 function round(n: number, d = 1): number { const f = 10 ** d; return Math.round(n * f) / f; }
 
 // ---------- run everything ----------
@@ -175,6 +223,7 @@ const curves = GATE ? [] : buildCurves();
 
 console.log('▸ win grid…');
 const grid = buildGrid();
+const gauntletProfile = buildGauntletProfile();
 
 console.log('▸ tower & upgrade efficiency…');
 const { towers: efficiency, medianDpsPerCredit } = analyzeEfficiency();
@@ -200,6 +249,7 @@ const report = {
     matchSkill: MATCH,
     strategyArena: { map: stratMap.id, diff: stratDiff.id },
     soloArena: { map: soloMap.id, diff: soloDiff.id },
+    gauntletProfile: { routeWeek: 'weekly-2026-W27' },
     medianDpsPerCredit,
   },
   curves,
@@ -207,6 +257,7 @@ const report = {
   efficiency,
   strategies: strategyResults,
   solo: soloResults,
+  gauntletProfile,
 };
 
 mkdirSync(dirname(OUT), { recursive: true });
@@ -232,6 +283,7 @@ printCurveHighlights(curves);
 printEfficiency(efficiency, medianDpsPerCredit);
 printStrategies(strategyResults, stratMap.id, stratDiff.id);
 printSolo(soloResults, soloMap.id, soloDiff.id);
+printGauntletProfile(gauntletProfile);
 
 console.log(`\n✔ wrote ${OUT}`);
 console.log(`  ${((Date.now() - t0) / 1000).toFixed(1)}s · ${curves.length} curves · ${efficiency.length} towers · ${strategyResults.length} strategies`);
@@ -316,5 +368,12 @@ function printSolo(res: SoloResult[], mapId: string, diffId: string) {
   console.log('  tower             | avg wave | best | win%');
   for (const r of res) {
     console.log(`  ${r.name.padEnd(17)} | ${fmt(Math.round(r.avgWave), 8)} | ${fmt(r.bestWave, 4)} | ${fmt(Math.round(r.winRate * 100), 4)}%`);
+  }
+}
+
+function printGauntletProfile(res: GauntletProfileCell[]) {
+  console.log('\n=== GAUNTLET PROFILE (shortened leg tables) ===');
+  for (const row of res) {
+    console.log(`  leg ${row.leg} ${row.map}/${row.diff} [${row.skill}] avg W${row.avgWave} - ${Math.round(row.winRate * 100)}% clear - ${row.avgLives} cores`);
   }
 }

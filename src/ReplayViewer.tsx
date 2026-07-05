@@ -826,6 +826,9 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
           <b>{s.callsign}</b>
           <span>{s.mapName} · {s.diffName}{s.freeplay ? ' · FREEPLAY' : ''}</span>
         </div>
+        {s.gauntletNextRunId && (
+          <a className="replay-btn" href={`/?run=${s.gauntletNextRunId}`} onClick={() => sfx.click()}>NEXT LEG</a>
+        )}
         <DossierShare input={dossierInput} runId={run.runId} compact />
       </div>
 

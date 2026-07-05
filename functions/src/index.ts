@@ -438,7 +438,7 @@ async function scoreRowsForRun(runId: string): Promise<ScoreRowRef[]> {
   const snap = await db.collectionGroup('scores').where('runId', '==', runId).get();
   return snap.docs
     .map((docSnap) => docSnap.ref)
-    .filter((ref) => /^(boards|dailyBoards|weeklyBoards|gauntletBoards)\/[^/]+\/scores\/[^/]+$/.test(ref.path));
+    .filter((ref) => /^(boards|dailyBoards|weeklyBoards|gauntletBoards|gauntletProtocolBoards)\/[^/]+\/scores\/[^/]+$/.test(ref.path));
 }
 
 async function writeScoreVerdict(rows: ScoreRowRef[], verdict: ReSimResult['verdict']): Promise<number> {
@@ -588,10 +588,15 @@ function authenticateSetupSnapshots(run: Record<string, unknown>, config: ReSimC
     if (canonicalJson(setup.weekly) !== canonicalJson(expectedWeekly)) return snapshotNotAuthentic();
   }
   const gauntletWeek = typeof summary.gauntlet === 'string' ? summary.gauntlet : '';
-  if (!gauntletWeek && 'gauntlet' in setup) return snapshotNotAuthentic();
+  if (!gauntletWeek && ('gauntlet' in setup || 'gauntletProtocol' in setup)) return snapshotNotAuthentic();
   if (gauntletWeek) {
-    if (!config.weeklyGauntlet || !('gauntlet' in setup)) return snapshotNotAuthentic();
-    if (canonicalJson(setup.gauntlet) !== canonicalJson(config.weeklyGauntlet)) return snapshotNotAuthentic();
+    if ('gauntletProtocol' in setup) {
+      const proto = setup.gauntletProtocol as Record<string, unknown>;
+      if (proto.week !== gauntletWeek) return snapshotNotAuthentic();
+    } else {
+      if (!config.weeklyGauntlet || !('gauntlet' in setup)) return snapshotNotAuthentic();
+      if (canonicalJson(setup.gauntlet) !== canonicalJson(config.weeklyGauntlet)) return snapshotNotAuthentic();
+    }
   }
   return null;
 }
@@ -775,6 +780,102 @@ export const submitGauntletScore = onCall(
     const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
     if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
     return processSubmit({ ...claim, uid: authUid, freeplay: false, gauntlet: week }, week, 'gauntlet');
+  },
+);
+
+export const submitGauntletProtocolScore = onCall(
+  callableOptions(10, 300),
+  async (req: CallableRequest): Promise<SubmitResult> => {
+    const authUid = requireAuthUid(req);
+    const week = String((req.data as Record<string, unknown> | undefined)?.week ?? '');
+    if (!WEEKLY_BOARD_RE.test(week)) throw new HttpsError('invalid-argument', 'bad-gauntlet-protocol');
+    if (!weeklyIsCurrent(week)) throw new HttpsError('failed-precondition', 'stale-gauntlet-protocol');
+    const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
+    if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
+    const runIds = ((req.data as Record<string, unknown> | undefined)?.runIds as unknown[] | undefined ?? [])
+      .map((id) => String(id))
+      .filter((id, index, rows) => RUN_ID_RE.test(id) && rows.indexOf(id) === index)
+      .slice(0, 3);
+    if (runIds.length < 1 || claim.runId !== runIds[runIds.length - 1]) throw new HttpsError('invalid-argument', 'bad-leg-runids');
+
+    const replay = await checkReplay({ ...claim, uid: authUid, freeplay: false, gauntlet: week }, week, 'gauntlet');
+    if (replay.reason) return { accepted: false, reason: replay.reason, claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+
+    const legDocs = await Promise.all(runIds.map((runId) => db.doc(`runs/${runId}`).get()));
+    if (legDocs.some((snap) => !snap.exists)) {
+      return { accepted: false, reason: 'missing-leg-replay', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+    }
+    const runs = legDocs.map((snap) => snap.data() as Record<string, unknown>);
+    const metas = runs.map((run) => ((run.setup as Record<string, unknown> | undefined)?.gauntletProtocol ?? null) as Record<string, unknown> | null);
+    if (metas.some((meta) => !meta)) {
+      return { accepted: false, reason: 'missing-gauntlet-protocol-setup', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+    }
+    const route = canonicalJson(metas[0]?.route);
+    const gauntletRunId = String(metas[0]?.gauntletRunId ?? '');
+    for (let i = 0; i < runIds.length; i++) {
+      const summary = (runs[i].summary ?? {}) as Record<string, unknown>;
+      if (metas[i]?.week !== week || n(metas[i]?.leg) !== i + 1 || canonicalJson(metas[i]?.route) !== route || String(metas[i]?.gauntletRunId ?? '') !== gauntletRunId) {
+        return { accepted: false, reason: 'leg-metadata-mismatch', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+      }
+      if (summary.gauntlet !== week || n(summary.gauntletLeg) !== i + 1) {
+        return { accepted: false, reason: 'leg-summary-mismatch', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+      }
+      const outcome = String(summary.outcome ?? '');
+      if (i < runIds.length - 1 && outcome !== 'victory') {
+        return { accepted: false, reason: 'prior-leg-not-victory', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+      }
+      if (runIds.length < 3 && i === runIds.length - 1 && outcome !== 'gameover') {
+        return { accepted: false, reason: 'incomplete-run-not-overrun', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+      }
+      if (i > 0) {
+        const previousSummary = (runs[i - 1].summary ?? {}) as Record<string, unknown>;
+        const expectedCash = Math.floor(Math.max(0, Math.floor(n(previousSummary.credits))) * 0.6);
+        const expectedCores = Math.max(1, Math.floor(n(previousSummary.coresLeft)));
+        if (n(metas[i]?.startingCredits) !== expectedCash || n(metas[i]?.startingCores) !== expectedCores) {
+          return { accepted: false, reason: 'bank-mismatch', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+        }
+      }
+      const verified = await verifyRunCore(runIds[i], [], 'gauntlet-protocol-submit');
+      if (verified.verdict !== 'verified') {
+        return { accepted: false, reason: `leg-${i + 1}-${verified.verdict}`, claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+      }
+    }
+
+    if (!(await allowRateLimitedAction(authUid))) {
+      return { accepted: false, reason: 'rate-limited', claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave } };
+    }
+    const acceptedAt = Date.now();
+    const totals = runs.reduce<{ wave: number; kills: number; cash: number }>((acc, run) => {
+      const summary = (run.summary ?? {}) as Record<string, unknown>;
+      acc.wave += Math.max(0, Math.floor(n(summary.wave)));
+      acc.kills += Math.max(0, Math.floor(n(summary.kills)));
+      acc.cash += Math.max(0, Math.floor(n(summary.cashEarned)));
+      return acc;
+    }, { wave: 0, kills: 0, cash: 0 });
+    const stored = {
+      name: claim.name,
+      cash: totals.cash,
+      kills: totals.kills,
+      wave: totals.wave,
+      freeplay: false,
+      ts: acceptedAt,
+      clientTs: claim.ts,
+      uid: authUid,
+      runId: claim.runId,
+      gauntlet: week,
+      gauntletRunId,
+      gauntletRunIds: runIds,
+      route: metas[0]?.route,
+      serverTs: FieldValue.serverTimestamp(),
+      verify: 'verified',
+    };
+    const docId = `${authUid}_${gauntletRunId}`.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 180);
+    await db.collection(`gauntletProtocolBoards/${week}/scores`).doc(docId).set(stored, { merge: false });
+    return {
+      accepted: true,
+      claimed: { cash: claim.cash, kills: claim.kills, wave: claim.wave },
+      accepted_values: { cash: totals.cash, kills: totals.kills, wave: totals.wave },
+    };
   },
 );
 

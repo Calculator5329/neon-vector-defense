@@ -2918,6 +2918,9 @@ body.game-blocking-overlay .fb-root.on-game {
   cursor: pointer;
   overflow-y: auto;
 }
+.gauntlet-draft-overlay {
+  z-index: 151;
+}
 .cutscene-box {
   text-align: center;
   max-width: 860px;

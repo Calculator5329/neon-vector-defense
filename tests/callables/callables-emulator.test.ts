@@ -23,8 +23,17 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { setBalanceDoc } from '../../src/game/balanceConfig';
+import { Bot } from '../../src/game/bot';
 import { dailyChallengeForDate } from '../../src/game/dailyChallenge';
 import { Game } from '../../src/game/engine';
+import {
+  currentGauntletProtocolId,
+  gauntletProtocolDifficulty,
+  gauntletProtocolMap,
+  gauntletProtocolRouteForWeek,
+  nextGauntletCredits,
+  type GauntletProtocolLeg,
+} from '../../src/game/gauntletProtocol';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import type { RunUploadBundle } from '../../src/game/runTelemetry';
 import { replayActionHash } from '../../functions/src/replayIntegrity.ts';
@@ -323,6 +332,59 @@ function makeRealDailyRunBundle(dateKey = '2026-06-01'): RunUploadBundle {
   }
 }
 
+function makeGauntletProtocolBundles(week = currentGauntletProtocolId()): RunUploadBundle[] {
+  const route = gauntletProtocolRouteForWeek(week);
+  const gauntletRunId = `gp_${unique('protocol')}`.slice(0, 40);
+  const bundles: RunUploadBundle[] = [];
+  let credits = 90_000_000;
+  let cores = 150;
+  setBalanceDoc(LIVE_BALANCE_DOC);
+  try {
+    for (const leg of [1, 2, 3] as const) {
+      const map = gauntletProtocolMap(route, leg);
+      const diff = gauntletProtocolDifficulty(leg);
+      const game = new Game(map, diff, { seed: 12_345 + leg, lifetimeKills: 1_000_000 });
+      const meta: GauntletProtocolLeg = {
+        week,
+        gauntletRunId,
+        leg,
+        route: route.route,
+        startingCredits: credits,
+        startingCores: cores,
+        relicIds: [],
+        previousRunId: bundles[leg - 2]?.run.runId,
+      };
+      game.startGauntletProtocolLeg(meta);
+      game.paused = false;
+      game.setSpeed(4);
+      const bot = new Bot(game, 'expert', () => 0.3);
+      const dt = 1 / 20;
+      for (let i = 0; i < 3_000 && game.phase === 'build'; i += 1) {
+        bot.act(i * 0.3);
+        game.update(dt);
+      }
+      game.autoNext = true;
+      game.startWave();
+      for (let i = 0; i < 300_000 && game.phase !== 'victory' && game.phase !== 'gameover'; i += 1) {
+        game.update(dt);
+      }
+      assert.equal(game.phase, 'victory', `protocol leg ${leg} should be a real verified victory`);
+      const bundle = game.buildRunUploadBundle('PROTO', 'callables-emulator-test');
+      const prev = bundles[bundles.length - 1];
+      if (prev?.run.setup.gauntletProtocol) {
+        prev.run.setup.gauntletProtocol.nextRunId = bundle.run.runId;
+        prev.run.summary.gauntletNextRunId = bundle.run.runId;
+      }
+      bundles.push(bundle);
+      credits = nextGauntletCredits(game.credits);
+      cores = game.lives;
+    }
+    return bundles;
+  } finally {
+    setBalanceDoc(null);
+  }
+}
+
 async function seedRunBundle(bundle: RunUploadBundle, rowId: string, options: { replayToken?: string; seedBoardRow?: boolean } = {}): Promise<void> {
   await withAdminDb(async (db) => {
     await setDoc(doc(db, 'config/balance'), LIVE_BALANCE_DOC);
@@ -498,6 +560,72 @@ describe('callable score submission', () => {
     const row = await adminDocData(`gauntletBoards/${week}/scores/${user.uid}_${seeded.runId}`);
     assert.equal(row?.gauntlet, week);
     assert.equal(row?.freeplay, false);
+  });
+
+  test('submitGauntletProtocolScore accepts a verified three-leg chain and stores aggregate totals', async () => {
+    const user = signedInUser('protocolhappy');
+    const week = currentGauntletProtocolId();
+    const bundles = makeGauntletProtocolBundles(week);
+    const replayToken = `tok_${unique('protocol')}`;
+    for (const bundle of bundles) {
+      await seedRunBundle(bundle, `unused-${unique('protocol')}`, { replayToken, seedBoardRow: false });
+    }
+    const finalRun = bundles[2].run;
+
+    const result = await callCallable<SubmitResult>('submitGauntletProtocolScore', {
+      week,
+      runIds: bundles.map((bundle) => bundle.run.runId),
+      entry: scoreEntry(user, { runId: finalRun.runId, replayToken }, {
+        cash: finalRun.summary.cashEarned,
+        kills: finalRun.summary.kills,
+        wave: finalRun.summary.wave,
+        freeplay: false,
+        gauntlet: week,
+      }),
+    }, user);
+
+    assert.equal(result.accepted, true, result.reason ?? '');
+    const totals = bundles.reduce((acc, bundle) => {
+      acc.cash += bundle.run.summary.cashEarned;
+      acc.kills += bundle.run.summary.kills;
+      acc.wave += bundle.run.summary.wave;
+      return acc;
+    }, { cash: 0, kills: 0, wave: 0 });
+    assert.deepEqual(result.accepted_values, totals);
+    const gauntletRunId = bundles[0].run.setup.gauntletProtocol?.gauntletRunId ?? '';
+    const row = await adminDocData(`gauntletProtocolBoards/${week}/scores/${user.uid}_${gauntletRunId}`);
+    assert.equal(row?.gauntlet, week);
+    assert.equal(row?.cash, totals.cash);
+    assert.deepEqual(row?.gauntletRunIds, bundles.map((bundle) => bundle.run.runId));
+  });
+
+  test('submitGauntletProtocolScore rejects a tampered leg bank', async () => {
+    const user = signedInUser('protocolbankbad');
+    const week = currentGauntletProtocolId();
+    const bundles = makeGauntletProtocolBundles(week).map(cloneBundle);
+    if (bundles[1].run.setup.gauntletProtocol) bundles[1].run.setup.gauntletProtocol.startingCredits += 1;
+    const replayToken = `tok_${unique('protocolbank')}`;
+    for (const bundle of bundles) {
+      await seedRunBundle(bundle, `unused-${unique('protocolbank')}`, { replayToken, seedBoardRow: false });
+    }
+    const finalRun = bundles[2].run;
+
+    const result = await callCallable<SubmitResult>('submitGauntletProtocolScore', {
+      week,
+      runIds: bundles.map((bundle) => bundle.run.runId),
+      entry: scoreEntry(user, { runId: finalRun.runId, replayToken }, {
+        cash: finalRun.summary.cashEarned,
+        kills: finalRun.summary.kills,
+        wave: finalRun.summary.wave,
+        freeplay: false,
+        gauntlet: week,
+      }),
+    }, user);
+
+    assert.equal(result.accepted, false);
+    assert.equal(result.reason, 'bank-mismatch');
+    const gauntletRunId = bundles[0].run.setup.gauntletProtocol?.gauntletRunId ?? '';
+    assert.equal(await adminDocData(`gauntletProtocolBoards/${week}/scores/${user.uid}_${gauntletRunId}`), null);
   });
 
   test('submitScore rejects tampered replay manifests without writing a board row', async () => {

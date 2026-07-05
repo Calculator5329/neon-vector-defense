@@ -13,6 +13,7 @@ const callableExports = [
   'submitDailyScore',
   'submitWeeklyScore',
   'submitGauntletScore',
+  'submitGauntletProtocolScore',
   'verifyRun',
   'crownWeeklyGauntlet',
   'deleteMyData',

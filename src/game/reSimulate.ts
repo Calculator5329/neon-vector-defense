@@ -3,6 +3,7 @@ import { dailyChallengeForId } from './dailyChallenge';
 import { Game } from './engine';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { weeklyChallengeForId } from './weeklyChallenge';
+import { gauntletProtocolRouteForWeek } from './gauntletProtocol';
 import {
   REPLAY_ENGINE_VERSION,
   RUN_TELEMETRY_SCHEMA,
@@ -95,7 +96,13 @@ export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: st
     game.startDailyChallenge(challenge);
   }
   applyRecordedResources();
-  if (run.summary.gauntlet || run.setup.gauntlet) {
+  if (run.setup.gauntletProtocol) {
+    const route = gauntletProtocolRouteForWeek(run.setup.gauntletProtocol.week);
+    if (JSON.stringify(route.route) !== JSON.stringify(run.setup.gauntletProtocol.route)) {
+      return { error: 'gauntlet protocol route does not match week seed' };
+    }
+    game.startGauntletProtocolLeg(run.setup.gauntletProtocol);
+  } else if (run.summary.gauntlet || run.setup.gauntlet) {
     game.setGauntletChallenge(run.setup.gauntlet ?? null);
   }
   return { game };
@@ -340,6 +347,11 @@ function compareSummary(expected: PublicRunDoc['summary'], actual: PublicRunDoc[
     'diff',
     'freeplay',
     'daily',
+    'weekly',
+    'gauntlet',
+    'gauntletRunId',
+    'gauntletLeg',
+    'gauntletNextRunId',
     'contractId',
     'outcome',
     'phase',
