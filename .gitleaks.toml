@@ -1,4 +1,4 @@
-title = "Neon Vector Defense Gitleaks config"
+title = "Lantern 7 Gitleaks config"
 
 [allowlist]
 description = "Intentional public Firebase web config; access is controlled by Firebase rules and App Check."

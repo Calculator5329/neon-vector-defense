@@ -198,6 +198,9 @@ function SectorAtlas(props: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const weeklyRef = useRef<HTMLDivElement>(null);
+  // dock has two faces: campaign protocols vs seeded challenges (daily + weekly ops)
+  const [dockTab, setDockTab] = useState<'protocols' | 'challenges'>(
+    props.deployMode === 'campaign' ? 'protocols' : 'challenges');
   const dailyMods = dailyModifierNames(props.dailySeed);
   const selectedMap = ALL_MAPS.find((m) => m.id === props.map.id) ?? ALL_MAPS[0];
   const selectedMastery = masteryLevel(selectedMap.id);
@@ -262,9 +265,15 @@ function SectorAtlas(props: {
   };
 
   const openWeeklyOps = () => {
-    weeklyRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="weekly-mutation-card"]')?.focus();
+    // the beacon SELECTS the weekly mutation, it doesn't just point at it —
+    // clicking a glowing map node and having nothing change reads as broken
+    setDockTab('challenges');
+    props.setDeployMode('weekly');
     sfx.click();
+    requestAnimationFrame(() => {
+      weeklyRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="weekly-mutation-card"]')?.focus();
+    });
   };
 
   return (
@@ -298,6 +307,7 @@ function SectorAtlas(props: {
                 }
                 appMetrics.recordMapSelect(m.id);
                 props.setDeployMode('campaign');
+                setDockTab('protocols');
                 props.setMap(m);
                 sfx.click();
               }}
@@ -358,7 +368,23 @@ function SectorAtlas(props: {
           <div><span>Best wave</span><b>{selectedBest > 0 ? `W${selectedBest}` : '-'}</b></div>
           <div><span>Difficulty</span><b>{selectedMap.difficulty}</b></div>
         </div>
-        <div className="dock-section-title">PROTOCOL</div>
+        <div className="dock-tabs" role="tablist" aria-label="Deploy options">
+          <button
+            role="tab"
+            data-testid="dock-tab-protocols"
+            aria-selected={dockTab === 'protocols'}
+            className={dockTab === 'protocols' ? 'on' : ''}
+            onClick={() => { setDockTab('protocols'); sfx.click(); }}
+          >PROTOCOLS</button>
+          <button
+            role="tab"
+            data-testid="dock-tab-challenges"
+            aria-selected={dockTab === 'challenges'}
+            className={dockTab === 'challenges' ? 'on' : ''}
+            onClick={() => { setDockTab('challenges'); sfx.click(); }}
+          >CHALLENGES</button>
+        </div>
+        {dockTab === 'protocols' ? (
         <div className="diff-row atlas-protocols" data-testid="diff-row">
           {DIFFICULTIES.map((d) => {
             const locked = (d.id === 'hard' && props.apexLocked)
@@ -392,6 +418,9 @@ function SectorAtlas(props: {
               </button>
             );
           })}
+        </div>
+        ) : (
+        <div className="dock-challenges" ref={weeklyRef} data-testid="dock-challenges">
           <button
             className={`diff-card atlas-protocol-row daily-protocol ${props.deployMode === 'daily' ? 'active' : ''}`}
             data-testid="diff-card-daily"
@@ -403,9 +432,6 @@ function SectorAtlas(props: {
             <span className="diff-name">DAILY CHALLENGE</span>
             <span className="diff-desc daily-card-mods">{dailyMods.join(' / ')}</span>
           </button>
-        </div>
-        <div ref={weeklyRef}>
-          <div className="dock-section-title">WEEKLY OPS</div>
           <WeeklyOpsSection
             weeklySeed={props.weeklySeed}
             gauntlet={props.gauntlet}
@@ -415,6 +441,7 @@ function SectorAtlas(props: {
             setDeployMode={props.setDeployMode}
           />
         </div>
+        )}
       </aside>
     </section>
   );
@@ -493,8 +520,9 @@ export function MainMenu(props: {
         </div>
       )}
 
-      {/* one unified Commander Dossier (returning players) replaces the 3 ragged strips */}
-      {progress.record.runs > 0 ? (
+      {/* one unified Commander Dossier (returning players) replaces the 3 ragged strips.
+          Deploy-tab only: on Leaderboard/Operations it just pushed the content down. */}
+      {tab === 'deploy' && (progress.record.runs > 0 ? (
         <div className="commander-dossier">
           <div className="hero-stats">
             <span><b>{progress.record.victories}</b> lanterns held</span>
@@ -529,7 +557,7 @@ export function MainMenu(props: {
         </div>
       ) : (!DEMO_MODE && (
         <div className="menu-firsttime-note">COMMANDER INITIALIZED · CLEAR A SECTOR TO EARN YOUR WARDEN RANK</div>
-      ))}
+      )))}
 
       <div className={`menu-layout menu-tab-${tab}`}>
         <CommanderDossierRail onOpenOps={() => { setTab('ops'); sfx.click(); }} />

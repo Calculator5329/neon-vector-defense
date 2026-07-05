@@ -50,9 +50,9 @@ export default function DossierShare({ input, runId, compact }: { input: Dossier
       const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
       const canFiles = typeof nav.canShare === 'function' && nav.canShare({ files: [file] });
       if (canFiles) {
-        await navigator.share({ title: 'Neon Vector Defense', text, files: [file], ...(url ? { url } : {}) });
+        await navigator.share({ title: 'Lantern 7', text, files: [file], ...(url ? { url } : {}) });
       } else if (typeof nav.share === 'function') {
-        await navigator.share({ title: 'Neon Vector Defense', text, ...(url ? { url } : {}) });
+        await navigator.share({ title: 'Lantern 7', text, ...(url ? { url } : {}) });
       } else { return await onCopyCard(); }
       flash('Share sheet opened');
     } catch { flash('Share cancelled or unavailable', 'info'); }

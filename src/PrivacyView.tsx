@@ -31,7 +31,7 @@ function exportLocalData(): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'neon-vector-defense-my-data.json';
+  a.download = 'lantern-7-my-data.json';
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -79,11 +79,11 @@ export default function PrivacyView() {
       <div className="privacy-box">
         <button className="privacy-back" onClick={() => { location.href = '/'; }}>← BACK TO GAME</button>
         <h1 className="privacy-title">PRIVACY POLICY</h1>
-        <p className="privacy-meta">Neon Vector Defense · last updated 2026 · US players</p>
+        <p className="privacy-meta">Lantern 7 · last updated 2026 · US players</p>
 
         <section>
           <h2>The short version</h2>
-          <p>Neon Vector Defense is a browser game. You don't make an account and we don't ask for
+          <p>Lantern 7 is a browser game. You don't make an account and we don't ask for
             your name, email, or any contact info. We keep your progress on your own device and send
             a small amount of <b>anonymous</b> gameplay data to improve the game's balance.</p>
         </section>

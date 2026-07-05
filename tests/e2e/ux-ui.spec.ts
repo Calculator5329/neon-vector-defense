@@ -1329,6 +1329,7 @@ test.describe('run telemetry model', () => {
   test('daily challenge starts as a wave-one daily protocol', async ({ page }) => {
     await openDemoMenu(page);
     await expect(page.locator('[data-testid="daily-challenge-panel"]')).toHaveCount(0);
+    await page.getByTestId('dock-tab-challenges').click();
     await page.getByTestId('diff-card-daily').click();
     await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
     await expect(page.getByTestId('diff-card-daily')).toHaveAttribute('aria-pressed', 'true');
@@ -1389,6 +1390,7 @@ test.describe('run telemetry model', () => {
 
   test('weekly ops are discoverable and gauntlet absence is stable', async ({ page }) => {
     await openDemoMenu(page);
+    await page.getByTestId('dock-tab-challenges').click();
     await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
     await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
@@ -1403,6 +1405,7 @@ test.describe('run telemetry model', () => {
 
   test('weekly mutation starts as a wave-one weekly protocol', async ({ page }) => {
     await openDemoMenu(page);
+    await page.getByTestId('dock-tab-challenges').click();
     await page.getByTestId('weekly-mutation-card').click();
     await page.getByTestId('deploy-button').click();
     await expect(page.getByTestId('game-root')).toBeVisible();
@@ -1439,6 +1442,7 @@ test.describe('run telemetry model', () => {
       await page.evaluate(() => {
         localStorage.setItem('nvd-consent-v1', JSON.stringify({ ageBand: 'under13', sell: 'no', gpc: false, ts: 1 }));
       });
+      await page.getByTestId('dock-tab-challenges').click();
       await expect(page.getByTestId('gauntlet-protocol-card')).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId('gauntlet-protocol-card')).toHaveAttribute('aria-disabled', 'false');
       await page.getByTestId('gauntlet-protocol-card').click();
@@ -1477,6 +1481,7 @@ test.describe('run telemetry model', () => {
   test('daily challenge does not mutate campaign progress', async ({ page }) => {
     await seedProgress(page, { runs: 2, kills: 12, totalWaves: 4, archive: [], best: {}, history: [] });
     await page.goto('/');
+    await page.getByTestId('dock-tab-challenges').click();
     await page.getByTestId('diff-card-daily').click();
     await page.getByTestId('deploy-button').click();
     await expect(page.getByTestId('game-root')).toBeVisible();

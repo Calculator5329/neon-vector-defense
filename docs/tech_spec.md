@@ -1,6 +1,6 @@
 # Technical Specification
 
-Contracts, schemas, and environment configuration for Neon Vector Defense.
+Contracts, schemas, and environment configuration for Lantern 7.
 
 ## Stack
 

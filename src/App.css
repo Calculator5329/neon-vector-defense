@@ -264,6 +264,8 @@
 }
 .menu-main { min-width: 0; min-height: 0; display: flex; }
 .menu-layout .menu-content { margin-top: 0; width: 100%; }
+/* board/ops tabs have no dossier strip above them — pull the content up tight */
+.menu-layout.menu-tab-board, .menu-layout.menu-tab-ops { margin-top: 6px; }
 .commander-dossier { display: none !important; }
 .commander-rail {
   align-self: start;
@@ -789,6 +791,32 @@
   letter-spacing: 2.3px;
   color: var(--dim);
   text-transform: uppercase;
+}
+.dock-section-title { margin-bottom: 4px; }
+/* PROTOCOLS | CHALLENGES switcher inside the sector dock */
+.dock-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.dock-tabs button {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  padding: 8px 4px;
+  border-radius: 7px;
+  background: rgba(12, 18, 36, 0.55);
+  border: 1px solid var(--edge);
+  color: var(--dim);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.dock-tabs button.on { color: var(--gold); border-color: rgba(255, 211, 42, 0.45); }
+.dock-challenges {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .atlas-dock h2 {
   margin: -4px 0 0;
@@ -1753,6 +1781,38 @@
   color: #63d9f4;
   margin-bottom: 8px;
 }
+/* run-end tower unlock celebration — catches unlocks banked in the final combat */
+.debrief-unlocks {
+  text-align: left;
+  border: 1px solid rgba(255, 211, 42, 0.35);
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: linear-gradient(180deg, rgba(255, 211, 42, 0.07), rgba(8, 13, 28, 0.4));
+}
+.debrief-unlocks .debrief-section-title { color: var(--gold); }
+.debrief-unlock-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-block: 6px;
+}
+.debrief-unlock-row + .debrief-unlock-row { border-top: 1px solid rgba(65, 86, 145, 0.4); }
+.debrief-unlock-badge {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  border: 1px solid var(--tc, var(--edge));
+  background: rgba(10, 14, 26, 0.7);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tg, transparent) 35%, transparent);
+}
+.debrief-unlock-badge svg { width: 30px; height: 30px; }
+.debrief-unlock-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.debrief-unlock-text b { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1px; }
+.debrief-unlock-text i { font-style: normal; font-size: 10.5px; letter-spacing: 1.4px; color: var(--dim); text-transform: uppercase; }
+.debrief-unlock-text em { font-style: normal; font-size: 11.5px; line-height: 1.3; color: #b9c6e8; }
 .aar {
   text-align: left;
 }
@@ -3970,7 +4030,7 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .ops-chip.streak.warn .ops-chip-val { color: var(--gold); }
 .ops-chip.streak.warn .ops-chip-label { color: var(--gold); }
 
-.ops-board-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px; }
+.ops-board-head { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 4px; }
 .claim-all {
   --nvd-action-width: 144px;
   background: linear-gradient(#ffd95e, #ffcf4b);
@@ -3986,21 +4046,35 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 @keyframes claim-all-pulse { 0%, 100% { box-shadow: 0 0 0 rgba(255, 211, 42, 0); } 50% { box-shadow: 0 0 16px rgba(255, 211, 42, 0.6); } }
 .ops-board { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 720px) { .ops-board { grid-template-columns: 1fr; } }
+/* claim/purchase feedback is a fading toast, not a static strip in the layout */
 .ops-status {
-  min-height: 38px;
+  position: fixed;
+  left: 50%;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 80;
+  max-width: min(560px, calc(100vw - 32px));
   display: flex;
   align-items: center;
-  border: 1px solid rgba(75, 207, 250, 0.28);
-  border-radius: 8px;
-  padding: 9px 12px;
-  background: rgba(75, 207, 250, 0.08);
+  gap: 8px;
+  border: 1px solid rgba(75, 207, 250, 0.38);
+  border-radius: 10px;
+  padding: 11px 20px;
+  background: rgba(8, 13, 28, 0.92);
   color: #dce8ff;
+  font-family: 'Orbitron', sans-serif;
   font-size: 12px;
+  letter-spacing: 0.6px;
   line-height: 1.35;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5), 0 0 18px rgba(75, 207, 250, 0.14);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  opacity: 1;
+  transition: opacity 0.5s ease;
 }
-.ops-status.idle { visibility: hidden; }
-.ops-status.ok { border-color: rgba(46, 213, 115, 0.38); background: rgba(46, 213, 115, 0.08); }
-.ops-status.err { border-color: rgba(255, 107, 129, 0.38); background: rgba(255, 107, 129, 0.08); }
+.ops-status.idle { visibility: hidden; opacity: 0; transition: opacity 0.5s ease, visibility 0s 0.5s; }
+.ops-status.ok { border-color: rgba(46, 213, 115, 0.48); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5), 0 0 18px rgba(46, 213, 115, 0.2); }
+.ops-status.err { border-color: rgba(255, 107, 129, 0.48); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5), 0 0 18px rgba(255, 107, 129, 0.2); }
 .ops-col { display: flex; flex-direction: column; gap: 10px; }
 .ops-col .menu-section-label { margin-bottom: 4px; }
 .quest-card { padding: 13px 16px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--edge); transition: border-color 0.15s, box-shadow 0.15s; }
@@ -4334,7 +4408,8 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 }
 .palette-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(174px, 1fr));
+  /* wide enough that full palette names render — "Lan…"/"Sun…" told players nothing */
+  grid-template-columns: repeat(auto-fit, minmax(216px, 1fr));
 }
 .palette-chip {
   min-height: 44px;
@@ -4343,9 +4418,8 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 }
 .palette-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.15;
 }
 .palette-tag {
   margin-left: auto;

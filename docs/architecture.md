@@ -1,6 +1,6 @@
 # Architecture
 
-Neon Vector Defense is a single-page React app with a headless TypeScript game engine. The same engine powers live play, bot playtests, balance simulations, and admin analytics.
+Lantern 7 is a single-page React app with a headless TypeScript game engine. The same engine powers live play, bot playtests, balance simulations, and admin analytics.
 
 ## Layer model
 

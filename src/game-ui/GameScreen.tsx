@@ -1692,6 +1692,15 @@ function MusicButton() {
 function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: Game; map: GameMap; diff: DifficultyDef; reward: RunMetaReward | null; gauntletProtocolRunIds?: string[] }) {
   const submitEligible = game.phase === 'victory' ||
     (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge || game.isGauntletProtocol));
+  // Unlocks banked during the final combat never reach another build phase, so the
+  // mid-run unlock modal misses them — and the next run's silent back-fill would
+  // swallow the reveal entirely. Celebrate them here. The engine banks kills at run
+  // end, so progress.record.kills already includes this run.
+  const [freshUnlocks] = useState(() => (PERF_MAP !== null || DEMO_MODE) ? [] : TOWERS_BY_UNLOCK.filter(
+    (d) => d.unlockAt > 0 && d.unlockAt <= progress.record.kills && !progress.unlockSeen(d.id)));
+  useEffect(() => {
+    for (const d of freshUnlocks) progress.markUnlockSeen(d.id);
+  }, [freshUnlocks]);
   const clearedWaves = game.isGauntletProtocol && game.gauntletProtocol
     ? gauntletProtocolWaveCount(game.gauntletProtocol.leg)
     : diff.waves;
@@ -1712,6 +1721,23 @@ function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: 
             </div>
           ))}
         </div>
+        {freshUnlocks.length > 0 && (
+          <div className="debrief-unlocks" data-testid="debrief-unlocks">
+            <div className="debrief-section-title">◆ NEW INSTRUMENTS UNLOCKED ◆</div>
+            {freshUnlocks.map((d) => (
+              <div className="debrief-unlock-row" key={d.id}>
+                <span className="debrief-unlock-badge" style={{ ['--tc' as string]: d.color, ['--tg' as string]: d.glow }}>
+                  <TowerIcon def={d} />
+                </span>
+                <span className="debrief-unlock-text">
+                  <b style={{ color: d.glow }}>{d.name}</b>
+                  <i>{d.base.damageType} · ⌬{d.cost}</i>
+                  <em>{d.desc}</em>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         <MetaReward reward={reward} />
         <AfterAction game={game} />
       </div>

@@ -1,4 +1,4 @@
-# Neon Vector Defense — Idea Backlog
+# Lantern 7 — Idea Backlog
 
 > Full 80-idea audit (8 dimensions) + code-grounded planning pass. Generated 2026-06.
 
@@ -141,7 +141,7 @@ mining the older historical backlog below.
 
 ---
 
-# Neon Vector Defense — Whole-Game Idea Audit & Backlog
+# Lantern 7 — Whole-Game Idea Audit & Backlog
 
 ## State of the Game
 
@@ -512,7 +512,7 @@ Flag this explicitly to the executing engineer: **the simplest correct move is (
 
 ## 1. Overview
 
-Two coupled deliverables for Neon Vector Defense, both grounded in the existing run-end overlay and telemetry pipeline:
+Two coupled deliverables for Lantern 7, both grounded in the existing run-end overlay and telemetry pipeline:
 
 1. **Mission Dossier card** — at run end (`gameover` / `victory` / `armistice`, and freeplay bank), generate a 1200×630 canvas "dossier" PNG showing callsign, map/protocol, wave/outcome, top-3 carrying towers (from `runStats.dmg`), and a mini lane render. Wire up **Share** (Web Share API w/ file), **Copy to clipboard**, and **Download**.
 2. **`?run=<runId>` deep links** — a route that loads a public run doc from `runs/{runId}` and renders either the full replay viewer (if **Bet 1** ships) or, as the always-available fallback, a **result view** (dossier + after-action summary + "Play this sector" CTA). Includes link-unfurl handling: because `index.html` is static and there are no HTTP Cloud Functions, per-run OG is **not** dynamically achievable without new infra — the plan ships a static fallback OG card and documents the dynamic-OG option as a stretch.
@@ -624,7 +624,7 @@ export default function App() {
 **Verified constraints:** `index.html` is fully static (OG tags hardcoded, lines 21–33); hosting serves it for every route via the catch-all rewrite; **there are no `onRequest` HTTP Cloud Functions** (only `onCall` callables — `functions/src/index.ts:220/232/310`). Crawlers (Slack/Discord/Twitter/Facebook) **do not execute JS**, so any React-set `<meta>` is invisible to unfurlers.
 
 **Plan (ship now):**
-- Per-run dynamic OG is **out of scope** for the core feature. The shared link unfurls with the **existing static card** (`menu-bg.png`) plus generic title/description — acceptable and honest. Generate one purpose-built **`/og-card.png`** (1200×630, "Neon Vector Defense — View this mission dossier" styling) so shared `?run=` links get a card that reads as a shareable result rather than the menu screenshot. Point `og:image`/`twitter:image` to it (or leave menu-bg; decide in review).
+- Per-run dynamic OG is **out of scope** for the core feature. The shared link unfurls with the **existing static card** (`menu-bg.png`) plus generic title/description — acceptable and honest. Generate one purpose-built **`/og-card.png`** (1200×630, "Lantern 7 — View this mission dossier" styling) so shared `?run=` links get a card that reads as a shareable result rather than the menu screenshot. Point `og:image`/`twitter:image` to it (or leave menu-bg; decide in review).
 - The **real** shareable artifact is the **downloaded/clipboard PNG** from `DossierShare` — users paste the actual dossier image into Discord/social, which unfurls the image directly regardless of OG. This is the primary share path and needs no server.
 
 **Stretch (document, don't build):** true per-run OG requires either (a) a Firebase Hosting **rewrite to a Cloud Function** that detects bot user-agents and returns an HTML stub with per-run `<meta>` (image pointing at a server-rendered dossier PNG), or (b) prerender/SSR. This needs a new HTTP function + a server-side canvas renderer (`@napi-rs/canvas` in `functions/`) and a `firebase.json` rewrite `{"source":"/watch","function":"runOg"}`. Note it as a Phase 2 ticket with effort, not in scope here.

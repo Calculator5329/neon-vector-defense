@@ -1,5 +1,5 @@
 /**
- * Neon Vector Defense — server-side leaderboard gate + data deletion.
+ * Lantern 7 — server-side leaderboard gate + data deletion.
  *
  * submitScore / submitDailyScore / submitWeeklyScore / submitGauntletScore:
  *   the ONLY writers to boards/* and ritual board collections.

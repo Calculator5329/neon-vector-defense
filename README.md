@@ -1,11 +1,11 @@
-# Neon Vector Defense
+# Lantern 7
 
-[![Live game](https://img.shields.io/badge/live-Neon%20Vector%20Defense-22c55e?style=flat-square)](https://neon-vector-defense-7.web.app)
+[![Live game](https://img.shields.io/badge/live-Lantern%207-22c55e?style=flat-square)](https://neon-vector-defense-7.web.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-20232a?style=flat-square&logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
 
-Neon Vector Defense is a sci-fi tower defense game built with React,
+Lantern 7 is a sci-fi tower defense game built with React,
 TypeScript, and Canvas. It plays like a fast arcade defense game, but the
 interesting engineering is under the surface: procedural canvas rendering,
 headless balance simulations, bot playtests, local progression, generated art,

@@ -372,6 +372,7 @@ test.describe('QA audit screen screenshots', () => {
       await seedLocalState(page);
       await openMenu(page, '/?demo=1');
       await captureInDir(page, item.slug, `${item.name}-deploy-menu`);
+      await page.getByTestId('dock-tab-challenges').click();
       await page.getByTestId('diff-card-daily').click();
       await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
       await captureInDir(page, item.slug, `${item.name}-daily-selected`);

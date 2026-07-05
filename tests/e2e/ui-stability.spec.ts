@@ -196,7 +196,6 @@ test.describe('UI stability guardrails', () => {
     await settleLayout(page, 250);
     const opsBefore = await captureRects(page, {
       shop: '.ops-shop',
-      status: '.ops-status',
       boardHead: '.ops-board-head',
       board: '[data-testid="ops-board"]',
     });
@@ -206,7 +205,6 @@ test.describe('UI stability guardrails', () => {
     await settleLayout(page, 250);
     const opsAfterClaim = await captureRects(page, {
       shop: '.ops-shop',
-      status: '.ops-status',
       boardHead: '.ops-board-head',
       board: '[data-testid="ops-board"]',
     });

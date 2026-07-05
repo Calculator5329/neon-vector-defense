@@ -98,7 +98,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'rail', name: 'Railgun Post', short: 'RLG', cost: 420, unlockAt: 4200,
+    id: 'rail', name: 'Railgun Post', short: 'RLG', cost: 420, unlockAt: 5500,
     desc: 'Early precision rail post. It supplies utility, pierce, and finishers before the true siege guns come online.',
     lore: 'The slug arrives before the sound does. The sound never arrives — this is space.',
     color: '#ff6b6b', glow: '#ffa8a8', style: 'rail',
@@ -123,7 +123,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'missile', name: 'Missile Battery', short: 'MSL', cost: 540, unlockAt: 10500,
+    id: 'missile', name: 'Missile Battery', short: 'MSL', cost: 540, unlockAt: 18000,
     desc: 'Slow homing warheads for burst damage and boss pressure. Larger hits, fewer gimmicks, real armor-breaking upgrades.',
     lore: 'Old colonial ordnance, re-fused for drone signatures. Crude. Beloved.',
     color: '#ff9f43', glow: '#ffc48a', style: 'missile',
@@ -148,7 +148,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'drone', name: 'Drone Carrier', short: 'DRN', cost: 600, unlockAt: 15500,
+    id: 'drone', name: 'Drone Carrier', short: 'DRN', cost: 600, unlockAt: 28000,
     desc: 'Launches interceptor swarms that split fire across the lane. Broad coverage, sensor support, and many small kinetic hits.',
     lore: 'Fights the swarm with a swarm. The interceptors have started naming themselves.',
     color: '#1dd1a1', glow: '#8ef5d9', style: 'bolt',
@@ -173,7 +173,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 6800,
+    id: 'emp', name: 'EMP Spire', short: 'EMP', cost: 450, unlockAt: 11000,
     desc: 'Support pylon. Reveals cloaked hostiles and overclocks nearby towers.',
     lore: 'Sees through Vex phase-cloaks by listening for the silence they leave behind.',
     color: '#54a0ff', glow: '#a3ccff', style: 'support',
@@ -198,7 +198,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'cantor', name: 'Starlight Cantor', short: 'CNT', cost: 680, unlockAt: 31000,
+    id: 'cantor', name: 'Starlight Cantor', short: 'CNT', cost: 680, unlockAt: 60000,
     desc: 'Sings the beacon-tone at hulls, marking them with resonance: +10% damage taken per stack from all sources.',
     lore: 'The Continuity asked for one instrument that fights the way they would: by being heard.',
     color: '#f6e58d', glow: '#fff8c4', style: 'resonance',
@@ -223,7 +223,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'prismarr', name: 'Prism Array', short: 'PRM', cost: 1600, unlockAt: 190000,
+    id: 'prismarr', name: 'Prism Array', short: 'PRM', cost: 1600, unlockAt: 420000,
     desc: 'Focused photon lance that melts through entire convoys. Premium hardware.',
     lore: 'One was mounted on the Meridian Gate. The Gate held for nine years.',
     color: '#be2edd', glow: '#e0a6f5', style: 'beam',
@@ -249,7 +249,7 @@ export const TOWERS: TowerDef[] = [
   },
   // ---- the strange ones ----
   {
-    id: 'locust', name: 'Locust Shrine', short: 'LCS', cost: 900, unlockAt: 240000,
+    id: 'locust', name: 'Locust Shrine', short: 'LCS', cost: 900, unlockAt: 520000,
     desc: 'A reliquary of engineered nano-locusts. Periodically blesses its airspace with a devouring cloud that gnaws every hull.',
     lore: 'Salvaged from a dead world the Combine never touched. Whatever ate that world, we keep a cupful of it here, and it is grateful.',
     color: '#b8e994', glow: '#dff9c4', style: 'pulse',
@@ -274,7 +274,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1450, unlockAt: 300000,
+    id: 'requiem', name: 'Drowned Star Reliquary', short: 'DSR', cost: 1450, unlockAt: 650000,
     desc: 'Houses the cooling ember of a star that died protecting its system. Periodically exhales a requiem wave — an expanding ring that wounds everything it crosses.',
     lore: 'Stars do not die quietly. This one agreed to keep grieving on our side of the line.',
     color: '#f8a5c2', glow: '#ffd9e8', style: 'nova',
@@ -299,7 +299,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'watchfire', name: 'Watchfire Beacon', short: 'WFB', cost: 2500, unlockAt: 370000,
+    id: 'watchfire', name: 'Watchfire Beacon', short: 'WFB', cost: 2500, unlockAt: 800000,
     desc: 'Lantern Seven\'s own beacon, turned outward. A rotating lance of captured starlight that scours everything its beam crosses — continuous damage, no aiming, no cooldown.',
     lore: 'The light that guided a million ships home now sweeps the dark for the things that followed them. The keeper wept when they reversed the lens. Then they reversed it.',
     color: '#ffe8a3', glow: '#fff6d0', style: 'sweep',
@@ -325,7 +325,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'abyss', name: 'Abyss Gate', short: 'ABY', cost: 5200, unlockAt: 460000,
+    id: 'abyss', name: 'Abyss Gate', short: 'ABY', cost: 5200, unlockAt: 1000000,
     desc: 'Forbidden endgame tower. Opens a void gate on a target cluster, shredding defenses, dragging hulls backward, and freezing the lane around the breach.',
     lore: 'The gate does not fire. It briefly convinces the battlefield that somewhere else is closer.',
     color: '#6c5ce7', glow: '#c8b6ff', style: 'rift',
@@ -355,7 +355,7 @@ export const TOWERS: TowerDef[] = [
   },
   // ---- THE HOLLOW arsenal: light against the hunger ----
   {
-    id: 'ember', name: 'Ember Lattice', short: 'EMB', cost: 420, unlockAt: 22000,
+    id: 'ember', name: 'Ember Lattice', short: 'EMB', cost: 420, unlockAt: 42000,
     desc: 'Strings a lattice of caged starfire across its airspace — everything inside burns. The fire is energy, so armor and the Hollow are no shelter.',
     lore: 'Lantern-keepers lit a lattice of signal-fires when a relay went dark. This one never goes out, and it is no longer a signal.',
     color: '#ff7f50', glow: '#ffd0a0', style: 'pulse',
@@ -380,7 +380,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'anchor', name: 'Phase Anchor', short: 'ANC', cost: 700, unlockAt: 55000,
+    id: 'anchor', name: 'Phase Anchor', short: 'ANC', cost: 700, unlockAt: 115000,
     desc: 'A caged singularity that never fires. It rewrites where hulls ARE — pinning a column in a kill-pocket, or hurling it forward off its escorts. Its "ascension" is control, not damage.',
     lore: 'The civilian ancestor of the Abyss Gate: harbor-tugs once used it to berth freighters in a storm. The Concord kept the gentle version. The Combine did not.',
     color: '#8e7bef', glow: '#cdbcff', style: 'gravity',
@@ -408,7 +408,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'sunspear', name: 'Sunspear Battery', short: 'SUN', cost: 760, unlockAt: 72000,
+    id: 'sunspear', name: 'Sunspear Battery', short: 'SUN', cost: 760, unlockAt: 150000,
     desc: 'A focused spear of daylight on a rail. Energy, armor-shredding, and it sees through any cloak — built to put down the things the dark hides.',
     lore: 'Forged from the Meridian Gate\'s last working lens, after the Prism Array proved the principle. One shot, one dawn, repeated.',
     color: '#ffe066', glow: '#fff3a0', style: 'rail',
@@ -433,7 +433,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'siphon', name: 'Harmonic Siphon', short: 'SIP', cost: 700, unlockAt: 95000,
+    id: 'siphon', name: 'Harmonic Siphon', short: 'SIP', cost: 700, unlockAt: 200000,
     desc: 'Consumes resonance stacks for focused antiphon bursts, then scatters a weaker echo to nearby hulls.',
     lore: 'The Cantor sings. The Siphon answers by stealing the note from inside the hull.',
     color: '#9bffd4', glow: '#d8fff0', style: 'siphon',
@@ -458,7 +458,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'lure', name: 'Vector Lure', short: 'LUR', cost: 850, unlockAt: 150000,
+    id: 'lure', name: 'Vector Lure', short: 'LUR', cost: 850, unlockAt: 330000,
     desc: 'Tags a priority hull with a false command vector, forcing nearby defenses to focus it while escorts stumble.',
     lore: 'A single forged order in the Combine command stream: you are the center of the war now.',
     color: '#ff5fd2', glow: '#ffc2f0', style: 'lure',
@@ -509,7 +509,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'cinder', name: 'Cinder Mortar', short: 'CDR', cost: 800, unlockAt: 42000,
+    id: 'cinder', name: 'Cinder Mortar', short: 'CDR', cost: 800, unlockAt: 85000,
     desc: 'Lobs incendiary shells that splash, then leave the lane burning. The blast is a courtesy; the fire is the point.',
     lore: 'Loaded with the last of Relay 6\'s reactor coolant — which, it turns out, is not coolant at all once it meets air.',
     color: '#ff6348', glow: '#ffae6b', style: 'missile',
@@ -534,7 +534,7 @@ export const TOWERS: TowerDef[] = [
     ],
   },
   {
-    id: 'gauss', name: 'Gauss Bastion', short: 'GAU', cost: 1500, unlockAt: 122000,
+    id: 'gauss', name: 'Gauss Bastion', short: 'GAU', cost: 1500, unlockAt: 260000,
     desc: 'A fortress-grade gauss driver: one tungsten slug, unlimited range, obscene single-target punch. Raw kinetic, so shred the armor first.',
     lore: 'Salvaged from the Meridian Gate\'s anchor cannon. It does not aim so much as decide.',
     color: '#dfe6e9', glow: '#ffffff', style: 'rail',

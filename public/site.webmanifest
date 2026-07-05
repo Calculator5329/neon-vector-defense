@@ -1,6 +1,6 @@
 {
-  "name": "Neon Vector Defense",
-  "short_name": "NVD",
+  "name": "Lantern 7",
+  "short_name": "Lantern 7",
   "description": "A neon sci-fi tower defense game with deep upgrades, escalating protocols, and global leaderboards.",
   "id": "/",
   "start_url": "/",
@@ -15,7 +15,7 @@
     {
       "name": "Deploy",
       "short_name": "Deploy",
-      "description": "Open Neon Vector Defense at the sector deployment console.",
+      "description": "Open Lantern 7 at the sector deployment console.",
       "url": "/"
     }
   ],

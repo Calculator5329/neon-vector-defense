@@ -1,4 +1,4 @@
-// Core shared types for Neon Vector Defense
+// Core shared types for Lantern 7
 
 export interface Vec {
   x: number;

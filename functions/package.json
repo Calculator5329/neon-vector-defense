@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for Neon Vector Defense (leaderboard integrity + data deletion)",
+  "description": "Cloud Functions for Lantern 7 (leaderboard integrity + data deletion)",
   "type": "module",
   "engines": {
     "node": "22"

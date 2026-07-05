@@ -1,4 +1,4 @@
-﻿# Neon Vector Defense â€” Business Plan & Execution Order (v3)
+﻿# Lantern 7 â€” Business Plan & Execution Order (v3)
 
 *Consolidates the v1 business plan and v2 web-launch plan, reconciled against the actual
 codebase as of 2026-07-03. Strategy is unchanged; current shipped status and

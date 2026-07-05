@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from './game/meta';
 import { PALETTES, applyAccent } from './game/palette';
 import { sfx } from './game/sound';
@@ -10,11 +10,18 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
   const [, force] = useState(0);
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [flash, setFlash] = useState<{ xp: number; salvage: number; n: number } | null>(null);
+  const statusTimer = useRef<number | undefined>(undefined);
+  // status renders as a fixed toast that fades out on its own
+  const pushStatus = (s: { kind: 'ok' | 'err'; text: string }) => {
+    setStatus(s);
+    window.clearTimeout(statusTimer.current);
+    statusTimer.current = window.setTimeout(() => setStatus(null), 4200);
+  };
   const rerender = () => force((n) => n + 1);
   const showReward = (xp: number, salvage: number) => setFlash((f) => ({ xp, salvage, n: (f?.n ?? 0) + 1 }));
   // shared success epilogue for claim() and claimAll()
   const grant = (r: RunMetaReward, text: string) => {
-    setStatus({ kind: 'ok', text });
+    pushStatus({ kind: 'ok', text });
     showReward(r.xp, r.salvage);
     sfx.upgrade();
     rerender();
@@ -33,7 +40,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
     if (r) {
       grant(r, `Claimed ${r.breakdown[0]?.label ?? 'operation'}: +${r.xp} XP and +${r.salvage} salvage.`);
     } else {
-      setStatus({ kind: 'err', text: 'That operation is not ready to claim yet.' });
+      pushStatus({ kind: 'err', text: 'That operation is not ready to claim yet.' });
       sfx.error();
     }
   };
@@ -106,12 +113,12 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
                   else if (meta.buyCosmetic(`palette-${p.id}`, p.cost)) {
                     meta.equip('accent', p.id);
                     applyAccent();
-                    setStatus({ kind: 'ok', text: `${p.name} palette purchased and equipped.` });
+                    pushStatus({ kind: 'ok', text: `${p.name} palette purchased and equipped.` });
                     sfx.upgrade();
                     rerender();
                   }
                   else {
-                    setStatus({ kind: 'err', text: `${p.name} needs ${short} more salvage.` });
+                    pushStatus({ kind: 'err', text: `${p.name} needs ${short} more salvage.` });
                     sfx.error();
                   }
                 }}>
@@ -131,7 +138,6 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
       </div>
 
       <div className="ops-board-head">
-        <div className="menu-section-label">OPERATIONS BOARD</div>
         <button
           className={`quest-claim claim-all ${claimable >= 2 ? '' : 'is-placeholder'}`}
           disabled={claimable < 2}

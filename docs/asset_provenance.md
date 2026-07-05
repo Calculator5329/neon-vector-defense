@@ -1,6 +1,6 @@
 # Asset Provenance
 
-Neon Vector Defense separates source licensing from media asset rights.
+Lantern 7 separates source licensing from media asset rights.
 
 ## MIT-covered material
 
@@ -15,7 +15,7 @@ and are not covered by the MIT code license:
 - `public/art/`
 - `public/audio/`
 
-These assets were generated for Neon Vector Defense through local generation
+These assets were generated for Lantern 7 through local generation
 scripts and AI media tooling, including OpenRouter-backed image/audio workflows.
 They are included so the live game, local development build, recruiter demo,
 and screenshots work out of the box.
