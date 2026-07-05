@@ -179,7 +179,6 @@ test.describe('UI stability guardrails', () => {
       topbar: '.menu-topbar',
       globalBoard: '.board-global',
       localBoard: '.board-local',
-      deployBar: '.deploy-bar',
     });
     await resetLayoutShiftObserver(page);
     await expect(page.getByText(/Leaderboard uplink failed|No global records|Establishing uplink/)).toBeVisible({ timeout: 10_000 });
@@ -188,7 +187,6 @@ test.describe('UI stability guardrails', () => {
       topbar: '.menu-topbar',
       globalBoard: '.board-global',
       localBoard: '.board-local',
-      deployBar: '.deploy-bar',
     });
     expectStableRects(leaderboardBefore, leaderboardAfter, 'leaderboard async settle', 1);
     await expectNoLayoutShifts(page, 'leaderboard async settle');
@@ -201,7 +199,6 @@ test.describe('UI stability guardrails', () => {
       status: '.ops-status',
       boardHead: '.ops-board-head',
       board: '[data-testid="ops-board"]',
-      deployBar: '.deploy-bar',
     });
     await resetLayoutShiftObserver(page);
     await page.getByRole('button', { name: /^CLAIM ALL/ }).click();
@@ -212,7 +209,6 @@ test.describe('UI stability guardrails', () => {
       status: '.ops-status',
       boardHead: '.ops-board-head',
       board: '[data-testid="ops-board"]',
-      deployBar: '.deploy-bar',
     });
     expectStableRects(opsBefore, opsAfterClaim, 'operations claim all', 1);
     await expectNoLayoutShifts(page, 'operations claim all');
@@ -245,7 +241,6 @@ test.describe('UI stability guardrails', () => {
     const feedbackBefore = await captureRects(page, {
       panel: '.fb-panel',
       toggle: '.fb-toggle',
-      deployBar: '.deploy-bar',
     });
     await resetLayoutShiftObserver(page);
     await page.getByRole('button', { name: 'Send message to developer' }).click();
@@ -255,7 +250,6 @@ test.describe('UI stability guardrails', () => {
     const feedbackAfter = await captureRects(page, {
       panel: '.fb-panel',
       toggle: '.fb-toggle',
-      deployBar: '.deploy-bar',
     });
     expectStableRects(feedbackBefore, feedbackAfter, 'feedback send state', 1);
     await expectNoLayoutShifts(page, 'feedback send state');

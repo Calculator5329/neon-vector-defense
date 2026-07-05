@@ -774,7 +774,14 @@
   flex-direction: column;
   gap: 11px;
   background: linear-gradient(180deg, rgba(12, 18, 36, 0.82), rgba(5, 8, 18, 0.94));
+  /* the dock must never inflate the section under the fixed deploy bar —
+     it scrolls instead once the protocol + weekly-ops stacks outgrow the viewport */
+  min-height: 0;
+  max-height: max(360px, calc(100vh - 320px));
+  overflow-y: auto;
 }
+.atlas-dock .diff-card,
+.atlas-dock .weekly-op-card { scroll-margin-bottom: 120px; }
 .dock-kicker,
 .dock-section-title {
   font-family: 'Orbitron', sans-serif;
