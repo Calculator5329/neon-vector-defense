@@ -39,6 +39,14 @@ import type { AbilityId, Enemy, TowerDef } from './game/types';
 
 const FADE_S = 0.45;     // tower fade-in duration (game-seconds) after placedAtS
 const REPLAY_SPEEDS = [0.5, 1, 2, 4, 5, 10] as const;
+// Per-frame bounds for driver seeks. A long backward scrub re-simulates from t=0
+// (up to ~90k ticks for a 25-minute run); slicing keeps every frame under
+// SEEK_SLICE_MS so the UI stays at 60fps and a SIMULATING overlay shows
+// convergence instead of a frozen canvas. The ms deadline (checked inside the
+// driver) is the real bound — tick cost varies ~40x with enemy density — and
+// the tick cap is just a safety ceiling for pathological hardware timers.
+const SEEK_SLICE_TICKS_MAX = 30_000;
+const SEEK_SLICE_MS = 8;
 const CALLOUT_S = 1.8;
 const EVENT_FEED_S = 3.2;
 const ABILITY_DURATIONS: Partial<Record<AbilityId, number>> = {
@@ -497,6 +505,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   }, [run]);
 
   const tRef = useRef(t0);
+  const seekPendingRef = useRef(false); // a budgeted driver seek is still converging
   const playingRef = useRef(true);
   const speedRef = useRef(1);
   const lastTsRef = useRef(0);
@@ -564,13 +573,28 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     if (!ctx) return;
     const time = tRef.current;
 
-    // Frame-accurate path: step the real engine to `time` and draw it with the live
-    // renderer. Audio is silenced only around the sim step so the engine's own
-    // sfx/vox don't fire, while the viewer's UI clicks stay audible.
+    // Frame-accurate path: step the real engine toward `time` and draw it with the
+    // live renderer. Audio is silenced only around the sim step so the engine's own
+    // sfx/vox don't fire, while the viewer's UI clicks stay audible. Seeks are
+    // budgeted per frame — while a long rewind converges, we render the engine's
+    // in-flight state under a SIMULATING overlay instead of freezing the thread.
     if (driver) {
       setReplaySilent(true);
-      try { driver.seekTo(time); } finally { setReplaySilent(false); }
+      let settled = true;
+      try { settled = driver.seekTo(time, SEEK_SLICE_TICKS_MAX, SEEK_SLICE_MS); } finally { setReplaySilent(false); }
+      seekPendingRef.current = !settled;
       render(ctx, driver.game, REPLAY_RENDER_UI);
+      if (!settled) {
+        const p = driver.seekProgress ?? 0;
+        ctx.fillStyle = 'rgba(4, 7, 16, 0.45)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#7efff5';
+        ctx.font = '600 15px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`SIMULATING… ${Math.round(p * 100)}%`, W / 2, H / 2);
+        ctx.textAlign = 'start';
+        return;
+      }
       drawCallout(ctx, waveWindow(run, time), time, span);
       drawEventFeed(ctx, run.events, time);
       return;
@@ -676,7 +700,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       const dt = Math.min(0.1, (ts - last) / 1000);
       lastTsRef.current = ts;
 
-      if (playingRef.current) {
+      if (playingRef.current && !seekPendingRef.current) {
         tRef.current += dt * speedRef.current;
         if (tRef.current >= tEnd) {
           tRef.current = tEnd;
@@ -684,25 +708,36 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
           setPlaying(false);
         }
       }
-      let frame: ReconFrame;
+      let hudWave = 0;
       if (driver) {
-        draw(null); // seeks the engine to tRef and renders it
-        frame = frameFromDriver(driver.game, tRef.current);
+        draw(null); // steps the engine toward tRef (budgeted) and renders it
+        hudWave = driver.game.wave;
+        // HUD re-renders at 4 Hz, and only once the seek has settled — building
+        // a frame every rAF allocated a towers array per frame for no reason.
+        if (!seekPendingRef.current) {
+          const idx = Math.floor(tRef.current * 4);
+          if (idx !== lastIdxRef.current) {
+            lastIdxRef.current = idx;
+            setHud(frameFromDriver(driver.game, tRef.current));
+          }
+        }
       } else {
-        frame = reconstructAt(run, tRef.current);
+        const frame = reconstructAt(run, tRef.current);
         draw(frame);
+        hudWave = frame.snap.wave;
+        // only re-render HUD when the active keyframe changes
+        if (frame.idx !== lastIdxRef.current) { lastIdxRef.current = frame.idx; setHud(frame); }
       }
-      needsDrawRef.current = false;
+      // while a budgeted seek converges, keep pumping frames even when paused
+      needsDrawRef.current = seekPendingRef.current;
       // move playhead + progress fill without a React render
       const posPct = ((tRef.current - t0) / span) * 100;
       if (playheadRef.current) playheadRef.current.style.left = `${posPct}%`;
       if (progressRef.current) progressRef.current.style.width = `${posPct}%`;
       if (barRef.current) {
         barRef.current.setAttribute('aria-valuenow', String(Math.round(tRef.current - t0)));
-        barRef.current.setAttribute('aria-valuetext', `Wave ${frame.snap.wave}, ${Math.round(tRef.current - t0)} of ${Math.round(span)} seconds`);
+        barRef.current.setAttribute('aria-valuetext', `Wave ${hudWave}, ${Math.round(tRef.current - t0)} of ${Math.round(span)} seconds`);
       }
-      // only re-render HUD when the active keyframe changes
-      if (frame.idx !== lastIdxRef.current) { lastIdxRef.current = frame.idx; setHud(frame); }
     };
     // paint a static first frame synchronously so the board shows the instant we mount,
     // even before rAF ramps or if the tab loads in the background

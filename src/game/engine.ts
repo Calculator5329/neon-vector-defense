@@ -185,6 +185,11 @@ export class Game {
   projectiles: Projectile[] = [];
   particles: Particle[] = [];
   beams: Beam[] = [];
+  /** Mute cosmetic FX creation (particles/beams). Replay playback sets this while
+   *  fast-forwarding thousands of catch-up ticks the player never sees — FX are
+   *  render-only by invariant (meta:sim), so muting cannot change sim outcomes,
+   *  it only cuts allocation/GC churn during seeks. */
+  fxMuted = false;
   burnZones: BurnZone[] = [];
   pickups: Pickup[] = [];
   novas: { pos: Vec; r: number; maxR: number; damage: number; slowPower: number; slowDuration: number; color: string; hit: Set<number>; src: Tower }[] = [];
@@ -1367,8 +1372,10 @@ export class Game {
           }
         }
         // visual: vertical lance + double shockwave
-        this.beams.push({ from: { x: target.x, y: -20 }, to: { ...target }, color: '#ffffff', width: 9, life: 0.35, maxLife: 0.35 });
-        this.beams.push({ from: { x: target.x, y: -20 }, to: { ...target }, color: '#ffd32a', width: 18, life: 0.25, maxLife: 0.25 });
+        if (!this.fxMuted) {
+          this.beams.push({ from: { x: target.x, y: -20 }, to: { ...target }, color: '#ffffff', width: 9, life: 0.35, maxLife: 0.35 });
+          this.beams.push({ from: { x: target.x, y: -20 }, to: { ...target }, color: '#ffd32a', width: 18, life: 0.25, maxLife: 0.25 });
+        }
         this.explosionFx(target, '#ffd32a', radius);
         this.explosionFx(target, '#ffffff', radius * 0.6);
         this.shake = 1;
@@ -2452,6 +2459,7 @@ export class Game {
   }
 
   private addBeam(from: Vec, to: Vec, color: string, width: number, life: number) {
+    if (this.fxMuted) return;
     if (this.beams.length >= 70) this.beams.shift(); // pool cap: late waves stay smooth
     this.beams.push({ from: { ...from }, to: { ...to }, color, width, life, maxLife: life });
   }
@@ -2459,6 +2467,7 @@ export class Game {
   /** spawn a particle, reusing a pooled object when available (no allocation) */
   emit(kind: Particle['kind'], x: number, y: number, vx: number, vy: number,
        life: number, size: number, color: string, text?: string) {
+    if (this.fxMuted) return;
     if (this.particles.length > 280) return;
     let p = this.particlePool.pop();
     if (p) {

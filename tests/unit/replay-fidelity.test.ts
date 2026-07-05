@@ -85,6 +85,37 @@ describe('replay v3 fidelity', () => {
     assert.equal(driver.game.enemies.length, forwardEnemies);
   });
 
+  test('budgeted seeks converge to the identical state as synchronous seeks', () => {
+    const bundle = recordSeededRun(10);
+    const sync = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+    const budgeted = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+    assert.ok(sync && budgeted);
+
+    const midT = sync.endT * 0.6;
+    sync.seekTo(midT);
+
+    // Converge in small slices, as the viewer does one slice per animation frame.
+    assert.equal(budgeted.seekTo(midT, 25), false, 'tiny budget must report unfinished');
+    assert.ok((budgeted.seekProgress ?? 0) > 0 && (budgeted.seekProgress ?? 1) < 1);
+    let slices = 1;
+    while (!budgeted.seekTo(midT, 200) && slices < 10_000) slices++;
+    assert.ok(slices < 10_000, 'budgeted seek must converge');
+    assert.equal(budgeted.seekProgress, null, 'settled seek clears progress');
+
+    assert.equal(budgeted.game.totalKills, sync.game.totalKills);
+    assert.equal(budgeted.game.enemies.length, sync.game.enemies.length);
+    assert.equal(budgeted.game.credits, sync.game.credits);
+    assert.equal(budgeted.game.lives, sync.game.lives);
+    assert.equal(budgeted.game.fxMuted, false, 'fx muting must never leak out of a seek');
+
+    // Backward budgeted seek (rebuilds from t=0 in slices) matches a fresh sync seek too.
+    const backT = sync.endT * 0.25;
+    sync.seekTo(backT);
+    while (!budgeted.seekTo(backT, 200)) { /* converge */ }
+    assert.equal(budgeted.game.totalKills, sync.game.totalKills);
+    assert.equal(budgeted.game.enemies.length, sync.game.enemies.length);
+  });
+
   test('playback gate keeps campaign-scale runs frame-accurate, drops marathons on duration', () => {
     const bundle = recordSeededRun(8);
     // Regression: a 60-wave Veteran victory is ~65k kills. The old 30k KILL cap

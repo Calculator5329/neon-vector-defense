@@ -430,8 +430,18 @@ export interface ReplayPlayback {
   readonly game: Game;
   /** seconds of the final recorded tick (scrub domain upper bound) */
   readonly endT: number;
-  /** advance/rewind the sim so game reflects state at scrub time `tSeconds` */
-  seekTo(tSeconds: number): void;
+  /** 0..1 fraction of a still-pending seek, or null when settled */
+  readonly seekProgress: number | null;
+  /** Advance/rewind the sim toward scrub time `tSeconds`, stepping at most
+   *  `budgetTicks` engine ticks AND at most `budgetMs` wall-clock this call.
+   *  Returns true when the game reflects the target; false means "keep calling
+   *  next frame" — this is what keeps a long backward scrub from freezing the
+   *  render thread (a 25-minute run is ~90k ticks re-simulated from t=0).
+   *  Tick cost varies ~40x with enemy density, so the ms deadline is what
+   *  actually bounds a frame; budgets only bound WHERE a slice pauses, never
+   *  the final state (ticks are ticks). Omit both for the old synchronous
+   *  behavior (tests, one-shot consumers). */
+  seekTo(tSeconds: number, budgetTicks?: number, budgetMs?: number): boolean;
 }
 
 // Deep-freeplay marathons would stutter: a backward scrub re-steps the whole run
@@ -513,26 +523,59 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
 
   const currentTick = () => Math.round(game.time / Game.SIM_STEP);
 
-  const seekTo = (tSeconds: number) => {
-    withPlaybackBalance(() => {
-      const targetTick = Math.max(0, Math.round(tSeconds / Game.SIM_STEP));
-      if (targetTick < currentTick()) reset();
-      while (cursor < actions.length && actions[cursor].tick <= targetTick) {
-        const { event, tick } = actions[cursor];
-        game.speed = currentSpeed;
-        advanceToTick(game, tick);
-        applyAction(game, event);
-        currentSpeed = eventSpeed(event) ?? currentSpeed;
-        cursor++;
-      }
-      game.speed = currentSpeed;
-      advanceToTick(game, targetTick);
-    });
+  let pendingTick: number | null = null;
+
+  // Step toward `tick`, spending at most budget.left engine ticks. Cosmetic FX
+  // are muted for all but the final second of catch-up so a long seek doesn't
+  // churn thousands of never-rendered particles/beams through the GC; muting is
+  // sim-safe because FX are render-only (the meta:sim invariant).
+  const stepToward = (tick: number, finalTick: number, budget: { left: number; deadline: number }): boolean => {
+    const limit = Math.max(0, tick * Game.SIM_STEP) + Game.SIM_STEP / 2;
+    const unmuteTick = finalTick - 60;
+    let stepped = 0;
+    while (game.time + Game.SIM_STEP / 2 < limit && game.phase !== 'gameover' && budget.left > 0) {
+      game.fxMuted = currentTick() < unmuteTick;
+      game.update(Game.SIM_STEP / replaySpeed(game.speed));
+      budget.left--;
+      // wall-clock deadline check every 64 ticks: cheap, and the only reliable
+      // per-frame bound given ~40x tick-cost variance across enemy density
+      if ((++stepped & 63) === 0 && performance.now() > budget.deadline) budget.left = 0;
+    }
+    game.fxMuted = false;
+    return game.time + Game.SIM_STEP / 2 >= limit || game.phase === 'gameover';
   };
+
+  const seekTo = (
+    tSeconds: number,
+    budgetTicks = Number.POSITIVE_INFINITY,
+    budgetMs = Number.POSITIVE_INFINITY,
+  ): boolean => withPlaybackBalance(() => {
+    const targetTick = Math.max(0, Math.round(tSeconds / Game.SIM_STEP));
+    if (targetTick < currentTick()) reset();
+    const budget = {
+      left: budgetTicks,
+      deadline: Number.isFinite(budgetMs) ? performance.now() + budgetMs : Number.POSITIVE_INFINITY,
+    };
+    while (cursor < actions.length && actions[cursor].tick <= targetTick) {
+      const { event, tick } = actions[cursor];
+      game.speed = currentSpeed;
+      if (!stepToward(tick, targetTick, budget)) { pendingTick = targetTick; return false; }
+      applyAction(game, event);
+      currentSpeed = eventSpeed(event) ?? currentSpeed;
+      cursor++;
+    }
+    game.speed = currentSpeed;
+    if (!stepToward(targetTick, targetTick, budget)) { pendingTick = targetTick; return false; }
+    pendingTick = null;
+    return true;
+  });
 
   return {
     get game() { return game; },
     endT: endTick * Game.SIM_STEP,
+    get seekProgress() {
+      return pendingTick == null ? null : Math.min(1, currentTick() / Math.max(1, pendingTick));
+    },
     seekTo,
   };
 }
