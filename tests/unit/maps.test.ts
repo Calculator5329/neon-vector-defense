@@ -68,12 +68,18 @@ describe('map data', () => {
     }
   });
 
-  test('blocker centers do not sit on path centerlines', () => {
+  test('blocker discs clear the full lane width on every segment', () => {
+    // The old centerline-only check let Foundry's wall grid overlap the
+    // vertical connector segments (shipped 2026-07-05, owner-reported).
+    // A blocker's disc must clear the lane edge with a small visual margin.
+    const MARGIN = 4;
     for (const map of ALL_MAPS) {
       for (const blocker of map.blockers) {
+        if (blocker.r === 0) continue; // point markers, not walls
+        const clearance = minPathDistance(blocker, map) - blocker.r - map.pathWidth / 2;
         assert.ok(
-          minPathDistance(blocker, map) > 1,
-          `${map.id} blocker at ${blocker.x},${blocker.y} sits on a path centerline`,
+          clearance >= MARGIN,
+          `${map.id} blocker at ${blocker.x},${blocker.y} r${blocker.r} intrudes into the lane (clearance ${clearance.toFixed(1)}px)`,
         );
       }
     }

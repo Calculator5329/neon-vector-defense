@@ -119,6 +119,24 @@ export function dailyChallenge(now = new Date()): DailyChallenge {
   return dailyChallengeForDate(dateKey, cachedOverride?.date === dateKey ? cachedOverride : null);
 }
 
+// Fog Protocol makes cloaked hulls detectable only by support-style aura
+// detectors or rank-3+ sensor towers. An arsenal that removes support towers
+// entirely turns that twist into a soft-lock (2026-W27 shipped No Support +
+// Fog Protocol + Thrifty — functionally unwinnable). These guards keep the
+// seeded rolls fair; client and functions share this code, so the canonical
+// challenge stays consistent.
+export function arsenalBansSupport(arsenal: DailyArsenalConstraint): boolean {
+  if (arsenal.bannedStyle === 'support') return true;
+  if (arsenal.towerIds) {
+    return !arsenal.towerIds.some((id) => TOWERS.find((t) => t.id === id)?.style === 'support');
+  }
+  return false;
+}
+
+export function fogCompatibleTwistId(twistId: DailyTwistId, arsenal: DailyArsenalConstraint): DailyTwistId {
+  return twistId === 'fogProtocol' && arsenalBansSupport(arsenal) ? 'rushHour' : twistId;
+}
+
 export function dailyChallengeForDate(dateKey: string, override?: DailyOverrideDoc | null): DailyChallenge {
   const cleanDate = DATE_RE.test(dateKey) ? dateKey : toDateKey(new Date());
   const seed = hash(cleanDate);
@@ -127,7 +145,8 @@ export function dailyChallengeForDate(dateKey: string, override?: DailyOverrideD
   const diff = diffPool[Math.floor(seed / 7) % diffPool.length] ?? DIFFICULTIES[1];
   const cleanOverride = override?.date === cleanDate ? override : null;
   const arsenal = buildArsenalForId(seed, cleanOverride?.arsenalId ?? DAILY_ARSENAL_IDS[seed % DAILY_ARSENAL_IDS.length]);
-  const twist = buildTwistForId(cleanOverride?.twistId ?? DAILY_TWIST_IDS[Math.floor(seed / 17) % DAILY_TWIST_IDS.length]);
+  const twist = buildTwistForId(cleanOverride?.twistId
+    ?? fogCompatibleTwistId(DAILY_TWIST_IDS[Math.floor(seed / 17) % DAILY_TWIST_IDS.length], arsenal));
   const boon = BOONS.find((item) => item.id === cleanOverride?.boonId)
     ?? BOONS[Math.floor(seed / 23) % BOONS.length];
   const title = `Daily Challenge ${cleanDate.slice(5)}: ${map.name}`;

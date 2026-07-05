@@ -356,7 +356,7 @@ function SectorAtlas(props: {
           data-atlas-node="true"
           data-testid="weekly-ops-beacon"
           aria-label="Open Weekly Ops"
-          style={{ left: '89%', top: '18%' }}
+          style={{ left: '90%', top: '30%' }}
           onClick={openWeeklyOps}
           onKeyDown={(e) => {
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -372,7 +372,6 @@ function SectorAtlas(props: {
             <PathGlyph map={selectedMap} className="weekly" />
           </span>
           <span className="atlas-node-name">WEEKLY OPS</span>
-          <span className="atlas-beacon-sub">LIVE</span>
         </button>
       </div>
 

@@ -2,6 +2,7 @@ import {
   DAILY_ARSENAL_IDS,
   DAILY_BOON_IDS,
   DAILY_TWIST_IDS,
+  arsenalBansSupport,
   buildArsenalForId,
   buildTwistForId,
   dailyBoonCatalog,
@@ -59,7 +60,10 @@ export function weeklyChallengeForId(id: string, override?: WeeklyOverrideDoc | 
   const diff = diffPool[Math.floor(seed / 7) % diffPool.length] ?? DIFFICULTIES[1];
   const cleanOverride = override?.week === id ? override : null;
   const arsenal = buildArsenalForId(seed, cleanOverride?.arsenalId ?? DAILY_ARSENAL_IDS[seed % DAILY_ARSENAL_IDS.length]);
-  const twistIds = cleanOverride?.twistIds ?? weeklyTwistIds(seed);
+  // Fog Protocol is unwinnable without support-style detectors — keep it out
+  // of the pool on support-banned weeks (see fogCompatibleTwistId in dailies).
+  const twistIds = cleanOverride?.twistIds
+    ?? weeklyTwistIds(seed, arsenalBansSupport(arsenal) ? ['fogProtocol'] : []);
   const twists = twistIds.map((twistId) => buildTwistForId(twistId)) as WeeklyChallenge['twists'];
   const twist = combineTwists(twists);
   const boon = dailyBoonCatalog().find((item) => item.id === cleanOverride?.boonId)
@@ -207,8 +211,8 @@ export async function loadRemoteWeeklyGauntlet(now = new Date()): Promise<Weekly
   return cachedGauntlet ? { ...cachedGauntlet } : null;
 }
 
-function weeklyTwistIds(seed: number): WeeklyChallenge['twistIds'] {
-  const pool = [...DAILY_TWIST_IDS];
+function weeklyTwistIds(seed: number, exclude: readonly DailyTwistId[] = []): WeeklyChallenge['twistIds'] {
+  const pool = DAILY_TWIST_IDS.filter((id) => !exclude.includes(id));
   const out: DailyTwistId[] = [];
   let s = seed;
   while (pool.length && out.length < 3) {

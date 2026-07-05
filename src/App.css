@@ -1285,7 +1285,8 @@
 .tb-stat.wave .tb-stat-num { --nvd-counter-width: 2ch; text-align: center; }
 .tb-stat.kills .tb-stat-num { --nvd-counter-width: 7ch; }
 .tb-stat.daily-strip {
-  max-width: min(420px, 34vw);
+  min-width: 0;
+  max-width: min(560px, 42vw);
   color: #7efff5;
   border-color: rgba(126, 255, 245, 0.34);
   font-size: 11px;
