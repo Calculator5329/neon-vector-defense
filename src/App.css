@@ -571,6 +571,31 @@
 .map-card-locked .map-card-name { color: var(--dim); }
 .map-card-locked .map-card-desc { padding: 0; }
 
+.weekly-ops-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: var(--menu-max);
+  margin: 0 auto 14px;
+}
+
+.weekly-op-card {
+  min-height: 74px;
+  border: 1px solid rgba(129, 218, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(6, 13, 28, 0.78);
+  color: var(--text);
+  text-align: left;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.weekly-op-card[aria-disabled="true"] { opacity: 0.58; cursor: default; }
+.weekly-op-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(75, 207, 250, 0.35), 0 0 22px rgba(75, 207, 250, 0.14); }
+.weekly-op-card span { display: block; color: var(--dim); font-size: 11px; letter-spacing: 1.2px; }
+.weekly-op-card b { display: block; margin-top: 8px; font-size: 13px; line-height: 1.25; color: var(--accent); }
+
 .diff-row {
   display: flex;
   align-items: stretch;

@@ -203,6 +203,8 @@ async function seedReplayRun(options: {
   diff?: string;
   freeplay?: boolean;
   daily?: string;
+  weekly?: string;
+  gauntlet?: string;
   cashEarned?: number;
   kills?: number;
   wave?: number;
@@ -242,6 +244,8 @@ async function seedReplayRun(options: {
         diff,
         outcome: 'victory',
         ...(options.daily ? { daily: options.daily } : {}),
+        ...(options.weekly ? { weekly: options.weekly } : {}),
+        ...(options.gauntlet ? { gauntlet: options.gauntlet } : {}),
       },
       setup: {
         map,
@@ -421,6 +425,79 @@ describe('callable score submission', () => {
     assert.equal(row?.daily, dailyId);
     assert.equal(row?.freeplay, false);
     assert.equal(row?.cash, 1200);
+  });
+
+  test('submitWeeklyScore accepts a weekly mutation replay and writes the weekly board', async () => {
+    const user = signedInUser('weeklyhappy');
+    const weeklyId = (() => {
+      const d = new Date();
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      return `weekly-${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+    })();
+    const replayToken = `tok_${unique('weekly')}`;
+    const seeded = { runId: runId('weekly'), replayToken };
+    await seedReplayRun({
+      ...seeded,
+      freeplay: false,
+      weekly: weeklyId,
+    });
+
+    const result = await callCallable<SubmitResult>('submitWeeklyScore', {
+      weeklyId,
+      entry: scoreEntry(user, seeded, { cash: 1200, freeplay: false, weekly: weeklyId }),
+    }, user);
+
+    assert.equal(result.accepted, true);
+    assert.deepEqual(result.accepted_values, { cash: 1200, kills: 40, wave: 5 });
+
+    const row = await adminDocData(`weeklyBoards/${weeklyId}/scores/${user.uid}_${seeded.runId}`);
+    assert.equal(row?.weekly, weeklyId);
+    assert.equal(row?.freeplay, false);
+    assert.equal(row?.cash, 1200);
+  });
+
+  test('submitGauntletScore accepts a crowned gauntlet replay and writes the gauntlet board', async () => {
+    const user = signedInUser('gauntlethappy');
+    const week = (() => {
+      const d = new Date();
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const isoWeek = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      return `weekly-${d.getUTCFullYear()}-W${String(isoWeek).padStart(2, '0')}`;
+    })();
+    const replayToken = `tok_${unique('gauntlet')}`;
+    const seeded = { runId: runId('gauntlet'), replayToken };
+    await seedReplayRun({
+      ...seeded,
+      freeplay: false,
+      gauntlet: week,
+    });
+    await withAdminDb(async (db) => {
+      await setDoc(doc(db, 'config/weeklyGauntlet'), {
+        week,
+        runId: 'r_championseed0001',
+        callsign: 'ETHAN',
+        map: 'orbital',
+        diff: 'easy',
+        seed: 1234,
+        wave: 60,
+        kills: 6000,
+      });
+    });
+
+    const result = await callCallable<SubmitResult>('submitGauntletScore', {
+      week,
+      entry: scoreEntry(user, seeded, { cash: 1200, freeplay: false, gauntlet: week }),
+    }, user);
+
+    assert.equal(result.accepted, true);
+    const row = await adminDocData(`gauntletBoards/${week}/scores/${user.uid}_${seeded.runId}`);
+    assert.equal(row?.gauntlet, week);
+    assert.equal(row?.freeplay, false);
   });
 
   test('submitScore rejects tampered replay manifests without writing a board row', async () => {

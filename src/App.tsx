@@ -6,6 +6,13 @@ import { needsAgeGate } from './game/consent';
 import { buildAIHelpContext } from './game/aiContext';
 import { appMetrics } from './game/metrics';
 import { dailyChallenge, dailyChallengeSignature, loadRemoteDailyOverride } from './game/dailyChallenge';
+import {
+  loadRemoteWeeklyGauntlet,
+  loadRemoteWeeklyOverride,
+  weeklyChallenge,
+  weeklyChallengeSignature,
+  type WeeklyGauntletDoc,
+} from './game/weeklyChallenge';
 
 import { sfx } from './game/sound';
 import { watchBuildFreshness } from './buildFreshness';
@@ -89,7 +96,9 @@ function Main() {
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
   const [dailySeed, setDailySeed] = useState(() => dailyChallenge());
-  const [dailyMode, setDailyMode] = useState(false);
+  const [weeklySeed, setWeeklySeed] = useState(() => weeklyChallenge());
+  const [gauntlet, setGauntlet] = useState<WeeklyGauntletDoc | null>(null);
+  const [runMode, setRunMode] = useState<'campaign' | 'daily' | 'weekly' | 'gauntlet'>('campaign');
   const [comeback, setComeback] = useState(false);
   const [staleBuild, setStaleBuild] = useState(false);
   useEffect(() => {
@@ -111,8 +120,18 @@ function Main() {
       setDailySeed((prev) => (dailyChallengeSignature(prev) === dailyChallengeSignature(next) ? prev : next));
     };
     void loadRemoteDailyOverride().then(refreshDailySeed);
+    const refreshWeeklySeed = () => {
+      const next = weeklyChallenge();
+      setWeeklySeed((prev) => (weeklyChallengeSignature(prev) === weeklyChallengeSignature(next) ? prev : next));
+    };
+    void loadRemoteWeeklyOverride().then(refreshWeeklySeed);
+    void loadRemoteWeeklyGauntlet().then(setGauntlet);
     const onVisibility = () => { if (!document.hidden) refreshDailySeed(); };
-    const refreshFromNetwork = () => { void loadRemoteDailyOverride().then(refreshDailySeed); };
+    const refreshFromNetwork = () => {
+      void loadRemoteDailyOverride().then(refreshDailySeed);
+      void loadRemoteWeeklyOverride().then(refreshWeeklySeed);
+      void loadRemoteWeeklyGauntlet().then(setGauntlet);
+    };
     const timer = window.setInterval(refreshFromNetwork, 60_000);
     window.addEventListener('focus', refreshFromNetwork);
     document.addEventListener('visibilitychange', onVisibility);
@@ -141,7 +160,7 @@ function Main() {
     };
   }, []);
   const startCampaign = () => {
-    setDailyMode(false);
+    setRunMode('campaign');
     sfx.click();
     portal.gameplayStart();
     setScreen('game');
@@ -150,14 +169,32 @@ function Main() {
     appMetrics.recordDeployAttempt(dailySeed.mapId, dailySeed.diffId, true);
     setMap(ALL_MAPS.find((m) => m.id === dailySeed.mapId) ?? MAPS[0]);
     setDiff(DIFFICULTIES.find((d) => d.id === dailySeed.diffId) ?? DIFFICULTIES[1]);
-    setDailyMode(true);
+    setRunMode('daily');
+    sfx.click();
+    portal.gameplayStart();
+    setScreen('game');
+  };
+  const startWeekly = () => {
+    appMetrics.recordDeployAttempt(weeklySeed.mapId, weeklySeed.diffId, true);
+    setMap(ALL_MAPS.find((m) => m.id === weeklySeed.mapId) ?? MAPS[0]);
+    setDiff(DIFFICULTIES.find((d) => d.id === weeklySeed.diffId) ?? DIFFICULTIES[1]);
+    setRunMode('weekly');
+    sfx.click();
+    portal.gameplayStart();
+    setScreen('game');
+  };
+  const startGauntlet = () => {
+    if (!gauntlet) return;
+    setMap(ALL_MAPS.find((m) => m.id === gauntlet.map) ?? MAPS[0]);
+    setDiff(DIFFICULTIES.find((d) => d.id === gauntlet.diff) ?? DIFFICULTIES[1]);
+    setRunMode('gauntlet');
     sfx.click();
     portal.gameplayStart();
     setScreen('game');
   };
   const exitGame = useCallback(() => {
     portal.gameplayStop();
-    setDailyMode(false);
+    setRunMode('campaign');
     setScreen('menu');
   }, []);
 
@@ -165,8 +202,16 @@ function Main() {
     <>
       {screen === 'menu'
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
-            dailySeed={dailySeed} onStart={startCampaign} onStartDaily={startDaily} />
-        : <GameScreen map={map} diff={diff} dailySeed={dailyMode ? dailySeed : null} onExit={exitGame} />}
+            dailySeed={dailySeed} weeklySeed={weeklySeed} gauntlet={gauntlet}
+            onStart={startCampaign} onStartDaily={startDaily} onStartWeekly={startWeekly} onStartGauntlet={startGauntlet} />
+        : <GameScreen
+            map={map}
+            diff={diff}
+            dailySeed={runMode === 'daily' ? dailySeed : null}
+            weeklySeed={runMode === 'weekly' ? weeklySeed : null}
+            gauntlet={runMode === 'gauntlet' ? gauntlet : null}
+            onExit={exitGame}
+          />}
       {AI_HELP_ENABLED && screen === 'menu' && (
         <AIHelpWidget getContext={() => buildAIHelpContext({ screen: 'menu', map, diff })} />
       )}

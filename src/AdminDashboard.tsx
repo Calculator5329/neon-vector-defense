@@ -15,6 +15,13 @@ import { fetchBoardRowsForRun, fetchRunAnalytics, fetchRunAnalyticsById, fetchRu
 import { fetchPinnedSpotlightAdmin, pinReplayOfTheDay, unpinReplayOfTheDay, spotlightFromRunId, type PinnedSpotlight } from './game/adminSpotlight';
 import { fetchBalanceConfigAdmin, publishBalanceConfigAdmin, resetBalanceConfigAdmin } from './game/adminBalanceConfig';
 import { clearDailyOverrideAdmin, fetchDailyOverrideAdmin, publishDailyOverrideAdmin } from './game/adminDailyOverride';
+import {
+  crownWeeklyGauntletAdmin,
+  fetchWeeklyGauntletAdmin,
+  fetchWeeklyOverrideAdmin,
+  publishWeeklyGauntletAdmin,
+  publishWeeklyOverrideAdmin,
+} from './game/adminWeeklyArena';
 import type { BalanceConfigDoc } from './game/balanceConfig';
 import {
   DAILY_ARSENAL_IDS,
@@ -30,6 +37,14 @@ import {
   type DailyOverrideDoc,
   type DailyTwistId,
 } from './game/dailyChallenge';
+import {
+  currentWeeklyId,
+  weeklyChallengeForId,
+  weeklyModifierNames,
+  type WeeklyChallenge,
+  type WeeklyGauntletDoc,
+  type WeeklyOverrideDoc,
+} from './game/weeklyChallenge';
 import {
   DIFF_BALANCE_FIELDS,
   ENEMY_BALANCE_FIELDS,
@@ -3334,6 +3349,140 @@ function DailyOpsTab() {
   );
 }
 
+function WeeklyPreviewCard({ challenge, liveOverride }: { challenge: WeeklyChallenge; liveOverride?: WeeklyOverrideDoc | null }) {
+  const overridden = liveOverride?.week === challenge.id;
+  return (
+    <div className={`adm-daily-preview ${overridden ? 'on' : ''}`}>
+      <div className="adm-daily-date">
+        <b>{challenge.id}</b>
+        <span>{challenge.title}</span>
+      </div>
+      <div className="adm-daily-mods">
+        {weeklyModifierNames(challenge).map((name) => <span key={name}><b>{name.slice(0, 8).toUpperCase()}</b>{name}</span>)}
+      </div>
+      <div className="adm-spot-dim">{mapName(challenge.mapId)} / {diffName(challenge.diffId)}{overridden ? ' / override live' : ''}</div>
+    </div>
+  );
+}
+
+function WeeklyOpsTab() {
+  const [current, setCurrent] = useState<WeeklyOverrideDoc | null>(null);
+  const [gauntlet, setGauntlet] = useState<WeeklyGauntletDoc | null>(null);
+  const [week, setWeek] = useState(currentWeeklyId());
+  const [arsenalId, setArsenalId] = useState<DailyArsenalId>('fixedPool');
+  const [twistIds, setTwistIds] = useState<[DailyTwistId, DailyTwistId, DailyTwistId]>(['fogProtocol', 'rushHour', 'glassCannon']);
+  const [boonId, setBoonId] = useState<DailyBoonId>('salvageCache');
+  const [manual, setManual] = useState<WeeklyGauntletDoc>({
+    week: currentWeeklyId(), runId: 'r_manual_weekly_seed', callsign: 'WARDEN', map: 'orbital', diff: 'normal', seed: 1, wave: 1, kills: 0,
+  });
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  const load = async () => {
+    try {
+      const [overrideDoc, gauntletDoc] = await Promise.all([fetchWeeklyOverrideAdmin(), fetchWeeklyGauntletAdmin()]);
+      setCurrent(overrideDoc);
+      setGauntlet(gauntletDoc);
+      if (gauntletDoc) setManual(gauntletDoc);
+      setStatus(null);
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Weekly config read failed.' });
+    }
+  };
+  useEffect(() => { void load(); }, []);
+
+  const previewOverride: WeeklyOverrideDoc = { week, arsenalId, twistIds, boonId };
+  const selectedPreview = weeklyChallengeForId(week, previewOverride) ?? weeklyChallengeForId(currentWeeklyId())!;
+
+  const publishOverride = async () => {
+    setBusy(true); setStatus(null);
+    try {
+      await publishWeeklyOverrideAdmin(previewOverride);
+      setStatus({ kind: 'ok', text: `Published weekly override for ${week}.` });
+      await load();
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Publish failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const crown = async () => {
+    setBusy(true); setStatus(null);
+    try {
+      const doc = await crownWeeklyGauntletAdmin(week);
+      setStatus(doc ? { kind: 'ok', text: `Crowned ${doc.callsign} for ${doc.week}.` } : { kind: 'err', text: 'No verified prior-week champion found.' });
+      await load();
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Crown failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publishManual = async () => {
+    setBusy(true); setStatus(null);
+    try {
+      await publishWeeklyGauntletAdmin(manual);
+      setStatus({ kind: 'ok', text: `Published manual gauntlet for ${manual.week}.` });
+      await load();
+    } catch (error) {
+      setStatus({ kind: 'err', text: error instanceof Error ? error.message : 'Manual publish failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="adm-content adm-daily-ops">
+      <div className="adm-filterbar">
+        <span className="adm-filter-count">WEEKLY OPS LIVE-OPS</span>
+        <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+      </div>
+      <div className="adm-two">
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Weekly Mutation override</h3><span className="adm-hint">config/weeklyOverride public-read, admin-write</span></div>
+          <div className="adm-daily-form">
+            <label><span>Week</span><input value={week} onChange={(e) => setWeek(e.target.value)} /></label>
+            <label><span>Arsenal</span><select value={arsenalId} onChange={(e) => setArsenalId(e.target.value as DailyArsenalId)}>{DAILY_ARSENAL_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
+            {[0, 1, 2].map((idx) => (
+              <label key={idx}><span>Twist {idx + 1}</span><select value={twistIds[idx]} onChange={(e) => setTwistIds((prev) => prev.map((id, i) => i === idx ? e.target.value as DailyTwistId : id) as typeof prev)}>{DAILY_TWIST_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
+            ))}
+            <label><span>Boon</span><select value={boonId} onChange={(e) => setBoonId(e.target.value as DailyBoonId)}>{DAILY_BOON_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
+          </div>
+          <div className="adm-tweak-actions">
+            <button className="adm-mini" disabled={busy} onClick={() => void publishOverride()}>publish override</button>
+          </div>
+          <WeeklyPreviewCard challenge={selectedPreview} liveOverride={current} />
+        </div>
+        <div className="adm-card">
+          <div className="adm-card-head"><h3>Champion Gauntlet</h3><span className="adm-hint">config/weeklyGauntlet; crown is admin callable</span></div>
+          <div className="adm-tweak-actions">
+            <button className="adm-mini" disabled={busy} onClick={() => void crown()}>CROWN CHAMPION</button>
+          </div>
+          <div className="adm-daily-form">
+            <label><span>Week</span><input value={manual.week} onChange={(e) => setManual({ ...manual, week: e.target.value })} /></label>
+            <label><span>Run ID</span><input value={manual.runId} onChange={(e) => setManual({ ...manual, runId: e.target.value })} /></label>
+            <label><span>Callsign</span><input value={manual.callsign} maxLength={20} onChange={(e) => setManual({ ...manual, callsign: e.target.value })} /></label>
+            <label><span>Map</span><select value={manual.map} onChange={(e) => setManual({ ...manual, map: e.target.value })}>{ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+            <label><span>Protocol</span><select value={manual.diff} onChange={(e) => setManual({ ...manual, diff: e.target.value })}>{DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+            <label><span>Seed</span><input type="number" value={manual.seed} onChange={(e) => setManual({ ...manual, seed: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
+            <label><span>Wave</span><input type="number" value={manual.wave} onChange={(e) => setManual({ ...manual, wave: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
+            <label><span>Kills</span><input type="number" value={manual.kills} onChange={(e) => setManual({ ...manual, kills: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
+          </div>
+          <div className="adm-tweak-actions">
+            <button className="adm-mini" disabled={busy} onClick={() => void publishManual()}>publish manual gauntlet</button>
+          </div>
+          <pre className="adm-config-snippet">{JSON.stringify(gauntlet ?? manual, null, 2)}</pre>
+        </div>
+      </div>
+      <div className={`adm-spot-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-hidden={!status}>
+        {status?.text ?? 'Admin status reserved.'}
+      </div>
+    </div>
+  );
+}
+
 // ---------------- replay of the day ----------------
 
 const SPOT_RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
@@ -3614,10 +3763,10 @@ function InboxTab({ user }: { user: User }) {
 export default function AdminDashboard() {
   // Local screenshot/QA hook only: Vite replaces DEV with false in production.
   const adminPreview = import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('adminPreview') === '1';
-  type AdminTab = 'inbox' | 'insights' | 'daily' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf' | 'spotlight';
+  type AdminTab = 'inbox' | 'insights' | 'daily' | 'weekly' | 'balance' | 'towers' | 'telemetry' | 'explore' | 'overview' | 'journey' | 'combat' | 'systems' | 'freeplay' | 'uxperf' | 'spotlight';
   const [tab, setTabState] = useState<AdminTab>(() => {
     const t = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('tab') : null;
-    return t === 'insights' || t === 'daily' || t === 'balance' || t === 'towers' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
+    return t === 'insights' || t === 'daily' || t === 'weekly' || t === 'balance' || t === 'towers' || t === 'telemetry' || t === 'explore' || t === 'overview' || t === 'journey'
       || t === 'combat' || t === 'systems' || t === 'freeplay' || t === 'uxperf' || t === 'spotlight' ? t : 'inbox';
   });
   const setTab = (t: AdminTab) => {
@@ -3681,6 +3830,7 @@ export default function AdminDashboard() {
           <button className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
           <button className={tab === 'insights' ? 'on' : ''} onClick={() => setTab('insights')}>INSIGHTS</button>
           <button className={tab === 'daily' ? 'on' : ''} onClick={() => setTab('daily')}>DAILY</button>
+          <button className={tab === 'weekly' ? 'on' : ''} onClick={() => setTab('weekly')}>WEEKLY</button>
           <button className={tab === 'spotlight' ? 'on' : ''} onClick={() => setTab('spotlight')}>SPOTLIGHT</button>
           <button className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
           <button className={tab === 'towers' ? 'on' : ''} onClick={() => setTab('towers')}>TOWERS</button>
@@ -3700,7 +3850,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {tab === 'inbox' ? <InboxTab user={user} /> : tab === 'insights' ? <InsightsTab /> : tab === 'daily' ? <DailyOpsTab /> : tab === 'spotlight' ? <SpotlightTab user={user} /> : tab === 'balance' ? (
+      {tab === 'inbox' ? <InboxTab user={user} /> : tab === 'insights' ? <InsightsTab /> : tab === 'daily' ? <DailyOpsTab /> : tab === 'weekly' ? <WeeklyOpsTab /> : tab === 'spotlight' ? <SpotlightTab user={user} /> : tab === 'balance' ? (
         report === null ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">Loading balance report…</div></div></div>
           : report === 'missing'
             ? <div className="adm-content"><div className="adm-card"><div className="adm-empty">

@@ -6,6 +6,7 @@ import { applyAccessibility } from './game/settings';
 import { applyAccent } from './game/palette';
 import { loadRemoteBalance } from './game/balanceConfig';
 import { loadRemoteDailyOverride } from './game/dailyChallenge';
+import { loadRemoteWeeklyGauntlet, loadRemoteWeeklyOverride } from './game/weeklyChallenge';
 import { pruneStaleLocalData } from './game/localDataCleanup';
 
 // apply persisted accessibility prefs + cosmetic accent palette before first paint
@@ -16,6 +17,8 @@ pruneStaleLocalData();
 void loadRemoteBalance();
 // fetch today's optional Daily Challenge override; missing/offline falls back to computed seed
 void loadRemoteDailyOverride();
+void loadRemoteWeeklyOverride();
+void loadRemoteWeeklyGauntlet();
 
 // Top-level error boundary: in a sandboxed portal iframe a normally-safe API can throw
 // synchronously, and React 19 unmounts the whole tree on any render throw → blank screen,

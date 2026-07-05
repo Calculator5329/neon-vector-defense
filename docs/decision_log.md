@@ -3,6 +3,25 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-05 - Weekly Arena composes existing deterministic challenge systems
+
+- Weekly Mutation uses UTC ISO week ids (`weekly-YYYY-Www`) for both the public
+  board and replay metadata. It reuses the Daily Challenge arsenal/twist/boon
+  catalogs, but stacks three distinct daily twist ids into one weekly ruleset.
+  `config/weeklyOverride` may pin the weekly modifier ids; it does not change
+  the week id, replay identity, or board name.
+- Weekly Champion's Gauntlet is an admin-crowned ritual, not a cron. The
+  `crownWeeklyGauntlet` callable selects from verified campaign runs for the
+  prior ISO week by default and writes `config/weeklyGauntlet`; admins can also
+  publish a manual gauntlet doc from the Operations Console.
+- Gauntlet challengers use their own current campaign unlocks and the champion
+  run's map/protocol/seed. We intentionally do not copy the champion's
+  `availableTowerIds`, because unlock parity belongs to the challenger profile
+  and avoids stale replay snapshots becoming a progression bypass.
+- No engine simulation behavior changed for this mission. Weekly Mutation
+  starts through the existing Daily Challenge modifier carrier, and Gauntlet
+  starts as a seeded campaign run with extra replay/leaderboard metadata.
+
 ## 2026-07-02 - Firebase Functions 7 and Admin 14 require Node 22
 
 - Firebase Functions 7 drops Node 16, removes the deprecated

@@ -8,7 +8,7 @@ Contracts, schemas, and environment configuration for Neon Vector Defense.
 | --- | --- |
 | Frontend | React 19, TypeScript 6, Vite 8 |
 | Rendering | Canvas 2D (1280×720 logical, supersampled offscreen sprites) |
-| Backend | Firebase Hosting, Firestore, Auth, Cloud Functions (Node 20) |
+| Backend | Firebase Hosting, Firestore, Auth, Cloud Functions (Node 22) |
 | AI proxy | Cloudflare Worker (`worker/`) → OpenRouter |
 | Node | ≥ 20 |
 
@@ -43,6 +43,21 @@ Daily Challenge boards. Pattern: `daily-YYYY-MM-DD`. Server-written via
 `submitDailyScore`. Rows require replay `summary.daily` to match the board,
 `summary.freeplay == false`, and no freeplay score multiplier fields.
 
+### `weeklyBoards/{weekly}/scores/{id}`
+
+Weekly Mutation boards. Pattern: `weekly-YYYY-Www` using UTC ISO weeks.
+Server-written via `submitWeeklyScore`. Rows require replay `summary.weekly`
+to match the board, `summary.freeplay == false`, and a replay setup whose
+weekly snapshot authenticates against the deterministic weekly challenge for
+that ISO week plus any matching `config/weeklyOverride`.
+
+### `gauntletBoards/{weekly}/scores/{id}`
+
+Weekly Champion's Gauntlet boards. Pattern: `weekly-YYYY-Www`. Server-written
+via `submitGauntletScore`. Rows require replay `summary.gauntlet` to match the
+board, `summary.freeplay == false`, and replay setup `gauntlet` metadata that
+matches the current `config/weeklyGauntlet` doc.
+
 ### `runs/{runId}`
 
 Public run replay documents consumed by Battle Plan viewer and score validation.
@@ -65,9 +80,9 @@ Key fields (`PublicRunDoc`):
   setup: {
     map, mapName, mapHash, diff, diffName, seed,
     startingCash, startingLives, availableTowerIds,
-    balanceVersion, balance?, daily?, replayEngine?
+    balanceVersion, balance?, daily?, weekly?, gauntlet?, replayEngine?
   };
-  summary: { callsign, map, diff, freeplay, daily?, wave, kills, credits, cashEarned, outcome, durationS, ... };
+  summary: { callsign, map, diff, freeplay, daily?, weekly?, gauntlet?, wave, kills, credits, cashEarned, outcome, durationS, ... };
   actions: { codec: 'r3', count: number, towerIds: string[], data: string };
   final: { towers, damageByTower, killsByEnemy, ... };
 }
@@ -204,6 +219,46 @@ The doc pins only the modifier combo for the matching UTC date. Map/protocol,
 daily id, and leaderboard identity remain the deterministic `daily-YYYY-MM-DD`
 challenge, so `submitDailyScore` needs no contract change.
 
+### `config/weeklyOverride`
+
+Optional Weekly Mutation live-ops override. Public clients may `get` this
+single doc; listing is denied. Admins may create/update/delete it when the
+sparse shape matches the daily modifier catalogs.
+
+```typescript
+{
+  week: 'weekly-YYYY-Www';
+  arsenalId?: 'fixedPool' | 'banDamage' | 'tierCap4' | 'noSupport' | 'budgetBuild';
+  twistIds?: ('fogProtocol' | 'rushHour' | 'glassCannon' | 'thrifty' | 'veteranHulls')[]; // exactly 3 when present
+  boonId?: 'salvageCache' | 'abilityRecharge' | 'doublePickups';
+  note?: string; // <= 240 chars, operator-facing
+}
+```
+
+The doc pins only the modifier combo for the matching UTC ISO week. The weekly
+id and board remain `weekly-YYYY-Www`.
+
+### `config/weeklyGauntlet`
+
+Public Champion's Gauntlet seed doc. Admins publish it manually or through the
+`crownWeeklyGauntlet` callable after reviewing verified replay candidates.
+
+```typescript
+{
+  week: 'weekly-YYYY-Www';
+  runId: string;
+  callsign: string;
+  map: 'orbital' | 'reactor' | 'hyperlane' | 'mobius' | 'blackout' | 'throat' | 'umbral' | 'cinder';
+  diff: 'easy' | 'normal' | 'hard' | 'extinction';
+  seed: number;
+  wave: number;
+  kills: number;
+  crownedAt?: number;
+  crownedBy?: string;
+  source?: 'callable' | 'manual';
+}
+```
+
 ## Cloud Functions
 
 Region: `us-central1`
@@ -212,6 +267,9 @@ Region: `us-central1`
 | --- | --- |
 | `submitScore` | Validate replay exists, sanity-bound claimed stats, rate-limit per uid, write board entry |
 | `submitDailyScore` | Validate same-day/yesterday Daily Challenge replay and write the daily board row |
+| `submitWeeklyScore` | Validate current/previous Weekly Mutation replay and write the weekly board row |
+| `submitGauntletScore` | Validate current Champion's Gauntlet replay and write the gauntlet board row |
+| `crownWeeklyGauntlet` | Admin-only select a verified prior-week campaign run and publish `config/weeklyGauntlet` |
 | `verifyRun` | Admin-only re-simulate a public replay and persist a verification verdict |
 | `submitFeedback` | Rate-limit feedback, write server-only feedback doc, return private reply receipt token |
 | `fetchFeedbackReplies` | Return admin replies only when the browser presents the matching private receipt token |
@@ -235,7 +293,27 @@ Daily Challenge submit contract:
 3. Accepted daily rows force `freeplay: false` and rank by wave, then kills, then
    server time.
 
-**Trust model:** Player callables (`submitScore`, `submitDailyScore`, `submitFeedback`) require Firebase Anonymous Auth; the uid comes from the verified callable auth context and payload uids are ignored. Rate limits key on that verified identity. Replay re-simulation is flag-first: accepted score rows can be annotated with `verify`, but divergent verdicts do not reject scores until the enforcement flip.
+Weekly Arena submit contract:
+
+1. Weekly Mutation runs record `summary.weekly = weekly-YYYY-Www` and
+   `setup.weekly`. `submitWeeklyScore` accepts only the current or previous UTC
+   ISO week, authenticates the setup snapshot against the deterministic weekly
+   challenge plus `config/weeklyOverride`, and writes `weeklyBoards/{weekly}`.
+2. Champion's Gauntlet runs record `summary.gauntlet = weekly-YYYY-Www` and
+   `setup.gauntlet`. `submitGauntletScore` requires the board to match the
+   current `config/weeklyGauntlet.week`, authenticates the gauntlet metadata,
+   and writes `gauntletBoards/{weekly}`.
+3. `crownWeeklyGauntlet` is admin-only. By default it looks at verified,
+   non-freeplay campaign rows from the prior ISO week, loads the source replay
+   setup, and publishes the week/map/protocol/seed/callsign target doc.
+
+**Trust model:** Player callables (`submitScore`, `submitDailyScore`,
+`submitWeeklyScore`, `submitGauntletScore`, `submitFeedback`) require Firebase
+Anonymous Auth; the uid comes from the verified callable auth context and
+payload uids are ignored. Rate limits key on that verified identity. Replay
+re-simulation is flag-first: accepted score rows can be annotated with
+`verify`, but divergent verdicts do not reject scores until the enforcement
+flip.
 
 Replay re-simulation contract:
 
@@ -250,9 +328,9 @@ Replay re-simulation contract:
    confidently, for example due to missing chunks, unsupported schema, balance
    mismatch, invalid timing, or simulation guard limits.
 5. Runs use exact summary comparison after applying the recorded action stream at
-   exact simTicks. `setup.balance` and `setup.daily` snapshots are preferred over
-   live config fallback so future live-ops publishes do not invalidate honest
-   replays.
+   exact simTicks. `setup.balance`, `setup.daily`, `setup.weekly`, and
+   `setup.gauntlet` snapshots are preferred over live config fallback so future
+   live-ops publishes do not invalidate honest replays.
 6. Enforcement is not automatic at launch. Admin badges and audit docs come
    first, soft flagging comes next, and score rejection is a later operator flip
    after production false positives are understood.

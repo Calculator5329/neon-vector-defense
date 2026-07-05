@@ -259,7 +259,7 @@ export function applyDailyWaveTwist(challenge: DailyChallenge | null, wave: Wave
   return groups;
 }
 
-function buildArsenalForId(seed: number, id: DailyArsenalId): DailyArsenalConstraint {
+export function buildArsenalForId(seed: number, id: DailyArsenalId): DailyArsenalConstraint {
   if (id === 'fixedPool') {
     const towerIds = [...FIXED_POOL_CORE, ...pickMany(FIXED_POOL_ROTATION, seed + 47, 4)];
     return {
@@ -307,7 +307,7 @@ function buildArsenalForId(seed: number, id: DailyArsenalId): DailyArsenalConstr
   };
 }
 
-function buildTwistForId(id: DailyTwistId): DailyTwist {
+export function buildTwistForId(id: DailyTwistId): DailyTwist {
   const base = TWISTS.find((twist) => twist.id === id) ?? TWISTS[0];
   if (base.id === 'fogProtocol') {
     return { ...base, desc: 'Permanent sensor blackout: cloaked hulls need rank-3 detectors.' };

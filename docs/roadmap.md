@@ -3,13 +3,12 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-04 (replay seek performance, content-expansion triage; see idea_backlog.md 2026-07-04 section for the owner-reviewed content plan)
+Last updated: 2026-07-05 (Weekly Champion's Gauntlet + Weekly Mutation shipped; see decision_log.md 2026-07-05 entry)
 
 ## Next up (owner-triaged, 2026-07-04)
 
-- **Wave 1 (Codex, in flight):** Weekly Champion's Gauntlet + Weekly Mutation
-  (weekly seed + boards); Exposed stacking debuff + target-priority filters
-  (+ bestiary/help popups explaining the type system; balance-gated).
+- **Wave 1 (Codex, in flight):** Exposed stacking debuff + target-priority
+  filters (+ bestiary/help popups explaining the type system; balance-gated).
 - **Wave 2 (after wave 1 lands):** Mirror Hull adaptive flagship + Recalibrate
   ability; Gauntlet Protocol design brief -> implementation.
 - **Owner-side launch gate (unchanged):** App Check console registration,
@@ -24,6 +23,7 @@ Last updated: 2026-07-04 (replay seek performance, content-expansion triage; see
 | Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
 | Battle Plan replays | Public schema-v3 `runs/{runId}` docs with setup snapshots, r3 player-action packs, manifest `actionHash`, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayCodec.ts`, `reSimulate.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
+| Weekly Arena | UTC ISO-week Weekly Mutation boards, admin-crowned Champion's Gauntlet seeded from verified campaign runs, replay-backed weekly/gauntlet score submission | `weeklyChallenge.ts`, `leaderboard.ts`, `engine.ts`, `functions/src/index.ts`, `AdminDashboard.tsx` |
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
 | Meta loop | Warden Rank, Salvage, Operations Board, Watch Streak; cosmetic/QoL only | `meta.ts`, `OperationsBoard.tsx`, `tests/e2e/ux-ui.spec.ts` |
@@ -68,6 +68,9 @@ Last updated: 2026-07-04 (replay seek performance, content-expansion triage; see
 - Replay v3 replaces public events, snapshots, and death ledgers with the
   compact r3 action stream. Old v2 replay links are unwatchable after this
   cutover and pinned spotlight runs should be refreshed to v3.
+- Weekly Mutation and Weekly Champion's Gauntlet now share the deploy surface,
+  leaderboards, replay metadata, Firestore rules, and callable validation with
+  the existing daily/replay-backed score paths.
 
 - Elite variants add capped Shielded, Frenzied, Splitting, and Bulwark hulls to
   regular waves, and the Umbra now has lattice, phase-shift, and enrage phases

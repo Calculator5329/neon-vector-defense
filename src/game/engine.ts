@@ -60,6 +60,7 @@ import {
   dailyTowerIds as challengeTowerIds,
   type DailyChallenge,
 } from './dailyChallenge';
+import { weeklyChallenge, weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from './weeklyChallenge';
 
 export const W = 1280;
 export const H = 720;
@@ -304,6 +305,8 @@ export class Game {
   freeplay = false;
   freeplayState: FreeplayState = createFreeplayState();
   dailyChallenge: DailyChallenge | null = null;
+  private challengeMode: 'daily' | 'weekly' | null = null;
+  gauntletChallenge: WeeklyGauntletDoc | null = null;
   dailyTowerIds: Set<string> | null = null;
   private dailyCreditCacheGranted = false;
   private dailyAbilityRechargeUsed = false;
@@ -356,6 +359,14 @@ export class Game {
 
   get isDailyChallenge(): boolean {
     return this.dailyChallenge !== null;
+  }
+
+  get isWeeklyChallenge(): boolean {
+    return this.challengeMode === 'weekly';
+  }
+
+  get isGauntletChallenge(): boolean {
+    return this.gauntletChallenge !== null;
   }
 
   private campaignProgressEnabled(): boolean {
@@ -442,6 +453,7 @@ export class Game {
     this.phase = 'build';
     this.wave = 0;
     this.dailyChallenge = challenge;
+    this.challengeMode = 'daily';
     this.recorder.setDailyChallenge(challenge);
     this.dailyTowerIds = dailyChallengeTowerSet(challenge);
     this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
@@ -462,6 +474,39 @@ export class Game {
       boon: challenge.boon.id,
     });
     this.announce(`Daily Challenge: ${dailyModifierNames(challenge).join(' / ')}`);
+  }
+
+  startWeeklyChallenge(challenge: WeeklyChallenge = weeklyChallenge()) {
+    this.freeplay = false;
+    this.phase = 'build';
+    this.wave = 0;
+    this.dailyChallenge = challenge;
+    this.challengeMode = 'weekly';
+    this.recorder.setWeeklyChallenge(challenge);
+    this.dailyTowerIds = dailyChallengeTowerSet(challenge);
+    this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
+    if (challenge.twist.startingLivesMultiplier) {
+      this.lives = Math.max(1, Math.round(this.lives * challenge.twist.startingLivesMultiplier));
+      this.startingLives = this.lives;
+    }
+    this.recorder.setStartingResources(this.credits, this.lives);
+    this.recorder.recordCustom('weekly_challenge_start', this.telemetryState(), {
+      weeklyId: challenge.id,
+      map: challenge.mapId,
+      diff: challenge.diffId,
+      towerIds: [...this.dailyTowerIds],
+      startingCash: this.credits,
+      startingLives: this.lives,
+      arsenal: challenge.arsenal.id,
+      twists: challenge.twistIds,
+      boon: challenge.boon.id,
+    });
+    this.announce(`Weekly Mutation: ${weeklyModifierNames(challenge).join(' / ')}`);
+  }
+
+  setGauntletChallenge(challenge: WeeklyGauntletDoc | null) {
+    this.gauntletChallenge = challenge;
+    this.recorder.setGauntletChallenge(challenge);
   }
 
   /** Compatibility alias for older tests/dev handles. Daily is no longer freeplay. */
@@ -530,10 +575,13 @@ export class Game {
 
   dailyMeta() {
     const challenge = this.dailyChallenge;
+    const weekly = this.challengeMode === 'weekly';
     return {
-      daily: challenge?.id ?? '',
-      modifiers: challenge ? dailyModifierNames(challenge) : [],
-      summary: challenge ? dailyModifierNames(challenge).join(' / ') : '',
+      daily: !weekly ? challenge?.id ?? '' : '',
+      weekly: weekly ? challenge?.id ?? '' : '',
+      label: weekly ? 'Weekly Mutation' : 'Daily Challenge',
+      modifiers: challenge ? (weekly ? weeklyModifierNames(challenge as WeeklyChallenge) : dailyModifierNames(challenge)) : [],
+      summary: challenge ? (weekly ? weeklyModifierNames(challenge as WeeklyChallenge) : dailyModifierNames(challenge)).join(' / ') : '',
       arsenal: challenge?.arsenal.name ?? '',
       twist: challenge?.twist.name ?? '',
       boon: challenge?.boon.name ?? '',

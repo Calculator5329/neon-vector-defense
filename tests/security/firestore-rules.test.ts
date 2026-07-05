@@ -52,6 +52,53 @@ const validSetup = {
   balanceVersion: 'test',
   replayEngine: 2,
 };
+const validTwist = {
+  id: 'rushHour',
+  name: 'Rush Hour',
+  short: 'RUSH',
+  desc: 'Wave spacing is compressed by 40%.',
+  waveGapMultiplier: 0.6,
+};
+const validWeeklyChallenge = {
+  id: 'weekly-2026-W27',
+  dateKey: '2026-W27',
+  weekKey: 'weekly-2026-W27',
+  mapId: 'orbital',
+  diffId: 'normal',
+  title: 'Weekly Mutation 2026-W27',
+  arsenal: {
+    id: 'noSupport',
+    name: 'No Support',
+    short: 'NO SUP',
+    desc: 'Support towers are banned.',
+    bannedStyle: 'support',
+  },
+  twist: validTwist,
+  twistIds: ['fogProtocol', 'rushHour', 'glassCannon'],
+  twists: [
+    { id: 'fogProtocol', name: 'Fog Protocol', short: 'FOG', desc: 'Permanent sensor blackout.', sensorBlackout: true },
+    validTwist,
+    { id: 'glassCannon', name: 'Glass Cannon', short: 'GLASS', desc: 'More damage, fewer cores.', towerDamageMultiplier: 1.3, startingLivesMultiplier: 0.6 },
+  ],
+  boon: {
+    id: 'doublePickups',
+    name: 'Double Drops',
+    short: 'DROPS',
+    desc: 'Combat pickups drop twice as often.',
+    pickupDropMultiplier: 2,
+  },
+  rules: ['a', 'b', 'c', 'd', 'e', 'f'],
+};
+const validGauntlet = {
+  week: 'weekly-2026-W27',
+  runId,
+  callsign: 'ETHAN',
+  map: 'orbital',
+  diff: 'normal',
+  seed: 123,
+  wave: 60,
+  kills: 6000,
+};
 
 const validRun = {
   schemaVersion: 3,
@@ -281,6 +328,27 @@ describe('public replay rules', () => {
     }));
   });
 
+  test('allow weekly mutation and gauntlet replay metadata', async () => {
+    const db = playerDb();
+    await assertSucceeds(setDoc(doc(db, 'runs', runId), {
+      ...validRun,
+      summary: { ...validSummary, freeplay: false, weekly: 'weekly-2026-W27' },
+      setup: { ...validSetup, weekly: validWeeklyChallenge },
+    }));
+    await assertSucceeds(setDoc(doc(db, 'runs', `${runId}g`), {
+      ...validRun,
+      runId: `${runId}g`,
+      summary: { ...validSummary, freeplay: false, gauntlet: 'weekly-2026-W27' },
+      setup: { ...validSetup, gauntlet: validGauntlet },
+    }));
+    await assertFails(setDoc(doc(db, 'runs', `${runId}wbad`), {
+      ...validRun,
+      runId: `${runId}wbad`,
+      summary: { ...validSummary, freeplay: false, weekly: 'weekly-2026-27' },
+      setup: { ...validSetup, weekly: validWeeklyChallenge },
+    }));
+  });
+
   test('allow replay chunk create and deny chunk updates', async () => {
     const db = playerDb();
     const ref = doc(db, 'runs', runId, 'chunks', 'c0');
@@ -427,6 +495,8 @@ describe('leaderboard and telemetry write rules', () => {
     const score = { name: 'TEST', cash: 1, kills: 1, wave: 1, freeplay: false, ts: 1, uid: 'w_rules1', runId };
     await assertFails(setDoc(doc(db, 'boards', 'orbital_easy', 'scores', 's1'), score));
     await assertFails(setDoc(doc(db, 'dailyBoards', 'daily-2026-06-27', 'scores', 's1'), { ...score, freeplay: true }));
+    await assertFails(setDoc(doc(db, 'weeklyBoards', 'weekly-2026-W27', 'scores', 's1'), { ...score, weekly: 'weekly-2026-W27' }));
+    await assertFails(setDoc(doc(db, 'gauntletBoards', 'weekly-2026-W27', 'scores', 's1'), { ...score, gauntlet: 'weekly-2026-W27' }));
   });
 
   test('allow bounded telemetry creates and deny updates', async () => {
@@ -629,6 +699,26 @@ describe('feedback and config rules', () => {
       twistId: 'rushHour',
     }));
     await assertSucceeds(deleteDoc(doc(adminDb(), 'config', 'dailyOverride')));
+  });
+
+  test('allow public weekly override and gauntlet reads with admin-only validated writes', async () => {
+    await assertSucceeds(getDoc(doc(anonDb(), 'config', 'weeklyOverride')));
+    await assertSucceeds(getDoc(doc(anonDb(), 'config', 'weeklyGauntlet')));
+    await assertFails(setDoc(doc(playerDb(), 'config', 'weeklyOverride'), { week: 'weekly-2026-W27' }));
+    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'weeklyOverride'), {
+      week: 'weekly-2026-W27',
+      arsenalId: 'noSupport',
+      twistIds: ['fogProtocol', 'rushHour', 'glassCannon'],
+      boonId: 'doublePickups',
+    }));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'weeklyOverride'), {
+      week: 'weekly-2026-W27',
+      twistIds: ['fogProtocol', 'fogProtocol', 'rushHour'],
+    }));
+    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'weeklyGauntlet'), validGauntlet));
+    await assertFails(setDoc(doc(adminDb(), 'config', 'weeklyGauntlet'), { ...validGauntlet, secret: true }));
+    await assertSucceeds(deleteDoc(doc(adminDb(), 'config', 'weeklyOverride')));
+    await assertSucceeds(deleteDoc(doc(adminDb(), 'config', 'weeklyGauntlet')));
   });
 
   test('global-top aggregate is public read, server-only write', async () => {

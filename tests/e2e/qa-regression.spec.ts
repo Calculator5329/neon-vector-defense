@@ -94,6 +94,25 @@ async function installQaNetwork(page: Page) {
   return;
 }`),
   ));
+  await page.route('**/src/game/weeklyChallenge.ts', (route) => fulfillPatched(route, (source) => {
+    let patched = source;
+    patched = replacementFor('loadRemoteWeeklyOverride', `{
+  return;
+}`)(patched);
+    patched = replacementFor('loadRemoteWeeklyGauntlet', `{
+  return {
+    week: 'weekly-2026-W27',
+    runId: 'r_e2e_gauntlet_0001',
+    callsign: 'ETHAN',
+    map: 'orbital',
+    diff: 'normal',
+    seed: 12345,
+    wave: 60,
+    kills: 6000,
+  };
+}`)(patched);
+    return patched;
+  }));
   await page.route('**/src/game/replaySpotlight.ts', (route) => fulfillPatched(
     route,
     replacementFor('fetchReplayOfTheDay', `{
@@ -128,6 +147,12 @@ async function installQaNetwork(page: Page) {
     patched = replacementFor('submitDailyScore', `{
   return true;
 }`)(patched);
+    patched = replacementFor('submitWeeklyScore', `{
+  return true;
+}`)(patched);
+    patched = replacementFor('submitGauntletScore', `{
+  return true;
+}`)(patched);
     patched = replacementFor('fetchTop', `{
   const raw = sessionStorage.getItem('nvd-e2e-public-run');
   const summary = raw ? JSON.parse(raw).run.summary : null;
@@ -144,6 +169,12 @@ async function installQaNetwork(page: Page) {
 }`)(patched);
     patched = replacementFor('fetchDailyTop', `{
   return fetchTop(dailyId, limit);
+}`)(patched);
+    patched = replacementFor('fetchWeeklyTop', `{
+  return fetchTop(weeklyId, limit);
+}`)(patched);
+    patched = replacementFor('fetchGauntletTop', `{
+  return fetchTop(week, limit);
 }`)(patched);
     patched = replacementFor('submitRunAnalytics', `{
   return true;
@@ -455,5 +486,23 @@ test.describe('QA regression real-flow audit', () => {
     await page.getByRole('button', { name: 'RETURN TO THE GRID' }).click();
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
     await assertNoOverflow(page);
+  });
+
+  test('submits a weekly mutation run through mocked callables', async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.goto('/');
+    await expect(page.getByTestId('weekly-mutation-card')).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('weekly-mutation-card').click();
+    await page.getByTestId('deploy-button').click();
+    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await finishAsDefeat(page);
+    await page.getByLabel('Leaderboard callsign').fill('QA WEEKLY');
+    await page.getByRole('button', { name: 'SUBMIT' }).click();
+    await expect(page.getByText('Score uploaded. Current board snapshot:')).toBeVisible({ timeout: 15_000 });
+
+    const payload = await page.evaluate(() => JSON.parse(sessionStorage.getItem('nvd-e2e-public-run') ?? 'null'));
+    expect(payload.run.summary.weekly).toMatch(/^weekly-\d{4}-W\d{2}$/);
+    expect(payload.run.setup.weekly.id).toBe(payload.run.summary.weekly);
+    expect(payload.run.summary.daily).toBeUndefined();
   });
 });

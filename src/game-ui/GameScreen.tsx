@@ -13,8 +13,12 @@ import {
   boardId,
   submitScore,
   submitDailyScore,
+  submitWeeklyScore,
+  submitGauntletScore,
   fetchTop,
   fetchDailyTop,
+  fetchWeeklyTop,
+  fetchGauntletTop,
   submitRunReplay,
   streamRunReplayChunk,
   submitRunAnalytics,
@@ -34,6 +38,7 @@ import {
   type RiskWaveId,
 } from '../game/freeplay';
 import type { DailyChallenge } from '../game/dailyChallenge';
+import type { WeeklyChallenge, WeeklyGauntletDoc } from '../game/weeklyChallenge';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from '../game/sound';
 import { portal, type AdBreakResult, type AdBreakType } from '../game/portal';
@@ -202,15 +207,24 @@ function towerLockText(game: Game, def: TowerDef): string {
 
 // ---------------- Game screen ----------------
 
-export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; diff: DifficultyDef; dailySeed?: DailyChallenge | null; onExit: () => void }) {
+export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit }: {
+  map: GameMap;
+  diff: DifficultyDef;
+  dailySeed?: DailyChallenge | null;
+  weeklySeed?: WeeklyChallenge | null;
+  gauntlet?: WeeklyGauntletDoc | null;
+  onExit: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [run, setRun] = useState(0); // bump to restart the sector
   const gameRef = useRef<Game | null>(null);
   const runRef = useRef(-1);
   if (!gameRef.current || runRef.current !== run) {
-    const nextGame = new Game(map, diff);
+    const nextGame = new Game(map, diff, gauntlet ? { seed: gauntlet.seed } : {});
     if (dailySeed) nextGame.startDailyChallenge(dailySeed);
+    if (weeklySeed) nextGame.startWeeklyChallenge(weeklySeed);
+    if (gauntlet) nextGame.setGauntletChallenge(gauntlet);
     // restore the player's preferred run speed (smart fast-forward persistence)
     if (PERF_MAP === null && progress.preferredSpeed > 0) nextGame.speed = progress.preferredSpeed;
     gameRef.current = nextGame;
@@ -234,8 +248,8 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
   // upgrade) via a non-blocking chip instead of the old HowToPlay modal wall.
   // The full reference card stays available behind the menu's "?" help.
   const [coachStage, setCoachStage] = useState<'place' | 'launch' | 'upgrade' | null>(
-    PERF_MAP === null && !DEMO_MODE && !dailySeed && !progress.tutorialSeen ? 'place' : null);
-  const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE || !!dailySeed);
+    PERF_MAP === null && !DEMO_MODE && !dailySeed && !weeklySeed && !gauntlet && !progress.tutorialSeen ? 'place' : null);
+  const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE || !!dailySeed || !!weeklySeed || !!gauntlet);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   // adaptive render quality: smoothed fps + a hysteresis flag (see render.setRenderQuality)
@@ -1177,8 +1191,8 @@ export function GameScreen({ map, diff, dailySeed, onExit }: { map: GameMap; dif
           WAVE <span className="tb-stat-num no-shift-counter">{game.wave}</span>{game.phase === 'build' ? <> / <span className="tb-stat-num no-shift-counter">{game.freeplay ? '∞' : diff.waves}</span></> : ''}
         </div>
         {game.dailyChallenge && (
-          <div className="tb-stat daily-strip" title={game.dailyMeta().summary} aria-label={`Daily Challenge modifiers: ${game.dailyMeta().summary}`}>
-            DAILY <span>{game.dailyMeta().modifiers.join(' / ')}</span>
+          <div className="tb-stat daily-strip" title={game.dailyMeta().summary} aria-label={`${game.dailyMeta().label} modifiers: ${game.dailyMeta().summary}`}>
+            {game.isWeeklyChallenge ? 'WEEKLY' : 'DAILY'} <span>{game.dailyMeta().modifiers.join(' / ')}</span>
           </div>
         )}
         {!game.freeplay && !game.isDailyChallenge && (
@@ -1654,7 +1668,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const [dossier, setDossier] = useState<DossierInput | null>(null);
   const [sharedRunId, setSharedRunId] = useState<string | undefined>(undefined);
   const eligible = game.phase === 'victory' ||
-    (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge));
+    (game.phase === 'gameover' && (game.freeplay || game.isDailyChallenge || game.isGauntletChallenge));
   useEffect(() => {
     if (eligible && !DEMO_MODE) game.recorder.recordLeaderboardOpen();
   }, [eligible, game]);
@@ -1663,7 +1677,13 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
   const freeplayMeta = game.freeplay ? game.freeplayMeta() : null;
   const dailyMeta = game.isDailyChallenge ? game.dailyMeta() : null;
   const dailyId = dailyMeta?.daily || freeplayMeta?.daily || '';
-  const leaderboardTitle = dailyId
+  const weeklyId = game.isWeeklyChallenge ? dailyMeta?.weekly || '' : '';
+  const gauntletWeek = game.gauntletChallenge?.week ?? '';
+  const leaderboardTitle = gauntletWeek
+    ? `GAUNTLET LEADERBOARD - ${gauntletWeek.toUpperCase()}`
+    : weeklyId
+      ? `WEEKLY LEADERBOARD - ${weeklyId.toUpperCase()}`
+      : dailyId
     ? `DAILY LEADERBOARD - ${dailyId.toUpperCase()}`
     : `GLOBAL LEADERBOARD - ${map.name.toUpperCase()} / ${diff.name.toUpperCase()}${game.freeplay ? ' / FREEPLAY' : ''}`;
 
@@ -1710,15 +1730,25 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
       replayToken: replay.replayToken,
       meta: dailyMeta?.summary ?? freeplayMeta?.summary,
       daily: dailyId || undefined,
+      weekly: weeklyId || undefined,
+      gauntlet: gauntletWeek || undefined,
       checkpoint: false,
     };
-    const ok = dailyId
+    const ok = gauntletWeek
+      ? await submitGauntletScore(gauntletWeek, scoreEntry)
+      : weeklyId
+        ? await submitWeeklyScore(weeklyId, scoreEntry)
+        : dailyId
       ? await submitDailyScore(dailyId, scoreEntry)
       : await submitScore(board, scoreEntry);
     game.recorder.recordScoreSubmitResult(ok);
     void submitRunAnalytics(game.buildRunAnalyticsDoc(n, progress.uid, TELEMETRY_BUILD));
     if (ok) {
-      setTop(dailyId ? await fetchDailyTop(dailyId) : await fetchTop(board));
+      setTop(gauntletWeek
+        ? await fetchGauntletTop(gauntletWeek)
+        : weeklyId
+          ? await fetchWeeklyTop(weeklyId)
+          : dailyId ? await fetchDailyTop(dailyId) : await fetchTop(board));
       try { setDossier(buildDossierInputFromGame(game, n)); } catch (e) { console.warn('dossier build failed', e); }
       setSharedRunId(replay.runId);
       setState('done');
@@ -1745,7 +1775,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
               {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
             </button>
           </div>
-          <p className="submit-hint">Your callsign and score appear on the public {dailyId ? 'daily' : 'global'} leaderboard.</p>
+          <p className="submit-hint">Your callsign and score appear on the public {gauntletWeek ? 'gauntlet' : weeklyId ? 'weekly' : dailyId ? 'daily' : 'global'} leaderboard.</p>
         </>
       )}
       {state === 'done' && (
@@ -1759,7 +1789,7 @@ function SubmitScore({ game, map, diff }: { game: Game; map: GameMap; diff: Diff
               <span className="lb-name">{r.name}</span>
               <span className="lb-cash">CR {r.cash.toLocaleString()}</span>
               <span className="lb-kills">K {r.kills.toLocaleString()}</span>
-              {(r.freeplay || dailyId) && <span className="lb-wave">W{r.wave}</span>}
+              {(r.freeplay || dailyId || weeklyId || gauntletWeek) && <span className="lb-wave">W{r.wave}</span>}
             </div>
           ))}
         </div>

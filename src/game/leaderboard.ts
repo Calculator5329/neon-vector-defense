@@ -19,6 +19,7 @@ import { actionHash, decodeReplayActionBundle, type ReplayActionPack } from './r
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
 const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const WEEKLY_BOARD_RE = /^weekly-[0-9]{4}-W[0-9]{2}$/;
 const LEADERBOARD_CACHE_TTL_MS = 30_000;
 const REPLAY_TOKEN_KEY = 'nvd-replay-tokens-v1';
 const topCache = new Map<string, { expires: number; rows: ScoreEntry[] }>();
@@ -59,6 +60,8 @@ export interface ScoreEntry {
   replayToken?: string;
   meta?: string;
   daily?: string;
+  weekly?: string;
+  gauntlet?: string;
   checkpoint?: boolean;
   verify?: RunVerifyRowStatus;
 }
@@ -93,7 +96,7 @@ export interface RankedScoreEntry extends ScoreEntry {
 
 export interface RunBoardScoreRow extends ScoreEntry {
   board: string;
-  kind: 'campaign' | 'freeplay' | 'daily';
+  kind: 'campaign' | 'freeplay' | 'daily' | 'weekly' | 'gauntlet';
   map?: string;
   diff?: string;
   mapName?: string;
@@ -127,6 +130,10 @@ export function dailyBoardId(dailyId: string): string {
   return DAILY_BOARD_RE.test(dailyId) ? dailyId : '';
 }
 
+export function weeklyBoardId(weeklyId: string): string {
+  return WEEKLY_BOARD_RE.test(weeklyId) ? weeklyId : '';
+}
+
 function validBoard(board: string): boolean {
   const match = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?:_fp)?$/.exec(board);
   return !!match?.groups && VALID_MAPS.has(match.groups.map) && VALID_DIFFS.has(match.groups.diff);
@@ -134,6 +141,10 @@ function validBoard(board: string): boolean {
 
 function validDailyBoard(board: string): boolean {
   return DAILY_BOARD_RE.test(board);
+}
+
+function validWeeklyBoard(board: string): boolean {
+  return WEEKLY_BOARD_RE.test(board);
 }
 
 function isValidRunId(id: string): boolean {
@@ -204,6 +215,12 @@ function invalidateDailyBoardCache(board: string): void {
   }
 }
 
+function invalidateRitualBoardCache(kind: 'weekly' | 'gauntlet', board: string): void {
+  for (const key of topCache.keys()) {
+    if (key.startsWith(`${kind}:${board}:`)) topCache.delete(key);
+  }
+}
+
 function boardMeta(board: string): Omit<RankedScoreEntry, keyof ScoreEntry> | null {
   const match = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?:_fp)?$/.exec(board);
   if (!match?.groups || !VALID_MAPS.has(match.groups.map) || !VALID_DIFFS.has(match.groups.diff)) return null;
@@ -234,11 +251,13 @@ function scorePayload(entry: ScoreEntry, serverUid: string): ScoreEntry {
   if (entry.replayToken && isValidReplayToken(entry.replayToken)) payload.replayToken = entry.replayToken;
   if (entry.meta) payload.meta = entry.meta.slice(0, 240);
   if (entry.daily) payload.daily = entry.daily.slice(0, 80);
+  if (entry.weekly) payload.weekly = entry.weekly.slice(0, 80);
+  if (entry.gauntlet) payload.gauntlet = entry.gauntlet.slice(0, 80);
   if (entry.checkpoint !== undefined) payload.checkpoint = !!entry.checkpoint;
   return payload;
 }
 
-// Scores are written SERVER-SIDE by the submitScore/submitDailyScore Cloud Functions
+// Scores are written SERVER-SIDE by submitScore/submitDailyScore/submitWeeklyScore/submitGauntletScore Cloud Functions
 // (us-central1): they require a matching runs/{runId} replay, sanity-bound the claim,
 // and rate-limit per uid. Clients can no longer write boards directly (firestore.rules).
 const functions = getFunctions(app, 'us-central1');
@@ -303,6 +322,10 @@ const callSubmitScore =
   httpsCallable<{ board: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitScore');
 const callSubmitDailyScore =
   httpsCallable<{ dailyId: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitDailyScore');
+const callSubmitWeeklyScore =
+  httpsCallable<{ weeklyId: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitWeeklyScore');
+const callSubmitGauntletScore =
+  httpsCallable<{ week: string; entry: ScoreEntry }, SubmitScoreResult>(functions, 'submitGauntletScore');
 const callSubmitFeedback =
   httpsCallable<{ uid: string; text: string; ctx: string }, SubmitFeedbackResult>(functions, 'submitFeedback');
 const callFetchFeedbackReplies =
@@ -348,6 +371,40 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
     if (res.data?.reason) { console.warn('Daily score rejected by server', res.data.reason); return false; }
   } catch (error) {
     console.warn('Daily score submit failed', error);
+  }
+  return false;
+}
+
+export async function submitWeeklyScore(weeklyId: string, entry: ScoreEntry): Promise<boolean> {
+  if (!canSubmitScore()) return false;
+  const board = weeklyBoardId(weeklyId);
+  if (!validWeeklyBoard(board)) return false;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
+  const payload = scorePayload({ ...entry, freeplay: false, weekly: board }, serverUid);
+  try {
+    const res = await withTimeout(callSubmitWeeklyScore({ weeklyId: board, entry: payload }));
+    if (res.data?.accepted) { invalidateRitualBoardCache('weekly', board); return true; }
+    if (res.data?.reason) { console.warn('Weekly score rejected by server', res.data.reason); return false; }
+  } catch (error) {
+    console.warn('Weekly score submit failed', error);
+  }
+  return false;
+}
+
+export async function submitGauntletScore(week: string, entry: ScoreEntry): Promise<boolean> {
+  if (!canSubmitScore()) return false;
+  const board = weeklyBoardId(week);
+  if (!validWeeklyBoard(board)) return false;
+  const serverUid = await ensureServerUid();
+  if (!serverUid) return false;
+  const payload = scorePayload({ ...entry, freeplay: false, gauntlet: board }, serverUid);
+  try {
+    const res = await withTimeout(callSubmitGauntletScore({ week: board, entry: payload }));
+    if (res.data?.accepted) { invalidateRitualBoardCache('gauntlet', board); return true; }
+    if (res.data?.reason) { console.warn('Gauntlet score rejected by server', res.data.reason); return false; }
+  } catch (error) {
+    console.warn('Gauntlet score submit failed', error);
   }
   return false;
 }
@@ -822,6 +879,8 @@ function scoreRowFromData(data: Partial<ScoreEntry>): ScoreEntry {
     runId: data.runId ?? '',
     meta: data.meta ?? '',
     daily: data.daily ?? '',
+    weekly: data.weekly ?? '',
+    gauntlet: data.gauntlet ?? '',
     checkpoint: data.checkpoint ?? false,
     verify: normalizeVerify(data.verify, data.runId),
   };
@@ -928,6 +987,49 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
         runId: data.runId ?? '',
         meta: data.meta ?? '',
         daily: data.daily ?? board,
+        checkpoint: data.checkpoint ?? false,
+      };
+    });
+    topCache.set(cacheKey, { expires: Date.now() + LEADERBOARD_CACHE_TTL_MS, rows });
+    return cloneScores(rows);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchWeeklyTop(weeklyId: string, limit = 10): Promise<ScoreEntry[]> {
+  return fetchRitualTop('weeklyBoards', weeklyId, 'weekly', limit);
+}
+
+export async function fetchGauntletTop(week: string, limit = 10): Promise<ScoreEntry[]> {
+  return fetchRitualTop('gauntletBoards', week, 'gauntlet', limit);
+}
+
+async function fetchRitualTop(collectionName: 'weeklyBoards' | 'gauntletBoards', boardIdValue: string, field: 'weekly' | 'gauntlet', limit = 10): Promise<ScoreEntry[]> {
+  const board = weeklyBoardId(boardIdValue);
+  if (!validWeeklyBoard(board)) return [];
+  const cacheKey = `${field}:${board}:${limit}`;
+  const cached = topCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cloneScores(cached.rows);
+  try {
+    const { fs, db } = await firestore();
+    const q = fs.query(fs.collection(db, collectionName, board, 'scores'), fs.orderBy('wave', 'desc'), fs.limit(limit));
+    const snap = await withTimeout(fs.getDocs(q));
+    const rows = snap.docs.map((d) => {
+      const data = d.data() as Partial<ScoreEntry>;
+      return {
+        name: data.name ?? '???',
+        cash: Number(data.cash ?? 0),
+        kills: Number(data.kills ?? 0),
+        wave: Number(data.wave ?? 0),
+        freeplay: false,
+        ts: Number(data.ts ?? 0),
+        uid: data.uid ?? '',
+        runId: data.runId ?? '',
+        meta: data.meta ?? '',
+        daily: data.daily ?? '',
+        weekly: field === 'weekly' ? data.weekly ?? board : data.weekly ?? '',
+        gauntlet: field === 'gauntlet' ? data.gauntlet ?? board : data.gauntlet ?? '',
         checkpoint: data.checkpoint ?? false,
       };
     });

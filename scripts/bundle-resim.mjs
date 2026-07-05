@@ -93,5 +93,7 @@ export function reSimulate(bundle: ReSimBundle): ReSimResult;
 export function reSimulateUploadBundle(bundle: ReSimBundle): ReSimResult;
 export function setBalanceDoc(raw: unknown): void;
 export function setDailyOverrideDoc(raw: unknown): void;
+export function setWeeklyOverrideDoc(raw: unknown): void;
 export function dailyChallengeForId(id: string): unknown;
+export function weeklyChallengeForId(id: string): unknown;
 `);

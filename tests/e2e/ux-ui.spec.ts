@@ -1299,6 +1299,48 @@ test.describe('run telemetry model', () => {
     for (const modifier of daily.modifiers) expect(daily.hudText).toContain(modifier);
   });
 
+  test('weekly ops are discoverable and gauntlet absence is stable', async ({ page }) => {
+    await openDemoMenu(page);
+    await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
+    await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
+    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
+    await page.getByTestId('weekly-mutation-card').click();
+    await expect(page.getByTestId('weekly-mutation-card')).toHaveClass(/active/);
+    await expect(page.locator('.deploy-bar-sel')).toContainText('WEEKLY MUTATION');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
+    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
+  });
+
+  test('weekly mutation starts as a wave-one weekly protocol', async ({ page }) => {
+    await openDemoMenu(page);
+    await page.getByTestId('weekly-mutation-card').click();
+    await page.getByTestId('deploy-button').click();
+    await expect(page.getByTestId('game-root')).toBeVisible();
+    await expect(page.locator('.daily-strip')).toContainText('WEEKLY');
+
+    const weekly = await page.evaluate(() => {
+      const game = (window as unknown as { game: any }).game;
+      const bundle = game.buildRunUploadBundle('WEEKLYTEST', 'test-build');
+      return {
+        isWeekly: game.isWeeklyChallenge,
+        wave: game.wave,
+        freeplay: game.freeplay,
+        summaryWeekly: bundle.run.summary.weekly,
+        setupWeekly: bundle.run.setup.weekly?.id,
+        modifiers: game.dailyMeta().modifiers,
+      };
+    });
+
+    expect(weekly.isWeekly).toBe(true);
+    expect(weekly.wave).toBe(0);
+    expect(weekly.freeplay).toBe(false);
+    expect(weekly.summaryWeekly).toMatch(/^weekly-\d{4}-W\d{2}$/);
+    expect(weekly.setupWeekly).toBe(weekly.summaryWeekly);
+    expect(weekly.modifiers.length).toBeGreaterThanOrEqual(5);
+  });
+
   test('daily challenge does not mutate campaign progress', async ({ page }) => {
     await seedProgress(page, { runs: 2, kills: 12, totalWaves: 4, archive: [], best: {}, history: [] });
     await page.goto('/');

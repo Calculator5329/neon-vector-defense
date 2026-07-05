@@ -11,7 +11,10 @@ const callableExports = [
   'fetchFeedbackReplies',
   'submitScore',
   'submitDailyScore',
+  'submitWeeklyScore',
+  'submitGauntletScore',
   'verifyRun',
+  'crownWeeklyGauntlet',
   'deleteMyData',
 ];
 

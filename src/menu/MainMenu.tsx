@@ -6,6 +6,7 @@ import { ENEMY_LIST } from '../game/enemies';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
 import { dailyModifierNames, type DailyChallenge } from '../game/dailyChallenge';
+import { weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from '../game/weeklyChallenge';
 import { fetchReplayOfTheDay, type ReplaySpotlight } from '../game/replaySpotlight';
 
 import { sfx } from '../game/sound';
@@ -89,11 +90,15 @@ export function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
   dailySeed: DailyChallenge;
+  weeklySeed: WeeklyChallenge;
+  gauntlet: WeeklyGauntletDoc | null;
   onStart: () => void;
   onStartDaily: () => void;
+  onStartWeekly: () => void;
+  onStartGauntlet: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
-  const [deployMode, setDeployMode] = useState<'campaign' | 'daily'>('campaign');
+  const [deployMode, setDeployMode] = useState<'campaign' | 'daily' | 'weekly' | 'gauntlet'>('campaign');
   const [, bumpClaim] = useState(0); // re-read meta.claimableCount() for the nav badge after a claim
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -102,8 +107,9 @@ export function MainMenu(props: {
   // copy — not on any run end (an instant wave-1 loss used to unlock it).
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
-  const selectedUnlocked = deployMode === 'daily' || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
+  const selectedUnlocked = deployMode === 'daily' || deployMode === 'weekly' || deployMode === 'gauntlet' || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
   const dailyMods = dailyModifierNames(props.dailySeed);
+  const weeklyMods = weeklyModifierNames(props.weeklySeed);
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
   // foesSeen must use the SAME basis the Bestiary acks with (ENEMY_LIST intersection, not the
   // raw persisted list) or a stale/removed enemy id would make the NEW badge stick forever.
@@ -194,6 +200,29 @@ export function MainMenu(props: {
           <div className="menu-content">
         {tab === 'deploy' ? (
           <>
+            <div className="weekly-ops-strip" data-testid="weekly-ops-strip">
+              <button
+                className={`weekly-op-card ${deployMode === 'weekly' ? 'active' : ''}`}
+                data-testid="weekly-mutation-card"
+                aria-pressed={deployMode === 'weekly'}
+                title={props.weeklySeed.rules.join('\n')}
+                onClick={() => { setDeployMode('weekly'); sfx.click(); }}
+              >
+                <span>WEEKLY MUTATION</span>
+                <b>{weeklyMods.slice(0, 4).join(' / ')}</b>
+              </button>
+              <button
+                className={`weekly-op-card ${deployMode === 'gauntlet' ? 'active' : ''}`}
+                data-testid="weekly-gauntlet-card"
+                aria-pressed={deployMode === 'gauntlet'}
+                aria-disabled={!props.gauntlet}
+                title={props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Weekly Champion Gauntlet has not been crowned yet.'}
+                onClick={() => { if (props.gauntlet) { setDeployMode('gauntlet'); sfx.click(); } }}
+              >
+                <span>CHAMPION GAUNTLET</span>
+                <b>{props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Not crowned yet'}</b>
+              </button>
+            </div>
             <div className="menu-col">
               <div className="menu-section-label">① SELECT SECTOR</div>
               <div className="map-grid" data-testid="map-grid">
@@ -290,7 +319,14 @@ export function MainMenu(props: {
             </div>
           </>
         ) : tab === 'board' ? (
-          <LeaderboardTab map={props.map} diff={props.diff} daily={props.dailySeed} initialMode={deployMode === 'daily' ? 'daily' : 'campaign'} />
+          <LeaderboardTab
+            map={props.map}
+            diff={props.diff}
+            daily={props.dailySeed}
+            weekly={props.weeklySeed}
+            gauntlet={props.gauntlet}
+            initialMode={deployMode === 'daily' ? 'daily' : deployMode === 'weekly' ? 'weekly' : deployMode === 'gauntlet' ? 'gauntlet' : 'campaign'}
+          />
         ) : (
           <OperationsBoard onClaimed={() => bumpClaim((n) => n + 1)} />
         )}
@@ -308,23 +344,44 @@ export function MainMenu(props: {
             <span className="dbar-label">DEPLOYING TO</span>
             <span className="dbar-sec">{deployMode === 'daily'
               ? (ALL_MAPS.find((m) => m.id === props.dailySeed.mapId)?.name ?? props.dailySeed.mapId)
-              : props.map.name}</span>
+              : deployMode === 'weekly'
+                ? (ALL_MAPS.find((m) => m.id === props.weeklySeed.mapId)?.name ?? props.weeklySeed.mapId)
+                : deployMode === 'gauntlet' && props.gauntlet
+                  ? (ALL_MAPS.find((m) => m.id === props.gauntlet?.map)?.name ?? props.gauntlet.map)
+                  : props.map.name}</span>
             <span className="dbar-dot">·</span>
             <span className="dbar-diff">{deployMode === 'daily'
               ? 'DAILY CHALLENGE'
-              : props.diff.name}</span>
+              : deployMode === 'weekly'
+                ? 'WEEKLY MUTATION'
+                : deployMode === 'gauntlet'
+                  ? 'CHAMPION GAUNTLET'
+                  : props.diff.name}</span>
           </div>
-          <button className={`start-btn deploy-bar-btn ${deployMode === 'daily' ? 'daily' : ''}`} data-testid="deploy-button" disabled={!selectedUnlocked}
+          <button className={`start-btn deploy-bar-btn ${deployMode !== 'campaign' ? 'daily' : ''}`} data-testid="deploy-button" disabled={!selectedUnlocked || (deployMode === 'gauntlet' && !props.gauntlet)}
             onClick={() => {
               if (deployMode === 'daily') {
                 appMetrics.recordDeployAttempt(props.dailySeed.mapId, props.dailySeed.diffId, true);
                 props.onStartDaily();
+              } else if (deployMode === 'weekly') {
+                appMetrics.recordDeployAttempt(props.weeklySeed.mapId, props.weeklySeed.diffId, true);
+                props.onStartWeekly();
+              } else if (deployMode === 'gauntlet') {
+                props.onStartGauntlet();
               } else {
                 appMetrics.recordDeployAttempt(props.map.id, props.diff.id, selectedUnlocked);
                 props.onStart();
               }
             }}>
-            {deployMode === 'daily' ? '▶ DAILY CHALLENGE' : firstTime ? '▶ START MISSION' : '▶ DEPLOY'}
+            {deployMode === 'daily'
+              ? '▶ DAILY CHALLENGE'
+              : deployMode === 'weekly'
+                ? '▶ WEEKLY MUTATION'
+                : deployMode === 'gauntlet'
+                  ? '▶ GAUNTLET'
+                  : firstTime
+                    ? '▶ START MISSION'
+                    : '▶ DEPLOY'}
           </button>
         </div>
       </div>

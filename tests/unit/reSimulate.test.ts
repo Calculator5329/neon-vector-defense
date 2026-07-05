@@ -6,6 +6,7 @@ import { Game } from '../../src/game/engine';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { reSimulate, setBalanceDoc } from '../../src/game/reSimulate';
 import { buildRunManifest, type RunUploadBundle } from '../../src/game/runTelemetry';
+import { weeklyChallengeForId } from '../../src/game/weeklyChallenge';
 import { decodeReplayActionBundle, encodeReplayActions } from '../../src/game/replayCodec';
 import { progress } from '../../src/game/storage';
 import { TOWER_MAP, TOWERS } from '../../src/game/towers';
@@ -56,6 +57,24 @@ function runSeededBotDaily(): RunUploadBundle {
     game.update(0.05);
   }
   return game.buildRunUploadBundle('DAILY', 'test-build');
+}
+
+function runSeededBotWeekly(): RunUploadBundle {
+  const challenge = weeklyChallengeForId('weekly-2026-W27')!;
+  const map = ALL_MAPS.find((candidate) => candidate.id === challenge.mapId) ?? ALL_MAPS[0];
+  const diff = DIFFICULTIES.find((candidate) => candidate.id === challenge.diffId) ?? DIFFICULTIES[1];
+  const game = new Game(map, diff, { seed: 654, lifetimeKills: 1_000_000 });
+  game.paused = false;
+  game.speed = 4;
+  game.startWeeklyChallenge(challenge);
+  const bot = new Bot(game, 'standard', seededRng(7));
+  game.startWave();
+  for (let i = 0; i < 20_000 && game.wave <= 3 && game.phase !== 'gameover'; i++) {
+    bot.act(game.time);
+    if (game.phase === 'build') game.startWave();
+    game.update(0.05);
+  }
+  return game.buildRunUploadBundle('WEEKLY', 'test-build');
 }
 
 function runVeteranDeployStyleActions(): RunUploadBundle {
@@ -181,6 +200,14 @@ describe('reSimulate', () => {
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'verified', result.reason ?? '');
     assert.equal(result.summary?.daily, 'daily-2026-06-01');
+  });
+
+  test('verifies a seeded weekly mutation run', () => {
+    const bundle = runSeededBotWeekly();
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'verified', result.reason ?? '');
+    assert.equal(result.summary?.weekly, 'weekly-2026-W27');
+    assert.ok(bundle.run.setup.weekly);
   });
 
   test('verifies replayed veteran-deploy-style place and upgrade actions', () => {

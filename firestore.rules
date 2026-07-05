@@ -20,6 +20,10 @@ service cloud.firestore {
       return daily.matches('^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
 
+    function isValidWeeklyBoard(weekly) {
+      return weekly.matches('^weekly-[0-9]{4}-W[0-9]{2}$');
+    }
+
     function isValidDailyArsenalId(id) {
       return id in ['fixedPool', 'banDamage', 'tierCap4', 'noSupport', 'budgetBuild'];
     }
@@ -41,6 +45,41 @@ service cloud.firestore {
         && (!('twistId' in data) || (data.twistId is string && isValidDailyTwistId(data.twistId)))
         && (!('boonId' in data) || (data.boonId is string && isValidDailyBoonId(data.boonId)))
         && (!('note' in data) || (data.note is string && data.note.size() <= 240));
+    }
+
+    function isValidWeeklyOverrideDoc(data) {
+      return data is map
+        && data.keys().hasAll(['week'])
+        && data.keys().hasOnly(['week', 'arsenalId', 'twistIds', 'boonId', 'note'])
+        && data.week is string && isValidWeeklyBoard(data.week)
+        && (!('arsenalId' in data) || (data.arsenalId is string && isValidDailyArsenalId(data.arsenalId)))
+        && (!('twistIds' in data) || (data.twistIds is list
+          && data.twistIds.size() == 3
+          && data.twistIds[0] is string && isValidDailyTwistId(data.twistIds[0])
+          && data.twistIds[1] is string && isValidDailyTwistId(data.twistIds[1])
+          && data.twistIds[2] is string && isValidDailyTwistId(data.twistIds[2])
+          && data.twistIds[0] != data.twistIds[1]
+          && data.twistIds[0] != data.twistIds[2]
+          && data.twistIds[1] != data.twistIds[2]))
+        && (!('boonId' in data) || (data.boonId is string && isValidDailyBoonId(data.boonId)))
+        && (!('note' in data) || (data.note is string && data.note.size() <= 240));
+    }
+
+    function isValidWeeklyGauntletDoc(data) {
+      return data is map
+        && data.keys().hasAll(['week', 'runId', 'callsign', 'map', 'diff', 'seed', 'wave', 'kills'])
+        && data.keys().hasOnly(['week', 'runId', 'callsign', 'map', 'diff', 'seed', 'wave', 'kills', 'crownedAt', 'crownedBy', 'source'])
+        && data.week is string && isValidWeeklyBoard(data.week)
+        && data.runId is string && isValidRunId(data.runId)
+        && data.callsign is string && data.callsign.size() <= 20
+        && data.map is string && isValidMapId(data.map)
+        && data.diff is string && isValidDiffId(data.diff)
+        && data.seed is int && data.seed >= 0
+        && data.wave is int && data.wave >= 0 && data.wave <= 10000
+        && data.kills is int && data.kills >= 0 && data.kills < 10000000
+        && (!('crownedAt' in data) || (data.crownedAt is int && data.crownedAt > 0))
+        && (!('crownedBy' in data) || (data.crownedBy is string && data.crownedBy.size() <= 120))
+        && (!('source' in data) || (data.source is string && data.source.size() <= 30));
     }
 
     function isValidMapId(map) {
@@ -183,7 +222,7 @@ service cloud.firestore {
     function isRunSummary(summary) {
       return summary is map
         && summary.keys().hasAll(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS'])
-        && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'contractId', 'scoreMultiplierEnd'])
+        && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'weekly', 'gauntlet', 'contractId', 'scoreMultiplierEnd'])
         && summary.callsign is string && summary.callsign.size() <= 20
         && summary.map is string && summary.map.size() <= 30 && isValidMapId(summary.map)
         && summary.mapName is string && summary.mapName.size() <= 80
@@ -200,6 +239,8 @@ service cloud.firestore {
         && summary.coresLeft is int && summary.coresLeft >= 0 && summary.coresLeft < 1000000
         && summary.durationS is int && summary.durationS >= 0 && summary.durationS < 100000
         && (!('daily' in summary) || isValidDailyBoard(summary.daily))
+        && (!('weekly' in summary) || isValidWeeklyBoard(summary.weekly))
+        && (!('gauntlet' in summary) || isValidWeeklyBoard(summary.gauntlet))
         && (!('contractId' in summary) || (summary.contractId is string && summary.contractId.size() <= 30))
         // freeplay score multiplier compounds across waves/risks/relics; it is a display-only
         // stat (ranking is verified server-side against the replay), so the bound is generous —
@@ -243,7 +284,7 @@ service cloud.firestore {
     function isValidRunSetup(data) {
       return data is map
           && data.keys().hasAll(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion'])
-          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion', 'balance', 'daily', 'replayEngine'])
+          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion', 'balance', 'daily', 'weekly', 'gauntlet', 'replayEngine'])
           && data.map is string && isValidMapId(data.map)
           && data.mapName is string && data.mapName.size() <= 80
           // 8-hex from current clients; 1-7 char base36 from the first v3 client
@@ -259,6 +300,8 @@ service cloud.firestore {
           && data.balanceVersion is string && data.balanceVersion.size() <= 40
           && (!('balance' in data) || isValidBalanceDoc(data.balance))
           && (!('daily' in data) || isValidDailyChallengeSnapshot(data.daily))
+          && (!('weekly' in data) || (data.weekly.id is string && isValidWeeklyBoard(data.weekly.id)))
+          && (!('gauntlet' in data) || (data.gauntlet.week is string && isValidWeeklyBoard(data.gauntlet.week) && data.gauntlet.runId is string && isValidRunId(data.gauntlet.runId)))
           && (!('replayEngine' in data) || isValidReplayEngineVersion(data.replayEngine));
     }
 
@@ -362,6 +405,13 @@ service cloud.firestore {
           && data.rules is list && data.rules.size() <= 8;
     }
 
+    function isValidWeeklyChallengeSnapshot(data) {
+      return data is map
+          && data.keys().hasAll(['id'])
+          && data.keys().hasOnly(['id', 'dateKey', 'weekKey', 'mapId', 'diffId', 'title', 'arsenal', 'twist', 'twistIds', 'twists', 'boon', 'rules'])
+          && data.id is string && isValidWeeklyBoard(data.id);
+    }
+
     // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore
     // Cloud Function (Admin SDK, which bypasses rules); direct client writes are blocked.
     // This is the leaderboard-integrity lockdown — scores are validated against a replay
@@ -374,6 +424,16 @@ service cloud.firestore {
     // daily freeplay leaderboards: anyone can read. Writes are SERVER-ONLY via the
     // submitDailyScore Cloud Function (Admin SDK).
     match /dailyBoards/{daily}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /weeklyBoards/{weekly}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /gauntletBoards/{weekly}/scores/{id} {
       allow read: if true;
       allow create, update, delete: if false;
     }
@@ -607,6 +667,20 @@ service cloud.firestore {
       allow list: if false;
       allow delete: if isAdmin();
       allow create, update: if isAdmin() && isValidDailyOverrideDoc(request.resource.data);
+    }
+
+    match /config/weeklyOverride {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidWeeklyOverrideDoc(request.resource.data);
+    }
+
+    match /config/weeklyGauntlet {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidWeeklyGauntletDoc(request.resource.data);
     }
 
     // server-maintained global-top aggregate: one public doc replaces the

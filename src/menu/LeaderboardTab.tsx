@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { boardId, fetchTopResult, fetchGlobalTopResult, fetchDailyTop, type ScoreEntry, type RankedScoreEntry } from '../game/leaderboard';
+import { boardId, fetchTopResult, fetchGlobalTopResult, fetchDailyTop, fetchWeeklyTop, fetchGauntletTop, type ScoreEntry, type RankedScoreEntry } from '../game/leaderboard';
 import { dailyChallenge, type DailyChallenge } from '../game/dailyChallenge';
+import { weeklyChallenge, type WeeklyChallenge, type WeeklyGauntletDoc } from '../game/weeklyChallenge';
 import { cachedServerUid } from '../game/anonAuth';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
@@ -33,23 +34,27 @@ function WatchCell({ runId }: { runId?: string }) {
   );
 }
 
-type LeaderboardMode = 'campaign' | 'freeplay' | 'daily';
+type LeaderboardMode = 'campaign' | 'freeplay' | 'daily' | 'weekly' | 'gauntlet';
 
 export function LeaderboardTab({
   map,
   diff,
   daily = dailyChallenge(),
+  weekly = weeklyChallenge(),
+  gauntlet = null,
   initialMode = 'campaign',
 }: {
   map: GameMap;
   diff: DifficultyDef;
   daily?: DailyChallenge;
+  weekly?: WeeklyChallenge;
+  gauntlet?: WeeklyGauntletDoc | null;
   initialMode?: LeaderboardMode;
 }) {
   const [mode, setMode] = useState<LeaderboardMode>(initialMode);
   const [globalRows, setGlobalRows] = useState<RankedScoreEntry[] | null>(null);
   const [localRows, setLocalRows] = useState<ScoreEntry[] | null>(null);
-  const [dailyRows, setDailyRows] = useState<ScoreEntry[] | null>(null);
+  const [ritualRows, setRitualRows] = useState<ScoreEntry[] | null>(null);
   const [globalError, setGlobalError] = useState(false);
   const [localError, setLocalError] = useState(false);
   const fp = mode === 'freeplay';
@@ -64,12 +69,17 @@ export function LeaderboardTab({
     let live = true;
     setGlobalRows(null);
     setLocalRows(null);
-    setDailyRows(null);
+    setRitualRows(null);
     setGlobalError(false);
     setLocalError(false);
-    if (mode === 'daily') {
-      fetchDailyTop(daily.id, 20).then((rows) => { if (live) setDailyRows(rows); }).catch(() => {
-        if (live) { setDailyRows([]); setGlobalError(true); }
+    if (mode === 'daily' || mode === 'weekly' || mode === 'gauntlet') {
+      const load = mode === 'daily'
+        ? fetchDailyTop(daily.id, 20)
+        : mode === 'weekly'
+          ? fetchWeeklyTop(weekly.id, 20)
+          : gauntlet ? fetchGauntletTop(gauntlet.week, 20) : Promise.resolve([]);
+      load.then((rows) => { if (live) setRitualRows(rows); }).catch(() => {
+        if (live) { setRitualRows([]); setGlobalError(true); }
       });
       return () => { live = false; };
     }
@@ -81,18 +91,28 @@ export function LeaderboardTab({
       setLocalError(local.error);
     });
     return () => { live = false; };
-  }, [board, daily.id, fp, mode]);
+  }, [board, daily.id, fp, gauntlet, mode, weekly.id]);
+  const ritualTitle = mode === 'daily' ? 'DAILY' : mode === 'weekly' ? 'WEEKLY' : mode === 'gauntlet' ? 'GAUNTLET' : '';
+  const ritualEmpty = mode === 'daily'
+    ? 'No daily records yet - deploy the challenge and set the pace.'
+    : mode === 'weekly'
+      ? 'No weekly mutation records yet - deploy and set the pace.'
+      : gauntlet
+        ? 'No gauntlet attempts yet - take the first shot.'
+        : 'Weekly Champion Gauntlet has not been crowned yet.';
   return (
     <div className="board-tab">
       <div className="board-head">
-        <div className="board-title">GLOBAL LEADERBOARD <span>{mode === 'daily' ? 'DAILY' : fp ? 'FREEPLAY' : 'CAMPAIGN'}</span></div>
+        <div className="board-title">GLOBAL LEADERBOARD <span>{ritualTitle || (fp ? 'FREEPLAY' : 'CAMPAIGN')}</span></div>
         <div className="board-modes">
           <button className={mode === 'campaign' ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(false); setMode('campaign'); sfx.click(); }}>CAMPAIGN</button>
           <button className={mode === 'freeplay' ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(true); setMode('freeplay'); sfx.click(); }}>FREEPLAY</button>
           <button className={mode === 'daily' ? 'on' : ''} onClick={() => { setMode('daily'); sfx.click(); }}>DAILY</button>
+          <button className={mode === 'weekly' ? 'on' : ''} onClick={() => { setMode('weekly'); sfx.click(); }}>WEEKLY</button>
+          <button className={mode === 'gauntlet' ? 'on' : ''} onClick={() => { setMode('gauntlet'); sfx.click(); }}>GAUNTLET</button>
         </div>
       </div>
-      {mode === 'daily' ? (
+      {(mode === 'daily' || mode === 'weekly' || mode === 'gauntlet') ? (
         <div className="board-list board-global fp daily-board-mode" data-testid="daily-leaderboard-mode">
           <div className="board-row board-row-head">
             <span className="board-rank">#</span>
@@ -102,13 +122,13 @@ export function LeaderboardTab({
             <span className="board-cash">CREDITS</span>
             <span className="board-watch">REPLAY</span>
           </div>
-          {dailyRows === null ? (
-            <div className="board-empty">Checking today's daily board...</div>
+          {ritualRows === null ? (
+            <div className="board-empty">Checking {ritualTitle.toLowerCase()} board...</div>
           ) : globalError ? (
-            <div className="board-empty">Daily leaderboard uplink failed - try again in a moment.</div>
-          ) : dailyRows.length === 0 ? (
-            <div className="board-empty">No daily records yet - deploy the challenge and set the pace.</div>
-          ) : dailyRows.map((r, i) => (
+            <div className="board-empty">{ritualTitle} leaderboard uplink failed - try again in a moment.</div>
+          ) : ritualRows.length === 0 ? (
+            <div className="board-empty">{ritualEmpty}</div>
+          ) : ritualRows.map((r, i) => (
             <div key={`${r.runId || r.name}-${i}`} className={`board-row ${r.uid === myUid ? 'me' : ''}`}>
               <span className="board-rank">{i + 1}</span>
               <BoardName r={r} mine={r.uid === myUid} fp />

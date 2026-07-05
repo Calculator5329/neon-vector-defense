@@ -1,7 +1,8 @@
 /**
  * Neon Vector Defense — server-side leaderboard gate + data deletion.
  *
- * submitScore / submitDailyScore: the ONLY writers to boards/* and dailyBoards/*.
+ * submitScore / submitDailyScore / submitWeeklyScore / submitGauntletScore:
+ *   the ONLY writers to boards/* and ritual board collections.
  *   Clients no longer write board entries directly (firestore.rules: create:if false).
  *   We require a matching runs/{runId} replay to exist and sanity-bound the claimed
  *   score against the run's recorded summary, then rate-limit per uid, then write.
@@ -30,7 +31,15 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { isAdminEmail } from './adminEmails.js';
 import { mergeGlobalTopRows, type GlobalTopRow } from './aggregateHelpers.js';
 import { partitionRunDeletions, validDeletedRunIds } from './deleteHelpers.js';
-import { dailyChallengeForId, reSimulate, setBalanceDoc, setDailyOverrideDoc, type ReSimResult } from './generated/reSimulate.js';
+import {
+  dailyChallengeForId,
+  reSimulate,
+  setBalanceDoc,
+  setDailyOverrideDoc,
+  setWeeklyOverrideDoc,
+  weeklyChallengeForId,
+  type ReSimResult,
+} from './generated/reSimulate.js';
 import { validateReplayManifest, type ReplayChunkInput } from './replayIntegrity.js';
 import {
   canonicalLeaderboardCash,
@@ -56,6 +65,7 @@ const VALID_DIFFS = new Set(['easy', 'normal', 'hard', 'extinction']);
 
 const BOARD_RE = /^(?<map>[a-z]+)_(?<diff>[a-z]+)(?<fp>_fp)?$/;
 const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const WEEKLY_BOARD_RE = /^weekly-[0-9]{4}-W[0-9]{2}$/;
 const RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
 const UID_RE = /^[A-Za-z0-9_-]{6,40}$/;
 const REPLAY_TOKEN_RE = /^[A-Za-z0-9_-]{16,128}$/;
@@ -94,6 +104,8 @@ interface ClaimedScore {
   replayToken: string;
   meta?: string;
   daily?: string;
+  weekly?: string;
+  gauntlet?: string;
   checkpoint?: boolean;
 }
 
@@ -116,6 +128,23 @@ interface VerifyRunResult {
   reason?: string;
   divergence?: ReSimResult['divergence'];
   rowsUpdated: number;
+}
+
+type ScoreBoardKind = 'standard' | 'daily' | 'weekly' | 'gauntlet';
+
+interface WeeklyGauntletResult {
+  published: boolean;
+  reason?: string;
+  gauntlet?: {
+    week: string;
+    runId: string;
+    callsign: string;
+    map: string;
+    diff: string;
+    seed: number;
+    wave: number;
+    kills: number;
+  };
 }
 
 function n(v: unknown, fallback = 0): number {
@@ -155,6 +184,31 @@ function dailyIsCurrent(board: string): boolean {
   return board === dailyIdForOffset(0) || board === dailyIdForOffset(-1);
 }
 
+function isoWeekId(now: Date): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `weekly-${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function weeklyIdForOffset(offsetDays: number): string {
+  return isoWeekId(new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000));
+}
+
+function weeklyIsCurrent(board: string): boolean {
+  return board === weeklyIdForOffset(0) || board === weeklyIdForOffset(-7);
+}
+
+function isoWeekStart(now: Date): Date {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() - day + 1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
 function readClaim(raw: unknown): ClaimedScore | null {
   if (!raw || typeof raw !== 'object') return null;
   const d = raw as Record<string, unknown>;
@@ -180,6 +234,8 @@ function readClaim(raw: unknown): ClaimedScore | null {
   if (claim.cash >= CASH_MAX || claim.kills >= KILLS_MAX || claim.wave > WAVE_MAX) return null;
   if (typeof d.meta === 'string') claim.meta = d.meta.slice(0, 240);
   if (typeof d.daily === 'string') claim.daily = d.daily.slice(0, 80);
+  if (typeof d.weekly === 'string') claim.weekly = d.weekly.slice(0, 80);
+  if (typeof d.gauntlet === 'string') claim.gauntlet = d.gauntlet.slice(0, 80);
   if (d.checkpoint !== undefined) claim.checkpoint = !!d.checkpoint;
   return claim;
 }
@@ -187,11 +243,11 @@ function readClaim(raw: unknown): ClaimedScore | null {
 interface RunSummary {
   wave: number; kills: number; credits: number; cashEarned: number;
   coresLeft: number; durationS: number; freeplay: boolean;
-  map: string; diff: string; outcome: string; daily?: string; scoreMultiplierEnd?: number;
+  map: string; diff: string; outcome: string; daily?: string; weekly?: string; gauntlet?: string; scoreMultiplierEnd?: number;
 }
 
 /** Verify runs/{runId} exists and return the replay-derived canonical score. */
-async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean): Promise<{ reason?: string; canonical?: CanonicalScore }> {
+async function checkReplay(claim: ClaimedScore, board: string, kind: ScoreBoardKind): Promise<{ reason?: string; canonical?: CanonicalScore }> {
   const snap = await db.doc(`runs/${claim.runId}`).get();
   if (!snap.exists) return { reason: 'no-replay' };
   const run = snap.data() as Record<string, unknown>;
@@ -231,7 +287,8 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   const endedAt = n(run.endedAt);
   if (createdAt <= 0 || endedAt < createdAt) return { reason: 'bad-timestamps' };
 
-  const wantFreeplay = !isDaily && boardIsFreeplay(board);
+  const ritual = kind !== 'standard';
+  const wantFreeplay = !ritual && boardIsFreeplay(board);
   const canonicalCash = canonicalLeaderboardCash(Math.max(recCashEarned, recCredits), wantFreeplay, summary.scoreMultiplierEnd);
   const cashCeiling = Math.max(recCashEarned, recCredits, canonicalCash) * SCORE_SLACK + 5;
   if (claim.cash > cashCeiling) return { reason: 'cash-too-high' };
@@ -240,17 +297,23 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
 
   if (claim.freeplay !== wantFreeplay) return { reason: 'freeplay-mismatch' };
 
-  if (!isDaily) {
+  if (kind === 'standard') {
     const m = BOARD_RE.exec(board);
     const setup = (run.setup ?? {}) as { map?: string; diff?: string };
     const runMap = String(summary.map ?? setup.map ?? '');
     const runDiff = String(summary.diff ?? setup.diff ?? '');
     if (m?.groups && runMap && runMap !== m.groups.map) return { reason: 'map-mismatch' };
     if (m?.groups && runDiff && runDiff !== m.groups.diff) return { reason: 'diff-mismatch' };
-    if (summary.daily) return { reason: 'daily-on-board' };
-  } else {
+    if (summary.daily || summary.weekly || summary.gauntlet) return { reason: 'ritual-on-board' };
+  } else if (kind === 'daily') {
     if (summary.freeplay) return { reason: 'daily-is-freeplay' };
     if (summary.daily !== board) return { reason: 'daily-mismatch' };
+  } else if (kind === 'weekly') {
+    if (summary.freeplay) return { reason: 'weekly-is-freeplay' };
+    if (summary.weekly !== board) return { reason: 'weekly-mismatch' };
+  } else {
+    if (summary.freeplay) return { reason: 'gauntlet-is-freeplay' };
+    if (summary.gauntlet !== board) return { reason: 'gauntlet-mismatch' };
   }
 
   return {
@@ -262,11 +325,11 @@ async function checkReplay(claim: ClaimedScore, board: string, isDaily: boolean)
   };
 }
 
-async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolean): Promise<SubmitResult> {
+async function processSubmit(claim: ClaimedScore, board: string, kind: ScoreBoardKind): Promise<SubmitResult> {
   const claimed = { cash: claim.cash, kills: claim.kills, wave: claim.wave };
   const acceptedAt = Date.now();
 
-  const replay = await checkReplay(claim, board, isDaily);
+  const replay = await checkReplay(claim, board, kind);
   if (replay.reason || !replay.canonical) return { accepted: false, reason: replay.reason ?? 'bad-replay', claimed };
   const canonical = replay.canonical;
 
@@ -279,7 +342,7 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
     cash: canonical.cash,
     kills: canonical.kills,
     wave: canonical.wave,
-    freeplay: !isDaily && boardIsFreeplay(board),
+    freeplay: kind === 'standard' && boardIsFreeplay(board),
     ts: acceptedAt,
     clientTs: claim.ts,
     uid: claim.uid,
@@ -288,9 +351,17 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
   };
   if (claim.meta) stored.meta = claim.meta;
   if (claim.checkpoint !== undefined) stored.checkpoint = claim.checkpoint;
-  if (isDaily) stored.daily = board;
+  if (kind === 'daily') stored.daily = board;
+  if (kind === 'weekly') stored.weekly = board;
+  if (kind === 'gauntlet') stored.gauntlet = board;
 
-  const collPath = isDaily ? `dailyBoards/${board}/scores` : `boards/${board}/scores`;
+  const collPath = kind === 'daily'
+    ? `dailyBoards/${board}/scores`
+    : kind === 'weekly'
+      ? `weeklyBoards/${board}/scores`
+      : kind === 'gauntlet'
+        ? `gauntletBoards/${board}/scores`
+        : `boards/${board}/scores`;
   const docId = `${claim.uid}_${claim.runId}${claim.checkpoint ? `_w${canonical.wave}` : ''}`.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 180);
   const rowRef = db.collection(collPath).doc(docId);
   await rowRef.set(stored, { merge: false });
@@ -300,7 +371,7 @@ async function processSubmit(claim: ClaimedScore, board: string, isDaily: boolea
   // so the client menu reads ONE doc instead of fanning out 40 board queries.
   // Daily boards are their own surface and stay out of the global view.
   // Best-effort: an aggregate failure must never reject an accepted score.
-  if (!isDaily) {
+  if (kind === 'standard') {
     try {
       await updateGlobalTop({
         name: claim.name,
@@ -367,7 +438,7 @@ async function scoreRowsForRun(runId: string): Promise<ScoreRowRef[]> {
   const snap = await db.collectionGroup('scores').where('runId', '==', runId).get();
   return snap.docs
     .map((docSnap) => docSnap.ref)
-    .filter((ref) => /^(boards|dailyBoards)\/[^/]+\/scores\/[^/]+$/.test(ref.path));
+    .filter((ref) => /^(boards|dailyBoards|weeklyBoards|gauntletBoards)\/[^/]+\/scores\/[^/]+$/.test(ref.path));
 }
 
 async function writeScoreVerdict(rows: ScoreRowRef[], verdict: ReSimResult['verdict']): Promise<number> {
@@ -446,18 +517,25 @@ interface ReSimConfigDocs {
   balance: Record<string, unknown> | null;
   balanceExists: boolean;
   dailyOverride: Record<string, unknown> | null;
+  weeklyOverride: Record<string, unknown> | null;
+  weeklyGauntlet: Record<string, unknown> | null;
 }
 
 async function loadReSimConfig(): Promise<ReSimConfigDocs> {
-  const [balanceSnap, overrideSnap] = await Promise.all([
+  const [balanceSnap, overrideSnap, weeklyOverrideSnap, weeklyGauntletSnap] = await Promise.all([
     db.doc('config/balance').get(),
     db.doc('config/dailyOverride').get(),
+    db.doc('config/weeklyOverride').get(),
+    db.doc('config/weeklyGauntlet').get(),
   ]);
   const balance = balanceSnap.exists ? balanceSnap.data() as Record<string, unknown> : null;
   const dailyOverride = overrideSnap.exists ? overrideSnap.data() as Record<string, unknown> : null;
+  const weeklyOverride = weeklyOverrideSnap.exists ? weeklyOverrideSnap.data() as Record<string, unknown> : null;
+  const weeklyGauntlet = weeklyGauntletSnap.exists ? weeklyGauntletSnap.data() as Record<string, unknown> : null;
   setBalanceDoc(balance);
   setDailyOverrideDoc(dailyOverride);
-  return { balance, balanceExists: balanceSnap.exists, dailyOverride };
+  setWeeklyOverrideDoc(weeklyOverride);
+  return { balance, balanceExists: balanceSnap.exists, dailyOverride, weeklyOverride, weeklyGauntlet };
 }
 
 function canonicalize(value: unknown): unknown {
@@ -501,6 +579,19 @@ function authenticateSetupSnapshots(run: Record<string, unknown>, config: ReSimC
     const expectedDaily = dailyChallengeForId(dailyId);
     if (!expectedDaily || !('daily' in setup)) return snapshotNotAuthentic();
     if (canonicalJson(setup.daily) !== canonicalJson(expectedDaily)) return snapshotNotAuthentic();
+  }
+  const weeklyId = typeof summary.weekly === 'string' ? summary.weekly : '';
+  if (!weeklyId && 'weekly' in setup) return snapshotNotAuthentic();
+  if (weeklyId) {
+    const expectedWeekly = weeklyChallengeForId(weeklyId);
+    if (!expectedWeekly || !('weekly' in setup)) return snapshotNotAuthentic();
+    if (canonicalJson(setup.weekly) !== canonicalJson(expectedWeekly)) return snapshotNotAuthentic();
+  }
+  const gauntletWeek = typeof summary.gauntlet === 'string' ? summary.gauntlet : '';
+  if (!gauntletWeek && 'gauntlet' in setup) return snapshotNotAuthentic();
+  if (gauntletWeek) {
+    if (!config.weeklyGauntlet || !('gauntlet' in setup)) return snapshotNotAuthentic();
+    if (canonicalJson(setup.gauntlet) !== canonicalJson(config.weeklyGauntlet)) return snapshotNotAuthentic();
   }
   return null;
 }
@@ -641,8 +732,8 @@ export const submitScore = onCall(
     if (!validBoard(board)) throw new HttpsError('invalid-argument', 'bad-board');
     const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
     if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
-    if (claim.daily) throw new HttpsError('invalid-argument', 'daily-on-board');
-    return processSubmit({ ...claim, uid: authUid }, board, false);
+    if (claim.daily || claim.weekly || claim.gauntlet) throw new HttpsError('invalid-argument', 'ritual-on-board');
+    return processSubmit({ ...claim, uid: authUid }, board, 'standard');
   },
 );
 
@@ -655,7 +746,35 @@ export const submitDailyScore = onCall(
     if (!dailyIsCurrent(dailyId)) throw new HttpsError('failed-precondition', 'stale-daily');
     const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
     if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
-    return processSubmit({ ...claim, uid: authUid, freeplay: false, daily: dailyId }, dailyId, true);
+    return processSubmit({ ...claim, uid: authUid, freeplay: false, daily: dailyId }, dailyId, 'daily');
+  },
+);
+
+export const submitWeeklyScore = onCall(
+  callableOptions(10),
+  async (req: CallableRequest): Promise<SubmitResult> => {
+    const authUid = requireAuthUid(req);
+    const weeklyId = String((req.data as Record<string, unknown> | undefined)?.weeklyId ?? '');
+    if (!WEEKLY_BOARD_RE.test(weeklyId)) throw new HttpsError('invalid-argument', 'bad-weekly');
+    if (!weeklyIsCurrent(weeklyId)) throw new HttpsError('failed-precondition', 'stale-weekly');
+    const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
+    if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
+    return processSubmit({ ...claim, uid: authUid, freeplay: false, weekly: weeklyId }, weeklyId, 'weekly');
+  },
+);
+
+export const submitGauntletScore = onCall(
+  callableOptions(10),
+  async (req: CallableRequest): Promise<SubmitResult> => {
+    const authUid = requireAuthUid(req);
+    const week = String((req.data as Record<string, unknown> | undefined)?.week ?? '');
+    if (!WEEKLY_BOARD_RE.test(week)) throw new HttpsError('invalid-argument', 'bad-gauntlet');
+    if (!weeklyIsCurrent(week)) throw new HttpsError('failed-precondition', 'stale-gauntlet');
+    const gauntlet = await db.doc('config/weeklyGauntlet').get();
+    if (!gauntlet.exists || gauntlet.get('week') !== week) throw new HttpsError('failed-precondition', 'gauntlet-not-crowned');
+    const claim = readClaim((req.data as Record<string, unknown> | undefined)?.entry);
+    if (!claim) throw new HttpsError('invalid-argument', 'bad-entry');
+    return processSubmit({ ...claim, uid: authUid, freeplay: false, gauntlet: week }, week, 'gauntlet');
   },
 );
 
@@ -670,6 +789,70 @@ export const verifyRun = onCall(
 );
 
 // ---- deleteMyData (1A) — cascade delete everything keyed by uid ----
+
+export const crownWeeklyGauntlet = onCall(
+  callableOptions(5, 120),
+  async (req: CallableRequest): Promise<WeeklyGauntletResult> => {
+    requireAdmin(req);
+    const now = new Date();
+    const week = String((req.data as Record<string, unknown> | undefined)?.week ?? isoWeekId(now));
+    if (!WEEKLY_BOARD_RE.test(week)) throw new HttpsError('invalid-argument', 'bad-week');
+    const thisWeekStart = isoWeekStart(now);
+    const prevStart = thisWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000;
+    const prevEnd = thisWeekStart.getTime();
+    const snap = await db.collectionGroup('scores')
+      .where('freeplay', '==', false)
+      .where('verify', '==', 'verified')
+      .where('ts', '>=', prevStart)
+      .where('ts', '<', prevEnd)
+      .orderBy('ts', 'desc')
+      .limit(100)
+      .get();
+    const candidates = snap.docs
+      .filter((docSnap) => /^boards\/[^/]+\/scores\/[^/]+$/.test(docSnap.ref.path))
+      .map((docSnap) => {
+        const data = docSnap.data() as Record<string, unknown>;
+        return {
+          runId: String(data.runId ?? ''),
+          callsign: String(data.name ?? 'WARDEN').slice(0, 20),
+          cash: n(data.cash),
+          wave: Math.max(0, Math.floor(n(data.wave))),
+          kills: Math.max(0, Math.floor(n(data.kills))),
+        };
+      })
+      .filter((row) => RUN_ID_RE.test(row.runId))
+      .sort((a, b) => b.cash - a.cash || b.wave - a.wave || b.kills - a.kills);
+    const champion = candidates[0];
+    if (!champion) return { published: false, reason: 'no-verified-campaign-row' };
+    const runSnap = await db.doc(`runs/${champion.runId}`).get();
+    const run = runSnap.exists ? runSnap.data() as Record<string, unknown> : null;
+    const setup = (run?.setup ?? {}) as Record<string, unknown>;
+    const summary = (run?.summary ?? {}) as Record<string, unknown>;
+    const map = String(summary.map ?? setup.map ?? '');
+    const diff = String(summary.diff ?? setup.diff ?? '');
+    const seed = Math.floor(n(setup.seed, -1));
+    if (!VALID_MAPS.has(map) || !VALID_DIFFS.has(diff) || seed < 0) {
+      return { published: false, reason: 'champion-replay-missing-setup' };
+    }
+    const gauntlet = {
+      week,
+      runId: champion.runId,
+      callsign: champion.callsign,
+      map,
+      diff,
+      seed: seed >>> 0,
+      wave: champion.wave,
+      kills: champion.kills,
+    };
+    await db.doc('config/weeklyGauntlet').set({
+      ...gauntlet,
+      crownedAt: Date.now(),
+      crownedBy: String(req.auth?.token?.email ?? '').slice(0, 120),
+      source: 'callable',
+    }, { merge: false });
+    return { published: true, gauntlet };
+  },
+);
 
 interface DeleteResult {
   ok: boolean;

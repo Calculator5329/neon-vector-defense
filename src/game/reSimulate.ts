@@ -2,6 +2,7 @@ import { balanceDocSnapshot, balanceVersion, setBalanceDoc as applyBalanceDoc } 
 import { dailyChallengeForId } from './dailyChallenge';
 import { Game } from './engine';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
+import { weeklyChallengeForId } from './weeklyChallenge';
 import {
   REPLAY_ENGINE_VERSION,
   RUN_TELEMETRY_SCHEMA,
@@ -69,18 +70,32 @@ export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: st
   });
   game.paused = false;
   game.speed = 1;
-  game.credits = Math.max(0, Math.floor(run.setup.startingCash));
-  game.lives = Math.max(1, Math.floor(run.setup.startingLives));
-  game.startingLives = game.lives;
-  game.recorder.setStartingResources(game.credits, game.lives);
+  const applyRecordedResources = () => {
+    game.credits = Math.max(0, Math.floor(run.setup.startingCash));
+    game.lives = Math.max(1, Math.floor(run.setup.startingLives));
+    game.startingLives = game.lives;
+    game.recorder.setStartingResources(game.credits, game.lives);
+  };
 
-  if (run.summary.daily || run.setup.daily) {
+  if (run.summary.weekly || run.setup.weekly) {
+    const weeklyId = run.summary.weekly ?? run.setup.weekly?.id;
+    const challenge = run.setup.weekly ?? (weeklyId ? weeklyChallengeForId(weeklyId) : null);
+    if (!challenge) return { error: `unsupported weekly id ${weeklyId}` };
+    if (challenge.mapId !== map.id || challenge.diffId !== diff.id) {
+      return { error: 'weekly challenge does not match replay setup' };
+    }
+    game.startWeeklyChallenge(challenge);
+  } else if (run.summary.daily || run.setup.daily) {
     const challenge = run.setup.daily ?? (run.summary.daily ? dailyChallengeForId(run.summary.daily) : null);
     if (!challenge) return { error: `unsupported daily id ${run.summary.daily}` };
     if (challenge.mapId !== map.id || challenge.diffId !== diff.id) {
       return { error: 'daily challenge does not match replay setup' };
     }
     game.startDailyChallenge(challenge);
+  }
+  applyRecordedResources();
+  if (run.summary.gauntlet || run.setup.gauntlet) {
+    game.setGauntletChallenge(run.setup.gauntlet ?? null);
   }
   return { game };
 }
@@ -582,6 +597,7 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
 
 // The functions bundle re-simulates outside the browser, where the boot-time
 // config fetches never run. The server injects the live config/balance and
-// config/dailyOverride docs through these before verifying.
+// config/dailyOverride and config/weeklyOverride docs through these before verifying.
 export { setBalanceDoc } from './balanceConfig';
 export { dailyChallengeForId, setDailyOverrideDoc } from './dailyChallenge';
+export { weeklyChallengeForId, setWeeklyOverrideDoc } from './weeklyChallenge';

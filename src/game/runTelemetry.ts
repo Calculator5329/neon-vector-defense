@@ -12,6 +12,7 @@ import type {
 import { appMetrics, METRIC_EVENTS, type AppMetricSnapshot, type InputKind, type MetricEventName } from './metrics';
 import { balanceDocSnapshot, balanceVersion, type BalanceConfigDoc } from './balanceConfig';
 import type { DailyChallenge } from './dailyChallenge';
+import type { WeeklyChallenge, WeeklyGauntletDoc } from './weeklyChallenge';
 import { actionHash, encodeReplayActions, isReplayActionEvent, normalizeReplayActionEvents, type ReplayActionPack } from './replayCodec';
 
 export const RUN_TELEMETRY_SCHEMA = 3;
@@ -150,6 +151,8 @@ export interface PublicRunDoc {
     diffName: string;
     freeplay: boolean;
     daily?: string;
+    weekly?: string;
+    gauntlet?: string;
     contractId?: string;
     scoreMultiplierEnd?: number;
     outcome: RunOutcome;
@@ -175,6 +178,8 @@ export interface PublicRunDoc {
     balanceVersion: string;
     balance?: BalanceConfigDoc;
     daily?: DailyChallenge;
+    weekly?: WeeklyChallenge;
+    gauntlet?: WeeklyGauntletDoc;
     /** REPLAY_ENGINE_VERSION at record time; absent on runs older than v2 */
     replayEngine?: number;
   };
@@ -475,6 +480,8 @@ export class RunRecorder {
   private cashFloatedMaxSnapshot = 0;
   private ledger = new Map<number, TowerLedger>();
   private dailySnapshot: DailyChallenge | null = null;
+  private weeklySnapshot: WeeklyChallenge | null = null;
+  private gauntletSnapshot: WeeklyGauntletDoc | null = null;
   private cashSpent = 0;
   private cashRefunded = 0;
   private failedPlacements = 0;
@@ -646,6 +653,16 @@ export class RunRecorder {
 
   setDailyChallenge(challenge: DailyChallenge | null): void {
     this.dailySnapshot = challenge ? JSON.parse(JSON.stringify(challenge)) as DailyChallenge : null;
+    if (challenge) this.weeklySnapshot = null;
+  }
+
+  setWeeklyChallenge(challenge: WeeklyChallenge | null): void {
+    this.weeklySnapshot = challenge ? JSON.parse(JSON.stringify(challenge)) as WeeklyChallenge : null;
+    if (challenge) this.dailySnapshot = null;
+  }
+
+  setGauntletChallenge(challenge: WeeklyGauntletDoc | null): void {
+    this.gauntletSnapshot = challenge ? JSON.parse(JSON.stringify(challenge)) as WeeklyGauntletDoc : null;
   }
 
   recordRunStart(state: RunTelemetryState): void {
@@ -1105,11 +1122,13 @@ export class RunRecorder {
         startingCash: this.start.startingCash,
         startingLives: this.start.startingLives,
         availableTowerIds: [...this.start.availableTowerIds],
-        balanceVersion: balanceVersion() || build,
-        ...(balance ? { balance } : {}),
-        ...(this.dailySnapshot ? { daily: this.dailySnapshot } : {}),
-        replayEngine: REPLAY_ENGINE_VERSION,
-      },
+          balanceVersion: balanceVersion() || build,
+          ...(balance ? { balance } : {}),
+          ...(this.dailySnapshot ? { daily: this.dailySnapshot } : {}),
+          ...(this.weeklySnapshot ? { weekly: this.weeklySnapshot } : {}),
+          ...(this.gauntletSnapshot ? { gauntlet: this.gauntletSnapshot } : {}),
+          replayEngine: REPLAY_ENGINE_VERSION,
+        },
       actions: encodedRunActions,
       final: {
         towers: this.finalTowers(state, FINAL_TOWER_DOC_CAP),
@@ -1585,7 +1604,10 @@ export class RunRecorder {
       coresLeft: clampInt(state.lives, 999999),
       durationS: clampInt(state.time, 99999),
     };
-    if (this.freeplay.dailyId && /^daily-\d{4}-\d{2}-\d{2}$/.test(this.freeplay.dailyId)) summary.daily = this.freeplay.dailyId;
+    if (this.dailySnapshot) summary.daily = this.dailySnapshot.id;
+    else if (this.freeplay.dailyId && /^daily-\d{4}-\d{2}-\d{2}$/.test(this.freeplay.dailyId)) summary.daily = this.freeplay.dailyId;
+    if (this.weeklySnapshot) summary.weekly = this.weeklySnapshot.id;
+    if (this.gauntletSnapshot) summary.gauntlet = this.gauntletSnapshot.week;
     if (state.freeplay && this.freeplay.contractId) summary.contractId = this.freeplay.contractId.slice(0, 30);
     if (state.freeplay && Number.isFinite(this.freeplay.scoreMultiplierEnd)) {
       summary.scoreMultiplierEnd = Math.max(0, Math.min(1000000000, Math.round(this.freeplay.scoreMultiplierEnd * 100) / 100));
