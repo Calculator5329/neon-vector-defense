@@ -570,34 +570,79 @@ test.describe('desktop UX layout', () => {
     }
   });
 
-  test('sector select keeps an 8-card, 4-by-2 grid with docked utility buttons', async ({ page }) => {
+  test('sector atlas keeps reachable nodes, dock, and utility buttons stable', async ({ page }) => {
     await openDemoMenu(page);
 
     const layout = await page.evaluate(() => {
-      const cards = [...document.querySelectorAll('.map-card')].map((el) => {
+      const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="map-node-"]')].map((el) => {
         const r = el.getBoundingClientRect();
         return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
       });
+      const field = document.querySelector<HTMLElement>('[data-testid="atlas-field"]')!;
+      const dock = document.querySelector<HTMLElement>('[data-testid="sector-dock"]')!;
       const ai = document.querySelector('.ai-toggle')?.getBoundingClientRect();
       const fb = document.querySelector('.fb-toggle')?.getBoundingClientRect();
       return {
-        cards,
-        rowCount: new Set(cards.map((card) => card.y)).size,
-        firstRowCount: cards.filter((card) => card.y === cards[0]?.y).length,
-        mapGrid: getComputedStyle(document.querySelector('[data-testid="map-grid"]')!).display,
+        nodes,
+        fieldWidth: Math.round(field.getBoundingClientRect().width),
+        dockWidth: Math.round(dock.getBoundingClientRect().width),
+        fieldDisplay: getComputedStyle(field).position,
         deployVisible: document.querySelector('[data-testid="deploy-button"]')!.getBoundingClientRect().bottom <= window.innerHeight,
         rightEdgesAligned: ai && fb ? Math.abs(ai.right - fb.right) <= 2 : false,
         horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
       };
     });
 
-    expect(layout.cards).toHaveLength(8);
-    expect(layout.rowCount).toBe(2);
-    expect(layout.firstRowCount).toBe(4);
-    expect(layout.mapGrid).toBe('grid');
+    expect(layout.nodes).toHaveLength(8);
+    expect(Math.min(...layout.nodes.map((node) => node.width))).toBeGreaterThanOrEqual(44);
+    expect(Math.min(...layout.nodes.map((node) => node.height))).toBeGreaterThanOrEqual(44);
+    expect(layout.fieldWidth).toBeGreaterThan(layout.dockWidth);
+    expect(layout.dockWidth).toBeGreaterThanOrEqual(280);
+    expect(layout.fieldDisplay).toBe('relative');
     expect(layout.deployVisible).toBe(true);
     expect(layout.rightEdgesAligned).toBe(true);
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test('sector atlas selection, keyboard path, weekly beacon, locks, and deploy launch work', async ({ page }) => {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 844, height: 390 }]) {
+      await page.setViewportSize(viewport);
+      await openDemoMenu(page);
+
+      await page.getByTestId('map-node-cinder').click();
+      await expect(page.getByTestId('sector-dock')).toContainText('Cinder Causeway');
+      await page.getByTestId('diff-card-normal').click();
+      await expect(page.locator('.deploy-bar-sel')).toContainText('Cinder Causeway');
+      await expect(page.locator('.deploy-bar-sel')).toContainText('Veteran');
+
+      await page.getByTestId('weekly-ops-beacon').click();
+      await expect(page.getByTestId('weekly-mutation-card')).toBeFocused();
+      await page.getByTestId('map-node-orbital').focus();
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('sector-dock')).toContainText('Twin Reactor');
+
+      await page.getByTestId('map-node-cinder').click();
+      await page.getByTestId('diff-card-normal').click();
+      await page.getByTestId('deploy-button').click();
+      await expect(page.getByTestId('game-root')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => {
+        const game = (window as unknown as { game: any }).game;
+        return { map: game.map.id, diff: game.diff.id };
+      })).toEqual({ map: 'cinder', diff: 'normal' });
+      await page.goto('/?demo=1');
+    }
+  });
+
+  test('locked atlas node shows unlock copy and does not select', async ({ page }) => {
+    await seedProgress(page, { runs: 0, victories: 0, kills: 0, best: {}, clearedMaps: [] });
+    await page.goto('/');
+    await expect(page.getByTestId('deploy-button')).toBeVisible();
+    await expect(page.getByTestId('map-node-hyperlane')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('map-node-hyperlane')).toHaveAttribute('aria-label', /Clear Twin Reactor or reach wave 20/);
+    await page.getByTestId('map-node-hyperlane').click({ force: true });
+    await expect(page.getByTestId('sector-dock')).toContainText('Orbital Relay');
+    await expect(page.locator('.deploy-bar-sel')).toContainText('Orbital Relay');
   });
 
   test('arsenal panel renders a complete 21-tower grid on desktop', async ({ page }) => {
@@ -1638,31 +1683,39 @@ test.describe('mobile UX layout', () => {
     }
   });
 
-  test('sector select uses a horizontal card strip without page overflow', async ({ page }) => {
+  test('sector atlas pans internally on portrait mobile without page overflow', async ({ page }) => {
     await openDemoMenu(page);
 
     const layout = await page.evaluate(() => {
-      const grid = document.querySelector('[data-testid="map-grid"]')!;
-      const gridRect = grid.getBoundingClientRect();
+      const atlas = document.querySelector<HTMLElement>('[data-testid="sector-atlas"]')!;
+      const field = document.querySelector<HTMLElement>('[data-testid="atlas-field"]')!;
+      const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="map-node-"]')].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { width: Math.round(r.width), height: Math.round(r.height) };
+      });
       const deployRect = document.querySelector('[data-testid="deploy-button"]')!.getBoundingClientRect();
       const ai = document.querySelector('.ai-toggle')?.getBoundingClientRect();
       const fb = document.querySelector('.fb-toggle')?.getBoundingClientRect();
       return {
-        gridDisplay: getComputedStyle(grid).display,
-        overflowX: getComputedStyle(grid).overflowX,
-        scrollWidth: grid.scrollWidth,
-        clientWidth: grid.clientWidth,
-        gridHeight: Math.round(gridRect.height),
+        atlasDisplay: getComputedStyle(atlas).display,
+        overflowX: getComputedStyle(atlas).overflowX,
+        scrollWidth: atlas.scrollWidth,
+        clientWidth: atlas.clientWidth,
+        fieldHeight: Math.round(field.getBoundingClientRect().height),
+        minNodeWidth: Math.min(...nodes.map((node) => node.width)),
+        minNodeHeight: Math.min(...nodes.map((node) => node.height)),
         deployVisible: deployRect.bottom <= window.innerHeight + 1,
         rightEdgesAligned: ai && fb ? Math.abs(ai.right - fb.right) <= 2 : false,
         horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
       };
     });
 
-    expect(layout.gridDisplay).toBe('flex');
+    expect(layout.atlasDisplay).toBe('block');
     expect(layout.overflowX).toBe('auto');
     expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
-    expect(layout.gridHeight).toBeLessThan(240);
+    expect(layout.fieldHeight).toBeGreaterThan(360);
+    expect(layout.minNodeWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.minNodeHeight).toBeGreaterThanOrEqual(44);
     expect(layout.deployVisible).toBe(true);
     expect(layout.rightEdgesAligned).toBe(true);
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);

@@ -113,6 +113,10 @@ Last updated: 2026-07-05 (wave 2 adaptation package implemented through replay e
 - **Production release hardening**: callable integration tests now run against
   Firebase emulators, manual deploy workflows fail outside `master` and record
   audit summaries, and CI dry-runs the Cloudflare Worker before merge.
+- **Sector Atlas deploy menu**: the old sector card grid is replaced by the
+  Lantern Seven starmap with real path glyph nodes, docked protocol selection,
+  mastery stars from existing progress, and the existing Weekly Ops cards
+  reached from a gold beacon.
 
 ## Near-term priorities
 

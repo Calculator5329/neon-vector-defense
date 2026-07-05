@@ -3,6 +3,25 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-05 - Deploy selection is the Sector Atlas
+
+- The DEPLOY tab now presents the Lantern Seven sectors as a starmap rather than
+  a card grid. Nodes use the real `GameMap.path` polyline scaled into SVG glyphs,
+  and the dashed constellation route follows the existing sequential sector
+  unlock order.
+- Region membership is intentionally lightweight for v1: Core Relay contains
+  Orbital Relay, Twin Reactor, Hyperlane Junction, and The Throat; The Dark
+  Reaches contains Mobius Drift, Blackout Reach, Umbral Reach, and Cinder
+  Causeway. The visual layout still reads left-to-right by unlock order.
+- Weekly Ops keeps its existing cards and logic as the integration point. The
+  atlas adds a gold beacon that focuses those cards instead of duplicating
+  weekly mutation or gauntlet behavior.
+- Mastery stars are derived from existing local progress only: one star for any
+  campaign clear (`clearedMaps`) or any protocol best wave meeting that
+  protocol's wave count, two stars for an Apex (`hard`) best wave meeting Apex's
+  wave count, and three stars for an Extinction best wave meeting Extinction's
+  wave count. No new persistence is introduced.
+
 ## 2026-07-05 - Adaptation becomes a readable late-game mechanic
 
 - Mirror Hull makes the existing adaptive-armor math visible by snapshotting the

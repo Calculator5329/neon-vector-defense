@@ -22,6 +22,52 @@ import { IS_PORTAL_BUILD } from '../game/portal';
 
 // ---------------- Main menu ----------------
 
+type DeployMode = 'campaign' | 'daily' | 'weekly' | 'gauntlet';
+
+const ATLAS_POS: Record<string, [number, number]> = {
+  orbital: [10, 38],
+  reactor: [23, 58],
+  hyperlane: [35, 32],
+  mobius: [47, 61],
+  blackout: [59, 28],
+  throat: [69, 54],
+  umbral: [79, 34],
+  cinder: [89, 61],
+};
+
+function atlasPos(mapId: string, index: number): [number, number] {
+  return ATLAS_POS[mapId] ?? [12 + index * 10, index % 2 ? 58 : 32];
+}
+
+function atlasRegion(mapId: string): 'core' | 'dark' {
+  return ['orbital', 'reactor', 'hyperlane', 'throat'].includes(mapId) ? 'core' : 'dark';
+}
+
+function masteryLevel(mapId: string): number {
+  const anyCampaignClear = DIFFICULTIES.some((d) => progress.best(mapId, d.id) >= d.waves);
+  const recruitClear = progress.mapCleared(mapId) || anyCampaignClear;
+  const apexClear = progress.best(mapId, 'hard') >= (DIFFICULTIES.find((d) => d.id === 'hard')?.waves ?? 70);
+  const extinctionClear = progress.best(mapId, 'extinction') >= (DIFFICULTIES.find((d) => d.id === 'extinction')?.waves ?? 80);
+  return (recruitClear ? 1 : 0) + (apexClear ? 1 : 0) + (extinctionClear ? 1 : 0);
+}
+
+function MasteryStars({ level, label = 'Mastery' }: { level: number; label?: string }) {
+  return (
+    <span className="atlas-mastery" aria-label={`${label}: ${level} of 3 stars`}>
+      {'★'.repeat(level)}<span>{'★'.repeat(3 - level)}</span>
+    </span>
+  );
+}
+
+function PathGlyph({ map, className = '' }: { map: GameMap; className?: string }) {
+  const points = map.path.map((p) => `${p.x},${p.y}`).join(' ');
+  return (
+    <svg className={`atlas-path-glyph ${className}`} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+      <polyline points={points} />
+    </svg>
+  );
+}
+
 // Sequential unlock: a sector opens only once every prior sector has been
 // progressed (cleared, or reached wave 20+). No swiss-cheese gaps.
 function mapProgressed(m: GameMap): boolean {
@@ -86,6 +132,276 @@ function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
   );
 }
 
+function WeeklyOpsSection(props: {
+  weeklySeed: WeeklyChallenge;
+  gauntlet: WeeklyGauntletDoc | null;
+  deployMode: DeployMode;
+  setDeployMode: (mode: DeployMode) => void;
+}) {
+  const weeklyMods = weeklyModifierNames(props.weeklySeed);
+  return (
+    <div className="weekly-ops-strip atlas-weekly-ops" data-testid="weekly-ops-strip">
+      <button
+        className={`weekly-op-card ${props.deployMode === 'weekly' ? 'active' : ''}`}
+        data-testid="weekly-mutation-card"
+        aria-pressed={props.deployMode === 'weekly'}
+        title={props.weeklySeed.rules.join('\n')}
+        onClick={() => { props.setDeployMode('weekly'); sfx.click(); }}
+      >
+        <span>WEEKLY MUTATION</span>
+        <b>{weeklyMods.slice(0, 4).join(' / ')}</b>
+      </button>
+      <button
+        className={`weekly-op-card ${props.deployMode === 'gauntlet' ? 'active' : ''}`}
+        data-testid="weekly-gauntlet-card"
+        aria-pressed={props.deployMode === 'gauntlet'}
+        aria-disabled={!props.gauntlet}
+        title={props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Weekly Champion Gauntlet has not been crowned yet.'}
+        onClick={() => { if (props.gauntlet) { props.setDeployMode('gauntlet'); sfx.click(); } }}
+      >
+        <span>CHAMPION GAUNTLET</span>
+        <b>{props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Not crowned yet'}</b>
+      </button>
+    </div>
+  );
+}
+
+function SectorAtlas(props: {
+  map: GameMap;
+  diff: DifficultyDef;
+  setMap: (m: GameMap) => void;
+  setDiff: (d: DifficultyDef) => void;
+  deployMode: DeployMode;
+  setDeployMode: (mode: DeployMode) => void;
+  dailySeed: DailyChallenge;
+  weeklySeed: WeeklyChallenge;
+  gauntlet: WeeklyGauntletDoc | null;
+  firstTime: boolean;
+  apexLocked: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const weeklyRef = useRef<HTMLDivElement>(null);
+  const dailyMods = dailyModifierNames(props.dailySeed);
+  const selectedMap = ALL_MAPS.find((m) => m.id === props.map.id) ?? ALL_MAPS[0];
+  const selectedMastery = masteryLevel(selectedMap.id);
+  const selectedBest = progress.bestWaveAny(selectedMap.id);
+
+  useEffect(() => {
+    const field = fieldRef.current;
+    const canvas = canvasRef.current;
+    if (!field || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const draw = () => {
+      const rect = field.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      let seed = 7331;
+      const rnd = () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+      ctx.fillStyle = 'rgba(207,217,255,0.72)';
+      for (let i = 0; i < 150; i++) {
+        ctx.globalAlpha = 0.12 + rnd() * 0.5;
+        const size = rnd() < 0.1 ? 2 : 1;
+        ctx.fillRect(rnd() * rect.width, rnd() * rect.height, size, size);
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(75,207,250,0.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      for (let i = 0; i < ALL_MAPS.length - 1; i++) {
+        const [ax, ay] = atlasPos(ALL_MAPS[i].id, i);
+        const [bx, by] = atlasPos(ALL_MAPS[i + 1].id, i + 1);
+        ctx.beginPath();
+        ctx.moveTo((ax / 100) * rect.width, (ay / 100) * rect.height);
+        ctx.lineTo((bx / 100) * rect.width, (by / 100) * rect.height);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    };
+    draw();
+    window.addEventListener('resize', draw);
+    return () => window.removeEventListener('resize', draw);
+  }, []);
+
+  useEffect(() => {
+    const idx = ALL_MAPS.findIndex((m) => m.id === props.map.id);
+    if (idx >= 0 && !mapUnlocked(idx)) {
+      const fallback = ALL_MAPS.find((_, i) => mapUnlocked(i));
+      if (fallback) props.setMap(fallback);
+    }
+  }, [props.map, props.setMap]);
+
+  const moveNodeFocus = (current: HTMLButtonElement, delta: number) => {
+    const nodes = [...fieldRef.current?.querySelectorAll<HTMLButtonElement>('[data-atlas-node="true"]') ?? []];
+    const at = nodes.indexOf(current);
+    if (at < 0 || nodes.length === 0) return;
+    nodes[(at + delta + nodes.length) % nodes.length].focus();
+  };
+
+  const openWeeklyOps = () => {
+    weeklyRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="weekly-mutation-card"]')?.focus();
+    sfx.click();
+  };
+
+  return (
+    <section className="sector-atlas" data-testid="sector-atlas" aria-label="Sector Atlas">
+      <div className="atlas-field" ref={fieldRef} data-testid="atlas-field">
+        <canvas className="atlas-stars-canvas" ref={canvasRef} aria-hidden="true" />
+        <div className="atlas-region-label atlas-region-core">CORE RELAY</div>
+        <div className="atlas-region-label atlas-region-dark">THE DARK REACHES</div>
+        {ALL_MAPS.map((m, i) => {
+          const unlocked = mapUnlocked(i);
+          const active = props.deployMode === 'campaign' && props.map.id === m.id;
+          const [x, y] = atlasPos(m.id, i);
+          const prior = ALL_MAPS[Math.max(0, i - 1)];
+          const lockCopy = `Clear ${prior.name} or reach wave 20 to unlock.`;
+          const region = atlasRegion(m.id);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              className={`atlas-node atlas-node-${region} ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}`}
+              data-atlas-node="true"
+              data-testid={`map-node-${m.id}`}
+              aria-disabled={!unlocked}
+              aria-label={unlocked ? `${m.name}. ${m.difficulty} sector. ${m.desc}` : `Locked sector. ${lockCopy}`}
+              title={unlocked ? m.desc : lockCopy}
+              style={{ left: `${x}%`, top: `${y}%` }}
+              onClick={() => {
+                if (!unlocked) {
+                  appMetrics.recordLockedMapClick(m.id);
+                  return;
+                }
+                appMetrics.recordMapSelect(m.id);
+                props.setDeployMode('campaign');
+                props.setMap(m);
+                sfx.click();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  moveNodeFocus(e.currentTarget, 1);
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  moveNodeFocus(e.currentTarget, -1);
+                }
+              }}
+            >
+              {!active && props.firstTime && i === 0 && <span className="start-pill atlas-start">START HERE</span>}
+              <span className="atlas-node-halo">
+                <PathGlyph map={m} className={region} />
+              </span>
+              <span className="atlas-node-name">{unlocked ? m.name : 'CLASSIFIED'}</span>
+              <MasteryStars level={unlocked ? masteryLevel(m.id) : 0} label={`${m.name} mastery`} />
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className="atlas-node atlas-weekly-beacon"
+          data-atlas-node="true"
+          data-testid="weekly-ops-beacon"
+          aria-label="Open Weekly Ops"
+          style={{ left: '89%', top: '18%' }}
+          onClick={openWeeklyOps}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              moveNodeFocus(e.currentTarget, 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              moveNodeFocus(e.currentTarget, -1);
+            }
+          }}
+        >
+          <span className="atlas-node-halo">
+            <PathGlyph map={selectedMap} className="weekly" />
+          </span>
+          <span className="atlas-node-name">WEEKLY OPS</span>
+          <span className="atlas-beacon-sub">LIVE</span>
+        </button>
+      </div>
+
+      <aside className="atlas-dock" data-testid="sector-dock" aria-live="polite">
+        <div className="dock-kicker">{atlasRegion(selectedMap.id) === 'core' ? 'CORE SECTOR' : 'DARK SECTOR'}</div>
+        <h2>{selectedMap.name}</h2>
+        <div className="dock-mastery-row">
+          <MasteryStars level={selectedMastery} />
+          <span>{selectedMastery}/3 mastery</span>
+        </div>
+        <p>{selectedMap.desc}</p>
+        <div className="dock-stat-grid">
+          <div><span>Best wave</span><b>{selectedBest > 0 ? `W${selectedBest}` : '-'}</b></div>
+          <div><span>Difficulty</span><b>{selectedMap.difficulty}</b></div>
+        </div>
+        <div className="dock-section-title">PROTOCOL</div>
+        <div className="diff-row atlas-protocols" data-testid="diff-row">
+          {DIFFICULTIES.map((d) => {
+            const locked = (d.id === 'hard' && props.apexLocked)
+              || (d.id === 'extinction' && !DEMO_MODE && !progress.apexCleared);
+            const active = props.deployMode === 'campaign' && props.diff.id === d.id;
+            const reason = d.id === 'extinction'
+              ? { label: 'LOCKED EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
+              : { label: 'LOCKED APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
+            if (locked) {
+              return (
+                <button key={d.id} type="button" className="diff-card atlas-protocol-row diff-locked" data-testid={`diff-card-${d.id}`}
+                  aria-disabled="true" aria-label={`Locked protocol. ${reason.desc}`} title={reason.title}
+                  onClick={() => appMetrics.recordLockedProtocolClick(d.id)}>
+                  <span className="diff-name">{reason.label}</span>
+                  <span className="diff-desc">{reason.desc}</span>
+                </button>
+              );
+            }
+            return (
+              <button
+                key={d.id}
+                className={`diff-card atlas-protocol-row ${active ? 'active' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
+                data-testid={`diff-card-${d.id}`}
+                aria-label={`${d.name} protocol. ${d.desc}`}
+                title={d.desc}
+                onClick={() => { appMetrics.recordProtocolSelect(d.id); props.setDeployMode('campaign'); sfx.click(); props.setDiff(d); }}
+              >
+                {!active && props.firstTime && d.id === 'easy' && <span className="start-pill">RECOMMENDED</span>}
+                <span className="diff-name">{d.name}</span>
+                <span className="diff-desc">W{d.waves} · best W{progress.best(selectedMap.id, d.id) || '-'}</span>
+              </button>
+            );
+          })}
+          <button
+            className={`diff-card atlas-protocol-row daily-protocol ${props.deployMode === 'daily' ? 'active' : ''}`}
+            data-testid="diff-card-daily"
+            aria-label={`Daily Challenge protocol. ${dailyMods.join(', ')}`}
+            aria-pressed={props.deployMode === 'daily'}
+            title={props.dailySeed.rules.join('\n')}
+            onClick={() => { props.setDeployMode('daily'); sfx.click(); }}
+          >
+            <span className="diff-name">DAILY CHALLENGE</span>
+            <span className="diff-desc daily-card-mods">{dailyMods.join(' / ')}</span>
+          </button>
+        </div>
+        <div ref={weeklyRef}>
+          <div className="dock-section-title">WEEKLY OPS</div>
+          <WeeklyOpsSection
+            weeklySeed={props.weeklySeed}
+            gauntlet={props.gauntlet}
+            deployMode={props.deployMode}
+            setDeployMode={props.setDeployMode}
+          />
+        </div>
+      </aside>
+    </section>
+  );
+}
+
 export function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
@@ -98,7 +414,7 @@ export function MainMenu(props: {
   onStartGauntlet: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
-  const [deployMode, setDeployMode] = useState<'campaign' | 'daily' | 'weekly' | 'gauntlet'>('campaign');
+  const [deployMode, setDeployMode] = useState<DeployMode>('campaign');
   const [, bumpClaim] = useState(0); // re-read meta.claimableCount() for the nav badge after a claim
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -108,8 +424,6 @@ export function MainMenu(props: {
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const selectedUnlocked = deployMode === 'daily' || deployMode === 'weekly' || deployMode === 'gauntlet' || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
-  const dailyMods = dailyModifierNames(props.dailySeed);
-  const weeklyMods = weeklyModifierNames(props.weeklySeed);
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
   // foesSeen must use the SAME basis the Bestiary acks with (ENEMY_LIST intersection, not the
   // raw persisted list) or a stale/removed enemy id would make the NEW badge stick forever.
@@ -199,125 +513,19 @@ export function MainMenu(props: {
         <main className="menu-main">
           <div className="menu-content">
         {tab === 'deploy' ? (
-          <>
-            <div className="weekly-ops-strip" data-testid="weekly-ops-strip">
-              <button
-                className={`weekly-op-card ${deployMode === 'weekly' ? 'active' : ''}`}
-                data-testid="weekly-mutation-card"
-                aria-pressed={deployMode === 'weekly'}
-                title={props.weeklySeed.rules.join('\n')}
-                onClick={() => { setDeployMode('weekly'); sfx.click(); }}
-              >
-                <span>WEEKLY MUTATION</span>
-                <b>{weeklyMods.slice(0, 4).join(' / ')}</b>
-              </button>
-              <button
-                className={`weekly-op-card ${deployMode === 'gauntlet' ? 'active' : ''}`}
-                data-testid="weekly-gauntlet-card"
-                aria-pressed={deployMode === 'gauntlet'}
-                aria-disabled={!props.gauntlet}
-                title={props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Weekly Champion Gauntlet has not been crowned yet.'}
-                onClick={() => { if (props.gauntlet) { setDeployMode('gauntlet'); sfx.click(); } }}
-              >
-                <span>CHAMPION GAUNTLET</span>
-                <b>{props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Not crowned yet'}</b>
-              </button>
-            </div>
-            <div className="menu-col">
-              <div className="menu-section-label">① SELECT SECTOR</div>
-              <div className="map-grid" data-testid="map-grid">
-                {ALL_MAPS.map((m, i) => {
-                  const unlocked = mapUnlocked(i);
-                  const best = progress.bestWaveAny(m.id);
-                  if (!unlocked) {
-                    const prior = ALL_MAPS[Math.max(0, i - 1)];
-                    return (
-                      <button key={m.id} type="button" className="map-card map-card-locked" data-testid={`map-card-${m.id}`}
-                        aria-disabled="true" aria-label={`Locked sector. Clear ${prior.name} or reach wave 20 to unlock.`}
-                        title={`Reach wave 20 or clear ${ALL_MAPS[i - 1].name} to unlock`}
-                        onClick={() => appMetrics.recordLockedMapClick(m.id)}>
-                        <div className="map-lock">🔒</div>
-                        <div className="map-card-name">CLASSIFIED</div>
-                        <div className="map-card-desc">Clear {prior.name} or reach W20.</div>
-                      </button>
-                    );
-                  }
-                  const active = props.map.id === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      className={`map-card ${active ? 'active' : ''}`}
-                      data-testid={`map-card-${m.id}`}
-                      aria-label={`${m.name}. ${m.difficulty} sector. ${m.desc}`}
-                      onClick={() => { appMetrics.recordMapSelect(m.id); setDeployMode('campaign'); sfx.click(); props.setMap(m); }}
-                      title={m.desc}
-                    >
-                      {!active && firstTime && i === 0 && <div className="start-pill">START HERE</div>}
-                      {progress.mapCleared(m.id) && <div className="map-clear-badge" title="Cleared">✓</div>}
-                      <div className="map-thumb-stack">
-                        <img className="map-thumb-art" src={`/art/sector-${m.id}.webp`} alt="" loading="lazy" decoding="async" />
-                        <MapThumb map={m} />
-                      </div>
-                      <div className="map-card-row">
-                        <span className="map-card-name">{m.name}</span>
-                        <span className={`map-card-diff diff-${m.difficulty.toLowerCase()}`}>{m.difficulty}</span>
-                      </div>
-                      {best > 0 && <div className="map-card-best">BEST · W{best}</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="menu-col">
-              <div className="menu-section-label">② SELECT PROTOCOL</div>
-              <div className="diff-row" data-testid="diff-row">
-                {DIFFICULTIES.map((d) => {
-                  const locked = (d.id === 'hard' && apexLocked)
-                    || (d.id === 'extinction' && !DEMO_MODE && !progress.apexCleared);
-                  if (locked) {
-                    const reason = d.id === 'extinction'
-                        ? { label: '🔒 EXTINCTION', desc: 'Win an Apex campaign to unlock.', title: 'Beat Apex to face Extinction.' }
-                        : { label: '🔒 APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
-                    return (
-                      <button key={d.id} type="button" className="diff-card diff-locked" data-testid={`diff-card-${d.id}`}
-                        aria-disabled="true" aria-label={`Locked protocol. ${reason.desc}`} title={reason.title}
-                        onClick={() => appMetrics.recordLockedProtocolClick(d.id)}>
-                        <div className="diff-name">{reason.label}</div>
-                        <div className="diff-desc">{reason.desc}</div>
-                      </button>
-                    );
-                  }
-                  const active = deployMode === 'campaign' && props.diff.id === d.id;
-                  return (
-                    <button
-                      key={d.id}
-                      className={`diff-card ${active ? 'active' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
-                      data-testid={`diff-card-${d.id}`}
-                      aria-label={`${d.name} protocol. ${d.desc}`}
-                      title={d.desc}
-                      onClick={() => { appMetrics.recordProtocolSelect(d.id); setDeployMode('campaign'); sfx.click(); props.setDiff(d); }}
-                    >
-                      {!active && firstTime && d.id === 'easy' && <div className="start-pill">RECOMMENDED</div>}
-                      <div className="diff-name">{d.name}</div>
-                      <div className="diff-desc">{d.desc}</div>
-                    </button>
-                  );
-                })}
-                <button
-                  className={`diff-card daily-protocol ${deployMode === 'daily' ? 'active' : ''}`}
-                  data-testid="diff-card-daily"
-                  aria-label={`Daily Challenge protocol. ${dailyMods.join(', ')}`}
-                  aria-pressed={deployMode === 'daily'}
-                  title={props.dailySeed.rules.join('\n')}
-                  onClick={() => { setDeployMode('daily'); sfx.click(); }}
-                >
-                  <div className="diff-name">DAILY CHALLENGE</div>
-                  <div className="diff-desc daily-card-mods">{dailyMods.join(' / ')}</div>
-                </button>
-              </div>
-            </div>
-          </>
+          <SectorAtlas
+            map={props.map}
+            diff={props.diff}
+            setMap={props.setMap}
+            setDiff={props.setDiff}
+            deployMode={deployMode}
+            setDeployMode={setDeployMode}
+            dailySeed={props.dailySeed}
+            weeklySeed={props.weeklySeed}
+            gauntlet={props.gauntlet}
+            firstTime={firstTime}
+            apexLocked={apexLocked}
+          />
         ) : tab === 'board' ? (
           <LeaderboardTab
             map={props.map}
@@ -389,24 +597,3 @@ export function MainMenu(props: {
   );
 }
 
-function MapThumb({ map }: { map: GameMap }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext('2d')!;
-    const sx = c.width / W, sy = c.height / H;
-    ctx.clearRect(0, 0, c.width, c.height); // transparent — sector art shows through
-    ctx.strokeStyle = map.theme.pathEdge;
-    ctx.lineWidth = 7;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.shadowColor = map.theme.pathEdge;
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.moveTo(map.path[0].x * sx, map.path[0].y * sy);
-    for (const p of map.path) ctx.lineTo(p.x * sx, p.y * sy);
-    ctx.stroke();
-  }, [map]);
-  return <canvas ref={ref} width={220} height={124} className="map-thumb" />;
-}
