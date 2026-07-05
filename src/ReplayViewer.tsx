@@ -5,6 +5,7 @@ import { createReplayPlayback, type ReplayPlayback } from './game/reSimulate';
 import { setReplaySilent } from './game/sound';
 import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
+import { resolveReplayMap } from './game/mapVersions';
 import { getWave } from './game/waves';
 import { ENEMIES } from './game/enemies';
 import { ELITE_AFFIX_META } from './game/eliteAffixes';
@@ -570,6 +571,8 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [hud, setHud] = useState(() => reconstructAt(run, t0));
+  const [desync, setDesync] = useState(false);
+  const desyncRef = useRef(false);
 
   // Frame-accurate driver: re-runs the real deterministic engine so the replay
   // matches the actual game. Null for runs that can't be faithfully re-simulated on
@@ -580,7 +583,13 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     [run],
   );
 
-  const gameMap = useMemo(() => ALL_MAPS.find((m) => m.id === run.setup.map) ?? null, [run.setup.map]);
+  // Draw the geometry the run was RECORDED on (mapVersions resolves re-tuned
+  // maps by hash); fall back to the current map only for unknown hashes so a
+  // cosmetic reconstruction still has a board to draw.
+  const gameMap = useMemo(
+    () => resolveReplayMap(run.setup.map, run.setup.mapHash) ?? ALL_MAPS.find((m) => m.id === run.setup.map) ?? null,
+    [run.setup.map, run.setup.mapHash],
+  );
   const bg = useMemo(() => (gameMap ? buildBackground(gameMap) : null), [gameMap]);
   const geom = useMemo(() => (gameMap ? buildGeom(gameMap.path) : null), [gameMap]);
   const combatTimeline = useMemo(() => buildReplayCombatTimeline(run), [run]);
@@ -771,6 +780,12 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       if (driver) {
         draw(null); // steps the engine toward tRef (budgeted) and renders it
         hudWave = driver.game.wave;
+        // safety net: a recorded action the engine rejected means the replay is
+        // no longer frame-accurate — say so instead of quietly drifting
+        if (driver.divergedAtT != null && !desyncRef.current) {
+          desyncRef.current = true;
+          setDesync(true);
+        }
         // HUD re-renders at 4 Hz, and only once the seek has settled — building
         // a frame every rAF allocated a towers array per frame for no reason.
         if (!seekPendingRef.current) {
@@ -882,6 +897,11 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       {run.integrity === 'partial' && (
         <div className="replay-integrity-banner" role="status">
           PARTIAL RECORD &mdash; some events could not be recovered
+        </div>
+      )}
+      {desync && (
+        <div className="replay-integrity-banner" role="status">
+          REPLAY DESYNC &mdash; the engine could not re-apply part of this recording; playback may differ from the original run
         </div>
       )}
 

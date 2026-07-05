@@ -4,6 +4,7 @@ import { ENEMIES } from './enemies';
 import {
   type PublicRunDoc,
   type RunEvent,
+  type RunTowerSnapshot,
   type RunWaveSnapshot,
 } from './runTelemetry';
 import { ELITE_AFFIX_IDS, ELITE_AFFIX_META } from './eliteAffixes';
@@ -108,6 +109,52 @@ function replaySnapshots(run: PublicRunDoc): RunWaveSnapshot[] {
   return Array.isArray(run.snapshots) ? run.snapshots : [];
 }
 
+/** Complete tower timeline rebuilt from the recorded action stream. The run
+ *  doc's final.towers is CAPPED for doc size (top few by damage), so a
+ *  snapshot-less (v3) doc reconstructed from it silently dropped towers.
+ *  Every placement/upgrade/sell is in the actions, so rebuild the full roster. */
+const eventTowersCache = new WeakMap<PublicRunDoc, RunTowerSnapshot[]>();
+
+function towersFromEvents(run: PublicRunDoc): RunTowerSnapshot[] {
+  const cached = eventTowersCache.get(run);
+  if (cached) return cached;
+  const damageByUid = new Map<number, number>();
+  for (const tower of run.final?.towers ?? []) damageByUid.set(tower.towerUid, tower.damage);
+  const towers = new Map<number, RunTowerSnapshot>();
+  for (const e of replayEvents(run)) {
+    if (e.type !== 'tower_place' && e.type !== 'tower_upgrade' && e.type !== 'tower_sell') continue;
+    const uid = Math.floor(eventNum(e, 'towerUid', NaN));
+    if (!Number.isFinite(uid)) continue;
+    if (e.type === 'tower_place') {
+      const towerId = eventStr(e, 'towerId');
+      const def = TOWER_MAP[towerId];
+      if (!def) continue;
+      towers.set(uid, {
+        towerUid: uid,
+        towerId,
+        x: eventNum(e, 'x'),
+        y: eventNum(e, 'y'),
+        placedAtS: e.t,
+        tierA: 0,
+        tierB: 0,
+        damage: damageByUid.get(uid) ?? 0,
+        name: eventStr(e, 'name', def.name),
+      });
+    } else if (e.type === 'tower_upgrade') {
+      const rec = towers.get(uid);
+      if (!rec) continue;
+      if (eventNum(e, 'track') === 1) rec.tierB++;
+      else rec.tierA++;
+    } else {
+      const rec = towers.get(uid);
+      if (rec) rec.soldAtS = e.t;
+    }
+  }
+  const roster = [...towers.values()].sort((a, b) => a.placedAtS - b.placedAtS || a.towerUid - b.towerUid);
+  eventTowersCache.set(run, roster);
+  return roster;
+}
+
 export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
   const sourceSnapshots = replaySnapshots(run);
   const snaps = sourceSnapshots.length
@@ -140,11 +187,15 @@ export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
 
 function synthSnapshot(run: PublicRunDoc): RunWaveSnapshot {
   const f = run.final;
+  // final.towers is damage-capped for doc size — prefer the complete roster
+  // rebuilt from the action stream so no tower is missing from the board.
+  const eventTowers = towersFromEvents(run);
+  const towers = eventTowers.length ? eventTowers : f.towers;
   return {
     label: 'run_end', t: run.summary.durationS, wave: run.summary.wave,
     cash: run.summary.credits, lives: run.summary.coresLeft, kills: run.summary.kills,
-    leaks: run.summary.leaks, towerCount: f.towers.length, enemyCount: 0,
-    damageByTower: f.damageByTower, killsByEnemy: f.killsByEnemy, towers: f.towers,
+    leaks: run.summary.leaks, towerCount: towers.length, enemyCount: 0,
+    damageByTower: f.damageByTower, killsByEnemy: f.killsByEnemy, towers,
   };
 }
 
@@ -175,6 +226,14 @@ export function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT
   for (const s of snapshots) {
     if (s.t <= t && s.label === 'wave_start') best = { wave: s.wave, startT: s.t };
     else if (s.t > t) break;
+  }
+  if (best) return best;
+  // v3 docs carry no snapshots — derive the window from the recorded
+  // wave_start actions so callouts still track the scrub position
+  for (const e of replayEvents(run)) {
+    if (e.type !== 'wave_start') continue;
+    if (e.t <= t) best = { wave: Math.max(0, Math.floor(e.wave)), startT: e.t };
+    else break;
   }
   if (best) return best;
   const f = snapshots[0];
