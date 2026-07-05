@@ -16,6 +16,7 @@ import type { DailyChallenge } from './dailyChallenge';
 import type { WeeklyChallenge, WeeklyGauntletDoc } from './weeklyChallenge';
 import type { GauntletProtocolLeg } from './gauntletProtocol';
 import { actionHash, encodeReplayActions, isReplayActionEvent, normalizeReplayActionEvents, type ReplayActionPack } from './replayCodec';
+import { hashReplayMapGeometry } from './mapVersions';
 
 export const RUN_TELEMETRY_SCHEMA = 3;
 /** Bump whenever a simulation-affecting engine change lands (not cosmetic/FX).
@@ -1752,21 +1753,10 @@ function replayTowerIds(actions: RunEvent[]): string[] {
     .filter(Boolean)));
 }
 
+// 8-char hex to satisfy the rules' ^[a-f0-9]{8}$ bound; shared with the
+// mapVersions registry so record-time and replay-time hashes can never drift.
 function hashMap(map: GameMap): string {
-  const data = JSON.stringify({
-    id: map.id,
-    path: map.path.map((p) => [Math.round(p.x), Math.round(p.y)]),
-    blockers: map.blockers.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.r)]),
-    pathWidth: map.pathWidth,
-  });
-  let hash = 2166136261;
-  for (let i = 0; i < data.length; i++) {
-    hash ^= data.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  // 8-char hex to satisfy the rules' ^[a-f0-9]{8}$ bound (base36 output was
-  // variable-length with g-z letters and made every real submit fail rules).
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return hashReplayMapGeometry(map);
 }
 
 function sanitizeCallsign(name: string): string {

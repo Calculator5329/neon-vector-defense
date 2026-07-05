@@ -2,6 +2,7 @@ import { balanceDocSnapshot, balanceVersion, setBalanceDoc as applyBalanceDoc } 
 import { dailyChallengeForId } from './dailyChallenge';
 import { Game } from './engine';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
+import { resolveReplayMap } from './mapVersions';
 import { weeklyChallengeForId } from './weeklyChallenge';
 import { gauntletProtocolRouteForWeek } from './gauntletProtocol';
 import {
@@ -15,7 +16,7 @@ import {
 } from './runTelemetry';
 import { decodeReplayActionBundle } from './replayCodec';
 import { TOWER_MAP } from './towers';
-import type { AbilityId, GameMap, TargetFilter, TargetMode, Vec } from './types';
+import type { AbilityId, TargetFilter, TargetMode, Vec } from './types';
 import type { FreeplayContractId, FreeplayRelicId, RiskWaveId } from './freeplay';
 
 export type ReSimVerdict = 'verified' | 'divergent' | 'unverifiable';
@@ -60,9 +61,16 @@ export const REPLAY_ACTION_TYPES = new Set([
 // historical run; authenticity of those client-supplied snapshots is the caller's
 // responsibility. Functions verifyRunCore enforces authenticity before trusting a verdict.
 export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: string } {
-  const map = ALL_MAPS.find((candidate) => candidate.id === run.setup.map);
+  // Resolve the EXACT geometry the run was recorded on — a re-tuned live map
+  // must not silently reject placements that were legal at record time.
+  const map = resolveReplayMap(run.setup.map, run.setup.mapHash);
   const diff = DIFFICULTIES.find((candidate) => candidate.id === run.setup.diff);
-  if (!map || !diff) return { error: 'unknown map or difficulty' };
+  if (!diff) return { error: 'unknown map or difficulty' };
+  if (!map) {
+    return ALL_MAPS.some((candidate) => candidate.id === run.setup.map)
+      ? { error: 'map hash matches no known version of this map' }
+      : { error: 'unknown map or difficulty' };
+  }
 
   const game = new Game(map, diff, {
     seed: run.setup.seed >>> 0,
@@ -158,9 +166,10 @@ function reSimulateCore(bundle: ReSimBundle, hasBalanceSnapshot: boolean): ReSim
     }
   }
 
-  const map = ALL_MAPS.find((candidate) => candidate.id === run.setup.map);
-  if (!map) return unverifiable('unknown map or difficulty');
-  if (hashMap(map) !== run.setup.mapHash) return unverifiable('map hash mismatch');
+  if (!ALL_MAPS.some((candidate) => candidate.id === run.setup.map)) return unverifiable('unknown map or difficulty');
+  // Historical geometry (mapVersions registry) keeps runs recorded before a map
+  // re-tune verifiable; only a hash matching NO known version is unverifiable.
+  if (!resolveReplayMap(run.setup.map, run.setup.mapHash)) return unverifiable('map hash mismatch');
 
   const built = setupReplayGame(run);
   if ('error' in built) return unverifiable(built.error);
@@ -446,23 +455,6 @@ function eventAt(event: RunEvent, eventIndex: number): ReSimDivergence['at'] {
   return { eventIndex, t: event.t, wave: event.wave, type: event.type };
 }
 
-function hashMap(map: GameMap): string {
-  const data = JSON.stringify({
-    id: map.id,
-    path: map.path.map((p) => [Math.round(p.x), Math.round(p.y)]),
-    blockers: map.blockers.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.r)]),
-    pathWidth: map.pathWidth,
-  });
-  let hash = 2166136261;
-  for (let i = 0; i < data.length; i++) {
-    hash ^= data.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  // Must stay byte-identical to runTelemetry's hashMap: 8-char hex per the
-  // rules' ^[a-f0-9]{8}$ bound on setup.mapHash.
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
 export function reSimulateUploadBundle(bundle: RunUploadBundle): ReSimResult {
   return reSimulate(bundle);
 }
@@ -481,6 +473,10 @@ export interface ReplayPlayback {
   readonly endT: number;
   /** 0..1 fraction of a still-pending seek, or null when settled */
   readonly seekProgress: number | null;
+  /** sim-seconds of the first recorded action the engine could NOT re-apply,
+   *  or null while playback is faithful. Non-null means the rendered battle has
+   *  drifted from the recorded run — callers should surface it, not hide it. */
+  readonly divergedAtT: number | null;
   /** Advance/rewind the sim toward scrub time `tSeconds`, stepping at most
    *  `budgetTicks` engine ticks AND at most `budgetMs` wall-clock this call.
    *  Returns true when the game reflects the target; false means "keep calling
@@ -558,6 +554,9 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
   let cursor = 0;
   let currentSpeed = initialSpeed;
   game.speed = initialSpeed;
+  // Sticky across reset(): a rewind replays the same action stream, so a real
+  // divergence would only recur — losing the flag would just flicker the warning.
+  let divergedAtT: number | null = null;
 
   const reset = () => {
     // Backward seeks rebuild from the recorded seed and replay forward — the engine
@@ -609,7 +608,12 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
       const { event, tick } = actions[cursor];
       game.speed = currentSpeed;
       if (!stepToward(tick, targetTick, budget)) { pendingTick = targetTick; return false; }
-      applyAction(game, event);
+      const applied = applyAction(game, event);
+      // A recorded action the engine rejects means the playback has desynced
+      // from the real run (it should be impossible now that replays resolve
+      // their recorded map geometry) — record it so the viewer can say so
+      // instead of silently rendering a battle with towers missing.
+      if (!applied.ok && divergedAtT == null) divergedAtT = tick * Game.SIM_STEP;
       currentSpeed = eventSpeed(event) ?? currentSpeed;
       cursor++;
     }
@@ -625,6 +629,7 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
     get seekProgress() {
       return pendingTick == null ? null : Math.min(1, currentTick() / Math.max(1, pendingTick));
     },
+    get divergedAtT() { return divergedAtT; },
     seekTo,
   };
 }

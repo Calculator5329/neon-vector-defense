@@ -4,7 +4,7 @@ import { Bot } from '../../src/game/bot';
 import { dailyChallengeForDate } from '../../src/game/dailyChallenge';
 import { Game } from '../../src/game/engine';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
-import { reSimulate, setBalanceDoc } from '../../src/game/reSimulate';
+import { createReplayPlayback, reSimulate, setBalanceDoc } from '../../src/game/reSimulate';
 import { buildRunManifest, type RunUploadBundle } from '../../src/game/runTelemetry';
 import { weeklyChallengeForId } from '../../src/game/weeklyChallenge';
 import { decodeReplayActionBundle, encodeReplayActions } from '../../src/game/replayCodec';
@@ -383,5 +383,49 @@ describe('reSimulate', () => {
     } finally {
       setBalanceDoc(null);
     }
+  });
+});
+
+describe('playback driver budgeted seeks', () => {
+  test('budget-sliced seeks converge to the same state as a synchronous seek', () => {
+    const bundle = runSeededBotCampaign();
+    const sync = createReplayPlayback({ ...cloneBundle(bundle).run, chunks: cloneBundle(bundle).chunks });
+    assert.ok(sync, 'synchronous driver builds');
+    assert.equal(sync.seekTo(sync.endT), true);
+    assert.equal(sync.divergedAtT, null);
+
+    // Slice the same seek the way the viewer does per animation frame (small
+    // tick budgets) — every speed button rides this path, so a slice must
+    // always converge to the identical engine state.
+    const sliced = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+    assert.ok(sliced, 'sliced driver builds');
+    let frames = 0;
+    while (!sliced.seekTo(sliced.endT, 500) && frames < 50_000) {
+      frames++;
+      const seekProgress: number | null = sliced.seekProgress;
+      assert.ok(seekProgress != null && seekProgress >= 0 && seekProgress <= 1, 'pending seek reports progress');
+    }
+    assert.ok(frames < 50_000, 'sliced seek converged');
+    assert.equal(sliced.seekProgress, null);
+    assert.equal(sliced.game.time.toFixed(3), sync.game.time.toFixed(3));
+    assert.equal(sliced.game.towers.length, sync.game.towers.length);
+    assert.equal(sliced.game.totalKills, sync.game.totalKills);
+    assert.equal(sliced.game.lives, sync.game.lives);
+    assert.equal(sliced.divergedAtT, null);
+  });
+
+  test('rewind re-simulates deterministically', () => {
+    const bundle = runSeededBotCampaign();
+    const driver = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+    assert.ok(driver);
+    assert.equal(driver.seekTo(driver.endT), true);
+    const kills = driver.game.totalKills;
+    const towers = driver.game.towers.length;
+    assert.equal(driver.seekTo(driver.endT / 2), true, 'backward seek settles');
+    assert.ok(driver.game.time <= driver.endT / 2 + 0.02);
+    assert.equal(driver.seekTo(driver.endT), true, 'forward re-seek settles');
+    assert.equal(driver.game.totalKills, kills);
+    assert.equal(driver.game.towers.length, towers);
+    assert.equal(driver.divergedAtT, null);
   });
 });
