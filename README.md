@@ -16,11 +16,17 @@ procedural audio, and Firebase-backed leaderboards.
 
 ## Gameplay
 
-- **8 sectors** — Orbital Relay, Twin Reactor, Hyperlane Junction, Mobius
-  Drift, Blackout Reach, The Throat, Umbral Reach, and Cinder Causeway, each
-  with a custom lane shape, no-build zones, and visual theme.
+- **12 sectors on an interactive starmap** — a Sector Atlas constellation
+  spanning three regions (Core Relay, The Forge Belt, The Dark Reaches), each
+  sector with a custom lane shape, no-build zones, mastery stars, and visual
+  theme, unlocked along a sequential campaign chain.
 - **4 protocols** — Recruit, Veteran, Apex, and Extinction, with
   different cash, hull, wave, cloak, and scaling rules.
+- **Gauntlet Protocol** — a weekly-seeded three-leg roguelite run: cores and a
+  portion of credits carry between legs, seeded relic drafts between maps,
+  first death ends the run, per-leg replays chained on the leaderboard.
+- **Weekly ops** — a Weekly Mutation with stacked rule twists and a
+  Champion's Gauntlet where everyone races the crowned champion's run.
 - **21 towers with 2 upgrade tracks** — including support, crowd-control,
   anti-cloak, burst, drone, missile, gravity, resonance, targeting, and
   late-game towers.
@@ -34,9 +40,10 @@ procedural audio, and Firebase-backed leaderboards.
   quests, and Watch Streak (cosmetic/QoL only — never affects run balance).
 - **In-run QoL** — build-phase wave preview, keyboard placement, tower cycling,
   and Veteran Deploy batch upgrades for repeat runs.
-- **Battle Plan replays** — watch any run via `/?run=<runId>`; leaderboard rows
-  link to reconstructions built from uploaded wave snapshots and public replay
-  event chunks with required completion manifests.
+- **Battle Plan replays** — watch any run via `/?run=<runId>`; replays are
+  ~5KB packed action streams re-simulated frame-accurately by the real engine
+  in the viewer, with budgeted seeks for lag-free scrubbing of 25-minute runs
+  and a cosmetic reconstruction fallback for legacy/partial records.
 - **Bot-rival ghosts** — in-run pacing curve compares your cores/cash to the
   bundled rookie/standard/expert bot profiles for the same sector.
 - **Leaderboards and feedback** — server-validated Firestore scoreboards and
@@ -59,8 +66,12 @@ follow the recovered signal fragments.
 - **Canvas renderer** - vector-style enemy and tower art drawn to supersampled
   offscreen canvases, then animated with recoil, glow, shake, trails, vignettes,
   and damage effects.
-- **Headless game engine** - the same game model powers live play, bot
+- **Deterministic headless engine** - seeded RNG and a fixed timestep make
+  every run bit-reproducible; the same game model powers live play, bot
   playtests, balance simulations, performance harnesses, and admin analytics.
+- **Server-side anti-cheat** - submitted scores are re-simulated inside Cloud
+  Functions from the packed action stream and verified against canonical
+  balance/challenge snapshots before a run is trusted on the leaderboard.
 - **Remote balance config** - optional Firestore `config/balance` doc hot-patches
   tower, enemy, protocol, income, and global multipliers from the admin console
   without a redeploy.

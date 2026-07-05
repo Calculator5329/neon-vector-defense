@@ -1,4 +1,4 @@
-﻿# Lantern 7 â€” Business Plan & Execution Order (v3)
+# Lantern 7 — Business Plan & Execution Order (v3)
 
 *Consolidates the v1 business plan and v2 web-launch plan, reconciled against the actual
 codebase as of 2026-07-03. Strategy is unchanged; current shipped status and
@@ -15,14 +15,14 @@ Newgrounds), get traction and revenue at the highest-margin channel (web checkou
 app-store tax), then carry proven retention into mobile.
 
 The moat is **sim-in-the-loop velocity**: an owned headless engine + bot harness + balance
-simulator that closes the observeâ†’tuneâ†’ship loop in days. The product is not "a game that
-collects data" â€” it is "a game that out-iterates everyone in its niche because it can
+simulator that closes the observe→tune→ship loop in days. The product is not "a game that
+collects data" — it is "a game that out-iterates everyone in its niche because it can
 simulate its own balance."
 
 Two user tiers remain the compliance architecture:
 
-- **Adult tier** â€” full consent-gated first-party gameplay telemetry, full monetization.
-- **Kids/unknown tier** â€” fail-safe defaults: minimal data, no persistent PII, no targeted
+- **Adult tier** — full consent-gated first-party gameplay telemetry, full monetization.
+- **Kids/unknown tier** — fail-safe defaults: minimal data, no persistent PII, no targeted
   monetization. COPPA addressed by tiering, not geo-blocking.
 
 **Launch market: US-first.** GDPR/EU consent UX, mobile age-signal APIs, and parental-consent
@@ -71,13 +71,13 @@ THEN    Portal submissions, growth loop, mobile/international expansion
 
 | Area | Metric | Target / guardrail |
 | --- | --- | --- |
-| Retention | D1 / D7 return rate | D1 â‰¥ 25%, D7 â‰¥ 8% (portal-typical good) |
-| Engagement | Runs per session; median session length | â‰¥ 2 runs; â‰¥ 8 min |
+| Retention | D1 / D7 return rate | D1 ≥ 25%, D7 ≥ 8% (portal-typical good) |
+| Engagement | Runs per session; median session length | ≥ 2 runs; ≥ 8 min |
 | Onboarding | First-session run completion; tutorial abandonment | Mine `runAnalytics.onboarding` before/after the action-gated tutorial |
 | Virality | `?run=` replay opens per 100 runs; dossier shares | Watch `replayOpens` + share counters |
-| Revenue | Conversion to first purchase; ARPDAU | â‰¥ 1% conversion is healthy for web |
-| Cost | Firestore writes/run, reads/menu-view | â‰¤ 7 writes/run; â‰¤ 5 reads/menu-view after aggregation |
-| Quality | CI perf gate (avg update â‰¤ 8 ms); zero known launch-checklist bugs | Hard gates |
+| Revenue | Conversion to first purchase; ARPDAU | ≥ 1% conversion is healthy for web |
+| Cost | Firestore writes/run, reads/menu-view | ≤ 7 writes/run; ≤ 5 reads/menu-view after aggregation |
+| Quality | CI perf gate (avg update ≤ 8 ms); zero known launch-checklist bugs | Hard gates |
 
 ---
 
@@ -94,12 +94,12 @@ THEN    Portal submissions, growth loop, mobile/international expansion
 
 ## 6. Launch gate checklist
 
-- [x] Tier 0 complete (auth, deletion fix, quota keying, allowlist, TTL) â€” App Check enforcement still staged
+- [x] Tier 0 complete (auth, deletion fix, quota keying, allowlist, TTL) — App Check enforcement still staged
 - [x] Tier 2 complete (4 correctness bugs fixed; deterministic sim behind a seed)
 - [x] CI gates real: perf fails on regression; e2e runs the production build + SW
-- [x] Landscape-phone layout (short-landscape tier verified at 844Ã—390)
-- [x] Action-gated onboarding live â€” drop-off re-measure pending live traffic
-- [x] `public/` â‰¤ ~25 MB (art 63.7â†’3.2 MB); first-paint JS ~204 KB gzip
+- [x] Landscape-phone layout (short-landscape tier verified at 844×390)
+- [x] Action-gated onboarding live — drop-off re-measure pending live traffic
+- [x] `public/` ≤ ~25 MB (art 63.7→3.2 MB); first-paint JS ~204 KB gzip
 - [x] Leaderboard read aggregation live
 - [x] CCPA/GPC verified: opt-out + GPC force restricted tier (unit-tested invariants)
 - [ ] App Check enforced in production (staged; flip after token-flow verification)
