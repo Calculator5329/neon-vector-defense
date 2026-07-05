@@ -3,15 +3,15 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-05 (wave 1 complete: Weekly Champion's Gauntlet + Weekly Mutation, and Exposed + target filters shipped through replay engine v4)
+Last updated: 2026-07-05 (wave 2 adaptation package implemented through replay engine v5; Gauntlet Protocol design remains next)
 
 ## Next up (owner-triaged, 2026-07-04)
 
 - **Wave 1 — DONE:** Weekly Champion's Gauntlet + Weekly Mutation (weekly seed
   + boards); Exposed stacking debuff + target-priority filters through replay
   v4 with bestiary/help copy and regenerated balance-gate artifacts.
-- **Wave 2 (next):** Mirror Hull adaptive flagship + Recalibrate
-  ability; Gauntlet Protocol design brief -> implementation.
+- **Wave 2 (partial):** Mirror Hull adaptive flagship + Recalibrate ability
+  through replay v5; Gauntlet Protocol design brief -> implementation remains.
 - **Owner-side launch gate (unchanged):** App Check console registration,
   Stripe MVP (with owner), CrazyGames/Poki accounts + art, main-menu map
   showcase design discussion.
@@ -21,7 +21,7 @@ Last updated: 2026-07-05 (wave 1 complete: Weekly Champion's Gauntlet + Weekly M
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
-| Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 6 abilities, 18 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
+| Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 7 abilities, 19 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
 | Battle Plan replays | Public schema-v3 `runs/{runId}` docs with setup snapshots, r3 player-action packs, manifest `actionHash`, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayCodec.ts`, `reSimulate.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Weekly Arena | UTC ISO-week Weekly Mutation boards, admin-crowned Champion's Gauntlet seeded from verified campaign runs, replay-backed weekly/gauntlet score submission | `weeklyChallenge.ts`, `leaderboard.ts`, `engine.ts`, `functions/src/index.ts`, `AdminDashboard.tsx` |
@@ -79,6 +79,10 @@ Last updated: 2026-07-05 (wave 1 complete: Weekly Champion's Gauntlet + Weekly M
 - Exposed replaces instant shred bypass, target-priority filters can prefer
   boss/armored/cloaked/healer/spawner hulls with fallback targeting, and replay
   engine v4 records those filter actions in the r3 action stream.
+- Mirror Hull exposes adaptive armor as a late-game flagship that mirrors the
+  run's leading damage type, while Recalibrate lets players clear current
+  adaptation pressure and temporarily soften living Mirror Hulls through replay
+  engine v5.
 
 ## Shipped 2026-07-01 (review-plan implementation pass)
 

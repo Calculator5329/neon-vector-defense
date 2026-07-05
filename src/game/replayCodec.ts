@@ -43,7 +43,7 @@ const OPCODE = new Map<ReplayActionType, number>(ACTION_TYPES.map((type, index) 
 const TYPE_BY_OPCODE = new Map([...OPCODE.entries()].map(([type, code]) => [code, type]));
 const TARGET_MODES = ['first', 'last', 'strong', 'close'] as const;
 const TARGET_FILTERS = ['boss', 'armored', 'cloaked', 'healer', 'spawner'] as const;
-const ABILITIES = ['strike', 'chrono', 'overdrive', 'salvage', 'cascade', 'mirror'] as const;
+const ABILITIES = ['strike', 'chrono', 'overdrive', 'salvage', 'cascade', 'mirror', 'recalibrate'] as const;
 const PICKUPS = ['cash', 'slow', 'bomb'] as const;
 const CONTRACTS = ['standard', 'ironcore', 'leanGrid', 'volatile', 'purist'] as const;
 const RELICS = ['beaconChoir', 'emberDoctrine', 'siegeDoctrine', 'sensorCrown', 'salvageTax', 'chronoMarket', 'rivalBounty', 'stormCapacitors'] as const;

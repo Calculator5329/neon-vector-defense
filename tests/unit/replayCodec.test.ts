@@ -35,6 +35,7 @@ describe('r3 replay action codec', () => {
       event('target_filter', 16, { towerUid: 1, filters: 'boss,armored,cloaked' }),
       event('ability_cast', 18, { abilityId: 'strike', x: 300.2, y: 120.8 }),
       event('ability_cast', 22, { abilityId: 'overdrive' }),
+      event('ability_cast', 24, { abilityId: 'recalibrate' }),
       event('pickup_collect', 30, { x: 500.1, y: 400.9, cash: 660 }),
       event('speed_change', 35, { speed: 2 }),
       event('tower_sell', 40, { towerUid: 1, cash: 840 }),

@@ -659,7 +659,10 @@ describe('feedback and config rules', () => {
       income: { killMult: 1.1, waveBonusMult: 0.95 },
       global: { abilityCooldownMult: 0.8 },
       diffs: { normal: { hpMult: 1.05, lateScale: 1.1, costMult: 1, cashMult: 1, livesMult: 1 } },
-      enemies: { scout: { hpMult: 1.2, rewardMult: 1, speedMult: 0.9 } },
+      enemies: { scout: { hpMult: 1.2, rewardMult: 1, speedMult: 0.9 }, mirror: { hpMult: 1.05 } },
+    }));
+    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'balance'), {
+      version: 'test-tower',
       towers: { siphon: { damageMult: 1.15, projectileSpeedMult: 1.2, splashMult: 1.1, slowMult: 1, burnMult: 1 } },
     }));
     await assertFails(setDoc(doc(adminDb(), 'config', 'balance'), {
@@ -767,6 +770,10 @@ describe('real recorder payload end-to-end (regression: prod submit rejected)', 
     if (game.towers.length > 0) {
       game.setTargetFilter(game.towers[0], 'armored', true);
     }
+    const startingWave = game.wave;
+    game.wave = 28;
+    game.castAbility('recalibrate');
+    game.wave = startingWave;
     game.startWave();
     // Human-ish noise so the action stream carries the control opcodes a real
     // run produces (speed changes, target modes) — fixtures never exercise these.
@@ -789,6 +796,9 @@ describe('real recorder payload end-to-end (regression: prod submit rejected)', 
     const recordedActions = decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
     if (!recordedActions.some((event) => event.type === 'target_filter')) {
       throw new Error('real recorder payload must include target_filter actions');
+    }
+    if (!recordedActions.some((event) => event.type === 'ability_cast' && event.abilityId === 'recalibrate')) {
+      throw new Error('real recorder payload must include a recalibrate ability_cast action');
     }
     const uid = playerUid;
     const db = playerDb();

@@ -340,7 +340,7 @@ test.describe('QA regression real-flow audit', () => {
     await seedLocalState(page);
   });
 
-  test('submits a real v4 run bundle and opens the frame-accurate replay viewer', async ({ page }) => {
+  test('submits a real v5 run bundle and opens the frame-accurate replay viewer', async ({ page }) => {
     test.setTimeout(60_000);
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
@@ -375,7 +375,7 @@ test.describe('QA regression real-flow audit', () => {
 
     const payload = await page.evaluate(() => JSON.parse(sessionStorage.getItem('nvd-e2e-public-run') ?? 'null'));
     expect(payload?.run?.schemaVersion).toBe(3);
-    expect(payload.run.setup.replayEngine).toBe(4);
+    expect(payload.run.setup.replayEngine).toBe(5);
     expect(payload.run.setup.mapHash).toMatch(/^[0-9a-f]{8}$/);
     expect(payload.run.actions.codec).toBe('r3');
     const actionTypes = payload.chunks

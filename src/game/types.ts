@@ -60,6 +60,12 @@ export interface Enemy {
   /** exposed stacks: shred setup debuff, refreshed on shred hits */
   exposed: number;
   exposedTimer: number;
+  /** Mirror Hull-only adaptive resistance snapshot */
+  mirrorResist?: {
+    type: DamageType;
+    resist: number;
+    weakenedTimer: number;
+  };
   /** focus mark: marked hulls become preferred targets for all towers while active */
   focusMark?: number;
   focusMarkTimer?: number;
@@ -188,7 +194,7 @@ export interface Tower {
   recoil: number;
 }
 
-export type AbilityId = 'strike' | 'chrono' | 'overdrive' | 'salvage' | 'cascade' | 'mirror';
+export type AbilityId = 'strike' | 'chrono' | 'overdrive' | 'salvage' | 'cascade' | 'mirror' | 'recalibrate';
 
 export interface AbilityDef {
   id: AbilityId;

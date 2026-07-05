@@ -80,6 +80,12 @@ const defs: EnemyDef[] = [
     boss: true, shape: 'capital',
     lore: 'The Combine\'s answer to a fortified sector: erase the sector. Carries four TITANs in its launch cradles. There is no Relay 1 through 3 anymore.',
   },
+  {
+    id: 'mirror', name: 'MIRROR HULL', hp: 760, speed: 28, radius: 34, reward: 440,
+    color: '#d8e7ff', glow: '#80ffd8', children: ['titan', 'titan'],
+    boss: true, shape: 'capital',
+    lore: 'A command flagship that reads your damage ledger at launch and plates itself against the leading damage type. Diversify the grid, crack it with Exposed, or fire Recalibrate before the copied answer becomes a coffin.',
+  },
 
   // ---- THE HOLLOW: the hunger that followed the Combine home. It does not deliver,
   // it does not queue — it eats light. Bleeds through in the deepest sieges and freeplay.

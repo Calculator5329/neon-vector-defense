@@ -1,4 +1,4 @@
-import type { Enemy, EnemyDef, GameMap, Pickup, Tower, TowerDef, Vec } from './types';
+import type { DamageType, Enemy, EnemyDef, GameMap, Pickup, Tower, TowerDef, Vec } from './types';
 import { Game, W, H } from './engine';
 import { BULWARK_RADIUS, ELITE_AFFIX_META } from './eliteAffixes';
 
@@ -50,6 +50,12 @@ function blit(ctx: CanvasRenderingContext2D, sprite: HTMLCanvasElement, x: numbe
 const enemySprites = new Map<string, HTMLCanvasElement>();
 const hollowSprites = new Map<string, HTMLCanvasElement>();
 const eliteSprites = new Map<string, HTMLCanvasElement>();
+const DAMAGE_TYPE_COLORS: Record<DamageType, string> = {
+  kinetic: '#d8dff0',
+  energy: '#4bcffa',
+  explosive: '#ff9f43',
+  cryo: '#7efff5',
+};
 
 function enemySprite(def: EnemyDef): HTMLCanvasElement {
   let s = enemySprites.get(def.id);
@@ -1706,6 +1712,23 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
     ctx.restore();
   }
 
+  if (e.mirrorResist && !lod) {
+    const color = DAMAGE_TYPE_COLORS[e.mirrorResist.type];
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.24 + 0.12 * Math.sin(time * 5 + e.phase);
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = e.mirrorResist.weakenedTimer > 0 ? 1.5 : 2.6;
+    ctx.setLineDash(e.mirrorResist.weakenedTimer > 0 ? [5, 10] : [16, 7]);
+    ctx.lineDashOffset = -time * 28;
+    circle(ctx, e.pos.x, e.pos.y, def.radius + 14);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   if (!lod) {
     const flick = 0.7 + 0.3 * Math.sin(time * 22 + e.phase);
     const fl = def.radius * (def.boss ? 1.5 : 1.05) * flick;
@@ -1756,8 +1779,9 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
     ctx.save();
     ctx.translate(e.pos.x, e.pos.y);
     ctx.rotate(heading);
-    ctx.fillStyle = def.glow;
-    ctx.shadowColor = def.glow;
+    const spineColor = e.mirrorResist ? DAMAGE_TYPE_COLORS[e.mirrorResist.type] : def.glow;
+    ctx.fillStyle = spineColor;
+    ctx.shadowColor = spineColor;
     ctx.shadowBlur = 8;
     for (let i = -1; i <= 1; i++) {
       const on = Math.sin(time * 4 + i * 1.3 + e.phase) > 0;

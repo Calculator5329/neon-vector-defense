@@ -5,8 +5,8 @@ export function HowToPlay({ onDone }: { onDone: () => void }) {
     ['01', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1-9/0), then click open ground or use the arrow keys and Enter. Towers fire automatically at anything in range.'],
     ['CR', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers and upgrades.'],
     ['UP', 'Two upgrade tracks', 'Click a built tower to upgrade it down two paths. After your first campaign win, VETERAN DEPLOY can build and auto-upgrade a fresh tower through tier 4/4 when credits allow.'],
-    ['AP', 'Damage types & Exposed', 'Kinetic, energy, blast, and cryo each meet different hull plating. Shred hits add Exposed for 4s, up to 5 stacks: each stack strips resistance and makes all follow-up damage hit harder.'],
-    ['CD', 'Commander abilities', 'Q/W/E/R/T/Y unlock as you advance: orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
+    ['AP', 'Damage types & Exposed', 'Kinetic, energy, blast, and cryo each meet different hull plating. Shred hits add Exposed for 4s, up to 5 stacks: each stack strips resistance and makes all follow-up damage hit harder. Mirror Hulls copy your leading type.'],
+    ['CD', 'Commander abilities', 'Q/W/E/R/T/Y/U unlock as you advance: orbital strikes, time dilation, Recalibrate, and more. Use them when the lane is breaking.'],
     ['HP', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1x/2x/4x sets the pace.'],
   ];
   return (

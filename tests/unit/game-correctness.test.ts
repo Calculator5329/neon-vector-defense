@@ -8,6 +8,9 @@ import {
   EXPOSED_MAX_STACKS,
   EXPOSED_RESIST_STRIP_PER_STACK,
   Game,
+  MIRROR_HULL_BASE_RESIST,
+  MIRROR_HULL_RECALIBRATED_RESIST,
+  RECALIBRATE_MIRROR_WEAKEN_S,
 } from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
 import { dailyChallenge, dailyModifierNames, type DailyChallenge } from '../../src/game/dailyChallenge';
@@ -102,6 +105,53 @@ describe('damage resistance rules', () => {
     // non-resisted type on the same hull takes full damage
     const prism2 = makeEnemy(ENEMIES.prism);
     assert.equal(game.damageEnemy(prism2, 10, 'kinetic', false), 10);
+  });
+
+  test('Mirror Hull snapshots the leading damage type deterministically', () => {
+    const energyGame = makeGame();
+    energyGame.damageEnemy(makeEnemy(ENEMIES.aegis), 100, 'energy', false);
+    energyGame.damageEnemy(makeEnemy(ENEMIES.aegis), 60, 'explosive', false);
+    const energyMirror = internals(energyGame).makeEnemy('mirror', false);
+    assert.equal(energyMirror.mirrorResist?.type, 'energy');
+    assert.equal(energyGame.damageEnemy(energyMirror, 100, 'energy', false), 100 * (1 - MIRROR_HULL_BASE_RESIST));
+
+    const cryoGame = makeGame();
+    cryoGame.damageEnemy(makeEnemy(ENEMIES.aegis), 90, 'kinetic', false);
+    cryoGame.damageEnemy(makeEnemy(ENEMIES.aegis), 120, 'cryo', false);
+    const cryoMirror = internals(cryoGame).makeEnemy('mirror', false);
+    assert.equal(cryoMirror.mirrorResist?.type, 'cryo');
+  });
+
+  test('each Mirror Hull spawn re-reads the run damage ledger', () => {
+    const game = makeGame();
+    game.damageEnemy(makeEnemy(ENEMIES.aegis), 100, 'energy', false);
+    const first = internals(game).makeEnemy('mirror', false);
+    assert.equal(first.mirrorResist?.type, 'energy');
+
+    game.damageEnemy(makeEnemy(ENEMIES.aegis), 250, 'explosive', false);
+    const second = internals(game).makeEnemy('mirror', false);
+    assert.equal(second.mirrorResist?.type, 'explosive');
+    assert.equal(first.mirrorResist?.type, 'energy');
+  });
+
+  test('Recalibrate clears adaptation and weakens live Mirror Hulls temporarily', () => {
+    const game = makeGame();
+    game.wave = 28;
+    game.adaptation = { type: 'energy', resist: 0.35 };
+    game.damageEnemy(makeEnemy(ENEMIES.aegis), 100, 'energy', false);
+    const mirror = internals(game).makeEnemy('mirror', false);
+    game.enemies.push(mirror);
+
+    assert.equal(game.castAbility('recalibrate'), true);
+    assert.equal(game.adaptation.type, null);
+    assert.equal(game.adaptation.resist, 0);
+    assert.equal(mirror.mirrorResist?.resist, MIRROR_HULL_RECALIBRATED_RESIST);
+    assert.equal(mirror.mirrorResist?.weakenedTimer, RECALIBRATE_MIRROR_WEAKEN_S);
+
+    const weakenedHit = game.damageEnemy(mirror, 100, mirror.mirrorResist!.type, false);
+    assert.equal(Math.round(weakenedHit), Math.round(100 * (1 - MIRROR_HULL_RECALIBRATED_RESIST)));
+    internals(game).updateEnemies(RECALIBRATE_MIRROR_WEAKEN_S + Game.SIM_STEP);
+    assert.equal(mirror.mirrorResist?.resist, MIRROR_HULL_BASE_RESIST);
   });
 
   test('Exposed stacks cap, refresh, and decay deterministically on fixed steps', () => {

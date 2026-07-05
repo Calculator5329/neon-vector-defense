@@ -2462,6 +2462,21 @@ body.game-blocking-overlay .fb-root.on-game {
 }
 .ability-btn .ability-icon { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; justify-content: center; font-size: 21px; line-height: 1; }
 .ability-btn .ability-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; pointer-events: none; }
+.ability-btn .ability-icon-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(128, 255, 216, 0.34), rgba(12, 22, 32, 0.64) 58%),
+    linear-gradient(135deg, rgba(216, 231, 255, 0.24), rgba(64, 255, 220, 0.12));
+  color: #d8fff5;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow: 0 0 10px rgba(128, 255, 216, 0.9);
+}
 .ability-btn .ability-key {
   position: absolute;
   bottom: 2px;
@@ -2882,10 +2897,10 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .tb-adapt-type { min-width: 5ch; }
   .tb-stat.wave { grid-column: span 2; }
   .tb-stat.daily-strip { grid-column: 1 / -1; max-width: none; }
-  .ability-bar { bottom: max(10px, env(safe-area-inset-bottom)); left: 8px; gap: 6px; }
-  .ability-btn { width: 58px; height: 58px; }
-  .ability-btn .ability-icon { font-size: 24px; }
-  /* lift above the ability bar (58px buttons at the bottom) so the centered CTA never overlaps it */
+  .ability-bar { bottom: max(10px, env(safe-area-inset-bottom)); left: 8px; gap: 5px; }
+  .ability-btn { width: 50px; height: 50px; }
+  .ability-btn .ability-icon { font-size: 21px; }
+  /* lift above the ability bar so the centered CTA never overlaps it */
   .wave-btn { font-size: 14px; padding: 12px 22px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 66px); }
   .coach-chip { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 130px); }
   .touch-place-hint { bottom: 78px; }

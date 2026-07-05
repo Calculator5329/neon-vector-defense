@@ -116,11 +116,12 @@ The `r3` codec stores only player actions consumed by `reSimulate`:
 
 All actions encode monotonic simTick deltas plus small enum/integer args into
 the base64url-like `data` string. Tower ids are stored once in `towerIds`; chunk
-packs reuse that root table. Replay engine version 4 is current: v4 runs include
-Exposed combat math and deterministic `target_filter` actions. Agent A measured
-a seeded freeplay wave-81 run at 1,304,761 bytes for the old verbose public
-bundle, 5,569 bytes for verbose action JSON, 942 bytes for the r3 action payload
-object, and 701 bytes for the r3 `data` string.
+packs reuse that root table. Replay engine version 5 is current: v4 runs added
+Exposed combat math and deterministic `target_filter` actions; v5 adds Mirror
+Hull damage-type snapshots and Recalibrate's adaptive-resistance reset. Agent A
+measured a seeded freeplay wave-81 run at 1,304,761 bytes for the old verbose
+public bundle, 5,569 bytes for verbose action JSON, 942 bytes for the r3 action
+payload object, and 701 bytes for the r3 `data` string.
 
 ### `runs/{runId}/chunks/c{n}`
 
@@ -415,8 +416,8 @@ Demo mode (`?demo=1`) skips meta and progression writes.
 | Sectors (maps) | 8 | Orbital Relay through Cinder Causeway |
 | Protocols (difficulties) | 4 | Recruit through Extinction |
 | Towers | 21 | 2 upgrade tracks each; kill-gated unlock ladder |
-| Commander abilities | 6 | Q/W/E/R/T/Y |
-| Enemy archetypes | 18 | Armored, cloaked, boss, heal, nested hull, etc. |
+| Commander abilities | 7 | Q/W/E/R/T/Y/U; Recalibrate clears current adaptation and weakens live Mirror Hulls |
+| Enemy archetypes | 19 | Armored, cloaked, boss, heal, nested hull, adaptive Mirror Hull, etc. |
 
 ## AI Help proxy (Cloudflare Worker)
 

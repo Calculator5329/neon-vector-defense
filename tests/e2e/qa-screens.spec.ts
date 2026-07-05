@@ -43,7 +43,7 @@ const progressSeed = {
   apexW: true,
   foes: [
     'scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono',
-    'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'wisp', 'gorge', 'lampblack', 'umbra',
+    'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'mirror', 'wisp', 'gorge', 'lampblack', 'umbra',
   ],
   foesAck: 0,
   fpRuns: 3,

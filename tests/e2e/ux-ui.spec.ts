@@ -869,6 +869,48 @@ test.describe('desktop UX layout', () => {
   });
 });
 
+test.describe('adaptation package UX', () => {
+  test('Bestiary shows Mirror Hull intel and counterplay', async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+    await seedProgress(page, {
+      foes: [
+        'scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono',
+        'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'mirror',
+      ],
+    });
+    await openDemoMenu(page);
+    await page.getByTestId('menu-utility-bestiary').click();
+    await expect(page.getByTestId('bestiary')).toBeVisible();
+    await expect(page.getByText('MIRROR HULL')).toBeVisible();
+    await expect(page.getByText('ADAPTIVE MIRROR')).toBeVisible();
+    await expect(page.getByText(/diversify, stack Exposed, or fire Recalibrate/i)).toBeVisible();
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test('ability bar shows Recalibrate locked and unlocked states', async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+    await seedProgress(page, { kills: 1_000_000, victories: 1 });
+    await openDemoMenu(page);
+    await page.getByTestId('deploy-button').click();
+    await acknowledgeBriefing(page);
+    await expect(page.getByTestId('game-canvas')).toBeVisible();
+
+    await expect(page.getByRole('button', { name: /Recalibrate locked until wave 28/i })).toBeVisible();
+    await page.evaluate(() => {
+      const game = (window as unknown as { game: { wave: number } }).game;
+      game.wave = 28;
+    });
+    await expect(page.getByRole('button', { name: /Recalibrate ability, U/i })).toBeEnabled();
+    expect(consoleErrors).toEqual([]);
+  });
+});
+
 test.describe('feedback privacy flow', () => {
   test('stores private receipts and renders callable replies without public feedback reads', async ({ page }) => {
     const receipt = { id: 'feedback_123456', token: 'ABCDEFGHIJKLMNOP' };

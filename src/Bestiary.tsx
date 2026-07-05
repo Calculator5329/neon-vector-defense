@@ -19,6 +19,7 @@ function traits(d: EnemyDef): string[] {
   if (d.immuneExplosive) t.push('BLAST-RESIST');
   if (d.immuneCryo) t.push('CRYO-RESIST');
   if (d.resist?.energy) t.push('ENERGY-RESIST');
+  if (d.id === 'mirror') t.push('ADAPTIVE MIRROR');
   if (d.heal) t.push('REPAIRS');
   return t;
 }
@@ -29,6 +30,7 @@ function tacticalNote(d: EnemyDef): string | null {
   if (d.immuneExplosive) notes.push('blast plating blunts explosives until Exposed cracks it');
   if (d.immuneCryo) notes.push('cryo wash is resisted; Exposed gives it purchase');
   if (d.resist?.energy) notes.push('energy facets bleed power, but Exposed strips the angle');
+  if (d.id === 'mirror') notes.push('it copies your leading damage type at spawn; diversify, stack Exposed, or fire Recalibrate');
   return notes.length ? notes.join('; ') + '.' : null;
 }
 

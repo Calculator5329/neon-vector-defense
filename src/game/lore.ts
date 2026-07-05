@@ -109,4 +109,7 @@ export const ABILITY_LORE: Record<string, string> = {
   chrono: 'The Continuity dreams slower, together, on purpose — and drags local time with them. A million minds leaning on the clock.',
   overdrive: 'Warden authorization to burn beacon fuel in the gun reactors. Sector Command calls it sacrilege. Wardens call it Tuesday.',
   salvage: 'Wreckage from the lane, melted and re-minted. The Combine\'s own deliveries, returned to sender as ammunition.',
+  cascade: 'Cantor marks are lighthouse harmonics caught in enemy hulls. Null Cascade makes them all remember the same note at once.',
+  mirror: 'A gate fold held open for ten seconds: anything crossing the wrong threshold finds itself back at the first one.',
+  recalibrate: 'A dirty counter-signal against the Combine logistics mind. It does not make the armada forget you. It makes its newest answer obsolete.',
 };

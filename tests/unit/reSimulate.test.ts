@@ -41,6 +41,27 @@ function runSeededBotCampaign(): RunUploadBundle {
   return game.buildRunUploadBundle('RESIM', 'test-build');
 }
 
+function runSeededRecalibrateCampaign(): RunUploadBundle {
+  const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 223, lifetimeKills: 1_000_000 });
+  game.paused = false;
+  game.speed = 4;
+  game.autoNext = true;
+  const bot = new Bot(game, 'standard', seededRng(10));
+  game.startWave();
+  let cast = false;
+  for (let i = 0; i < 120_000 && game.wave <= 28 && game.phase !== 'gameover' && game.phase !== 'victory'; i++) {
+    bot.act(game.time);
+    if (!cast && game.wave >= 28 && game.phase === 'build' && game.abilityReady('recalibrate')) {
+      game.castAbility('recalibrate');
+      cast = true;
+    }
+    if (game.phase === 'build') game.startWave();
+    game.update(0.05);
+  }
+  if (!cast && game.abilityReady('recalibrate')) game.castAbility('recalibrate');
+  return game.buildRunUploadBundle('RESIM', 'test-build');
+}
+
 function runSeededBotDaily(): RunUploadBundle {
   const challenge = dailyChallengeForDate('2026-06-01');
   const map = ALL_MAPS.find((candidate) => candidate.id === challenge.mapId) ?? ALL_MAPS[0];
@@ -340,6 +361,14 @@ describe('reSimulate', () => {
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'unverifiable');
     assert.match(result.reason ?? '', /engine mismatch/);
+  });
+
+  test('verifies r3 ability_cast actions for Recalibrate', () => {
+    const bundle = runSeededRecalibrateCampaign();
+    const events = allEvents(bundle);
+    assert.ok(events.some((event) => event.type === 'ability_cast' && event.abilityId === 'recalibrate'));
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'verified');
   });
 
   test('treats identity-balance runs as verifiable only under identity balance', () => {

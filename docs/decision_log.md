@@ -3,6 +3,19 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-05 - Adaptation becomes a readable late-game mechanic
+
+- Mirror Hull makes the existing adaptive-armor math visible by snapshotting the
+  run's highest damage type at spawn and resisting that type by 85% for its
+  lifetime.
+- Recalibrate is a seventh commander ability on the long-cooldown tier. It
+  clears the current armada adaptation window and drops living Mirror Hull
+  snapshots to 40% resistance for 12 seconds.
+- Replay engine version 5 is required because Mirror Hull spawn state and
+  Recalibrate affect deterministic combat outcomes.
+- The Recalibrate ability button uses a drawn in-UI fallback when its
+  `/art/ability-recalibrate.webp` bitmap is unavailable.
+
 ## 2026-07-05 - Weekly Arena composes existing deterministic challenge systems
 
 - Weekly Mutation uses UTC ISO week ids (`weekly-YYYY-Www`) for both the public

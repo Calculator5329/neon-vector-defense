@@ -56,4 +56,13 @@ export const ABILITIES: AbilityDef[] = [
     targeted: false,
     unlockWave: 40,
   },
+  {
+    id: 'recalibrate',
+    name: 'Recalibrate',
+    icon: 'RC',
+    desc: 'Flush the Combine adaptation ledger. Live Mirror Hulls lose most of their copied resistance for 12 seconds.',
+    cooldown: 95,
+    targeted: false,
+    unlockWave: 28,
+  },
 ];

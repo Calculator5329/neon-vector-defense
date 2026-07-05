@@ -24,8 +24,10 @@ export const RUN_TELEMETRY_SCHEMA = 3;
  *  v3: tesla chains exclude already-hit hulls across hops; targeted abilities
  *      require a position and cannot cast after the run ends.
  *  v4: Exposed replaces instant shred resistance bypass; towers can record
- *      target_filter preferences that affect deterministic target selection. */
-export const REPLAY_ENGINE_VERSION = 4;
+ *      target_filter preferences that affect deterministic target selection.
+ *  v5: Mirror Hull snapshots top damage type at spawn; Recalibrate clears
+ *      adaptive resistance and weakens live Mirror Hull snapshots. */
+export const REPLAY_ENGINE_VERSION = 5;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const FINAL_TOWER_DOC_CAP = 3;
 const IDLE_AFTER_S = 25;

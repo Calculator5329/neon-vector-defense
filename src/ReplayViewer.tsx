@@ -56,6 +56,7 @@ const ABILITY_DURATIONS: Partial<Record<AbilityId, number>> = {
   salvage: 1.4,
   cascade: 1.7,
   mirror: 10,
+  recalibrate: 1.4,
 };
 
 /** Pure: derive what to draw at scrub position `t` (seconds). Exported for tests. */
@@ -193,7 +194,7 @@ function recentEvents(events: RunEvent[], t: number, windowS: number, max = 4): 
 function eventAbilityId(e: RunEvent): AbilityId | null {
   if (e.type !== 'ability_cast') return null;
   const id = e.abilityId;
-  return id === 'strike' || id === 'chrono' || id === 'overdrive' || id === 'salvage' || id === 'cascade' || id === 'mirror'
+  return id === 'strike' || id === 'chrono' || id === 'overdrive' || id === 'salvage' || id === 'cascade' || id === 'mirror' || id === 'recalibrate'
     ? id
     : null;
 }
@@ -367,6 +368,15 @@ function drawReplayAbilityEffects(ctx: CanvasRenderingContext2D, events: RunEven
       ctx.setLineDash([12, 10]);
       ctx.lineDashOffset = -t * 45;
       ctx.strokeRect(18, 18, W - 36, H - 36);
+      ctx.setLineDash([]);
+    } else if (id === 'recalibrate') {
+      ctx.strokeStyle = `rgba(128,255,216,${0.22 + k * 0.35})`;
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([8, 8]);
+      ctx.lineDashOffset = -t * 52;
+      for (let r = 70; r < W; r += 190) {
+        ctx.beginPath(); ctx.arc(W / 2, H / 2, r + age * 55, 0, Math.PI * 2); ctx.stroke();
+      }
       ctx.setLineDash([]);
     }
   }

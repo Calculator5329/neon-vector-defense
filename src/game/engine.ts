@@ -1,5 +1,5 @@
 import type {
-  AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, EliteAffixId, Enemy, EnemyDef, GameMap,
+  AbilityId, AbilityState, Beam, BurnZone, DamageType, DifficultyDef, EliteAffixId, Enemy, EnemyDef, GameMap,
   Particle, Pickup, PickupKind, Projectile, TargetFilter, TargetMode, Tower, TowerDef, TowerStats, Vec, Wave, WaveGroup,
 } from './types';
 import { ENEMIES, rbe } from './enemies';
@@ -174,6 +174,9 @@ export const EXPOSED_MAX_STACKS = 5;
 export const EXPOSED_DURATION = 4;
 export const EXPOSED_RESIST_STRIP_PER_STACK = 0.13;
 export const EXPOSED_DAMAGE_TAKEN_PER_STACK = 0.04;
+export const MIRROR_HULL_BASE_RESIST = 0.85;
+export const MIRROR_HULL_RECALIBRATED_RESIST = 0.40;
+export const RECALIBRATE_MIRROR_WEAKEN_S = 12;
 export const TARGET_FILTERS: readonly TargetFilter[] = ['boss', 'armored', 'cloaked', 'healer', 'spawner'];
 
 export class Game {
@@ -280,8 +283,9 @@ export class Game {
   }
 
   /** Apex only: the Combine studies your fire and armors against your favorite damage type */
-  adaptation: { type: import('./types').DamageType | null; resist: number } = { type: null, resist: 0 };
+  adaptation: { type: DamageType | null; resist: number } = { type: null, resist: 0 };
   private dmgWindow: Record<string, number> = {};
+  private dmgByTypeTotal: Record<string, number> = {};
 
   /** deterministic gameplay seed + stream (see GameOptions.seed) */
   readonly seed: number;
@@ -949,7 +953,8 @@ export class Game {
       this.announce(`FREEPLAY MUTATORS: ${this.freeplayState.currentMutators.map((m) => m.name).join(' + ')}`);
     }
     // threat advisories
-    if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
+    if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'mirror')) { this.announce('MIRROR HULL signature detected - adaptation scan imminent'); vox('wave-boss'); }
+    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
     else { vox('wave-incoming'); }
@@ -1024,7 +1029,17 @@ export class Game {
       e.umbraSummonCd = 4.5;
       e.umbraTickDamage = 0;
     }
+    if (def.id === 'mirror') {
+      const type = this.topDamageTypeSoFar() ?? this.adaptation.type ?? 'kinetic';
+      e.mirrorResist = { type, resist: MIRROR_HULL_BASE_RESIST, weakenedTimer: 0 };
+      this.announce(`MIRROR HULL calibrated against ${type.toUpperCase()}`);
+    }
     return e;
+  }
+
+  private topDamageTypeSoFar(): DamageType | null {
+    const entries = Object.entries(this.dmgByTypeTotal).sort((a, b) => b[1] - a[1]);
+    return entries.length > 0 && entries[0][1] > 0 ? entries[0][0] as DamageType : null;
   }
 
   private spawnEnemy(typeId: string, cloaked: boolean, eliteAffix?: EliteAffixId) {
@@ -1227,6 +1242,9 @@ export class Game {
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
     dmg *= this.exposedDamageTakenMultiplier(e);
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
+    if (e.mirrorResist?.type === type) {
+      dmg *= 1 - Math.max(0, Math.min(MIRROR_HULL_BASE_RESIST, e.mirrorResist.resist));
+    }
     if (this.eliteBulwarkProtects(e)) dmg *= BULWARK_DAMAGE_MULT;
     dmg = this.capUmbraDamage(e, dmg);
     if (dmg <= 0) return 0;
@@ -1245,6 +1263,7 @@ export class Game {
 
     const credited = shieldAbsorbed + dmg;
     this.dmgWindow[type] = (this.dmgWindow[type] ?? 0) + credited;
+    this.dmgByTypeTotal[type] = (this.dmgByTypeTotal[type] ?? 0) + credited;
     if (src) {
       this.runStats.dmg[src.def.id] = (this.runStats.dmg[src.def.id] ?? 0) + credited;
       this.runStats.dmgByTowerUid[src.uid] = (this.runStats.dmgByTowerUid[src.uid] ?? 0) + credited;
@@ -1508,6 +1527,24 @@ export class Game {
         this.announce('◇ Mirror Protocol — the exit is a door that opens backward');
         sfx.chrono();
         break;
+      case 'recalibrate': {
+        const previous = this.adaptation.type;
+        this.adaptation = { type: null, resist: 0 };
+        this.dmgWindow = {};
+        let mirrored = 0;
+        for (const e of this.enemies) {
+          if (e.def.id !== 'mirror' || !e.mirrorResist || e.dead || e.finished) continue;
+          e.mirrorResist.resist = MIRROR_HULL_RECALIBRATED_RESIST;
+          e.mirrorResist.weakenedTimer = RECALIBRATE_MIRROR_WEAKEN_S;
+          mirrored++;
+          this.ring(e.pos, '#80ffd8', e.def.radius + 24);
+        }
+        this.announce(mirrored > 0
+          ? `Recalibrate - adaptation flushed, ${mirrored} Mirror Hull${mirrored === 1 ? '' : 's'} destabilized`
+          : `Recalibrate - ${previous ? `${previous} adaptation flushed` : 'adaptation ledger cleared'}`);
+        sfx.chrono();
+        break;
+      }
     }
     a.cd = a.def.cooldown * getBalance().abilityCooldownMult;
     this.runStats.abilitiesCast++;
@@ -1654,7 +1691,7 @@ export class Game {
           const entries = Object.entries(this.dmgWindow).sort((a, b) => b[1] - a[1]);
           if (entries.length > 0 && entries[0][1] > 0) {
             const resist = this.diff.id === 'extinction' ? 0.4 : this.diff.id === 'hard' ? 0.35 : 0.25;
-            this.adaptation = { type: entries[0][0] as import('./types').DamageType, resist };
+            this.adaptation = { type: entries[0][0] as DamageType, resist };
             this.announce(`⛨ The Combine has adapted: ${entries[0][0]} damage −${Math.round(resist * 100)}% for the next 10 waves`);
           }
           this.dmgWindow = {};
@@ -1706,6 +1743,10 @@ export class Game {
       if (e.exposedTimer > 0) {
         e.exposedTimer -= dt;
         if (e.exposedTimer <= 0) this.clearExposed(e);
+      }
+      if (e.mirrorResist && e.mirrorResist.weakenedTimer > 0) {
+        e.mirrorResist.weakenedTimer = Math.max(0, e.mirrorResist.weakenedTimer - dt);
+        if (e.mirrorResist.weakenedTimer <= 0) e.mirrorResist.resist = MIRROR_HULL_BASE_RESIST;
       }
       this.updateUmbra(e, dt);
       // boss disruption pulse: stuns towers near the hull — don't stack your whole

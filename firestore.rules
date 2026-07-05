@@ -157,7 +157,7 @@ service cloud.firestore {
 
     function isValidBalanceEnemies(x) {
       return x is map
-        && x.keys().hasOnly(['scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono', 'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'wisp', 'gorge', 'lampblack', 'umbra'])
+        && x.keys().hasOnly(['scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono', 'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'mirror', 'wisp', 'gorge', 'lampblack', 'umbra'])
         && (!('scout' in x) || isValidBalanceEnemy(x.scout))
         && (!('raider' in x) || isValidBalanceEnemy(x.raider))
         && (!('stinger' in x) || isValidBalanceEnemy(x.stinger))
@@ -172,6 +172,7 @@ service cloud.firestore {
         && (!('seraph' in x) || isValidBalanceEnemy(x.seraph))
         && (!('titan' in x) || isValidBalanceEnemy(x.titan))
         && (!('leviathan' in x) || isValidBalanceEnemy(x.leviathan))
+        && (!('mirror' in x) || isValidBalanceEnemy(x.mirror))
         && (!('wisp' in x) || isValidBalanceEnemy(x.wisp))
         && (!('gorge' in x) || isValidBalanceEnemy(x.gorge))
         && (!('lampblack' in x) || isValidBalanceEnemy(x.lampblack))

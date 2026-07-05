@@ -65,6 +65,7 @@ const TARGET_FILTER_LABELS: [TargetFilter, string][] = [
   ['healer', 'HEAL'],
   ['spawner', 'SPAWN'],
 ];
+const ABILITY_KEYS = 'QWERTYU';
 const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
 const KEYBOARD_GRID = 24;
 const TOWER_EDGE = 16;
@@ -121,6 +122,22 @@ function withAdBreakTimeout(promise: Promise<AdBreakResult>, type: AdBreakType):
       },
     );
   });
+}
+
+function AbilityArt({ id, fallback }: { id: string; fallback: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <span className="ability-icon-fallback" aria-hidden="true">{fallback}</span>;
+  }
+  return (
+    <img
+      className="ability-icon-img"
+      src={`/art/ability-${id}.webp`}
+      alt=""
+      draggable={false}
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 function projectedVeteranDeploy(game: Game, def: TowerDef, credits = game.credits): VeteranProjection {
@@ -1026,7 +1043,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
           game.recorder.recordControl(METRIC_EVENTS.FIRST_PAUSE, game.time);
         }
       }
-      const ab = { q: 'strike', w: 'chrono', e: 'overdrive', r: 'salvage', t: 'cascade', y: 'mirror' } as const;
+      const ab = { q: 'strike', w: 'chrono', e: 'overdrive', r: 'salvage', t: 'cascade', y: 'mirror', u: 'recalibrate' } as const;
       const k = ev.key.toLowerCase() as keyof typeof ab;
       if (ab[k]) useAbilityRef.current(ab[k]);
       const n = ev.key === '0' ? 10 : parseInt(ev.key);
@@ -1277,14 +1294,14 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
                   disabled={locked}
                   aria-label={locked
                     ? `${a.def.name} locked until wave ${a.def.unlockWave}`
-                    : `${a.def.name} ability, ${'QWERTY'[i]}`}
+                    : `${a.def.name} ability, ${ABILITY_KEYS[i]}`}
                   title={locked
                     ? `${a.def.name} — comes online at wave ${a.def.unlockWave}`
-                    : `${a.def.name} (${'QWERTY'[i]}) — ${a.def.desc}\n\n${ABILITY_LORE[a.def.id] ?? ''}`}
+                    : `${a.def.name} (${ABILITY_KEYS[i]}) — ${a.def.desc}\n\n${ABILITY_LORE[a.def.id] ?? ''}`}
                   onClick={() => useAbility(a.def.id)}
                 >
-                  <span className="ability-icon">{locked ? '🔒' : <img className="ability-icon-img" src={`/art/ability-${a.def.id}.webp`} alt="" draggable={false} />}</span>
-                  <span className="ability-key">{'QWERTY'[i]}</span>
+                  <span className="ability-icon">{locked ? '🔒' : <AbilityArt id={a.def.id} fallback={a.def.icon} />}</span>
+                  <span className="ability-key">{ABILITY_KEYS[i]}</span>
                   {a.cd > 0 && <span className="ability-cd" style={{ height: `${pct * 100}%` }} />}
                   {a.cd > 0 && <span className="ability-cd-num">{Math.ceil(a.cd)}</span>}
                 </button>

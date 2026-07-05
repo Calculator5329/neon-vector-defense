@@ -266,7 +266,7 @@ export function applyMutatorsToWave(wave: number, base: WaveGroup[], mutators: F
       add('stinger', 18 + scale * 6, 0.18, 0.2);
       add('chrono', 10 + scale * 3, 0.35, 0.6);
     } else if (m.id === 'shieldedBoss') {
-      add('titan', 1 + Math.floor(scale / 2), 2.4, 1.2);
+      add(wave >= 70 ? 'mirror' : 'titan', 1 + Math.floor(scale / 2), 2.4, 1.2);
     } else if (m.id === 'splitPressure') {
       groups.forEach((g) => { g.delay = Math.max(0, (g.delay ?? 0) * 0.45); });
       add('vortex', 10 + scale * 4, 0.35, 0.4);
@@ -275,7 +275,7 @@ export function applyMutatorsToWave(wave: number, base: WaveGroup[], mutators: F
     }
   }
   if (rival) {
-    const rivalType = rival.id === 'redSaint' ? 'leviathan' : rival.id === 'orrery' ? 'umbra' : 'leviathan';
+    const rivalType = rival.id === 'blackbox' ? 'mirror' : rival.id === 'redSaint' ? 'leviathan' : rival.id === 'orrery' ? 'umbra' : 'leviathan';
     add(rivalType, 1, 1, 0.2, rival.id === 'vesper');
     if (rival.id === 'vesper') add('phantom', 14 + scale * 2, 0.25, 0.6, true);
     if (rival.id === 'orrery') add('titan', 3 + scale, 1.4, 1);

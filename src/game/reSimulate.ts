@@ -409,7 +409,7 @@ function numberField(event: RunEvent, key: string): number {
 }
 
 function isAbilityId(id: string | null): id is AbilityId {
-  return id === 'strike' || id === 'chrono' || id === 'overdrive' || id === 'salvage' || id === 'cascade' || id === 'mirror';
+  return id === 'strike' || id === 'chrono' || id === 'overdrive' || id === 'salvage' || id === 'cascade' || id === 'mirror' || id === 'recalibrate';
 }
 
 function isTargetMode(mode: string | null): mode is TargetMode {
