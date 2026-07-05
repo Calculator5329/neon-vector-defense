@@ -10,18 +10,21 @@ const DATABASE = '(default)';
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DATABASE}/documents`;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
+// Scope (2026-07-05 owner reset): leaderboards + all replay data only.
+// telemetry / feedback / rateLimits / runAnalytics are intentionally KEPT.
 const DELETE_PATHS = [
   'boards',
   'dailyBoards',
+  'weeklyBoards',
+  'gauntletBoards',
+  'gauntletProtocolBoards',
   'runs',
   'replayOwners',
-  'runAnalytics',
+  'replayStreams',
   'runCheckpoints',
-  'telemetry',
-  'feedback',
-  'rateLimits',
   'aggregates',
   'config/spotlight',
+  'config/weeklyGauntlet',
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -32,7 +35,7 @@ if (args.has('--help') || args.has('-h')) {
 Without --execute, prints live Firestore counts only.
 With --execute, recursively deletes the reset paths for ${PROJECT_ID}, then prints before/after counts.
 
-This script never deletes config/balance. It deletes only config/spotlight under config/.`);
+This script keeps config/balance, override docs, telemetry, feedback, rateLimits, and runAnalytics. Under config/ it deletes only config/spotlight and config/weeklyGauntlet.`);
   process.exit(0);
 }
 
@@ -56,8 +59,8 @@ async function main() {
 
   console.log('\nDESTRUCTIVE MODE: recursively deleting these paths from project neon-vector-defense-7:');
   for (const path of DELETE_PATHS) console.log(`- ${path}`);
-  console.log('- any remaining known child docs under boards/*/scores, dailyBoards/*/scores, runs/*/chunks, replayOwners/*/runs, and runCheckpoints/*/chunks');
-  console.log('\nconfig/balance is intentionally kept; only config/spotlight is deleted under config/.');
+  console.log('- any remaining known child docs under */scores (all five board collections), runs/*/chunks, runCheckpoints/*/chunks, replayOwners/*/runs, and replayStreams/*/runs');
+  console.log('\nconfig/balance and override docs are kept; config/spotlight and config/weeklyGauntlet are deleted. telemetry/feedback/rateLimits/runAnalytics are kept.');
 
   for (const path of DELETE_PATHS) {
     runFirebase(['firestore:delete', '-r', path, '--force', '--project', PROJECT_ID]);
@@ -152,13 +155,22 @@ async function collectCounts(token) {
 
   const boardScores = scores.filter((path) => path.startsWith('boards/')).length;
   const dailyScores = scores.filter((path) => path.startsWith('dailyBoards/')).length;
+  const weeklyScores = scores.filter((path) => path.startsWith('weeklyBoards/')).length;
+  const gauntletScores = scores.filter((path) => path.startsWith('gauntletBoards/')).length;
+  const gauntletProtocolScores = scores.filter((path) => path.startsWith('gauntletProtocolBoards/')).length;
   const runChunks = chunks.filter((path) => path.startsWith('runs/')).length;
   const checkpointChunks = chunks.filter((path) => path.startsWith('runCheckpoints/')).length;
   const replayOwnerRuns = runsGroup.filter((path) => path.startsWith('replayOwners/')).length;
+  const replayStreamRuns = runsGroup.filter((path) => path.startsWith('replayStreams/')).length;
 
   const [
     boards,
     dailyBoards,
+    weeklyBoards,
+    gauntletBoards,
+    gauntletProtocolBoards,
+    replayStreams,
+    weeklyGauntletDoc,
     runs,
     runAnalytics,
     runCheckpoints,
@@ -171,6 +183,11 @@ async function collectCounts(token) {
   ] = await Promise.all([
     countCollection(token, 'boards'),
     countCollection(token, 'dailyBoards'),
+    countCollection(token, 'weeklyBoards'),
+    countCollection(token, 'gauntletBoards'),
+    countCollection(token, 'gauntletProtocolBoards'),
+    countCollection(token, 'replayStreams'),
+    documentExists(token, 'config/weeklyGauntlet'),
     countCollection(token, 'runs'),
     countCollection(token, 'runAnalytics'),
     countCollection(token, 'runCheckpoints'),
@@ -187,15 +204,24 @@ async function collectCounts(token) {
     { label: 'boards/*/scores', count: boardScores },
     { label: 'dailyBoards', count: dailyBoards },
     { label: 'dailyBoards/*/scores', count: dailyScores },
+    { label: 'weeklyBoards', count: weeklyBoards },
+    { label: 'weeklyBoards/*/scores', count: weeklyScores },
+    { label: 'gauntletBoards', count: gauntletBoards },
+    { label: 'gauntletBoards/*/scores', count: gauntletScores },
+    { label: 'gauntletProtocolBoards', count: gauntletProtocolBoards },
+    { label: 'gauntletProtocolBoards/*/scores', count: gauntletProtocolScores },
+    { label: 'replayStreams', count: replayStreams },
+    { label: 'replayStreams/*/runs', count: replayStreamRuns },
+    { label: 'config/weeklyGauntlet', count: weeklyGauntletDoc ? 1 : 0 },
     { label: 'runs', count: runs },
     { label: 'runs/*/chunks', count: runChunks },
     { label: 'replayOwners/*/runs', count: replayOwnerRuns },
-    { label: 'runAnalytics', count: runAnalytics },
+    { label: 'runAnalytics (kept)', count: runAnalytics },
     { label: 'runCheckpoints', count: runCheckpoints },
     { label: 'runCheckpoints/*/chunks', count: checkpointChunks },
-    { label: 'telemetry', count: telemetry },
-    { label: 'feedback', count: feedback },
-    { label: 'rateLimits', count: rateLimits },
+    { label: 'telemetry (kept)', count: telemetry },
+    { label: 'feedback (kept)', count: feedback },
+    { label: 'rateLimits (kept)', count: rateLimits },
     { label: 'aggregates', count: aggregates },
     { label: 'config/spotlight', count: spotlight ? 1 : 0 },
     { label: 'config/balance (kept)', count: balance ? 1 : 0 },
@@ -208,10 +234,11 @@ async function collectKnownLeafDeletePaths(token) {
     collectionGroupNames(token, 'chunks'),
     collectionGroupNames(token, 'runs'),
   ]);
+  const boardPrefixes = ['boards/', 'dailyBoards/', 'weeklyBoards/', 'gauntletBoards/', 'gauntletProtocolBoards/'];
   return [
-    ...scores.filter((path) => path.startsWith('boards/') || path.startsWith('dailyBoards/')),
+    ...scores.filter((path) => boardPrefixes.some((prefix) => path.startsWith(prefix))),
     ...chunks.filter((path) => path.startsWith('runs/') || path.startsWith('runCheckpoints/')),
-    ...runsGroup.filter((path) => path.startsWith('replayOwners/')),
+    ...runsGroup.filter((path) => path.startsWith('replayOwners/') || path.startsWith('replayStreams/')),
   ].sort();
 }
 

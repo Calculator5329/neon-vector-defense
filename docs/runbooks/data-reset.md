@@ -1,6 +1,6 @@
 # Production data reset runbook
 
-Use this only when the owner has confirmed that production Firestore player data can be wiped. It deletes leaderboards, public/private replay data, analytics, telemetry, feedback, rate-limit counters, global aggregates, and the replay spotlight pin. It intentionally keeps `config/balance`.
+Use this only when the owner has confirmed that production Firestore player data can be wiped. Scope (re-cut 2026-07-05): it deletes leaderboards (all five board collections), public/private replay data (runs, replayOwners, replayStreams, runCheckpoints), global aggregates, the replay spotlight pin, and the crowned weekly champion doc. It intentionally KEEPS `config/balance`, daily/weekly override docs, telemetry, feedback, rateLimits, and runAnalytics.
 
 ## Count first
 
@@ -20,11 +20,14 @@ node scripts/admin/wipe-server-data.mjs --execute
 
 Execute mode recursively deletes:
 
-`boards`, `dailyBoards`, `runs`, `replayOwners`, `runAnalytics`, `runCheckpoints`, `telemetry`, `feedback`, `rateLimits`, `aggregates`, and `config/spotlight`.
+`boards`, `dailyBoards`, `weeklyBoards`, `gauntletBoards`, `gauntletProtocolBoards`,
+`runs`, `replayOwners`, `replayStreams`, `runCheckpoints`, `aggregates`,
+`config/spotlight`, and `config/weeklyGauntlet`.
 
 It also performs a post-delete cleanup of known child collection documents that
-may exist under missing parent docs: `boards/*/scores`, `dailyBoards/*/scores`,
-`runs/*/chunks`, `replayOwners/*/runs`, and `runCheckpoints/*/chunks`.
+may exist under missing parent docs: `*/scores` under all five board collections,
+`runs/*/chunks`, `runCheckpoints/*/chunks`, `replayOwners/*/runs`, and
+`replayStreams/*/runs`.
 
 Never recursive-delete `config`; `config/balance` is the admin-authored tuning document and must survive.
 
