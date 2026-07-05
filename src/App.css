@@ -363,7 +363,10 @@
 .dbar-dot { color: var(--dim); }
 .dbar-diff { font-family: 'Orbitron', sans-serif; font-size: 15px; color: var(--accent); }
 .deploy-bar-btn {
-  width: min(238px, 100%);
+  /* auto width: a fixed 238px clipped "▶ START MISSION" at 16px/3.5px tracking */
+  width: auto;
+  min-width: min(238px, 100%);
+  max-width: 100%;
   margin: 0 !important;
   justify-self: end;
   min-height: 54px;
@@ -686,12 +689,12 @@
   box-shadow: 0 0 0 1px #a996ff, 0 0 24px rgba(142, 123, 239, 0.42);
 }
 .atlas-node.locked {
-  color: #465174;
+  color: #6d7ca8;
   cursor: not-allowed;
 }
 .atlas-node.locked .atlas-node-halo {
   border-style: dashed;
-  opacity: 0.58;
+  opacity: 0.8;
   box-shadow: none;
 }
 .atlas-node-name {
@@ -706,7 +709,7 @@
   overflow-wrap: anywhere;
 }
 .atlas-node.locked .atlas-node-name {
-  color: var(--dim);
+  color: #8fa0cf;
 }
 .atlas-path-glyph {
   width: 38px;
@@ -838,7 +841,10 @@
   margin: 0;
   max-width: none;
 }
-.atlas-protocol-row {
+/* .diff-card qualifier: the base .diff-card block sits LATER in this file, so an
+   unqualified .atlas-protocol-row loses the cascade tie and the dock rows balloon
+   to the 158px flex-basis meant for the old grid layout. */
+.diff-card.atlas-protocol-row {
   flex: none;
   max-width: none;
   min-height: 50px;
@@ -865,7 +871,7 @@
   -webkit-line-clamp: unset;
   line-clamp: unset;
 }
-.atlas-protocol-row.daily-protocol {
+.diff-card.atlas-protocol-row.daily-protocol {
   grid-template-columns: 1fr;
 }
 .atlas-protocol-row.daily-protocol .diff-desc {
@@ -954,7 +960,8 @@
 }
 .daily-card-mods { color: #b9fffb; }
 .deploy-bar-btn.daily {
-  width: min(300px, 100%);
+  width: auto;
+  min-width: min(300px, 100%);
   padding-inline: 22px;
   font-size: 15px;
   letter-spacing: 2.4px;

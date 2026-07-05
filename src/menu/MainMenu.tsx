@@ -388,7 +388,7 @@ function SectorAtlas(props: {
               >
                 {!active && props.firstTime && d.id === 'easy' && <span className="start-pill">RECOMMENDED</span>}
                 <span className="diff-name">{d.name}</span>
-                <span className="diff-desc">W{d.waves} · best W{progress.best(selectedMap.id, d.id) || '-'}</span>
+                <span className="diff-desc">{d.waves} waves · best {progress.best(selectedMap.id, d.id) ? `W${progress.best(selectedMap.id, d.id)}` : '—'}</span>
               </button>
             );
           })}
@@ -568,7 +568,7 @@ export function MainMenu(props: {
       {/* sticky launch bar — always visible, reflects the current selection */}
         </main>
       </div>
-      <div className="deploy-bar">
+      {tab === 'deploy' && <div className="deploy-bar">
         <div className="deploy-bar-inner">
           <div className="menu-legal">
             {!IS_PORTAL_BUILD && <a href="/privacy">Privacy &amp; Data Choices</a>}
@@ -619,13 +619,13 @@ export function MainMenu(props: {
                 : deployMode === 'gauntlet'
                   ? '▶ GAUNTLET'
                   : deployMode === 'gauntletProtocol'
-                    ? 'GAUNTLET PROTOCOL'
+                    ? '▶ GAUNTLET PROTOCOL'
                     : firstTime
                     ? '▶ START MISSION'
                     : '▶ DEPLOY'}
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
