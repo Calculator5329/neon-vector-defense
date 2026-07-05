@@ -264,8 +264,9 @@
 }
 .menu-main { min-width: 0; min-height: 0; display: flex; }
 .menu-layout .menu-content { margin-top: 0; width: 100%; }
-/* board/ops tabs have no dossier strip above them — pull the content up tight */
-.menu-layout.menu-tab-board, .menu-layout.menu-tab-ops { margin-top: 6px; }
+/* board/ops keep the SAME layout offset as deploy so the commander rail never
+   jumps between tabs; the board column itself starts tight under the topbar
+   (the old pre-atlas clamp(18px,4vh,38px) offset lives in :has(.board-tab) below) */
 .commander-dossier { display: none !important; }
 .commander-rail {
   align-self: start;
@@ -307,7 +308,7 @@
 .menu-content:has(.board-tab) {
   justify-content: flex-start;
   gap: 10px;
-  margin-top: clamp(18px, 4vh, 38px);
+  margin-top: 0;
 }
 .menu-col { display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 1.3vh, 14px); }
 /* short / landscape iframe: the menu is vertically centered and the root clips overflow,
@@ -4030,7 +4031,9 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 .ops-chip.streak.warn .ops-chip-val { color: var(--gold); }
 .ops-chip.streak.warn .ops-chip-label { color: var(--gold); }
 
-.ops-board-head { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 4px; }
+/* the CLAIM ALL row tucks into the section seam — negative margins keep the
+   62px of dead reserved space out while the placeholder still prevents CLS */
+.ops-board-head { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: -8px 0 -18px; position: relative; z-index: 1; }
 .claim-all {
   --nvd-action-width: 144px;
   background: linear-gradient(#ffd95e, #ffcf4b);

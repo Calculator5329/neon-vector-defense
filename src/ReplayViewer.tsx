@@ -47,8 +47,50 @@ const REPLAY_SPEEDS = [0.5, 1, 2, 4, 5, 10] as const;
 // the tick cap is just a safety ceiling for pathological hardware timers.
 const SEEK_SLICE_TICKS_MAX = 30_000;
 const SEEK_SLICE_MS = 8;
+// While PLAYING forward, a budget miss under this gap is not a "seek" — it means
+// the chosen speed outruns what the frame budget sustains (dense late waves at
+// 10x). We degrade playback speed to what the budget allows instead of freezing
+// time under a SIMULATING overlay. Bigger gaps (scrubs, rewinds) still overlay.
+const CATCHUP_GAP_S = 3;
 const CALLOUT_S = 1.8;
 const EVENT_FEED_S = 3.2;
+
+// Scrub/rewind convergence badge — a proper pill with a progress bar, drawn over
+// a dim scrim. Only shown for real seeks; forward playback never overlays.
+function drawSeekOverlay(ctx: CanvasRenderingContext2D, p: number) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(4, 7, 16, 0.55)';
+  ctx.fillRect(0, 0, W, H);
+  const pw = 320, ph = 66;
+  const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, 12);
+  ctx.fillStyle = 'rgba(10, 16, 32, 0.94)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(75, 207, 250, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#7efff5';
+  ctx.font = '600 13px Orbitron, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SIMULATING REPLAY', px + 18, py + 22);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#dce8ff';
+  ctx.fillText(`${Math.round(p * 100)}%`, px + pw - 18, py + 22);
+  const bx = px + 18, bw = pw - 36, by = py + ph - 24, bh = 6;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 3);
+  ctx.fillStyle = 'rgba(75, 207, 250, 0.16)';
+  ctx.fill();
+  if (p > 0.005) {
+    ctx.beginPath();
+    ctx.roundRect(bx, by, Math.max(bh, bw * Math.min(1, p)), bh, 3);
+    ctx.fillStyle = '#7efff5';
+    ctx.fill();
+  }
+  ctx.restore();
+}
 const ABILITY_DURATIONS: Partial<Record<AbilityId, number>> = {
   strike: 1.2,
   chrono: 6,
@@ -597,14 +639,19 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       seekPendingRef.current = !settled;
       render(ctx, driver.game, REPLAY_RENDER_UI);
       if (!settled) {
-        const p = driver.seekProgress ?? 0;
-        ctx.fillStyle = 'rgba(4, 7, 16, 0.45)';
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#7efff5';
-        ctx.font = '600 15px Orbitron, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`SIMULATING… ${Math.round(p * 100)}%`, W / 2, H / 2);
-        ctx.textAlign = 'start';
+        const engineT = driver.game.time;
+        const gap = time - engineT;
+        if (playingRef.current && gap >= 0 && gap < CATCHUP_GAP_S) {
+          // Speed outran the frame budget: pull the playhead back to the engine's
+          // real time and keep rendering normally. Playback continues at the best
+          // sustainable rate — no frozen clock, no overlay flashing mid-playback.
+          tRef.current = engineT;
+          seekPendingRef.current = false;
+          drawCallout(ctx, waveWindow(run, engineT), engineT, span);
+          drawEventFeed(ctx, run.events, engineT);
+          return;
+        }
+        drawSeekOverlay(ctx, driver.seekProgress ?? 0);
         return;
       }
       drawCallout(ctx, waveWindow(run, time), time, span);
