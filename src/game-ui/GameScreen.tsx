@@ -81,6 +81,11 @@ const TARGET_FILTER_LABELS: [TargetFilter, string][] = [
 const ABILITY_KEYS = 'QWERTYU';
 const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
 const KEYBOARD_GRID = 24;
+// Matches the CSS "mobile command view": the map is full-screen and the arsenal
+// is an overlay drawer instead of a docked column. Keep in sync with the
+// MOBILE COMMAND VIEW media block in App.css.
+const MOBILE_COMMAND_MQ = '(max-width: 980px), (orientation: landscape) and (max-height: 500px)';
+const mobileCommandView = () => typeof matchMedia !== 'undefined' && matchMedia(MOBILE_COMMAND_MQ).matches;
 const TOWER_EDGE = 16;
 // Bot-rival ghost curves (matched-difficulty AI cores pace), built once from the bundled asset.
 const GHOST_CURVES: GhostCurve[] = buildGhostCurves(GHOST_CURVES_RAW);
@@ -318,7 +323,9 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   const perfIdleRef = useRef(0);
   const [cloakTip, setCloakTip] = useState(false);
   const [unlockModal, setUnlockModal] = useState<TowerDef | null>(null);
-  const [sideOpen, setSideOpen] = useState(true);
+  // Mobile command view opens with the map full-screen and the arsenal docked
+  // as a rail; desktop keeps the classic open column.
+  const [sideOpen, setSideOpen] = useState(() => !mobileCommandView());
   const [abortConfirm, setAbortConfirm] = useState(false);
   const [contractOpen, setContractOpen] = useState(false);
   const [checkpointState, setCheckpointState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
@@ -819,6 +826,9 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
     setSelectedUid(null);
     setAiming(false);
     setTouchPreview(null);
+    // In the mobile command view the arsenal drawer covers the map — tuck it
+    // away the moment a turret is picked so the player can see where to build.
+    if (def && !keyboard && mobileCommandView() && sideOpenRef.current) setSideOpen(false);
     keyboardPlacementRef.current = keyboard && !!def;
     if (keyboard && def) {
       const pos = keyboardCursorRef.current ?? findKeyboardStart();
@@ -1492,6 +1502,16 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           {gauntletDraft && <GauntletRelicModal offer={gauntletDraft} onSelect={chooseGauntletDraft} leg={gauntletLeg + 1} />}
         </div>
 
+        {/* Mobile command view: tap the dimmed map to tuck the drawer away
+            (display:none on desktop, where the sidebar is a docked column) */}
+        {sideOpen && !terminalPhase && (
+          <button
+            className="sidebar-scrim"
+            aria-label="Close arsenal panel"
+            tabIndex={-1}
+            onClick={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }}
+          />
+        )}
         <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game-sidebar">
           {sideOpen ? (
             <div className="side-body">

@@ -284,6 +284,9 @@ async function finishAsVictory(page: Page) {
     game.paused = false;
     game.credits = Math.max(game.credits, 10_000);
   });
+  // mobile command view docks the arsenal as a rail — open the drawer first
+  const rail = page.locator('.side-rail');
+  if (await rail.isVisible().catch(() => false)) await rail.click();
   await page.getByTestId('tower-pulse').click();
   const point = await validCanvasPoint(page);
   await page.mouse.click(point.x, point.y);
@@ -292,6 +295,9 @@ async function finishAsVictory(page: Page) {
   await expect(page.getByTestId('target-filter-armored')).toBeVisible();
   await page.getByTestId('target-filter-armored').click();
   await expect(page.getByTestId('target-filter-armored')).toHaveAttribute('aria-pressed', 'true');
+  // mobile: the upgrade drawer overlays the launch CTA — tap the scrim to tuck it away
+  const scrim = page.locator('.sidebar-scrim');
+  if (await scrim.isVisible().catch(() => false)) await scrim.click();
   await page.getByTestId('launch-wave').click();
   await page.evaluate(() => {
     const game = (window as unknown as { game: any }).game;

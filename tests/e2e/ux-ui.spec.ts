@@ -129,6 +129,14 @@ async function deployFromMenu(page: Page) {
   await expect(page.getByTestId('game-root')).toBeVisible();
 }
 
+/** The mobile command view docks the arsenal as a rail handle; desktop keeps
+ *  the column open. Open the drawer when docked so shop interactions work. */
+async function openArsenal(page: Page) {
+  const rail = page.locator('.side-rail');
+  if (await rail.isVisible().catch(() => false)) await rail.click();
+  await expect(page.getByTestId('shop-grid')).toBeVisible();
+}
+
 async function acknowledgeBriefing(page: Page) {
   const briefing = page.getByTestId('briefing-overlay');
   if (await briefing.isVisible().catch(() => false)) {
@@ -816,7 +824,7 @@ test.describe('desktop UX layout', () => {
     await page.setViewportSize({ width: 920, height: 430 });
     await openDemoMenu(page);
     await deployFromMenu(page);
-    await expect(page.getByTestId('shop-grid')).toBeVisible();
+    await openArsenal(page);
 
     const layout = await arsenalGridMetrics(page);
 
@@ -1678,6 +1686,7 @@ test.describe('first-run coach', () => {
     await expect(chip).toContainText('1/3');
 
     // stage 1 → 2: place a tower (canvas click path)
+    await openArsenal(page);
     await page.getByTestId('tower-pulse').click();
     const point = await page.evaluate(() => {
       const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
@@ -1741,8 +1750,11 @@ test.describe('mobile UX layout', () => {
     await openDemoMenu(page);
 
     const layout = await page.evaluate(() => {
-      const atlas = document.querySelector<HTMLElement>('[data-testid="sector-atlas"]')!;
+      // the pan surface is the field viewport wrapper (the atlas itself stacks
+      // field + dock vertically at natural height)
+      const viewport = document.querySelector<HTMLElement>('.atlas-field-viewport')!;
       const field = document.querySelector<HTMLElement>('[data-testid="atlas-field"]')!;
+      const dock = document.querySelector<HTMLElement>('[data-testid="sector-dock"]')!;
       const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="map-node-"]')].map((el) => {
         const r = el.getBoundingClientRect();
         return { width: Math.round(r.width), height: Math.round(r.height) };
@@ -1751,11 +1763,12 @@ test.describe('mobile UX layout', () => {
       const ai = document.querySelector('.ai-toggle')?.getBoundingClientRect();
       const fb = document.querySelector('.fb-toggle')?.getBoundingClientRect();
       return {
-        atlasDisplay: getComputedStyle(atlas).display,
-        overflowX: getComputedStyle(atlas).overflowX,
-        scrollWidth: atlas.scrollWidth,
-        clientWidth: atlas.clientWidth,
+        viewportDisplay: getComputedStyle(viewport).display,
+        overflowX: getComputedStyle(viewport).overflowX,
+        scrollWidth: viewport.scrollWidth,
+        clientWidth: viewport.clientWidth,
         fieldHeight: Math.round(field.getBoundingClientRect().height),
+        dockVisible: dock.getBoundingClientRect().height > 200,
         minNodeWidth: Math.min(...nodes.map((node) => node.width)),
         minNodeHeight: Math.min(...nodes.map((node) => node.height)),
         deployVisible: deployRect.bottom <= window.innerHeight + 1,
@@ -1764,10 +1777,11 @@ test.describe('mobile UX layout', () => {
       };
     });
 
-    expect(layout.atlasDisplay).toBe('block');
+    expect(layout.viewportDisplay).toBe('block');
     expect(layout.overflowX).toBe('auto');
     expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
-    expect(layout.fieldHeight).toBeGreaterThan(360);
+    expect(layout.fieldHeight).toBeGreaterThan(320);
+    expect(layout.dockVisible).toBe(true);
     expect(layout.minNodeWidth).toBeGreaterThanOrEqual(44);
     expect(layout.minNodeHeight).toBeGreaterThanOrEqual(44);
     expect(layout.deployVisible).toBe(true);
@@ -1778,7 +1792,7 @@ test.describe('mobile UX layout', () => {
   test('arsenal panel renders a complete 21-tower grid on mobile', async ({ page }) => {
     await openDemoMenu(page);
     await deployFromMenu(page);
-    await expect(page.getByTestId('shop-grid')).toBeVisible();
+    await openArsenal(page);
 
     const layout = await arsenalGridMetrics(page);
 
@@ -1803,6 +1817,7 @@ test.describe('mobile UX layout', () => {
     await expect(page.getByTestId('rotate-device')).toBeVisible();
     // waves must not run unseen behind the rotate overlay
     await expect.poll(() => page.evaluate(() => (window as unknown as { game: { paused: boolean } }).game.paused)).toBe(true);
+    await openArsenal(page);
     await page.getByTestId('tower-pulse').click();
     const point = await page.evaluate(() => {
       const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;

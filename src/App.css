@@ -619,6 +619,8 @@
     rgba(5, 8, 18, 0.72);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.36);
 }
+/* transparent on desktop; becomes the phone pan-viewport (mobile menu CSS) */
+.atlas-field-viewport { display: contents; }
 .atlas-field {
   position: relative;
   min-height: 510px;
@@ -1953,6 +1955,8 @@
   transition: width 0.18s ease;
 }
 .sidebar.collapsed { width: 38px; }
+/* Backdrop for the mobile drawer — inert on desktop where the sidebar docks. */
+.sidebar-scrim { display: none; }
 .side-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1 1 auto; }
 
 /* the towers card carries the collapse control in its header and grows to fill */
@@ -3214,93 +3218,11 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 
 /* responsive: stack the sidebar under the canvas on narrow windows */
 @media (max-width: 980px) {
+  /* Menus scroll as pages on small screens; the game screen itself is an
+     app-style fixed stage handled by the MOBILE COMMAND VIEW section below. */
   html, body, #root { overflow: auto; }
-  .game-root { height: auto; min-height: 100%; }
-  .game-body { flex-direction: column; padding: 6px; gap: 6px; }
-  /* stack column so the relative-positioned freeplay build panel lands below the
-     canvas instead of fighting it for centered row space */
-  .canvas-wrap { min-height: 0; flex-direction: column; }
-  .canvas-wrap canvas { height: auto; }
-  .sidebar {
-    width: 100%;
-    max-height: min(42vh, 340px);
-    border-radius: 14px 14px 0 0;
-    padding-bottom: max(0px, env(safe-area-inset-bottom));
-  }
-  .sidebar.collapsed {
-    width: 100%;
-    max-height: 52px;
-    overflow: hidden;
-  }
-  .side-body {
-    min-height: 0;
-    overflow-y: auto;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-  }
-  .side-rail {
-    height: 48px;
-    flex-direction: row;
-    justify-content: center;
-    padding: 0 14px;
-    border-radius: 12px;
-  }
-  .side-rail-label {
-    writing-mode: horizontal-tb;
-    letter-spacing: 2px;
-  }
-  .ai-root.in-game,
-  .fb-root.on-game,
-  body.game-sidebar-open .ai-root.in-game,
-  body.game-sidebar-open .fb-root.on-game,
-  body.game-sidebar-collapsed .ai-root.in-game,
-  body.game-sidebar-collapsed .fb-root.on-game {
-    --widget-edge: 16px;
-  }
-  .ai-root.in-game { bottom: 136px; }
-  .fb-root.on-game { bottom: 16px; }
-  .topbar {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 5px;
-    padding: 6px 8px;
-  }
-  /* finger-sized controls */
-  .tb-spacer, .tb-stat.kills { display: none; }
-  .tb-stat.ghost { display: flex; justify-content: center; padding: 7px 4px; gap: 4px; }
-  .tb-stat.ghost .ghost-spark { display: none; }
-  .tb-stat.ghost .ghost-label { font-size: 12px; }
-  .tb-btn { min-height: 34px; min-width: 0; font-size: 11px; padding: 6px 4px; }
-  .tb-stat { min-width: 0; font-size: 12px; padding: 7px 4px; text-align: center; overflow: hidden; text-overflow: ellipsis; }
-  .tb-stat.credits .tb-stat-num,
-  .tb-stat.kills .tb-stat-num { --nvd-counter-width: 5ch; }
-  .tb-adapt-slot { min-width: 0; }
-  .tb-adapt-type { min-width: 5ch; }
-  .tb-stat.wave { grid-column: span 2; }
-  .tb-stat.daily-strip { grid-column: 1 / -1; max-width: none; }
-  .ability-bar { bottom: max(10px, env(safe-area-inset-bottom)); left: 8px; gap: 5px; }
-  .ability-btn { width: 50px; height: 50px; }
-  .ability-btn .ability-icon { font-size: 21px; }
-  /* lift above the ability bar so the centered CTA never overlaps it */
-  .wave-btn { font-size: 14px; padding: 12px 22px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 66px); }
-  .coach-chip { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 130px); }
-  .touch-place-hint { bottom: 78px; }
-  .freeplay-build-panel {
-    position: absolute;
-    left: 9px;
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 132px);
-    width: min(420px, calc(100% - 18px));
-    max-height: min(46%, 300px);
-    margin: 0;
-    overflow-y: auto;
-  }
-  .freeplay-next-grid,
-  .risk-offer { grid-template-columns: 1fr; }
   .replay-of-day-card { align-items: stretch; flex-direction: column; margin-bottom: 96px; }
   .replay-of-day-watch { justify-content: center; }
-  .shop-item { min-height: 96px; }
-  .side-tabs button { padding: 13px 4px; font-size: 13px; }
-  .target-row .tb-btn { min-height: 38px; }
-  .upgrade-btn { padding: 11px 12px; }
   .menu-title { font-size: clamp(26px, 8vw, 44px); }
   .deploy-bar { min-height: 76px; padding: 9px 12px calc(9px + env(safe-area-inset-bottom)); }
   .deploy-bar-inner {
@@ -3346,9 +3268,14 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
     width: 100%;
     display: flex;
     flex-direction: column;
+    /* desktop keeps align-items:start for the side rail; stacked columns must
+       STRETCH or every panel sizes to max-content and bleeds off-screen */
+    align-items: stretch;
     gap: 12px;
     margin-top: 10px;
   }
+  .menu-main { min-width: 0; max-width: 100%; }
+  .menu-main > .menu-content { min-width: 0; max-width: 100%; flex: 1 1 auto; }
   .commander-rail {
     max-height: none;
     overflow: visible;
@@ -3395,58 +3322,10 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .commander-dossier .menu-rank-strip, .commander-dossier .menu-next-unlock { flex: none; }
 }
 
-/* Short-landscape phones (the recommended play orientation): the <=980px
-   stacked layout above would push the arsenal below the fold and enable page
-   scroll. Restore the desktop ROW layout instead — full-height canvas on the
-   left, a slim scrollable command sidebar on the right — so the whole command
-   view fits the viewport with no scrolling. */
+/* Short-landscape phones: gameplay is handled by the MOBILE COMMAND VIEW
+   section below (full-screen map + overlay drawer). This block only compacts
+   the MENU chrome so it fits a short viewport. */
 @media (orientation: landscape) and (max-height: 500px) {
-  html, body, #root { overflow: hidden; }
-  .game-root { height: 100%; min-height: 0; }
-  .game-body { flex-direction: row; padding: 6px; gap: 6px; }
-  .canvas-wrap { flex-direction: row; min-height: 0; }
-  .canvas-wrap canvas { height: 100%; width: 100%; }
-  .sidebar {
-    width: min(300px, 42vw);
-    max-height: none;
-    border-radius: 10px;
-    padding-bottom: 0;
-    padding-right: max(0px, env(safe-area-inset-right));
-  }
-  .sidebar.collapsed { width: 38px; max-height: none; }
-  .side-rail {
-    height: 100%;
-    flex-direction: column;
-    justify-content: center;
-    padding: 14px 0;
-  }
-  .side-rail-label { writing-mode: vertical-rl; letter-spacing: 3px; }
-  .topbar {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 5px;
-    padding: 4px 8px;
-    padding-left: max(8px, env(safe-area-inset-left));
-  }
-  .tb-stat { font-size: 11px; padding: 4px 8px; flex: 0 0 auto; }
-  .tb-stat.wave { grid-column: auto; }
-  .tb-btn { min-height: 28px; font-size: 10px; padding: 4px 8px; flex: 0 0 auto; }
-  .tb-spacer { display: block; flex: 1 1 auto; }
-  .ability-bar { left: max(8px, env(safe-area-inset-left)); bottom: 8px; gap: 5px; }
-  .ability-btn { width: 46px; height: 46px; }
-  .ability-btn .ability-icon { font-size: 19px; }
-  .wave-btn { font-size: 13px; padding: 10px 18px; bottom: 62px; }
-  .coach-chip { bottom: 112px; max-width: min(440px, calc(100% - 16px)); }
-  .freeplay-build-panel {
-    position: absolute;
-    left: 10px;
-    bottom: 10px;
-    width: min(430px, 60vw);
-    margin: 0;
-    max-height: calc(100% - 20px);
-    overflow-y: auto;
-  }
   .replay-of-day-card { margin-bottom: 8px; }
   .menu-root {
     padding: 10px 34px 152px;
@@ -3529,11 +3408,23 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
     padding-bottom: 160px;
   }
   .sector-atlas {
-    grid-template-columns: minmax(380px, 1fr) minmax(238px, 280px);
+    /* the field column must be collapsible or the dock clips off-screen; the
+       starmap keeps its full width and PANS inside the viewport instead */
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
     min-height: 318px;
     max-width: none;
   }
+  .atlas-field-viewport {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .atlas-field {
+    width: 680px;
     min-height: 318px;
   }
   .atlas-node {
@@ -4482,4 +4373,327 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .quest-card {
     min-height: 112px;
   }
+}
+
+/* ======================= MOBILE COMMAND VIEW =======================
+   Phones and small tablets play FULL-SCREEN on the actual map. All chrome
+   floats over the canvas: a slim translucent status strip on top, abilities
+   bottom-left, the launch CTA bottom-right, and the arsenal/upgrade panel as
+   a slide-in drawer on the right that tucks into a mini-rail handle.
+   Keep this media condition in sync with MOBILE_COMMAND_MQ in GameScreen.tsx. */
+@media (max-width: 980px), (orientation: landscape) and (max-height: 500px) {
+  body.game-active { overflow: hidden; overscroll-behavior: none; }
+  .game-root { position: fixed; inset: 0; height: 100dvh; display: block; }
+  .game-body { position: absolute; inset: 0; display: block; padding: 0; }
+  .canvas-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .canvas-wrap canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* ---- floating status strip ---- */
+  .topbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 12px;
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-top: max(6px, env(safe-area-inset-top));
+    background: linear-gradient(rgba(5, 7, 15, 0.92), rgba(5, 7, 15, 0.55) 72%, transparent);
+    border-bottom: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    /* the strip floats over playable map — only its chips may eat taps */
+    pointer-events: none;
+  }
+  .topbar > * { pointer-events: auto; }
+  .topbar .tb-spacer { pointer-events: none; }
+  .topbar::-webkit-scrollbar { display: none; }
+  .topbar .tb-stat {
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 36px;
+    font-size: 12px;
+    padding: 5px 9px;
+    background: rgba(12, 18, 36, 0.74);
+    backdrop-filter: blur(4px);
+  }
+  .topbar .tb-btn {
+    flex: 0 0 auto;
+    min-height: 38px;
+    min-width: 38px;
+    font-size: 11px;
+    padding: 5px 9px;
+    backdrop-filter: blur(4px);
+  }
+  /* only darken idle buttons — the active (.on) accent state keeps its own
+     background so its dark label stays readable */
+  .topbar .tb-btn:not(.on) { background: rgba(12, 18, 36, 0.74); }
+  /* ABORT stays reachable even when the strip scrolls */
+  .topbar .tb-btn.exit { position: sticky; left: 0; z-index: 2; }
+  .tb-tag { display: none; }
+  .tb-stat.kills, .tb-adapt-slot:not(.active) { display: none; }
+  .tb-spacer { display: block; flex: 1 1 12px; }
+  .tb-stat.daily-strip { max-width: 44vw; }
+  .tb-stat.ghost { padding: 5px 8px; gap: 4px; }
+  .tb-stat.ghost .ghost-spark { display: none; }
+  .tb-stat.ghost .ghost-label { font-size: 11px; }
+  .tb-stat.credits .tb-stat-num { --nvd-counter-width: 5ch; }
+
+  /* ---- floating combat controls ---- */
+  .ability-bar {
+    z-index: 25;
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 6px;
+  }
+  .ability-btn {
+    width: 52px;
+    height: 52px;
+    background: rgba(12, 18, 36, 0.78);
+    backdrop-filter: blur(4px);
+  }
+  .ability-btn .ability-icon { font-size: 22px; }
+  .wave-btn {
+    z-index: 25;
+    left: auto;
+    right: max(12px, env(safe-area-inset-right));
+    transform: none;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    font-size: 14px;
+    padding: 13px 22px;
+  }
+  .coach-chip {
+    z-index: 26;
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px);
+    max-width: min(460px, calc(100% - 20px));
+  }
+  .touch-place-hint { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 78px); }
+  .notice { top: calc(max(6px, env(safe-area-inset-top)) + 58px); }
+  .freeplay-build-panel {
+    position: absolute;
+    z-index: 26;
+    left: max(10px, env(safe-area-inset-left));
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 66px);
+    width: min(400px, calc(100vw - 20px));
+    max-height: min(52dvh, 320px);
+    margin: 0;
+    overflow-y: auto;
+  }
+  .freeplay-next-grid,
+  .risk-offer { grid-template-columns: 1fr; }
+
+  /* ---- arsenal drawer ---- */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(340px, 86vw);
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    background: rgba(9, 14, 29, 0.94);
+    border-left: 1px solid var(--edge);
+    box-shadow: -18px 0 44px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    padding: 10px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    transition: none;
+    animation: drawer-in 0.18s ease;
+  }
+  .side-body {
+    min-height: 0;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+  /* tucked away: only a floating handle on the map's right edge */
+  .sidebar.collapsed {
+    top: 50%;
+    bottom: auto;
+    right: env(safe-area-inset-right, 0px);
+    transform: translateY(-50%);
+    width: 44px;
+    height: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding: 0;
+    overflow: visible;
+    animation: none;
+  }
+  .side-rail {
+    width: 44px;
+    height: 152px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px 2px 12px 4px;
+    border-radius: 12px 0 0 12px;
+    border-right: 0;
+    background: rgba(12, 18, 36, 0.88);
+    backdrop-filter: blur(4px);
+  }
+  .side-rail-label { writing-mode: vertical-rl; letter-spacing: 3px; }
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(3, 5, 12, 0.45);
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  /* keyboard hints mean nothing to a thumb */
+  .ability-btn .ability-key { display: none; }
+
+  /* ---- drawer contents: finger-sized ---- */
+  .shop-item { min-height: 104px; }
+  .side-tabs button { padding: 13px 4px; font-size: 13px; }
+  .target-row .tb-btn { min-height: 40px; }
+  .upgrade-btn { padding: 12px; }
+  .panel-collapse { width: 38px; height: 38px; }
+
+  /* ---- helper widgets stack above the launch CTA ---- */
+  .ai-root.in-game,
+  .fb-root.on-game,
+  body.game-sidebar-open .ai-root.in-game,
+  body.game-sidebar-open .fb-root.on-game,
+  body.game-sidebar-collapsed .ai-root.in-game,
+  body.game-sidebar-collapsed .fb-root.on-game {
+    --widget-edge: 12px;
+  }
+  .ai-root.in-game { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 128px); }
+  .fb-root.on-game { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 70px); }
+  /* the drawer owns the right edge while open — tuck the helper bubbles away */
+  body.game-sidebar-open .ai-root.in-game,
+  body.game-sidebar-open .fb-root.on-game { display: none; }
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(44px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ========================= MOBILE MENUS =========================
+   Mobile-first pass over the menu chrome: a compact brand row with utility
+   icons top-right, a full-width segmented tab bar underneath, a starmap you
+   PAN with your thumb (fixed-width field inside a horizontal viewport), and
+   the sector dock stacked at natural height so nothing clips or overflows. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .menu-root {
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+  .menu-topbar { position: relative; flex-wrap: wrap; gap: 10px; }
+  .menu-eyebrow { font-size: 8px; letter-spacing: 3px; }
+  .menu-title { font-size: clamp(24px, 7.4vw, 34px); }
+  /* segmented full-width tab bar: three big tabs on top, utility icons in a
+     compact right-aligned second row (backdrop-filter makes .menu-tabs the
+     containing block, so utilities live INSIDE the grid, not floated out) */
+  .menu-tabs {
+    flex: 1 1 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .menu-tabs > button { grid-column: span 2; }
+  .menu-tabs button {
+    min-height: 46px;
+    padding: 6px 4px;
+    font-size: 10.5px;
+    letter-spacing: 1.2px;
+    white-space: nowrap;
+  }
+  .menu-tabs .menu-tab-help,
+  .menu-tabs .menu-tab-help:first-of-type {
+    grid-row: 2;
+    grid-column: span 1;
+    width: 44px;
+    min-width: 0;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    margin: 0;
+    justify-self: center;
+  }
+  /* DOM order after the three main tabs: bestiary, help, settings → park them
+     in the right half of the second row */
+  .menu-tabs .menu-tab-help:nth-last-of-type(3) { grid-column: 4; }
+  .menu-tabs .menu-tab-help:nth-last-of-type(2) { grid-column: 5; }
+  .menu-tabs .menu-tab-help:nth-last-of-type(1) { grid-column: 6; }
+}
+
+/* Narrow screens, any orientation: panels stack at natural height and the
+   page (menu-root) is the single scroll context. */
+@media (max-width: 560px) {
+  /* break the flexbox min-width:auto chain so the 680px starmap can't
+     inflate its ancestors — it pans inside its viewport instead */
+  .menu-content { flex: none; display: flex; min-width: 0; max-width: 100%; }
+  .sector-atlas {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
+  .atlas-field-viewport {
+    display: block;
+    flex: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .atlas-field { width: 680px; min-height: 344px; }
+  .atlas-dock {
+    flex: none;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid rgba(31, 44, 85, 0.82);
+  }
+  .atlas-protocol-row { min-height: 54px; }
+  .dock-tabs button { min-height: 44px; }
+  /* leaderboard: mode chips wrap instead of pushing the page sideways */
+  .board-modes { flex-wrap: wrap; }
+  .board-modes button { flex: 1 1 40%; min-height: 44px; }
+  .board-head { flex-direction: column; align-items: stretch; gap: 8px; }
 }

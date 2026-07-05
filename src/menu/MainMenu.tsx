@@ -297,6 +297,9 @@ function SectorAtlas(props: {
 
   return (
     <section className="sector-atlas" data-testid="sector-atlas" aria-label="Sector Atlas">
+      {/* display:contents on desktop; on phones this becomes the horizontal
+          pan viewport for the fixed-width starmap (see mobile menu CSS) */}
+      <div className="atlas-field-viewport">
       <div className="atlas-field" ref={fieldRef} data-testid="atlas-field">
         <canvas className="atlas-stars-canvas" ref={canvasRef} aria-hidden="true" />
         <div className="atlas-region-label atlas-region-core">CORE RELAY</div>
@@ -373,6 +376,7 @@ function SectorAtlas(props: {
           </span>
           <span className="atlas-node-name">WEEKLY OPS</span>
         </button>
+      </div>
       </div>
 
       <aside className="atlas-dock" data-testid="sector-dock" aria-live="polite">
