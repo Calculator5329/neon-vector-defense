@@ -55,7 +55,7 @@ function fmt(n: number, w: number) {
   return String(n).padStart(w);
 }
 
-console.log('NEON VECTOR DEFENSE — balance simulation');
+console.log('LANTERN 7 — balance simulation');
 console.log(`seeds per cell: ${SEEDS}\n`);
 
 const skills: BotSkill[] = ['rookie', 'standard', 'expert'];

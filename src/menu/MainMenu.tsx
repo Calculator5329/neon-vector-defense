@@ -486,8 +486,8 @@ export function MainMenu(props: {
 
       <header className="menu-topbar">
         <div className="menu-brand">
-          <span className="menu-eyebrow">LANTERN SEVEN · SECTOR DEFENSE</span>
-          <h1 className="menu-title">NEON VECTOR<span> DEFENSE</span></h1>
+          <span className="menu-eyebrow">SECTOR DEFENSE PROTOCOL</span>
+          <h1 className="menu-title">LANTERN<span> 7</span></h1>
         </div>
         <nav className="menu-tabs" aria-label="Main menu sections">
           <button className={tab === 'deploy' ? 'on' : ''} aria-pressed={tab === 'deploy'} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>

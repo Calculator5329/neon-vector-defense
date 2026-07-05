@@ -1,4 +1,4 @@
-// NEON VECTOR DEFENSE — full balance harness.
+// LANTERN 7 — full balance harness.
 //   npm run balance          — full pass (writes public/balance-report.json)
 //   npm run balance -- quick  — fewer seeds / smaller matrix for a fast look
 //
@@ -213,7 +213,7 @@ function round(n: number, d = 1): number { const f = 10 ** d; return Math.round(
 
 // ---------- run everything ----------
 
-console.log(`NEON VECTOR DEFENSE — balance harness${QUICK ? ' (quick)' : ''}${GATE ? ' gate' : ''}`);
+console.log(`LANTERN 7 — balance harness${QUICK ? ' (quick)' : ''}${GATE ? ' gate' : ''}`);
 console.log(`curve seeds ${CURVE_SEEDS} · grid seeds ${GRID_SEEDS} · strat seeds ${STRAT_SEEDS}\n`);
 const t0 = Date.now();
 

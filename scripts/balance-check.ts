@@ -1,4 +1,4 @@
-// NEON VECTOR DEFENSE — balance-regression check.
+// LANTERN 7 — balance-regression check.
 //
 //   tsx scripts/balance-check.ts            — compare working-tree report vs committed baseline
 //   tsx scripts/balance-check.ts --selftest — in-memory smoke test (no sim, no git)
@@ -373,7 +373,7 @@ if (isMain) {
     process.exit(0);
   }
 
-  console.log('NEON VECTOR DEFENSE — balance-regression check');
+  console.log('LANTERN 7 — balance-regression check');
   console.log(`  comparing ${currentLabel} against ${baselineLabel}\n`);
 
   const diff = compareBalance(baseline, current);

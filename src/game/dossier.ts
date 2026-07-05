@@ -204,7 +204,7 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.fillStyle = hexA(accent, 0.95); ctx.font = "700 18px 'Orbitron', sans-serif";
-  ctx.fillText('NEON VECTOR DEFENSE', 48, CARD_H - 30);
+  ctx.fillText('LANTERN 7', 48, CARD_H - 30);
   ctx.textAlign = 'right';
   if (input.runId) {
     // stamp the deep-link so the image alone routes viewers back to the replay
