@@ -15,11 +15,21 @@ import type { EnemyDef } from './game/types';
 function traits(d: EnemyDef): string[] {
   const t: string[] = [];
   if (d.boss) t.push('CAPITAL');
-  if (d.armored) t.push('ARMORED');
-  if (d.immuneExplosive) t.push('BLAST-IMMUNE');
-  if (d.immuneCryo) t.push('CRYO-IMMUNE');
+  if (d.armored) t.push('KINETIC-RESIST');
+  if (d.immuneExplosive) t.push('BLAST-RESIST');
+  if (d.immuneCryo) t.push('CRYO-RESIST');
+  if (d.resist?.energy) t.push('ENERGY-RESIST');
   if (d.heal) t.push('REPAIRS');
   return t;
+}
+
+function tacticalNote(d: EnemyDef): string | null {
+  const notes: string[] = [];
+  if (d.armored) notes.push('kinetic rounds bite only after AP systems build Exposed');
+  if (d.immuneExplosive) notes.push('blast plating blunts explosives until Exposed cracks it');
+  if (d.immuneCryo) notes.push('cryo wash is resisted; Exposed gives it purchase');
+  if (d.resist?.energy) notes.push('energy facets bleed power, but Exposed strips the angle');
+  return notes.length ? notes.join('; ') + '.' : null;
 }
 
 type Filter = 'all' | 'found' | 'locked' | 'boss';
@@ -70,6 +80,7 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
         {list.map((d) => {
           const known = seen.has(d.id);
           const tlist = traits(d);
+          const note = tacticalNote(d);
           return (
             <div key={d.id} className={`foe-card ${known ? '' : 'foe-unknown'} ${d.boss ? 'foe-boss' : ''}`}>
               <div className="foe-portrait">
@@ -83,6 +94,7 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
                 <>
                   <div className="foe-traits">{tlist.map((t) => <span key={t}>{t}</span>)}</div>
                   <div className="foe-lore">{d.lore}</div>
+                  {note && <div className="foe-lore dim">{note}</div>}
                 </>
               ) : (
                 <>

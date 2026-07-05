@@ -32,6 +32,7 @@ describe('r3 replay action codec', () => {
       event('tower_upgrade', 10, { towerUid: 1, track: 0, cash: 720 }),
       event('tower_upgrade', 12, { towerUid: 1, track: 1, cash: 620 }),
       event('target_mode', 14, { towerUid: 1, mode: 'strong' }),
+      event('target_filter', 16, { towerUid: 1, filters: 'boss,armored,cloaked' }),
       event('ability_cast', 18, { abilityId: 'strike', x: 300.2, y: 120.8 }),
       event('ability_cast', 22, { abilityId: 'overdrive' }),
       event('pickup_collect', 30, { x: 500.1, y: 400.9, cash: 660 }),
@@ -85,5 +86,14 @@ describe('r3 replay action codec', () => {
       event('run_end', 3, { outcome: 'gameover' }),
     ]);
     assert.deepEqual(actions.map((action) => action.type), ['wave_start', 'run_end']);
+  });
+
+  test('canonicalizes target_filter payloads through the r3 bitmask', () => {
+    const actions = normalizeReplayActionEvents([
+      event('target_filter', 10, { towerUid: 7, filters: 'spawner,boss,unknown,armored,boss' }),
+      event('target_filter', 12, { towerUid: 7, filters: '' }),
+    ]);
+    assert.deepEqual(actions.map((action) => action.filters), ['boss,armored,spawner', '']);
+    assert.deepEqual(decodeReplayActions(encodeReplayActions(actions)), actions);
   });
 });

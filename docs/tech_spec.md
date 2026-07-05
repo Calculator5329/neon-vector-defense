@@ -10,7 +10,7 @@ Contracts, schemas, and environment configuration for Neon Vector Defense.
 | Rendering | Canvas 2D (1280×720 logical, supersampled offscreen sprites) |
 | Backend | Firebase Hosting, Firestore, Auth, Cloud Functions (Node 22) |
 | AI proxy | Cloudflare Worker (`worker/`) → OpenRouter |
-| Node | ≥ 20 |
+| Node | ≥ 22 for Functions, ≥ 20 for root tooling |
 
 Firebase project: `neon-vector-defense-7`
 
@@ -105,6 +105,7 @@ The `r3` codec stores only player actions consumed by `reSimulate`:
 | `tower_upgrade` | tower uid, track |
 | `tower_sell` | tower uid |
 | `target_mode` | tower uid, target-mode enum |
+| `target_filter` | tower uid, target-filter bitmask (`boss`, `armored`, `cloaked`, `healer`, `spawner`) |
 | `ability_cast` | ability enum, optional x/y in tenths |
 | `pickup_collect` | pickup enum, x/y in tenths |
 | `freeplay_enter` | contract enum |
@@ -115,10 +116,11 @@ The `r3` codec stores only player actions consumed by `reSimulate`:
 
 All actions encode monotonic simTick deltas plus small enum/integer args into
 the base64url-like `data` string. Tower ids are stored once in `towerIds`; chunk
-packs reuse that root table. Agent A measured a seeded freeplay wave-81 run at
-1,304,761 bytes for the old verbose public bundle, 5,569 bytes for verbose
-action JSON, 942 bytes for the r3 action payload object, and 701 bytes for the
-r3 `data` string.
+packs reuse that root table. Replay engine version 4 is current: v4 runs include
+Exposed combat math and deterministic `target_filter` actions. Agent A measured
+a seeded freeplay wave-81 run at 1,304,761 bytes for the old verbose public
+bundle, 5,569 bytes for verbose action JSON, 942 bytes for the r3 action payload
+object, and 701 bytes for the r3 `data` string.
 
 ### `runs/{runId}/chunks/c{n}`
 

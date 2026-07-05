@@ -288,6 +288,10 @@ async function finishAsVictory(page: Page) {
   const point = await validCanvasPoint(page);
   await page.mouse.click(point.x, point.y);
   await expect.poll(() => page.evaluate(() => (window as unknown as { game: any }).game.towers.length)).toBe(1);
+  await page.mouse.click(point.x, point.y);
+  await expect(page.getByTestId('target-filter-armored')).toBeVisible();
+  await page.getByTestId('target-filter-armored').click();
+  await expect(page.getByTestId('target-filter-armored')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('launch-wave').click();
   await page.evaluate(() => {
     const game = (window as unknown as { game: any }).game;
@@ -336,7 +340,7 @@ test.describe('QA regression real-flow audit', () => {
     await seedLocalState(page);
   });
 
-  test('submits a real v3 run bundle and opens the frame-accurate replay viewer', async ({ page }) => {
+  test('submits a real v4 run bundle and opens the frame-accurate replay viewer', async ({ page }) => {
     test.setTimeout(60_000);
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
@@ -371,9 +375,18 @@ test.describe('QA regression real-flow audit', () => {
 
     const payload = await page.evaluate(() => JSON.parse(sessionStorage.getItem('nvd-e2e-public-run') ?? 'null'));
     expect(payload?.run?.schemaVersion).toBe(3);
-    expect(payload.run.setup.replayEngine).toBe(3);
+    expect(payload.run.setup.replayEngine).toBe(4);
     expect(payload.run.setup.mapHash).toMatch(/^[0-9a-f]{8}$/);
     expect(payload.run.actions.codec).toBe('r3');
+    const actionTypes = payload.chunks
+      ? await page.evaluate(async () => {
+        const codecPath = '/src/game/replayCodec.ts';
+        const codec = await import(/* @vite-ignore */ codecPath);
+        const payload = JSON.parse(sessionStorage.getItem('nvd-e2e-public-run') ?? 'null');
+        return codec.decodeReplayActionBundle(payload.run.actions, payload.chunks).map((event: { type: string }) => event.type);
+      })
+      : [];
+    expect(actionTypes).toContain('target_filter');
     expect(payload.run.manifest.complete).toBe(true);
     expect(payload.run.manifest.actionHash).toMatch(/^[0-9a-f]{8}$/);
     expect(payload.run).not.toHaveProperty('events');

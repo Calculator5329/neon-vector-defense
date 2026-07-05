@@ -14,7 +14,7 @@ import {
 } from './runTelemetry';
 import { decodeReplayActionBundle } from './replayCodec';
 import { TOWER_MAP } from './towers';
-import type { AbilityId, GameMap, TargetMode, Vec } from './types';
+import type { AbilityId, GameMap, TargetFilter, TargetMode, Vec } from './types';
 import type { FreeplayContractId, FreeplayRelicId, RiskWaveId } from './freeplay';
 
 export type ReSimVerdict = 'verified' | 'divergent' | 'unverifiable';
@@ -44,6 +44,7 @@ export const REPLAY_ACTION_TYPES = new Set([
   'tower_upgrade',
   'tower_sell',
   'target_mode',
+  'target_filter',
   'ability_cast',
   'pickup_collect',
   'freeplay_enter',
@@ -280,6 +281,13 @@ function applyAction(game: Game, event: RunEvent): { ok: true } | { ok: false; r
       game.setTargetMode(tower, mode);
       return { ok: true };
     }
+    case 'target_filter': {
+      const tower = towerByUid(game, intField(event, 'towerUid'));
+      const filters = targetFiltersFromEvent(event);
+      if (!tower || !filters) return { ok: false, reason: 'target filter target missing' };
+      game.setTargetFilters(tower, filters);
+      return { ok: true };
+    }
     case 'ability_cast': {
       const id = stringField(event, 'abilityId') as AbilityId | null;
       if (!isAbilityId(id)) return { ok: false, reason: 'unknown abilityId' };
@@ -406,6 +414,20 @@ function isAbilityId(id: string | null): id is AbilityId {
 
 function isTargetMode(mode: string | null): mode is TargetMode {
   return mode === 'first' || mode === 'last' || mode === 'strong' || mode === 'close';
+}
+
+function isTargetFilter(filter: string): filter is TargetFilter {
+  return filter === 'boss' || filter === 'armored' || filter === 'cloaked' || filter === 'healer' || filter === 'spawner';
+}
+
+function targetFiltersFromEvent(event: RunEvent): TargetFilter[] | null {
+  const raw = stringField(event, 'filters') ?? '';
+  if (!raw) return [];
+  const filters = raw.split(',').filter(Boolean);
+  if (filters.some((filter) => !isTargetFilter(filter))) return null;
+  const canonical: TargetFilter[] = ['boss', 'armored', 'cloaked', 'healer', 'spawner'];
+  const selected = new Set(filters);
+  return canonical.filter((filter) => selected.has(filter));
 }
 
 function eventAt(event: RunEvent, eventIndex: number): ReSimDivergence['at'] {

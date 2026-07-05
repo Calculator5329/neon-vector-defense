@@ -4,6 +4,7 @@ import type {
   Enemy,
   GameMap,
   PickupKind,
+  TargetFilter,
   TargetMode,
   Tower,
   TowerDef,
@@ -21,8 +22,10 @@ export const RUN_TELEMETRY_SCHEMA = 3;
  *  behavior must verify as unverifiable rather than falsely divergent.
  *  v2: burn zones stopped stacking (strongest zone only).
  *  v3: tesla chains exclude already-hit hulls across hops; targeted abilities
- *      require a position and cannot cast after the run ends. */
-export const REPLAY_ENGINE_VERSION = 3;
+ *      require a position and cannot cast after the run ends.
+ *  v4: Exposed replaces instant shred resistance bypass; towers can record
+ *      target_filter preferences that affect deterministic target selection. */
+export const REPLAY_ENGINE_VERSION = 4;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const FINAL_TOWER_DOC_CAP = 3;
 const IDLE_AFTER_S = 25;
@@ -811,6 +814,16 @@ export class RunRecorder {
     entry.targetMode = mode;
     this.towerInterest.targetModeChanges++;
     this.record('target_mode', state, { towerUid: tower.uid, towerId: tower.def.id, mode });
+  }
+
+  recordTargetFilter(state: RunTelemetryState, tower: Tower): void {
+    this.ensureTower(tower, state);
+    this.towerInterest.targetModeChanges++;
+    this.record('target_filter', state, {
+      towerUid: tower.uid,
+      towerId: tower.def.id,
+      filters: targetFilterPayload(tower.targetFilters),
+    });
   }
 
   recordAbilityCast(state: RunTelemetryState, id: AbilityId, pos?: Vec): void {
@@ -1705,6 +1718,12 @@ function getNumber(payload: Record<string, unknown>, key: string): number | null
 function getStringArray(payload: Record<string, unknown>, key: string): string[] {
   const value = payload[key];
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, 12) : [];
+}
+
+function targetFilterPayload(filters: readonly TargetFilter[]): string {
+  const allowed: TargetFilter[] = ['boss', 'armored', 'cloaked', 'healer', 'spawner'];
+  const selected = new Set(filters);
+  return allowed.filter((filter) => selected.has(filter)).join(',');
 }
 
 function replayTowerIds(actions: RunEvent[]): string[] {

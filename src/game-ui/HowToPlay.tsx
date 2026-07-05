@@ -2,11 +2,12 @@ import Modal from '../Modal';
 
 export function HowToPlay({ onDone }: { onDone: () => void }) {
   const steps: [string, string, string][] = [
-    ['🎯', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1–9/0), then click open ground or use the arrow keys and Enter. Towers fire automatically at anything in range.'],
-    ['⌬', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers and upgrades.'],
-    ['▲', 'Two upgrade tracks', 'Click a built tower to upgrade it down two paths. After your first campaign win, VETERAN DEPLOY can build and auto-upgrade a fresh tower through tier 4/4 when credits allow.'],
-    ['⚡', 'Commander abilities', 'Q/W/E/R/T/Y unlock as you advance — orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
-    ['⬢', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1×/2×/4× sets the pace.'],
+    ['01', 'Build the grid', 'Pick a tower from the ARSENAL (or press 1-9/0), then click open ground or use the arrow keys and Enter. Towers fire automatically at anything in range.'],
+    ['CR', 'Spend your credits', 'Every hull you destroy pays out. Bank it into more towers and upgrades.'],
+    ['UP', 'Two upgrade tracks', 'Click a built tower to upgrade it down two paths. After your first campaign win, VETERAN DEPLOY can build and auto-upgrade a fresh tower through tier 4/4 when credits allow.'],
+    ['AP', 'Damage types & Exposed', 'Kinetic, energy, blast, and cryo each meet different hull plating. Shred hits add Exposed for 4s, up to 5 stacks: each stack strips resistance and makes all follow-up damage hit harder.'],
+    ['CD', 'Commander abilities', 'Q/W/E/R/T/Y unlock as you advance: orbital strikes, time dilation, and more. Use them when the lane is breaking.'],
+    ['HP', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1x/2x/4x sets the pace.'],
   ];
   return (
     <Modal onClose={onDone} boxClass="overlay-box howto" labelledBy="howto-title" testId="tutorial-overlay">
@@ -23,7 +24,7 @@ export function HowToPlay({ onDone }: { onDone: () => void }) {
         ))}
       </div>
       <div className="overlay-btns">
-        <button className="start-btn small" onClick={onDone}>GOT IT ▸</button>
+        <button className="start-btn small" onClick={onDone}>GOT IT &gt;</button>
       </div>
     </Modal>
   );

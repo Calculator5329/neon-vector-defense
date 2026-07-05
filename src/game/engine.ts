@@ -1,6 +1,6 @@
 import type {
   AbilityId, AbilityState, Beam, BurnZone, DifficultyDef, EliteAffixId, Enemy, EnemyDef, GameMap,
-  Particle, Pickup, PickupKind, Projectile, TargetMode, Tower, TowerDef, TowerStats, Vec, Wave, WaveGroup,
+  Particle, Pickup, PickupKind, Projectile, TargetFilter, TargetMode, Tower, TowerDef, TowerStats, Vec, Wave, WaveGroup,
 } from './types';
 import { ENEMIES, rbe } from './enemies';
 import {
@@ -165,10 +165,16 @@ export interface GameOptions {
 const SAFE_EXIT_MARGIN = 80;
 // Soft damage-type resistance for the legacy binary-immunity flags.
 // These hulls used to take 0 damage from the matching type; now they take a
-// reduced fraction instead. `shred` still strips resistances entirely.
+// reduced fraction instead. Shred hits now apply Exposed, which weakens these
+// resistances and increases all follow-up damage for every tower.
 const RESIST_ARMORED = 0.35; // armored hulls take 35% kinetic (was 0%)
 const RESIST_BLAST = 0.25;   // explosive-immune hulls take 25% explosive (was 0%)
 const RESIST_CRYO = 0.25;    // cryo-immune hulls take 25% cryo (was 0%)
+export const EXPOSED_MAX_STACKS = 5;
+export const EXPOSED_DURATION = 4;
+export const EXPOSED_RESIST_STRIP_PER_STACK = 0.13;
+export const EXPOSED_DAMAGE_TAKEN_PER_STACK = 0.04;
+export const TARGET_FILTERS: readonly TargetFilter[] = ['boss', 'armored', 'cloaked', 'healer', 'spawner'];
 
 export class Game {
   map: GameMap;
@@ -753,6 +759,7 @@ export class Game {
       cooldown: 0,
       angle: -Math.PI / 2,
       target: 'first',
+      targetFilters: [],
       invested: cost,
       kills: 0,
       rateBuff: 1,
@@ -998,6 +1005,8 @@ export class Game {
       burnTimer: 0,
       resonance: 0,
       resonanceTimer: 0,
+      exposed: 0,
+      exposedTimer: 0,
       cloaked,
       phase: this.rng() * Math.PI * 2,
       dead: false,
@@ -1177,6 +1186,7 @@ export class Game {
   private transitionUmbra(e: Enemy, phase: 2 | 3) {
     if (phase <= (e.umbraPhase ?? 1)) return;
     e.umbraPhase = phase;
+    this.clearExposed(e);
     if (phase === 2) {
       const maxDist = Math.max(0, this.pathLength() - SAFE_EXIT_MARGIN);
       const nextDist = Math.min(maxDist, e.dist + 260);
@@ -1207,20 +1217,15 @@ export class Game {
   /** Returns actual damage dealt (0 if immune). */
   damageEnemy(e: Enemy, dmg: number, type: Projectile['damageType'], shred: boolean, src?: Tower): number {
     if (e.dead || e.finished) return 0;
-    // Soft resistance: shred strips all resistances (preserves "shred counters armor").
-    if (!shred) {
-      if (e.def.armored && type === 'kinetic') dmg *= RESIST_ARMORED;
-      if (e.def.immuneExplosive && type === 'explosive') dmg *= RESIST_BLAST;
-      if (e.def.immuneCryo && type === 'cryo') dmg *= RESIST_CRYO;
-      const r = e.def.resist?.[type];
-      if (r != null) dmg *= r;
-      if (this.dailyChallenge?.twist.enemyDamageTakenMultiplier) dmg *= this.dailyChallenge.twist.enemyDamageTakenMultiplier;
-    }
+    if (shred) this.applyExposed(e);
+    dmg *= this.resistanceMultiplier(e, type);
+    if (this.dailyChallenge?.twist.enemyDamageTakenMultiplier) dmg *= this.dailyChallenge.twist.enemyDamageTakenMultiplier;
     if (dmg <= 0) return 0;
     if (src) dmg *= (1 + 0.06 * Game.rankOf(src)) * Game.bonusPower(src) * this.freeplayTowerPower(src);
     if (this.freeplay && type === 'explosive' && this.freeplayState.relics.some((r) => r.id === 'emberDoctrine')) dmg *= 1.12;
     if (this.freeplay && e.def.boss && this.freeplayState.currentMutators.some((m) => m.id === 'shieldedBoss')) dmg *= 0.82;
     if (e.resonance > 0) dmg *= 1 + 0.10 * e.resonance;
+    dmg *= this.exposedDamageTakenMultiplier(e);
     if (this.adaptation.type === type) dmg *= 1 - this.adaptation.resist;
     if (this.eliteBulwarkProtects(e)) dmg *= BULWARK_DAMAGE_MULT;
     dmg = this.capUmbraDamage(e, dmg);
@@ -1255,6 +1260,38 @@ export class Game {
     return dmg;
   }
 
+  private applyExposed(e: Enemy): void {
+    e.exposed = Math.min(EXPOSED_MAX_STACKS, (e.exposed ?? 0) + 1);
+    e.exposedTimer = EXPOSED_DURATION;
+  }
+
+  private clearExposed(e: Enemy): void {
+    e.exposed = 0;
+    e.exposedTimer = 0;
+  }
+
+  private resistanceMultiplier(e: Enemy, type: Projectile['damageType']): number {
+    let mult = 1;
+    if (e.def.armored && type === 'kinetic') mult *= this.exposedAdjustedResist(RESIST_ARMORED, e);
+    if (e.def.immuneExplosive && type === 'explosive') mult *= this.exposedAdjustedResist(RESIST_BLAST, e);
+    if (e.def.immuneCryo && type === 'cryo') mult *= this.exposedAdjustedResist(RESIST_CRYO, e);
+    const r = e.def.resist?.[type];
+    if (r != null) mult *= this.exposedAdjustedResist(r, e);
+    return mult;
+  }
+
+  private exposedAdjustedResist(baseDamageTaken: number, e: Enemy): number {
+    const stacks = Math.max(0, Math.min(EXPOSED_MAX_STACKS, e.exposed ?? 0));
+    if (stacks <= 0) return baseDamageTaken;
+    const resistance = Math.max(0, 1 - baseDamageTaken - stacks * EXPOSED_RESIST_STRIP_PER_STACK);
+    return Math.min(1, 1 - resistance);
+  }
+
+  private exposedDamageTakenMultiplier(e: Enemy): number {
+    const stacks = Math.max(0, Math.min(EXPOSED_MAX_STACKS, e.exposed ?? 0));
+    return stacks > 0 ? 1 + stacks * EXPOSED_DAMAGE_TAKEN_PER_STACK : 1;
+  }
+
   /** Single-slot burn. A stronger burn replaces dps, remaining time, AND credit;
    *  an equal burn refreshes the timer; a weaker burn never dilutes or extends a
    *  stronger one. The old Math.max merge turned a weak-long + strong-short pair
@@ -1274,6 +1311,7 @@ export class Game {
   /** Ability damage — bypasses all immunities. */
   trueDamage(e: Enemy, dmg: number) {
     if (e.dead || e.finished) return;
+    dmg *= this.exposedDamageTakenMultiplier(e);
     dmg = this.capUmbraDamage(e, dmg);
     if (dmg <= 0) return;
     if (e.elite?.id === 'shielded' && (e.elite.shield ?? 0) > 0) {
@@ -1665,6 +1703,10 @@ export class Game {
         e.resonanceTimer -= dt;
         if (e.resonanceTimer <= 0) e.resonance = 0;
       }
+      if (e.exposedTimer > 0) {
+        e.exposedTimer -= dt;
+        if (e.exposedTimer <= 0) this.clearExposed(e);
+      }
       this.updateUmbra(e, dt);
       // boss disruption pulse: stuns towers near the hull — don't stack your whole
       // defense on the one chokepoint a carrier will walk through
@@ -1820,22 +1862,37 @@ export class Game {
   private pickTarget(t: Tower, range: number): Enemy | null {
     let best: Enemy | null = null;
     let bestVal = -Infinity;
+    const hasFilters = t.targetFilters.length > 0;
+    let filteredBest: Enemy | null = null;
+    let filteredBestVal = -Infinity;
     this.grid.forEachInRadius(t.pos.x, t.pos.y, range + 16, (e) => {
       if (e.dead || e.finished) return;
       const d = Math.hypot(e.pos.x - t.pos.x, e.pos.y - t.pos.y);
       if (d > range + e.def.radius) return;
       if (!this.visibleTo(t, e)) return;
-      let val: number;
-      switch (t.target) {
-        case 'first': val = e.dist; break;
-        case 'last': val = -e.dist; break;
-        case 'strong': val = e.hp * 1000 + e.dist; break;
-        case 'close': val = -d; break;
-      }
+      let val = this.targetSortValue(t, e, d);
       if ((e.focusMarkTimer ?? 0) > 0) val += 1_000_000 + (e.focusMark ?? 1) * 10_000;
       if (val > bestVal) { bestVal = val; best = e; }
+      if (hasFilters && this.matchesTargetFilters(t, e) && val > filteredBestVal) {
+        filteredBestVal = val;
+        filteredBest = e;
+      }
     });
-    return best;
+    return filteredBest ?? best;
+  }
+
+  private targetSortValue(t: Tower, e: Enemy, d: number): number {
+    switch (t.target) {
+      case 'first': return e.dist;
+      case 'last': return -e.dist;
+      case 'strong': return e.hp * 1000 + e.dist;
+      case 'close': return -d;
+    }
+  }
+
+  private matchesTargetFilters(t: Tower, e: Enemy): boolean {
+    if (t.targetFilters.length === 0) return false;
+    return t.targetFilters.some((filter) => targetFilterMatches(filter, e));
   }
 
   private updateTowers(dt: number) {
@@ -2549,9 +2606,37 @@ export class Game {
     t.target = mode;
     this.recorder.recordTargetMode(this.telemetryState(), t, mode);
   }
+
+  setTargetFilter(t: Tower, filter: TargetFilter, enabled: boolean) {
+    const next = new Set(t.targetFilters);
+    if (enabled) next.add(filter);
+    else next.delete(filter);
+    t.targetFilters = canonicalTargetFilters([...next]);
+    this.recorder.recordTargetFilter(this.telemetryState(), t);
+  }
+
+  setTargetFilters(t: Tower, filters: TargetFilter[]) {
+    t.targetFilters = canonicalTargetFilters(filters);
+    this.recorder.recordTargetFilter(this.telemetryState(), t);
+  }
 }
 
 // ---------- geometry helpers ----------
+
+function canonicalTargetFilters(filters: readonly TargetFilter[]): TargetFilter[] {
+  const input = new Set(filters);
+  return TARGET_FILTERS.filter((filter) => input.has(filter));
+}
+
+function targetFilterMatches(filter: TargetFilter, e: Enemy): boolean {
+  switch (filter) {
+    case 'boss': return !!e.def.boss;
+    case 'armored': return !!e.def.armored;
+    case 'cloaked': return e.cloaked || !!e.revealed;
+    case 'healer': return !!e.def.heal;
+    case 'spawner': return e.def.children.length > 0;
+  }
+}
 
 function norm(v: Vec): Vec {
   const d = Math.hypot(v.x, v.y) || 1;

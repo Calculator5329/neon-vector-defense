@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
 import { Bot } from '../../src/game/bot';
 import { setBalanceDoc } from '../../src/game/balanceConfig';
-import { Game } from '../../src/game/engine';
+import {
+  EXPOSED_DAMAGE_TAKEN_PER_STACK,
+  EXPOSED_DURATION,
+  EXPOSED_MAX_STACKS,
+  EXPOSED_RESIST_STRIP_PER_STACK,
+  Game,
+} from '../../src/game/engine';
 import { ENEMIES } from '../../src/game/enemies';
 import { dailyChallenge, dailyModifierNames, type DailyChallenge } from '../../src/game/dailyChallenge';
 import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
@@ -38,6 +44,8 @@ function makeEnemy(def: EnemyDef): Enemy {
     cloaked: false,
     resonance: 0,
     resonanceTimer: 0,
+    exposed: 0,
+    exposedTimer: 0,
     phase: 0,
     dead: false,
     finished: false,
@@ -50,11 +58,17 @@ afterEach(() => {
 });
 
 // Mirrors the soft-resistance constants in engine.ts. Resistances reduce
-// damage instead of zeroing it; `shred` strips them entirely.
+// damage instead of zeroing it; shred now ramps Exposed stacks instead of
+// instantly bypassing the target's plating.
 const RESIST_ARMORED = 0.35;
 const RESIST_BLAST = 0.25;
 const RESIST_CRYO = 0.25;
 const RESIST_ENERGY = 0.5; // prism / umbra resist energy
+
+function exposedDamage(baseTaken: number, stacks: number, raw = 10): number {
+  const resist = Math.max(0, 1 - baseTaken - stacks * EXPOSED_RESIST_STRIP_PER_STACK);
+  return raw * (1 - resist) * (1 + stacks * EXPOSED_DAMAGE_TAKEN_PER_STACK);
+}
 
 describe('damage resistance rules', () => {
   test('cryo-resistant hull takes reduced cryo damage unless shred is active', () => {
@@ -62,18 +76,20 @@ describe('damage resistance rules', () => {
     const prism = makeEnemy(ENEMIES.prism);
     assert.equal(game.damageEnemy(prism, 10, 'cryo', false), 10 * RESIST_CRYO);
     assert.equal(prism.hp, 1000 - 10 * RESIST_CRYO);
-    assert.equal(game.damageEnemy(prism, 10, 'cryo', true), 10);
-    assert.equal(prism.hp, 1000 - 10 * RESIST_CRYO - 10);
+    const shredHit = game.damageEnemy(prism, 10, 'cryo', true);
+    assert.equal(shredHit, exposedDamage(RESIST_CRYO, 1));
+    assert.equal(prism.exposed, 1);
+    assert.equal(prism.exposedTimer, EXPOSED_DURATION);
   });
 
-  test('explosive-resistant and armored hulls take reduced damage, full under shred', () => {
+  test('explosive-resistant and armored hulls take reduced damage, partial under first Exposed stack', () => {
     const game = makeGame();
     const shade = makeEnemy(ENEMIES.shade);
     const aegis = makeEnemy(ENEMIES.aegis);
     assert.equal(game.damageEnemy(shade, 10, 'explosive', false), 10 * RESIST_BLAST);
-    assert.equal(game.damageEnemy(shade, 10, 'explosive', true), 10);
+    assert.equal(game.damageEnemy(shade, 10, 'explosive', true), exposedDamage(RESIST_BLAST, 1));
     assert.equal(game.damageEnemy(aegis, 10, 'kinetic', false), 10 * RESIST_ARMORED);
-    assert.equal(game.damageEnemy(aegis, 10, 'kinetic', true), 10);
+    assert.equal(game.damageEnemy(aegis, 10, 'kinetic', true), exposedDamage(RESIST_ARMORED, 1));
   });
 
   test('energy resistance from resist map reduces energy damage and is stripped by shred', () => {
@@ -82,10 +98,37 @@ describe('damage resistance rules', () => {
     assert.equal(prism.def.resist?.energy, RESIST_ENERGY);
     assert.equal(game.damageEnemy(prism, 10, 'energy', false), 10 * RESIST_ENERGY);
     assert.equal(prism.hp, 1000 - 10 * RESIST_ENERGY);
-    assert.equal(game.damageEnemy(prism, 10, 'energy', true), 10);
+    assert.equal(game.damageEnemy(prism, 10, 'energy', true), exposedDamage(RESIST_ENERGY, 1));
     // non-resisted type on the same hull takes full damage
     const prism2 = makeEnemy(ENEMIES.prism);
     assert.equal(game.damageEnemy(prism2, 10, 'kinetic', false), 10);
+  });
+
+  test('Exposed stacks cap, refresh, and decay deterministically on fixed steps', () => {
+    const game = makeGame();
+    const aegis = makeEnemy(ENEMIES.aegis);
+    for (let i = 0; i < EXPOSED_MAX_STACKS + 2; i++) {
+      game.damageEnemy(aegis, 1, 'energy', true);
+      assert.equal(aegis.exposedTimer, EXPOSED_DURATION);
+    }
+    assert.equal(aegis.exposed, EXPOSED_MAX_STACKS);
+    game.enemies.push(aegis);
+    internals(game).updateEnemies(EXPOSED_DURATION - Game.SIM_STEP);
+    assert.equal(aegis.exposed, EXPOSED_MAX_STACKS);
+    internals(game).updateEnemies(Game.SIM_STEP);
+    assert.equal(aegis.exposed, 0);
+    assert.equal(aegis.exposedTimer, 0);
+  });
+
+  test('shred setup makes follow-up kinetic damage exceed either tower alone', () => {
+    const game = makeGame();
+    const armored = makeEnemy(ENEMIES.aegis);
+    const kineticAlone = game.damageEnemy(makeEnemy(ENEMIES.aegis), 20, 'kinetic', false);
+    const shredAlone = game.damageEnemy(makeEnemy(ENEMIES.aegis), 4, 'energy', true);
+    game.damageEnemy(armored, 4, 'energy', true);
+    const combo = game.damageEnemy(armored, 20, 'kinetic', false);
+    assert.ok(combo > kineticAlone, `combo ${combo} should beat kinetic alone ${kineticAlone}`);
+    assert.ok(combo > shredAlone, `combo ${combo} should beat shred alone ${shredAlone}`);
   });
 });
 
@@ -118,10 +161,10 @@ describe('elite affixes and Umbra encounter rules', () => {
     shielded.elite = { id: 'shielded', rewardMult: 1.3, speedMult: 1, shield: 8, maxShield: 8 };
     const hpBefore = shielded.hp;
 
-    assert.equal(game.damageEnemy(shielded, 5, 'energy', true), 0);
+    assert.equal(game.damageEnemy(shielded, 5, 'energy', false), 0);
     assert.equal(shielded.hp, hpBefore);
     assert.equal(shielded.elite.shield, 3);
-    assert.equal(game.damageEnemy(shielded, 10, 'energy', true), 7);
+    assert.equal(game.damageEnemy(shielded, 10, 'energy', false), 7);
     assert.equal(shielded.hp, hpBefore - 7);
     assert.equal(shielded.elite.shield, 0);
   });
@@ -134,7 +177,7 @@ describe('elite affixes and Umbra encounter rules', () => {
     splitting.elite = { id: 'splitting', rewardMult: 1.28, speedMult: 1 };
     game.enemies.push(splitting);
 
-    assert.equal(game.damageEnemy(splitting, 5, 'energy', true), 5);
+    assert.equal(game.damageEnemy(splitting, 5, 'energy', false), 5);
     const live = game.enemies.filter((enemy) => !enemy.dead);
     assert.equal(live.length, 3);
     assert.deepEqual(live.map((enemy) => enemy.def.id).sort(), ['scout', 'scout', 'scout']);
@@ -151,9 +194,9 @@ describe('elite affixes and Umbra encounter rules', () => {
     game.enemies.push(bulwark, target);
     (game as unknown as { grid: { rebuild(enemies: Enemy[]): void } }).grid.rebuild(game.enemies);
 
-    assert.equal(game.damageEnemy(target, 100, 'energy', true), 78);
+    assert.equal(game.damageEnemy(target, 100, 'energy', false), 78);
     assert.equal(target.hp, 922);
-    assert.equal(game.damageEnemy(bulwark, 100, 'energy', true), 100);
+    assert.equal(game.damageEnemy(bulwark, 100, 'energy', false), 100);
   });
 
   test('Umbra transitions through phase-shift and enrage with replay events', () => {
@@ -165,13 +208,13 @@ describe('elite affixes and Umbra encounter rules', () => {
     umbra.umbraTickDamage = 0;
     game.enemies.push(umbra);
 
-    assert.equal(game.damageEnemy(umbra, 20, 'energy', true), 16);
+    assert.equal(game.damageEnemy(umbra, 20, 'energy', false), 10);
     assert.equal(umbra.umbraPhase, 2);
     assert.equal(umbra.cloaked, true);
     assert.ok(umbra.dist > 0);
 
     umbra.hp = 331;
-    assert.equal(game.damageEnemy(umbra, 2, 'energy', true), 2);
+    assert.equal(game.damageEnemy(umbra, 2, 'energy', false), 1);
     assert.equal(umbra.umbraPhase, 3);
     assert.equal(umbra.cloaked, false);
 
@@ -706,6 +749,36 @@ describe('arsenal balance additions', () => {
     assert.ok((marked.focusMarkTimer ?? 0) > 0);
     const picker = { ...lure, def: TOWER_MAP.pulse, stats: computeStats(TOWER_MAP.pulse, 0, 0), target: 'first' as const };
     assert.equal(api.pickTarget(picker, 999)?.uid, marked.uid);
+  });
+
+  test('target filters prefer matching archetypes and fall back to normal target mode', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: 1_000_000 });
+    game.credits = 100_000;
+    const tower = game.placeTower(TOWER_MAP.pulse, findPlaceable(game));
+    assert.ok(tower);
+    tower.target = 'first';
+
+    const api = internals(game);
+    const front = api.makeEnemy('scout', false);
+    front.pos = { x: tower.pos.x + 40, y: tower.pos.y };
+    front.dist = 1000;
+    const armored = api.makeEnemy('aegis', false);
+    armored.pos = { x: tower.pos.x + 55, y: tower.pos.y };
+    armored.dist = 100;
+    const rear = api.makeEnemy('raider', false);
+    rear.pos = { x: tower.pos.x + 65, y: tower.pos.y };
+    rear.dist = 10;
+    game.enemies.push(rear, armored, front);
+    api.grid.rebuild(game.enemies);
+
+    assert.equal(api.pickTarget(tower, 999)?.uid, front.uid, 'first mode starts with the furthest hull');
+    game.setTargetFilter(tower, 'armored', true);
+    assert.deepEqual(tower.targetFilters, ['armored']);
+    assert.equal(api.pickTarget(tower, 999)?.uid, armored.uid, 'armored filter overrides first mode');
+    game.setTargetFilter(tower, 'healer', true);
+    assert.deepEqual(tower.targetFilters, ['armored', 'healer']);
+    game.setTargetFilter(tower, 'armored', false);
+    assert.equal(api.pickTarget(tower, 999)?.uid, front.uid, 'no matching preferred target falls back to first');
   });
 });
 

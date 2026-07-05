@@ -139,6 +139,8 @@ function ghostToEnemy(gh: Ghost): Enemy {
     cloaked: gh.cloaked,
     resonance: gh.resonance,
     resonanceTimer: gh.resonance ? 1 : 0,
+    exposed: 0,
+    exposedTimer: 0,
     phase: gh.uid * 0.013,
     dead: false,
     finished: false,

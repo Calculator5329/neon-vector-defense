@@ -21,6 +21,25 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
 - No engine simulation behavior changed for this mission. Weekly Mutation
   starts through the existing Daily Challenge modifier carrier, and Gauntlet
   starts as a seeded campaign run with extra replay/leaderboard metadata.
+## 2026-07-05 - Exposed replaces instant shred and target filters enter replay v4
+
+- Shred no longer bypasses resistance for one damage event. It applies Exposed
+  for 4 seconds, stacking to 5. Each stack strips 13 percentage points of typed
+  resistance and adds 4% follow-up damage taken, so shred towers set up other
+  damage types without turning a single hit into a hidden true-damage path.
+- Target-priority filters (`boss`, `armored`, `cloaked`, `healer`, `spawner`)
+  are deterministic tower preferences layered over the existing target modes. A
+  tower picks the best matching target when any filtered target is in range; if
+  no filter matches, it falls back to its normal target mode. Empty filters mean
+  the old targeting behavior.
+- `REPLAY_ENGINE_VERSION` is now 4 because Exposed changes combat math and
+  target filters affect deterministic target selection. The r3 action codec adds
+  `target_filter` as a bitmask payload, and re-simulation applies the recorded
+  filter state exactly. Older engine runs remain `unverifiable` rather than
+  being judged divergent under new simulation rules.
+- Balance and ghost-curve artifacts were regenerated intentionally for this
+  sim-affecting pass; commit this change with `[balance-intended]` in the
+  message so future reviewers know the baseline movement was expected.
 
 ## 2026-07-02 - Firebase Functions 7 and Admin 14 require Node 22
 

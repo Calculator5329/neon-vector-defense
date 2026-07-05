@@ -26,6 +26,7 @@ const ACTION_TYPES = [
   'tower_upgrade',
   'tower_sell',
   'target_mode',
+  'target_filter',
   'ability_cast',
   'pickup_collect',
   'freeplay_enter',
@@ -41,6 +42,7 @@ export type ReplayActionType = typeof ACTION_TYPES[number];
 const OPCODE = new Map<ReplayActionType, number>(ACTION_TYPES.map((type, index) => [type, index + 1]));
 const TYPE_BY_OPCODE = new Map([...OPCODE.entries()].map(([type, code]) => [code, type]));
 const TARGET_MODES = ['first', 'last', 'strong', 'close'] as const;
+const TARGET_FILTERS = ['boss', 'armored', 'cloaked', 'healer', 'spawner'] as const;
 const ABILITIES = ['strike', 'chrono', 'overdrive', 'salvage', 'cascade', 'mirror'] as const;
 const PICKUPS = ['cash', 'slow', 'bomb'] as const;
 const CONTRACTS = ['standard', 'ironcore', 'leanGrid', 'volatile', 'purist'] as const;
@@ -95,6 +97,10 @@ export function encodeReplayActions(events: RunEvent[], tables?: Partial<ReplayA
       case 'target_mode':
         data += enc(cleanInt(event.towerUid));
         data += enc(enumCode(TARGET_MODES, str(event.mode)));
+        break;
+      case 'target_filter':
+        data += enc(cleanInt(event.towerUid));
+        data += enc(targetFilterMask(str(event.filters)));
         break;
       case 'ability_cast': {
         const hasPos = typeof event.x === 'number' && typeof event.y === 'number';
@@ -195,6 +201,13 @@ export function decodeReplayActions(pack: ReplayActionPack | null | undefined, t
         if (towerUid == null || mode == null) return events;
         event.towerUid = towerUid;
         event.mode = TARGET_MODES[mode] ?? TARGET_MODES[0];
+        break;
+      }
+      case 'target_filter': {
+        const towerUid = read(); const mask = read();
+        if (towerUid == null || mask == null) return events;
+        event.towerUid = towerUid;
+        event.filters = targetFilterString(mask);
         break;
       }
       case 'ability_cast': {
@@ -317,6 +330,10 @@ function normalizeActionEvent(event: RunEvent): RunEvent {
       out.towerUid = cleanInt(event.towerUid);
       out.mode = TARGET_MODES[enumCode(TARGET_MODES, str(event.mode))];
       break;
+    case 'target_filter':
+      out.towerUid = cleanInt(event.towerUid);
+      out.filters = targetFilterString(targetFilterMask(str(event.filters)));
+      break;
     case 'ability_cast':
       out.abilityId = ABILITIES[enumCode(ABILITIES, str(event.abilityId))];
       if (typeof event.x === 'number' && typeof event.y === 'number') {
@@ -402,6 +419,21 @@ function signedToUInt(value: number): number {
 
 function uintToSigned(value: number): number {
   return value % 2 === 0 ? value / 2 : -((value + 1) / 2);
+}
+
+function targetFilterMask(value: string): number {
+  const selected = new Set(value.split(',').map((part) => part.trim()).filter(Boolean));
+  let mask = 0;
+  TARGET_FILTERS.forEach((filter, index) => {
+    if (selected.has(filter)) mask |= 1 << index;
+  });
+  return mask;
+}
+
+function targetFilterString(mask: number): string {
+  return TARGET_FILTERS
+    .filter((_, index) => (mask & (1 << index)) !== 0)
+    .join(',');
 }
 
 function enumCode<T extends readonly string[] | readonly number[]>(values: T, value: string | number): number {

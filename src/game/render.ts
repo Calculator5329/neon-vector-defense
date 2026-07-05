@@ -1825,6 +1825,24 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, time: number, map: G
     ctx.restore();
   }
 
+  if (e.exposed > 0 && !lod) {
+    ctx.save();
+    const stacks = Math.max(1, Math.min(5, Math.floor(e.exposed)));
+    const pulse = 0.55 + 0.25 * Math.sin(time * 7 + e.phase);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = `rgba(255,211,42,${0.24 + pulse * 0.22})`;
+    ctx.lineWidth = 1.2;
+    circle(ctx, e.pos.x, e.pos.y, def.radius + 7);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd32a';
+    for (let i = 0; i < stacks; i++) {
+      const a = -Math.PI / 2 + (i - (stacks - 1) / 2) * 0.36;
+      circle(ctx, e.pos.x + Math.cos(a) * (def.radius + 11), e.pos.y + Math.sin(a) * (def.radius + 11), 2.1);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   if ((e.focusMarkTimer ?? 0) > 0) {
     ctx.save();
     const pulse = 0.65 + 0.35 * Math.sin(time * 8 + e.phase);

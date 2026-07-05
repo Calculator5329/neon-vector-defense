@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T18:26:45.565Z",
+  "generatedAt": "2026-07-05T02:16:49.377Z",
   "meta": {
     "quick": false,
     "gate": false,
@@ -9836,8 +9836,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 52,
-          "towersStart": 243
+          "creditsStart": 57,
+          "towersStart": 243.3
         },
         {
           "wave": 42,
@@ -9846,8 +9846,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 1491,
-          "towersStart": 261.7
+          "creditsStart": 1506,
+          "towersStart": 261
         },
         {
           "wave": 43,
@@ -9856,7 +9856,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 4236,
+          "creditsStart": 4185,
           "towersStart": 265
         },
         {
@@ -9866,7 +9866,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 7806,
+          "creditsStart": 7705,
           "towersStart": 265
         },
         {
@@ -9876,7 +9876,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 9838,
+          "creditsStart": 9760,
           "towersStart": 265
         },
         {
@@ -9886,7 +9886,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 13449,
+          "creditsStart": 13361,
           "towersStart": 265
         },
         {
@@ -9896,7 +9896,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 17277,
+          "creditsStart": 17167,
           "towersStart": 265
         },
         {
@@ -9906,7 +9906,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 18961,
+          "creditsStart": 18698,
           "towersStart": 265
         },
         {
@@ -9916,17 +9916,17 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 23212,
+          "creditsStart": 23187,
           "towersStart": 265
         },
         {
           "wave": 50,
           "reached": 3,
-          "leakPct": 0.006,
-          "pressure": 0.065,
-          "livesLost": 13,
-          "coreFraction": 0.935,
-          "creditsStart": 28269,
+          "leakPct": 0,
+          "pressure": 0,
+          "livesLost": 0,
+          "coreFraction": 1,
+          "creditsStart": 28305,
           "towersStart": 265
         }
       ]
@@ -10622,8 +10622,8 @@
       "map": "reactor",
       "diff": "easy",
       "skill": "standard",
-      "winRate": 0.67,
-      "avgFinalWave": 49.7,
+      "winRate": 0.33,
+      "avgFinalWave": 50,
       "points": [
         {
           "wave": 1,
@@ -11042,7 +11042,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 7886,
+          "creditsStart": 7916,
           "towersStart": 217
         },
         {
@@ -11052,7 +11052,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 11263,
+          "creditsStart": 11274,
           "towersStart": 217
         },
         {
@@ -11062,7 +11062,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 14765,
+          "creditsStart": 14802,
           "towersStart": 217
         },
         {
@@ -11072,7 +11072,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 17630,
+          "creditsStart": 17642,
           "towersStart": 217
         },
         {
@@ -11082,7 +11082,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 21139,
+          "creditsStart": 21102,
           "towersStart": 217
         },
         {
@@ -11092,7 +11092,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 24941,
+          "creditsStart": 24992,
           "towersStart": 217
         },
         {
@@ -11102,27 +11102,27 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 26709,
+          "creditsStart": 26756,
           "towersStart": 217
         },
         {
           "wave": 49,
           "reached": 3,
-          "leakPct": 0.023,
-          "pressure": 0.333,
-          "livesLost": 66.7,
-          "coreFraction": 0.667,
-          "creditsStart": 30394,
+          "leakPct": 0.018,
+          "pressure": 0.253,
+          "livesLost": 50.7,
+          "coreFraction": 0.747,
+          "creditsStart": 30447,
           "towersStart": 217
         },
         {
           "wave": 50,
-          "reached": 2,
-          "leakPct": 0.01,
-          "pressure": 0.112,
-          "livesLost": 22.5,
-          "coreFraction": 0.888,
-          "creditsStart": 35367,
+          "reached": 3,
+          "leakPct": 0.064,
+          "pressure": 0.987,
+          "livesLost": 146.7,
+          "coreFraction": 0.013,
+          "creditsStart": 35839,
           "towersStart": 217
         }
       ]
@@ -11938,7 +11938,7 @@
       "map": "hyperlane",
       "diff": "easy",
       "skill": "standard",
-      "winRate": 0.67,
+      "winRate": 1,
       "avgFinalWave": 50,
       "points": [
         {
@@ -12348,7 +12348,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 4170,
+          "creditsStart": 4167,
           "towersStart": 212
         },
         {
@@ -12358,7 +12358,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 8010,
+          "creditsStart": 8003,
           "towersStart": 212
         },
         {
@@ -12368,7 +12368,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 11724,
+          "creditsStart": 11714,
           "towersStart": 212
         },
         {
@@ -12378,7 +12378,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 15045,
+          "creditsStart": 15034,
           "towersStart": 212
         },
         {
@@ -12388,7 +12388,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 17380,
+          "creditsStart": 17396,
           "towersStart": 212
         },
         {
@@ -12398,7 +12398,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 21168,
+          "creditsStart": 21131,
           "towersStart": 212
         },
         {
@@ -12408,7 +12408,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 24478,
+          "creditsStart": 24550,
           "towersStart": 212
         },
         {
@@ -12418,26 +12418,26 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 26268,
+          "creditsStart": 26078,
           "towersStart": 212
         },
         {
           "wave": 49,
           "reached": 3,
-          "leakPct": 0.009,
-          "pressure": 0.122,
-          "livesLost": 24.3,
-          "coreFraction": 0.878,
-          "creditsStart": 30386,
+          "leakPct": 0,
+          "pressure": 0,
+          "livesLost": 0,
+          "coreFraction": 1,
+          "creditsStart": 30432,
           "towersStart": 212
         },
         {
           "wave": 50,
           "reached": 3,
-          "leakPct": 0.027,
-          "pressure": 0.432,
-          "livesLost": 62,
-          "coreFraction": 0.568,
+          "leakPct": 0.009,
+          "pressure": 0.103,
+          "livesLost": 20.7,
+          "coreFraction": 0.897,
           "creditsStart": 35438,
           "towersStart": 212
         }
@@ -13654,7 +13654,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 255,
+          "creditsStart": 227,
           "towersStart": 229.7
         },
         {
@@ -13664,8 +13664,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 57,
-          "towersStart": 240.3
+          "creditsStart": 70,
+          "towersStart": 241
         },
         {
           "wave": 42,
@@ -13674,7 +13674,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 2188,
+          "creditsStart": 2301,
           "towersStart": 255
         },
         {
@@ -13684,7 +13684,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 5443,
+          "creditsStart": 5610,
           "towersStart": 255
         },
         {
@@ -13694,7 +13694,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 8518,
+          "creditsStart": 8793,
           "towersStart": 255
         },
         {
@@ -13704,7 +13704,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 10957,
+          "creditsStart": 11143,
           "towersStart": 255
         },
         {
@@ -13714,7 +13714,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 14038,
+          "creditsStart": 14197,
           "towersStart": 255
         },
         {
@@ -13724,7 +13724,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 17674,
+          "creditsStart": 17813,
           "towersStart": 255
         },
         {
@@ -13734,7 +13734,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 18912,
+          "creditsStart": 19023,
           "towersStart": 255
         },
         {
@@ -13744,7 +13744,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 22977,
+          "creditsStart": 23171,
           "towersStart": 255
         },
         {
@@ -13754,7 +13754,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 27523,
+          "creditsStart": 27715,
           "towersStart": 255
         }
       ]
@@ -14481,7 +14481,7 @@
       "diff": "easy",
       "skill": "standard",
       "winRate": 0,
-      "avgFinalWave": 45,
+      "avgFinalWave": 44.7,
       "points": [
         {
           "wave": 1,
@@ -14876,10 +14876,10 @@
         {
           "wave": 40,
           "reached": 3,
-          "leakPct": 0.059,
-          "pressure": 0.252,
-          "livesLost": 50.3,
-          "coreFraction": 0.748,
+          "leakPct": 0.056,
+          "pressure": 0.237,
+          "livesLost": 47.3,
+          "coreFraction": 0.763,
           "creditsStart": 3574,
           "towersStart": 203
         },
@@ -14889,58 +14889,68 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.748,
-          "creditsStart": 5587,
+          "coreFraction": 0.763,
+          "creditsStart": 5594,
           "towersStart": 203
         },
         {
           "wave": 42,
           "reached": 3,
-          "leakPct": 0.041,
-          "pressure": 0.416,
-          "livesLost": 55,
-          "coreFraction": 0.473,
-          "creditsStart": 9371,
+          "leakPct": 0.063,
+          "pressure": 0.618,
+          "livesLost": 83.3,
+          "coreFraction": 0.347,
+          "creditsStart": 9381,
           "towersStart": 203
         },
         {
           "wave": 43,
-          "reached": 3,
+          "reached": 2,
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.473,
-          "creditsStart": 12540,
+          "coreFraction": 0.52,
+          "creditsStart": 12901,
           "towersStart": 203
         },
         {
           "wave": 44,
-          "reached": 3,
-          "leakPct": 0.022,
-          "pressure": 0.488,
-          "livesLost": 25,
-          "coreFraction": 0.348,
-          "creditsStart": 16127,
+          "reached": 2,
+          "leakPct": 0.043,
+          "pressure": 0.602,
+          "livesLost": 48.5,
+          "coreFraction": 0.278,
+          "creditsStart": 16270,
           "towersStart": 203
         },
         {
           "wave": 45,
           "reached": 2,
-          "leakPct": 0.051,
-          "pressure": 0.848,
-          "livesLost": 79.5,
-          "coreFraction": 0.125,
-          "creditsStart": 18832,
+          "leakPct": 0.026,
+          "pressure": 0.862,
+          "livesLost": 41,
+          "coreFraction": 0.073,
+          "creditsStart": 18688,
           "towersStart": 203
         },
         {
           "wave": 46,
           "reached": 1,
-          "leakPct": 0.029,
+          "leakPct": 0,
+          "pressure": 0,
+          "livesLost": 0,
+          "coreFraction": 0.145,
+          "creditsStart": 23399,
+          "towersStart": 203
+        },
+        {
+          "wave": 47,
+          "reached": 1,
+          "leakPct": 0.031,
           "pressure": 1,
-          "livesLost": 50,
+          "livesLost": 29,
           "coreFraction": 0,
-          "creditsStart": 23576,
+          "creditsStart": 26788,
           "towersStart": 203
         }
       ]
@@ -15996,7 +16006,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 4552,
+          "creditsStart": 4577,
           "towersStart": 208
         },
         {
@@ -16006,7 +16016,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 9107,
+          "creditsStart": 9109,
           "towersStart": 208
         },
         {
@@ -16016,7 +16026,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 12283,
+          "creditsStart": 12248,
           "towersStart": 208
         },
         {
@@ -16026,7 +16036,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 15411,
+          "creditsStart": 15405,
           "towersStart": 208
         },
         {
@@ -16036,17 +16046,17 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 18036,
+          "creditsStart": 18006,
           "towersStart": 208
         },
         {
           "wave": 46,
           "reached": 3,
-          "leakPct": 0,
-          "pressure": 0,
-          "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 21358,
+          "leakPct": 0.006,
+          "pressure": 0.048,
+          "livesLost": 9.7,
+          "coreFraction": 0.952,
+          "creditsStart": 21382,
           "towersStart": 208
         },
         {
@@ -16055,8 +16065,8 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 25251,
+          "coreFraction": 0.952,
+          "creditsStart": 25250,
           "towersStart": 208
         },
         {
@@ -16065,28 +16075,28 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 27045,
+          "coreFraction": 0.952,
+          "creditsStart": 27047,
           "towersStart": 208
         },
         {
           "wave": 49,
           "reached": 3,
-          "leakPct": 0.043,
-          "pressure": 0.618,
-          "livesLost": 123.7,
-          "coreFraction": 0.382,
-          "creditsStart": 30786,
+          "leakPct": 0.035,
+          "pressure": 0.512,
+          "livesLost": 99,
+          "coreFraction": 0.457,
+          "creditsStart": 30757,
           "towersStart": 208
         },
         {
           "wave": 50,
           "reached": 2,
-          "leakPct": 0.047,
-          "pressure": 0.97,
-          "livesLost": 108.5,
-          "coreFraction": 0.03,
-          "creditsStart": 35976,
+          "leakPct": 0.055,
+          "pressure": 0.929,
+          "livesLost": 125.5,
+          "coreFraction": 0.058,
+          "creditsStart": 36120,
           "towersStart": 208
         }
       ]
@@ -16763,7 +16773,7 @@
       "diff": "easy",
       "skill": "standard",
       "winRate": 0,
-      "avgFinalWave": 44.7,
+      "avgFinalWave": 44,
       "points": [
         {
           "wave": 1,
@@ -17158,61 +17168,61 @@
         {
           "wave": 40,
           "reached": 3,
-          "leakPct": 0.085,
-          "pressure": 0.36,
-          "livesLost": 72,
-          "coreFraction": 0.64,
+          "leakPct": 0.083,
+          "pressure": 0.353,
+          "livesLost": 70.7,
+          "coreFraction": 0.647,
           "creditsStart": 3422,
           "towersStart": 209
         },
         {
           "wave": 41,
           "reached": 3,
-          "leakPct": 0.005,
-          "pressure": 0.037,
-          "livesLost": 7,
-          "coreFraction": 0.605,
-          "creditsStart": 4649,
+          "leakPct": 0.009,
+          "pressure": 0.073,
+          "livesLost": 13.7,
+          "coreFraction": 0.578,
+          "creditsStart": 4654,
           "towersStart": 209
         },
         {
           "wave": 42,
           "reached": 3,
-          "leakPct": 0.032,
-          "pressure": 0.414,
-          "livesLost": 42.7,
-          "coreFraction": 0.392,
-          "creditsStart": 8823,
+          "leakPct": 0.041,
+          "pressure": 0.571,
+          "livesLost": 54.3,
+          "coreFraction": 0.307,
+          "creditsStart": 8812,
           "towersStart": 209
         },
         {
           "wave": 43,
-          "reached": 3,
+          "reached": 2,
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.392,
-          "creditsStart": 12004,
+          "coreFraction": 0.46,
+          "creditsStart": 12095,
           "towersStart": 209
         },
         {
           "wave": 44,
-          "reached": 3,
-          "leakPct": 0.031,
-          "pressure": 0.669,
-          "livesLost": 35.3,
-          "coreFraction": 0.215,
-          "creditsStart": 15424,
+          "reached": 2,
+          "leakPct": 0.023,
+          "pressure": 0.331,
+          "livesLost": 25.5,
+          "coreFraction": 0.333,
+          "creditsStart": 15500,
           "towersStart": 209
         },
         {
           "wave": 45,
           "reached": 2,
-          "leakPct": 0.041,
+          "leakPct": 0.042,
           "pressure": 1,
-          "livesLost": 64.5,
+          "livesLost": 66.5,
           "coreFraction": 0,
-          "creditsStart": 18132,
+          "creditsStart": 18153,
           "towersStart": 209
         }
       ]
@@ -17809,7 +17819,7 @@
       "diff": "easy",
       "skill": "standard",
       "winRate": 0,
-      "avgFinalWave": 49.7,
+      "avgFinalWave": 48.3,
       "points": [
         {
           "wave": 1,
@@ -18224,11 +18234,11 @@
         {
           "wave": 42,
           "reached": 3,
-          "leakPct": 0,
-          "pressure": 0,
-          "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 8279,
+          "leakPct": 0.013,
+          "pressure": 0.087,
+          "livesLost": 17.3,
+          "coreFraction": 0.913,
+          "creditsStart": 8307,
           "towersStart": 217
         },
         {
@@ -18237,8 +18247,8 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 12043,
+          "coreFraction": 0.913,
+          "creditsStart": 11955,
           "towersStart": 217
         },
         {
@@ -18247,8 +18257,8 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 15658,
+          "coreFraction": 0.913,
+          "creditsStart": 15621,
           "towersStart": 217
         },
         {
@@ -18257,58 +18267,58 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 1,
-          "creditsStart": 18020,
+          "coreFraction": 0.913,
+          "creditsStart": 18064,
           "towersStart": 217
         },
         {
           "wave": 46,
           "reached": 3,
-          "leakPct": 0.026,
-          "pressure": 0.227,
-          "livesLost": 45.3,
-          "coreFraction": 0.773,
-          "creditsStart": 22176,
+          "leakPct": 0.039,
+          "pressure": 0.333,
+          "livesLost": 66.7,
+          "coreFraction": 0.58,
+          "creditsStart": 21936,
           "towersStart": 217
         },
         {
           "wave": 47,
-          "reached": 3,
+          "reached": 2,
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.773,
-          "creditsStart": 25571,
+          "coreFraction": 0.87,
+          "creditsStart": 25458,
           "towersStart": 217
         },
         {
           "wave": 48,
-          "reached": 3,
-          "leakPct": 0.02,
-          "pressure": 0.23,
-          "livesLost": 46,
-          "coreFraction": 0.543,
-          "creditsStart": 27262,
+          "reached": 2,
+          "leakPct": 0.018,
+          "pressure": 0.283,
+          "livesLost": 42,
+          "coreFraction": 0.66,
+          "creditsStart": 27299,
           "towersStart": 217
         },
         {
           "wave": 49,
-          "reached": 3,
-          "leakPct": 0.03,
-          "pressure": 0.855,
-          "livesLost": 84.7,
-          "coreFraction": 0.12,
-          "creditsStart": 31369,
+          "reached": 2,
+          "leakPct": 0.013,
+          "pressure": 0.523,
+          "livesLost": 37,
+          "coreFraction": 0.475,
+          "creditsStart": 31557,
           "towersStart": 217
         },
         {
           "wave": 50,
-          "reached": 2,
-          "leakPct": 0.016,
+          "reached": 1,
+          "leakPct": 0.083,
           "pressure": 1,
-          "livesLost": 36,
+          "livesLost": 190,
           "coreFraction": 0,
-          "creditsStart": 36611,
+          "creditsStart": 38091,
           "towersStart": 217
         }
       ]
@@ -20770,7 +20780,7 @@
           "pressure": 0.028,
           "livesLost": 5.7,
           "coreFraction": 0.972,
-          "creditsStart": 148,
+          "creditsStart": 305,
           "towersStart": 217
         },
         {
@@ -20780,7 +20790,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 0.972,
-          "creditsStart": 54,
+          "creditsStart": 28,
           "towersStart": 217
         }
       ]
@@ -22092,11 +22102,11 @@
         {
           "wave": 50,
           "reached": 3,
-          "leakPct": 0.056,
-          "pressure": 0.638,
-          "livesLost": 127.7,
-          "coreFraction": 0.362,
-          "creditsStart": 100,
+          "leakPct": 0.055,
+          "pressure": 0.63,
+          "livesLost": 126,
+          "coreFraction": 0.37,
+          "creditsStart": 88,
           "towersStart": 212
         }
       ]
@@ -24128,7 +24138,7 @@
       "map": "blackout",
       "diff": "easy",
       "skill": "expert",
-      "winRate": 0.67,
+      "winRate": 0.33,
       "avgFinalWave": 50,
       "points": [
         {
@@ -24528,8 +24538,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 38,
-          "towersStart": 102.3
+          "creditsStart": 18,
+          "towersStart": 102.7
         },
         {
           "wave": 41,
@@ -24538,17 +24548,17 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 32,
-          "towersStart": 110
+          "creditsStart": 37,
+          "towersStart": 110.3
         },
         {
           "wave": 42,
           "reached": 3,
-          "leakPct": 0.008,
-          "pressure": 0.055,
-          "livesLost": 11,
-          "coreFraction": 0.945,
-          "creditsStart": 24,
+          "leakPct": 0.001,
+          "pressure": 0.005,
+          "livesLost": 1,
+          "coreFraction": 0.995,
+          "creditsStart": 29,
           "towersStart": 134
         },
         {
@@ -24557,9 +24567,9 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.945,
-          "creditsStart": 31,
-          "towersStart": 148.7
+          "coreFraction": 0.995,
+          "creditsStart": 28,
+          "towersStart": 147
         },
         {
           "wave": 44,
@@ -24567,9 +24577,9 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.945,
-          "creditsStart": 39,
-          "towersStart": 167
+          "coreFraction": 0.995,
+          "creditsStart": 31,
+          "towersStart": 163.3
         },
         {
           "wave": 45,
@@ -24577,9 +24587,9 @@
           "leakPct": 0.009,
           "pressure": 0.07,
           "livesLost": 14,
-          "coreFraction": 0.875,
-          "creditsStart": 18,
-          "towersStart": 176.7
+          "coreFraction": 0.925,
+          "creditsStart": 24,
+          "towersStart": 175.3
         },
         {
           "wave": 46,
@@ -24587,9 +24597,9 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.875,
-          "creditsStart": 27,
-          "towersStart": 195.3
+          "coreFraction": 0.925,
+          "creditsStart": 28,
+          "towersStart": 193.7
         },
         {
           "wave": 47,
@@ -24597,8 +24607,8 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.875,
-          "creditsStart": 39,
+          "coreFraction": 0.925,
+          "creditsStart": 50,
           "towersStart": 202.3
         },
         {
@@ -24607,28 +24617,28 @@
           "leakPct": 0,
           "pressure": 0,
           "livesLost": 0,
-          "coreFraction": 0.875,
-          "creditsStart": 21,
+          "coreFraction": 0.925,
+          "creditsStart": 23,
           "towersStart": 203
         },
         {
           "wave": 49,
           "reached": 3,
-          "leakPct": 0.006,
-          "pressure": 0.09,
-          "livesLost": 16.7,
-          "coreFraction": 0.792,
-          "creditsStart": 67,
+          "leakPct": 0,
+          "pressure": 0,
+          "livesLost": 0,
+          "coreFraction": 0.925,
+          "creditsStart": 59,
           "towersStart": 203
         },
         {
           "wave": 50,
           "reached": 3,
-          "leakPct": 0.027,
-          "pressure": 0.4,
-          "livesLost": 62.7,
-          "coreFraction": 0.478,
-          "creditsStart": 115,
+          "leakPct": 0.052,
+          "pressure": 0.667,
+          "livesLost": 119.3,
+          "coreFraction": 0.328,
+          "creditsStart": 121,
           "towersStart": 203
         }
       ]
@@ -25774,7 +25784,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 36,
+          "creditsStart": 24,
           "towersStart": 208
         },
         {
@@ -25784,7 +25794,7 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 43,
+          "creditsStart": 48,
           "towersStart": 208
         }
       ]
@@ -26390,7 +26400,7 @@
       "map": "umbral",
       "diff": "easy",
       "skill": "expert",
-      "winRate": 1,
+      "winRate": 0.33,
       "avgFinalWave": 50,
       "points": [
         {
@@ -26876,21 +26886,21 @@
         {
           "wave": 49,
           "reached": 3,
-          "leakPct": 0,
-          "pressure": 0,
-          "livesLost": 0,
-          "coreFraction": 0.838,
-          "creditsStart": 34,
+          "leakPct": 0.001,
+          "pressure": 0.02,
+          "livesLost": 4,
+          "coreFraction": 0.818,
+          "creditsStart": 57,
           "towersStart": 209
         },
         {
           "wave": 50,
           "reached": 3,
-          "leakPct": 0.028,
-          "pressure": 0.435,
-          "livesLost": 64.7,
-          "coreFraction": 0.515,
-          "creditsStart": 46,
+          "leakPct": 0.047,
+          "pressure": 0.667,
+          "livesLost": 107,
+          "coreFraction": 0.283,
+          "creditsStart": 38,
           "towersStart": 209
         }
       ]
@@ -27906,8 +27916,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 33,
-          "towersStart": 98.3
+          "creditsStart": 47,
+          "towersStart": 97.7
         },
         {
           "wave": 41,
@@ -27926,8 +27936,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 42,
-          "towersStart": 133.7
+          "creditsStart": 39,
+          "towersStart": 133.3
         },
         {
           "wave": 43,
@@ -27936,8 +27946,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 18,
-          "towersStart": 146.3
+          "creditsStart": 30,
+          "towersStart": 145
         },
         {
           "wave": 44,
@@ -27946,8 +27956,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 55,
-          "towersStart": 164.3
+          "creditsStart": 54,
+          "towersStart": 164
         },
         {
           "wave": 45,
@@ -27957,7 +27967,7 @@
           "livesLost": 0,
           "coreFraction": 1,
           "creditsStart": 25,
-          "towersStart": 175.7
+          "towersStart": 175.3
         },
         {
           "wave": 46,
@@ -27966,8 +27976,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 22,
-          "towersStart": 197
+          "creditsStart": 10,
+          "towersStart": 196
         },
         {
           "wave": 47,
@@ -27976,8 +27986,8 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 29,
-          "towersStart": 214.3
+          "creditsStart": 39,
+          "towersStart": 213.7
         },
         {
           "wave": 48,
@@ -27986,27 +27996,27 @@
           "pressure": 0,
           "livesLost": 0,
           "coreFraction": 1,
-          "creditsStart": 38,
+          "creditsStart": 47,
           "towersStart": 216.7
         },
         {
           "wave": 49,
           "reached": 3,
-          "leakPct": 0.012,
-          "pressure": 0.173,
-          "livesLost": 34.7,
-          "coreFraction": 0.827,
-          "creditsStart": 47,
+          "leakPct": 0.02,
+          "pressure": 0.28,
+          "livesLost": 56,
+          "coreFraction": 0.72,
+          "creditsStart": 17,
           "towersStart": 217
         },
         {
           "wave": 50,
           "reached": 3,
-          "leakPct": 0.02,
-          "pressure": 0.232,
-          "livesLost": 46.3,
-          "coreFraction": 0.595,
-          "creditsStart": 68,
+          "leakPct": 0.001,
+          "pressure": 0.013,
+          "livesLost": 2.7,
+          "coreFraction": 0.707,
+          "creditsStart": 66,
           "towersStart": 217
         }
       ]
@@ -29082,7 +29092,7 @@
       "skill": "standard",
       "avgWave": 50,
       "winRate": 1,
-      "avgLives": 117
+      "avgLives": 200
     },
     {
       "map": "orbital",
@@ -29112,9 +29122,9 @@
       "map": "reactor",
       "diff": "easy",
       "skill": "standard",
-      "avgWave": 49,
-      "winRate": 0,
-      "avgLives": 0
+      "avgWave": 50,
+      "winRate": 1,
+      "avgLives": 104
     },
     {
       "map": "reactor",
@@ -29144,9 +29154,9 @@
       "map": "hyperlane",
       "diff": "easy",
       "skill": "standard",
-      "avgWave": 49,
-      "winRate": 0,
-      "avgLives": 0
+      "avgWave": 49.5,
+      "winRate": 0.5,
+      "avgLives": 89
     },
     {
       "map": "hyperlane",
@@ -29208,7 +29218,7 @@
       "map": "blackout",
       "diff": "easy",
       "skill": "standard",
-      "avgWave": 45,
+      "avgWave": 45.5,
       "winRate": 0,
       "avgLives": 0
     },
@@ -29241,8 +29251,8 @@
       "diff": "easy",
       "skill": "standard",
       "avgWave": 49.5,
-      "winRate": 0.5,
-      "avgLives": 94
+      "winRate": 0,
+      "avgLives": 0
     },
     {
       "map": "throat",
@@ -29304,9 +29314,9 @@
       "map": "cinder",
       "diff": "easy",
       "skill": "standard",
-      "avgWave": 48.5,
-      "winRate": 0,
-      "avgLives": 0
+      "avgWave": 50,
+      "winRate": 0.5,
+      "avgLives": 7
     },
     {
       "map": "cinder",
@@ -29370,7 +29380,7 @@
       "skill": "expert",
       "avgWave": 50,
       "winRate": 1,
-      "avgLives": 158
+      "avgLives": 198
     },
     {
       "map": "reactor",
@@ -29497,8 +29507,8 @@
       "diff": "easy",
       "skill": "expert",
       "avgWave": 50,
-      "winRate": 1,
-      "avgLives": 113
+      "winRate": 0,
+      "avgLives": 0
     },
     {
       "map": "throat",
@@ -29530,7 +29540,7 @@
       "skill": "expert",
       "avgWave": 50,
       "winRate": 1,
-      "avgLives": 82
+      "avgLives": 76
     },
     {
       "map": "umbral",
@@ -29562,7 +29572,7 @@
       "skill": "expert",
       "avgWave": 50,
       "winRate": 1,
-      "avgLives": 200
+      "avgLives": 196
     },
     {
       "map": "cinder",

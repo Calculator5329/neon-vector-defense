@@ -681,6 +681,7 @@ test.describe('desktop UX layout', () => {
         cooldown: 0,
         angle: -Math.PI / 2,
         target: 'first',
+        targetFilters: [],
         invested: baseCost,
         kills: 0,
         rateBuff: 1,

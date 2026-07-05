@@ -754,12 +754,19 @@ describe('real recorder payload end-to-end (regression: prod submit rejected)', 
     const { Game } = await import('../../src/game/engine');
     const { Bot } = await import('../../src/game/bot');
     const { ALL_MAPS, DIFFICULTIES } = await import('../../src/game/maps');
+    const { decodeReplayActionBundle } = await import('../../src/game/replayCodec');
 
     const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 90210, lifetimeKills: 1_000_000 });
     game.paused = false;
     game.speed = 4;
     game.autoNext = true;
     const bot = new Bot(game, 'expert');
+    for (let i = 0; i < 20 && game.towers.length === 0; i++) {
+      bot.act(game.time);
+    }
+    if (game.towers.length > 0) {
+      game.setTargetFilter(game.towers[0], 'armored', true);
+    }
     game.startWave();
     // Human-ish noise so the action stream carries the control opcodes a real
     // run produces (speed changes, target modes) — fixtures never exercise these.
@@ -770,6 +777,7 @@ describe('real recorder payload end-to-end (regression: prod submit rejected)', 
         if (game.towers.length > 0) {
           const t = game.towers[flip % game.towers.length];
           game.setTargetMode(t, flip % 2 === 0 ? 'strong' : 'first');
+          game.setTargetFilter(t, flip % 3 === 0 ? 'armored' : 'boss', flip % 2 === 0);
         }
         game.setSpeed(flip % 2 === 0 ? 2 : 4);
         flip++;
@@ -778,6 +786,10 @@ describe('real recorder payload end-to-end (regression: prod submit rejected)', 
       game.update(0.05);
     }
     const bundle = game.buildRunUploadBundle('ETHAN', 'rules-e2e-test');
+    const recordedActions = decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
+    if (!recordedActions.some((event) => event.type === 'target_filter')) {
+      throw new Error('real recorder payload must include target_filter actions');
+    }
     const uid = playerUid;
     const db = playerDb();
     const rid = bundle.run.runId;

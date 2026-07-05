@@ -8,6 +8,7 @@ export interface Vec {
 export type DamageType = 'kinetic' | 'energy' | 'explosive' | 'cryo';
 export type EliteAffixId = 'shielded' | 'frenzied' | 'splitting' | 'bulwark';
 export type UmbraPhase = 1 | 2 | 3;
+export type TargetFilter = 'boss' | 'armored' | 'cloaked' | 'healer' | 'spawner';
 
 export interface EnemyDef {
   id: string;
@@ -56,6 +57,9 @@ export interface Enemy {
   /** resonance stacks (Cantor debuff): +10% damage taken per stack */
   resonance: number;
   resonanceTimer: number;
+  /** exposed stacks: shred setup debuff, refreshed on shred hits */
+  exposed: number;
+  exposedTimer: number;
   /** focus mark: marked hulls become preferred targets for all towers while active */
   focusMark?: number;
   focusMarkTimer?: number;
@@ -172,6 +176,7 @@ export interface Tower {
   cooldown: number;
   angle: number;
   target: TargetMode;
+  targetFilters: TargetFilter[];
   invested: number;
   kills: number;
   /** computed each frame from support auras */

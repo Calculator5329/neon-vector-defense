@@ -2397,6 +2397,32 @@ body.game-blocking-overlay .fb-root.on-game {
 
 .target-row { display: flex; gap: 5px; }
 .target-row .tb-btn { flex: 1; padding: 6px 2px; font-size: 10.5px; }
+.target-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.filter-chip {
+  flex: 1 1 58px;
+  min-width: 54px;
+  min-height: 28px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--edge);
+  background: var(--panel2);
+  color: var(--dim);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9.5px;
+  line-height: 1;
+}
+.filter-chip:hover { color: var(--text); border-color: var(--accent); }
+.filter-chip.on {
+  color: #021018;
+  background: color-mix(in srgb, var(--accent) 86%, #ffffff 14%);
+  border-color: var(--accent);
+  box-shadow: 0 0 9px rgba(75, 207, 250, 0.42);
+}
 
 .sell-btn {
   width: 100%;

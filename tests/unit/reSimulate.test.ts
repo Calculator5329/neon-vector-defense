@@ -105,6 +105,38 @@ function runVeteranDeployStyleActions(): RunUploadBundle {
   return game.buildRunUploadBundle('VET', 'test-build');
 }
 
+function firstPlaceable(game: Game): { x: number; y: number } {
+  for (let y = 40; y < 680; y += 28) {
+    for (let x = 40; x < 1240; x += 28) {
+      if (game.canPlace({ x, y })) return { x, y };
+    }
+  }
+  throw new Error('no placeable cell found');
+}
+
+function runTargetFilterShredActions(): RunUploadBundle {
+  const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 404, lifetimeKills: 1_000_000 });
+  game.paused = false;
+  game.speed = 4;
+  game.credits = 15_000;
+  game.recorder.setStartingResources(game.credits, game.lives);
+  const rail = game.placeTower(TOWER_MAP.rail, firstPlaceable(game));
+  assert.ok(rail);
+  assert.equal(game.upgradeTower(rail, 0), true, 'AP Slugs should apply shred/Exposed');
+  game.setTargetFilter(rail, 'armored', true);
+  game.startWave();
+  for (let i = 0; i < 30_000 && game.wave <= 4 && game.phase !== 'gameover'; i++) {
+    if (game.phase === 'build') game.startWave();
+    game.update(0.05);
+  }
+  const bundle = game.buildRunUploadBundle('FILTER', 'test-build');
+  const events = allEvents(bundle);
+  assert.ok(events.some((event) => event.type === 'target_filter'));
+  assert.ok(events.some((event) => event.type === 'tower_upgrade'));
+  assert.ok(bundle.run.final.damageByTower.rail > 0);
+  return bundle;
+}
+
 function buildHighEndDefense(game: Game, limit: number): void {
   const ids = ['prismarr', 'gauss', 'sunspear', 'tesla', 'rail', 'missile', 'cryo', 'emp', 'watchfire', 'abyss', 'siphon', 'lure'] as const;
   let idx = 0;
@@ -217,6 +249,12 @@ describe('reSimulate', () => {
     assert.equal(result.verdict, 'verified', result.reason ?? '');
   });
 
+  test('verifies a seeded run with target_filter actions and shred usage', () => {
+    const bundle = runTargetFilterShredActions();
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'verified', result.reason ?? '');
+  });
+
   test('verifies a deep freeplay run with relic and risk choices', () => {
     const bundle = runDeepFreeplayChoices();
     const events = allEvents(bundle);
@@ -255,6 +293,18 @@ describe('reSimulate', () => {
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'divergent');
     assert.match(result.reason ?? '', /placement|summary/);
+  });
+
+  test('flags a tampered target_filter action as divergent', () => {
+    const bundle = cloneBundle(runTargetFilterShredActions());
+    const events = allEvents(bundle);
+    const event = events.find((candidate) => candidate.type === 'target_filter');
+    assert.ok(event);
+    event.towerUid = 999_999;
+    replaceRootActions(bundle, events);
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'divergent');
+    assert.match(result.reason ?? '', /target filter/);
   });
 
   test('flags tampered encoded actions with a stale manifest as unverifiable', () => {

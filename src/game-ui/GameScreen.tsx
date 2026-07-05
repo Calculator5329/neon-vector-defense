@@ -51,13 +51,20 @@ import { meta, type RunMetaReward } from '../game/meta';
 import { buildGhostCurves, ghostCurvesForMap, type GhostCurve } from '../game/ghostCurve';
 import { GHOST_CURVES_RAW } from '../game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from '../game/dossier';
-import type { GameMap, DifficultyDef, TowerDef, Tower, TargetMode, Vec, EnemyDef, WaveGroup } from '../game/types';
+import type { GameMap, DifficultyDef, TowerDef, Tower, TargetFilter, TargetMode, Vec, EnemyDef, WaveGroup } from '../game/types';
 import { AIHelpWidget } from '../widgets/AIHelpWidget';
 import { FeedbackWidget } from '../widgets/FeedbackWidget';
 import { PERF_MAP, DEMO_MODE, AI_HELP_ENABLED, WIDGET_OPEN_EVENT } from '../appShared';
 import { utilityWidgetOpen, isTypingTarget } from '../uiShared';
 
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
+const TARGET_FILTER_LABELS: [TargetFilter, string][] = [
+  ['boss', 'BOSS'],
+  ['armored', 'ARMOR'],
+  ['cloaked', 'CLOAK'],
+  ['healer', 'HEAL'],
+  ['spawner', 'SPAWN'],
+];
 const DEMO_UNLOCK_KILLS = Math.max(...TOWERS_BY_UNLOCK.map((tower) => tower.unlockAt));
 const KEYBOARD_GRID = 24;
 const TOWER_EDGE = 16;
@@ -129,6 +136,7 @@ function projectedVeteranDeploy(game: Game, def: TowerDef, credits = game.credit
     cooldown: 0,
     angle: -Math.PI / 2,
     target: 'first',
+    targetFilters: [],
     invested: baseCost,
     kills: 0,
     rateBuff: 1,
@@ -1391,7 +1399,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, onExit 
             <div className="side-body">
               {selected ? (
                 <UpgradePanel game={game} tower={selected}
-                  sig={`${Math.floor(game.credits)}|${selected.tierA}|${selected.tierB}|${selected.committed}|${selected.invested}|${selected.kills}|${selected.target}|${selected.rateBuff.toFixed(2)}|${selected.rangeBuff.toFixed(2)}`}
+                  sig={`${Math.floor(game.credits)}|${selected.tierA}|${selected.tierB}|${selected.committed}|${selected.invested}|${selected.kills}|${selected.target}|${selected.targetFilters.join(',')}|${selected.rateBuff.toFixed(2)}|${selected.rangeBuff.toFixed(2)}`}
                   onSold={() => setSelectedUid(null)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               ) : (
                 <Shop game={game} placing={placing}
@@ -2084,6 +2092,24 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
             {m.toUpperCase()}
           </button>
         ))}
+      </div>
+      <div className="target-filter-row" role="group" aria-label="Target filters">
+        {TARGET_FILTER_LABELS.map(([filter, label]) => {
+          const on = tower.targetFilters.includes(filter);
+          return (
+            <button
+              key={filter}
+              type="button"
+              className={`filter-chip ${on ? 'on' : ''}`}
+              aria-pressed={on}
+              title={`Prefer ${label.toLowerCase()} targets`}
+              data-testid={`target-filter-${filter}`}
+              onClick={() => { game.setTargetFilter(tower, filter, !on); sfx.click(); }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       <button className="sell-btn" onClick={() => { game.sellTower(tower); onSold(); }}>
