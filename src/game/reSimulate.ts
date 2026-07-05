@@ -434,21 +434,26 @@ export interface ReplayPlayback {
   seekTo(tSeconds: number): void;
 }
 
-// Deep-freeplay marathons record tens of thousands of terminals; re-stepping the
-// whole run on every backward scrub would stutter, so those fall back to the
-// lightweight reconstruction. Campaign/daily clears sit far below this.
-const PLAYBACK_KILL_CAP = 30_000;
+// Deep-freeplay marathons would stutter: a backward scrub re-steps the whole run
+// from t=0, and re-sim cost is ticks (durationS × 60), so the honest gate is sim
+// DURATION — one sim-hour re-seeks in ~1-2s (sim runs >1500× realtime). The old
+// 30k KILL cap excluded ordinary campaign victories (a 60-wave Veteran clear is
+// ~65k kills) and silently dropped them to the hollow cosmetic path; kills stay
+// only as a generous entity-density backstop for pathological runs.
+const PLAYBACK_MAX_DURATION_S = 3_600;
+const PLAYBACK_KILL_CAP = 250_000;
 
 /**
  * Build a frame-accurate playback driver for a run, or null when the run cannot be
  * faithfully re-simulated on this client (schema/engine/balance drift, unresolved
- * daily, missing tick timing, or a marathon past the kill cap). Callers fall back
- * to the cosmetic reconstruction on null. Expects `run.events` already merged with
- * its chunk events (fetchRunReplay does this).
+ * daily, missing tick timing, or a marathon past the duration/kill caps). Callers
+ * fall back to the cosmetic reconstruction on null. Expects `run.events` already
+ * merged with its chunk events (fetchRunReplay does this).
  */
 export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChunkDoc[] }): ReplayPlayback | null {
   if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return null;
   if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) return null;
+  if ((run.summary.durationS ?? 0) > PLAYBACK_MAX_DURATION_S) return null;
   if ((run.summary.kills ?? 0) > PLAYBACK_KILL_CAP) return null;
 
   // Balance must match: re-running under different tower/enemy math would render a

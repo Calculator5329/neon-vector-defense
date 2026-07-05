@@ -84,4 +84,20 @@ describe('replay v3 fidelity', () => {
     assert.equal(driver.game.totalKills, forwardKills);
     assert.equal(driver.game.enemies.length, forwardEnemies);
   });
+
+  test('playback gate keeps campaign-scale runs frame-accurate, drops marathons on duration', () => {
+    const bundle = recordSeededRun(8);
+    // Regression: a 60-wave Veteran victory is ~65k kills. The old 30k KILL cap
+    // silently dropped every real campaign win to the hollow cosmetic fallback;
+    // the gate is now sim DURATION (re-sim cost is ticks), with a far higher
+    // kill bound kept only as a density backstop.
+    const campaignScale = { ...bundle.run, summary: { ...bundle.run.summary, kills: 65_000 }, chunks: bundle.chunks };
+    assert.ok(createReplayPlayback(campaignScale), 'campaign-scale kill counts must stay drivable');
+
+    const marathon = { ...bundle.run, summary: { ...bundle.run.summary, durationS: 3_601 }, chunks: bundle.chunks };
+    assert.equal(createReplayPlayback(marathon), null, 'multi-hour marathons fall back');
+
+    const pathological = { ...bundle.run, summary: { ...bundle.run.summary, kills: 250_001 }, chunks: bundle.chunks };
+    assert.equal(createReplayPlayback(pathological), null, 'density backstop still applies');
+  });
 });

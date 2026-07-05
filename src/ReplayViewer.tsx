@@ -472,9 +472,16 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const progressRef = useRef<HTMLDivElement>(null);
   const [hintOpen, setHintOpen] = useState(true);
 
-  // Snapshots now span the whole run (wave 1 → end), so the scrub domain is just the captured
-  // window [t0, tEnd]. Clamp to it (not [0, durationS]) so there's no dead lead-in.
+  // Scrub domain. v3 replays carry no snapshot keyframes — the domain is the decoded
+  // action stream itself, [0 → last recorded second]. (Falling through to the legacy
+  // synthetic snapshot pinned the window at t=durationS with a 1s span, which played
+  // only "the last two seconds" of every v3 replay.) Legacy v2 docs keep the captured
+  // snapshot window [t0, tEnd] so there's no dead lead-in.
   const { t0, tEnd, span, fade } = useMemo(() => {
+    if (!run.snapshots.length && run.events.length) {
+      const b = Math.max(run.events[run.events.length - 1].t, 1);
+      return { t0: 0, tEnd: b, span: b, fade: FADE_S };
+    }
     const snaps = run.snapshots.length ? run.snapshots : [reconstructAt(run, 0).snap];
     let a = snaps[0].t;
     // A PURE Freeplay/Daily run opens deep (~wave 50) on a trivial opener — skip ~10 waves of
@@ -516,14 +523,41 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const combatTimeline = useMemo(() => buildReplayCombatTimeline(run), [run]);
   const dossierInput = useMemo(() => buildDossierInputFromRun(run), [run]);
 
-  // Snapshot tick marks (positions along the [t0,tEnd] timeline).
+  // Timeline waypoints: legacy docs use the captured snapshot keyframes; v3 docs derive
+  // the same jump/tick points from the recorded wave_start actions + run_end.
+  const waypoints = useMemo(() => {
+    if (run.snapshots.length) return run.snapshots.map((s) => ({ t: s.t, wave: s.wave, label: s.label }));
+    return run.events
+      .filter((e) => e.type === 'wave_start' || e.type === 'run_end')
+      .map((e) => ({ t: e.t, wave: Number(e.wave ?? 0), label: e.type }));
+  }, [run]);
+
+  // Waypoint tick marks (positions along the [t0,tEnd] timeline).
   const ticks = useMemo(
-    () => run.snapshots.map((s) => ({ pct: Math.max(0, Math.min(100, ((s.t - t0) / span) * 100)), label: s.label, wave: s.wave })),
-    [run.snapshots, t0, span],
+    () => waypoints.map((s) => ({ pct: Math.max(0, Math.min(100, ((s.t - t0) / span) * 100)), label: s.label, wave: s.wave })),
+    [waypoints, t0, span],
   );
 
+  // Driver-path HUD: read the live engine at the scrub position. (v3 docs have no
+  // keyframes, and the legacy synthetic fallback would freeze the HUD at the
+  // end-of-run totals while the canvas plays the early game.)
+  const frameFromDriver = (g: ReplayPlayback['game'], time: number): ReconFrame => ({
+    idx: Math.floor(time * 4), // HUD re-renders at 4 Hz, not every animation frame
+    snap: {
+      label: 'driver', t: time, wave: g.wave, cash: g.credits, lives: g.lives,
+      kills: g.totalKills, leaks: g.runStats.leaks, towerCount: g.towers.length,
+      enemyCount: g.enemies.length, damageByTower: {}, killsByEnemy: {}, towers: [],
+    },
+    towers: g.towers.map((t) => ({
+      uid: t.uid, def: t.def, name: t.def.name, x: t.pos.x, y: t.pos.y,
+      tierA: t.tierA, tierB: t.tierB, placedAtS: 0, damage: 0,
+    })),
+    maxDamage: 1,
+    terminal: g.phase === 'gameover' || g.phase === 'victory',
+  });
+
   // ── draw one frame at the current scrub time ──
-  const draw = (frame: ReconFrame) => {
+  const draw = (frame: ReconFrame | null) => {
     const c = canvasRef.current;
     if (!c) return;
     const ctx = ctxRef.current ?? (ctxRef.current = c.getContext('2d'));
@@ -541,6 +575,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       drawEventFeed(ctx, run.events, time);
       return;
     }
+    if (!frame) return; // driver-less callers always pass a reconstructed frame
 
     if (bg && gameMap) {
       ctx.drawImage(bg, 0, 0);
@@ -649,8 +684,14 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
           setPlaying(false);
         }
       }
-      const frame = reconstructAt(run, tRef.current);
-      draw(frame);
+      let frame: ReconFrame;
+      if (driver) {
+        draw(null); // seeks the engine to tRef and renders it
+        frame = frameFromDriver(driver.game, tRef.current);
+      } else {
+        frame = reconstructAt(run, tRef.current);
+        draw(frame);
+      }
       needsDrawRef.current = false;
       // move playhead + progress fill without a React render
       const posPct = ((tRef.current - t0) / span) * 100;
@@ -665,7 +706,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     };
     // paint a static first frame synchronously so the board shows the instant we mount,
     // even before rAF ramps or if the tab loads in the background
-    draw(reconstructAt(run, tRef.current));
+    draw(driver ? null : reconstructAt(run, tRef.current));
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -688,7 +729,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const stepSnap = (dir: -1 | 1) => {
     sfx.click();
     playingRef.current = false; setPlaying(false);
-    const snaps = run.snapshots;
+    const snaps = waypoints;
     const cur = tRef.current;
     if (dir > 0) {
       const next = snaps.find((s) => s.t > cur + 0.01);

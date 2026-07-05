@@ -363,7 +363,19 @@ test.describe('QA regression real-flow audit', () => {
     await expect(page.getByTestId('replay-play')).toContainText('PLAY');
 
     const slider = page.getByRole('slider', { name: /Replay timeline/ });
+    // Regression: the scrub domain must span the WHOLE run. v3 docs carry no
+    // snapshots, and deriving the domain from the legacy synthetic keyframe
+    // collapsed every replay to a ~1s window pinned at the end ("replays are
+    // 2 seconds and show just the last 2 seconds").
+    const durationS = payload.run.summary.durationS as number;
+    expect(durationS).toBeGreaterThan(3); // keep this guard non-vacuous
+    const valueMax = Number(await slider.getAttribute('aria-valuemax'));
+    expect(valueMax).toBeGreaterThanOrEqual(Math.floor(durationS) - 2);
+    expect(valueMax).toBeLessThanOrEqual(Math.ceil(durationS) + 2);
     await slider.focus();
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(150);
+    expect(Number(await slider.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(1);
     await page.keyboard.press('End');
     await page.waitForTimeout(250);
     const endHudA = await page.locator('.replay-hud').textContent();
