@@ -4,11 +4,12 @@ Last updated: 2026-07-05
 
 ## 2026-07-05 Sector Atlas Screen Inventory Note
 
-The DEPLOY menu screenshot inventory now captures the Sector Atlas instead of
-the former sector card grid. Existing menu-polish viewports remain the same
-(`1920x930`, `1440x900`, `844x390`, and Pixel portrait), but assertions and
-screens should evaluate atlas node hit targets, dock protocol rows, internal
-portrait panning, and the Weekly Ops beacon/cards rather than the old grid.
+The DEPLOY menu screenshot inventory now captures the 12-node Sector Atlas
+instead of the former sector card grid. Existing menu-polish viewports remain
+the same (`1920x930`, `1440x900`, `844x390`, and Pixel portrait), but
+assertions and screens should evaluate atlas node hit targets, dock protocol
+rows, the Core Relay / Forge Belt / Dark Reaches labels, internal portrait
+panning, and the Weekly Ops beacon/cards rather than the old grid.
 
 ## 2026-07-03 Replay v3 Launch-Gate Regression Audit
 

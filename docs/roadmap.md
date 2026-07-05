@@ -3,7 +3,7 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-05 (Gauntlet Protocol implemented through replay engine v6)
+Last updated: 2026-07-05 (campaign expanded to 12 sectors)
 
 ## Next up (owner-triaged, 2026-07-04)
 
@@ -12,16 +12,17 @@ Last updated: 2026-07-05 (Gauntlet Protocol implemented through replay engine v6
   v4 with bestiary/help copy and regenerated balance-gate artifacts.
 - **Wave 2 - DONE:** Mirror Hull adaptive flagship + Recalibrate ability
   through replay v5; Gauntlet Protocol weekly route through replay v6.
+- **Wave 3 - DONE:** Four new authored sectors plus Sector Atlas expansion:
+  The Carousel, Splice Junction, Mirror Array, and Foundry Floor.
 - **Owner-side launch gate (unchanged):** App Check console registration,
-  Stripe MVP (with owner), CrazyGames/Poki accounts + art, main-menu map
-  showcase design discussion.
+  Stripe MVP (with owner), CrazyGames/Poki accounts + art.
 
 
 ## Current shipped pillars
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
-| Core tower-defense loop | 8 sectors, 4 protocols, 21 towers, 7 abilities, 19 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
+| Core tower-defense loop | 12 sectors, 4 protocols, 21 towers, 7 abilities, 19 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
 | Battle Plan replays | Public schema-v3 `runs/{runId}` docs with setup snapshots, r3 player-action packs, manifest `actionHash`, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayCodec.ts`, `reSimulate.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Weekly Arena | UTC ISO-week Weekly Mutation boards, admin-crowned Champion's Gauntlet seeded from verified campaign runs, replay-backed weekly/gauntlet score submission | `weeklyChallenge.ts`, `leaderboard.ts`, `engine.ts`, `functions/src/index.ts`, `AdminDashboard.tsx` |
@@ -88,6 +89,10 @@ Last updated: 2026-07-05 (Gauntlet Protocol implemented through replay engine v6
   shortened 20/25/30-wave legs, full core carry, 60% credit carry, between-leg
   relic drafts, aggregate protocol leaderboards, and replay engine v6
   verification.
+- Four new sectors expand the Sector Atlas to twelve nodes: The Carousel as an
+  early long-path breather, Splice Junction as a braided midgame choke, Mirror
+  Array as a symmetric coverage puzzle, and Foundry Floor as the blocker-heavy
+  Forge Belt capstone.
 
 ## Shipped 2026-07-01 (review-plan implementation pass)
 

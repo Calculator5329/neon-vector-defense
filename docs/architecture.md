@@ -34,7 +34,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `render.ts` | Canvas drawing, camera shake, quality scaling, tower/enemy art |
 | `towers.ts` / `enemies.ts` / `waves.ts` | Static content definitions and stat computation |
 | `eliteAffixes.ts` | Deterministic elite variant planning, tuning constants, and Bestiary reveal metadata |
-| `maps.ts` / `difficulty.ts` | 8 sectors x 4 protocols |
+| `maps.ts` / `difficulty.ts` | 12 sectors x 4 protocols |
 | `bot.ts` | Headless AI at rookie / standard / expert tiers |
 | `runTelemetry.ts` | Run setup, compact r3 action streams, public replay chunks, private checkpoint docs |
 | `leaderboard.ts` | Firestore facade; replay upload/read; score submit via Cloud Functions |

@@ -1,6 +1,7 @@
 /**
  * Global-top aggregation. The client used to build its "global leaderboard"
- * view by fanning out 8 maps x 5 diffs = 40 board queries (up to ~400 reads)
+ * view by fanning out every map/protocol board (now 12 sectors x 4 protocols,
+ * plus freeplay variants) for hundreds of reads
  * per menu view — a free-tier read-quota sink. Since submitScore /
  * submitDailyScore are the ONLY board writers, they can maintain one
  * aggregates/globalTop doc instead, and the client reads a single doc.

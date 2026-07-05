@@ -3,16 +3,33 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-07-05 - Campaign expands to twelve sectors
+
+- The campaign now has twelve authored `GameMap` sectors, still using only the
+  existing single-path/static-blocker schema. No replay engine version bump is
+  required because no engine mechanics changed.
+- The unlock order is explicitly authored as: Orbital Relay, The Carousel, Twin
+  Reactor, Splice Junction, Mobius Drift, Mirror Array, Hyperlane Junction,
+  Blackout Reach, The Throat, Foundry Floor, Umbral Reach, and Cinder Causeway.
+  This keeps The Carousel as an early breather, introduces braid/symmetry maps
+  in the midgame, and leaves blocker-heavy Forge/Hollow pressure late.
+- Atlas regions are now Core Relay, The Forge Belt, and The Dark Reaches. Splice
+  Junction, Foundry Floor, and Cinder Causeway are Forge Belt sectors; Blackout
+  Reach, The Throat, and Umbral Reach remain the dark frontier.
+- Daily, weekly, freeplay, and Gauntlet Protocol map choices continue to derive
+  from `ALL_MAPS`; the only coupled validator updates are the hardcoded map
+  allowlists in Firestore rules and Cloud Functions.
+
 ## 2026-07-05 - Deploy selection is the Sector Atlas
 
 - The DEPLOY tab now presents the Lantern Seven sectors as a starmap rather than
   a card grid. Nodes use the real `GameMap.path` polyline scaled into SVG glyphs,
   and the dashed constellation route follows the existing sequential sector
   unlock order.
-- Region membership is intentionally lightweight for v1: Core Relay contains
-  Orbital Relay, Twin Reactor, Hyperlane Junction, and The Throat; The Dark
-  Reaches contains Mobius Drift, Blackout Reach, Umbral Reach, and Cinder
-  Causeway. The visual layout still reads left-to-right by unlock order.
+- Region membership is intentionally lightweight: Core Relay covers the relay
+  and array maps, The Forge Belt covers industrial burn/foundry sectors, and The
+  Dark Reaches covers the Hollow frontier. The visual layout still reads
+  left-to-right by unlock order.
 - Weekly Ops keeps its existing cards and logic as the integration point. The
   atlas adds a gold beacon that focuses those cards instead of duplicating
   weekly mutation or gauntlet behavior.

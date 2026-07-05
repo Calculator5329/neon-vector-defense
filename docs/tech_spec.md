@@ -33,7 +33,7 @@ Public leaderboard entries. **Client writes are denied** — only the `submitSco
 
 Board ID pattern: `{map}_{diff}` or `{map}_{diff}_fp` for freeplay.
 
-Valid maps: `orbital`, `reactor`, `hyperlane`, `mobius`, `blackout`, `throat`, `umbral`, `cinder`
+Valid maps: `orbital`, `carousel`, `reactor`, `splice`, `mobius`, `mirror`, `hyperlane`, `blackout`, `throat`, `foundry`, `umbral`, `cinder`
 
 Valid diffs: `easy`, `normal`, `hard`, `extinction`
 
@@ -116,12 +116,14 @@ The `r3` codec stores only player actions consumed by `reSimulate`:
 
 All actions encode monotonic simTick deltas plus small enum/integer args into
 the base64url-like `data` string. Tower ids are stored once in `towerIds`; chunk
-packs reuse that root table. Replay engine version 5 is current: v4 runs added
-Exposed combat math and deterministic `target_filter` actions; v5 adds Mirror
-Hull damage-type snapshots and Recalibrate's adaptive-resistance reset. Agent A
-measured a seeded freeplay wave-81 run at 1,304,761 bytes for the old verbose
-public bundle, 5,569 bytes for verbose action JSON, 942 bytes for the r3 action
-payload object, and 701 bytes for the r3 `data` string.
+packs reuse that root table. Replay engine version 6 is current: v4 runs added
+Exposed combat math and deterministic `target_filter` actions, v5 adds Mirror
+Hull damage-type snapshots and Recalibrate's adaptive-resistance reset, and v6
+adds Gauntlet Protocol wave/bank/relic setup. The twelve-sector map expansion is
+data-only and does not bump the replay engine. Agent A measured a seeded
+freeplay wave-81 run at 1,304,761 bytes for the old verbose public bundle, 5,569
+bytes for verbose action JSON, 942 bytes for the r3 action payload object, and
+701 bytes for the r3 `data` string.
 
 ### `runs/{runId}/chunks/c{n}`
 
@@ -251,7 +253,7 @@ Public Champion's Gauntlet seed doc. Admins publish it manually or through the
   week: 'weekly-YYYY-Www';
   runId: string;
   callsign: string;
-  map: 'orbital' | 'reactor' | 'hyperlane' | 'mobius' | 'blackout' | 'throat' | 'umbral' | 'cinder';
+  map: 'orbital' | 'carousel' | 'reactor' | 'splice' | 'mobius' | 'mirror' | 'hyperlane' | 'blackout' | 'throat' | 'foundry' | 'umbral' | 'cinder';
   diff: 'easy' | 'normal' | 'hard' | 'extinction';
   seed: number;
   wave: number;
@@ -422,7 +424,7 @@ Demo mode (`?demo=1`) skips meta and progression writes.
 
 | Category | Count | Notes |
 | --- | ---: | --- |
-| Sectors (maps) | 8 | Orbital Relay through Cinder Causeway |
+| Sectors (maps) | 12 | Orbital Relay, The Carousel, Twin Reactor, Splice Junction, Mobius Drift, Mirror Array, Hyperlane Junction, Blackout Reach, The Throat, Foundry Floor, Umbral Reach, Cinder Causeway |
 | Protocols (difficulties) | 4 | Recruit through Extinction |
 | Towers | 21 | 2 upgrade tracks each; kill-gated unlock ladder |
 | Commander abilities | 7 | Q/W/E/R/T/Y/U; Recalibrate clears current adaptation and weakens live Mirror Hulls |

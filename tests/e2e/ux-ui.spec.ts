@@ -593,7 +593,7 @@ test.describe('desktop UX layout', () => {
       };
     });
 
-    expect(layout.nodes).toHaveLength(8);
+    expect(layout.nodes).toHaveLength(12);
     expect(Math.min(...layout.nodes.map((node) => node.width))).toBeGreaterThanOrEqual(44);
     expect(Math.min(...layout.nodes.map((node) => node.height))).toBeGreaterThanOrEqual(44);
     expect(layout.fieldWidth).toBeGreaterThan(layout.dockWidth);
@@ -609,10 +609,14 @@ test.describe('desktop UX layout', () => {
       await page.setViewportSize(viewport);
       await openDemoMenu(page);
 
-      await page.getByTestId('map-node-cinder').click();
-      await expect(page.getByTestId('sector-dock')).toContainText('Cinder Causeway');
+      for (const id of ['carousel', 'splice', 'mirror', 'foundry']) {
+        await expect(page.getByTestId(`map-node-${id}`)).toBeVisible();
+      }
+
+      await page.getByTestId('map-node-foundry').click();
+      await expect(page.getByTestId('sector-dock')).toContainText('Foundry Floor');
       await page.getByTestId('diff-card-normal').click();
-      await expect(page.locator('.deploy-bar-sel')).toContainText('Cinder Causeway');
+      await expect(page.locator('.deploy-bar-sel')).toContainText('Foundry Floor');
       await expect(page.locator('.deploy-bar-sel')).toContainText('Veteran');
 
       await page.getByTestId('weekly-ops-beacon').click();
@@ -620,16 +624,16 @@ test.describe('desktop UX layout', () => {
       await page.getByTestId('map-node-orbital').focus();
       await page.keyboard.press('ArrowRight');
       await page.keyboard.press('Enter');
-      await expect(page.getByTestId('sector-dock')).toContainText('Twin Reactor');
+      await expect(page.getByTestId('sector-dock')).toContainText('The Carousel');
 
-      await page.getByTestId('map-node-cinder').click();
+      await page.getByTestId('map-node-foundry').click();
       await page.getByTestId('diff-card-normal').click();
       await page.getByTestId('deploy-button').click();
       await expect(page.getByTestId('game-root')).toBeVisible();
       await expect.poll(() => page.evaluate(() => {
         const game = (window as unknown as { game: any }).game;
         return { map: game.map.id, diff: game.diff.id };
-      })).toEqual({ map: 'cinder', diff: 'normal' });
+      })).toEqual({ map: 'foundry', diff: 'normal' });
       await page.goto('/?demo=1');
     }
   });
@@ -638,9 +642,9 @@ test.describe('desktop UX layout', () => {
     await seedProgress(page, { runs: 0, victories: 0, kills: 0, best: {}, clearedMaps: [] });
     await page.goto('/');
     await expect(page.getByTestId('deploy-button')).toBeVisible();
-    await expect(page.getByTestId('map-node-hyperlane')).toHaveAttribute('aria-disabled', 'true');
-    await expect(page.getByTestId('map-node-hyperlane')).toHaveAttribute('aria-label', /Clear Twin Reactor or reach wave 20/);
-    await page.getByTestId('map-node-hyperlane').click({ force: true });
+    await expect(page.getByTestId('map-node-reactor')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('map-node-reactor')).toHaveAttribute('aria-label', /Clear The Carousel or reach wave 20/);
+    await page.getByTestId('map-node-reactor').click({ force: true });
     await expect(page.getByTestId('sector-dock')).toContainText('Orbital Relay');
     await expect(page.locator('.deploy-bar-sel')).toContainText('Orbital Relay');
   });

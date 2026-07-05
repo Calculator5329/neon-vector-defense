@@ -648,7 +648,8 @@
   pointer-events: none;
 }
 .atlas-region-core { left: 6%; top: 7%; }
-.atlas-region-dark { left: 50%; top: 7%; }
+.atlas-region-forge { left: 32%; top: 7%; }
+.atlas-region-dark { left: 68%; top: 7%; }
 .atlas-node {
   position: absolute;
   z-index: 2;
@@ -690,6 +691,13 @@
 .atlas-node-dark.active .atlas-node-halo {
   border-color: #a996ff;
   box-shadow: 0 0 0 1px #a996ff, 0 0 24px rgba(142, 123, 239, 0.42);
+}
+.atlas-node-forge {
+  color: #ff9a4d;
+}
+.atlas-node-forge.active .atlas-node-halo {
+  border-color: #ff9a4d;
+  box-shadow: 0 0 0 1px #ff9a4d, 0 0 24px rgba(255, 122, 47, 0.42);
 }
 .atlas-node.locked {
   color: #6d7ca8;

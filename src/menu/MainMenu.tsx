@@ -26,22 +26,36 @@ import { IS_PORTAL_BUILD } from '../game/portal';
 type DeployMode = 'campaign' | 'daily' | 'weekly' | 'gauntlet' | 'gauntletProtocol';
 
 const ATLAS_POS: Record<string, [number, number]> = {
-  orbital: [10, 38],
-  reactor: [23, 58],
-  hyperlane: [35, 32],
-  mobius: [47, 61],
-  blackout: [59, 28],
-  throat: [69, 54],
-  umbral: [79, 34],
-  cinder: [89, 61],
+  orbital: [8, 34],
+  carousel: [16, 60],
+  reactor: [25, 30],
+  splice: [34, 56],
+  mobius: [43, 34],
+  mirror: [52, 62],
+  hyperlane: [61, 30],
+  blackout: [69, 56],
+  throat: [77, 74],
+  foundry: [75, 38],
+  umbral: [88, 52],
+  cinder: [94, 74],
 };
 
 function atlasPos(mapId: string, index: number): [number, number] {
   return ATLAS_POS[mapId] ?? [12 + index * 10, index % 2 ? 58 : 32];
 }
 
-function atlasRegion(mapId: string): 'core' | 'dark' {
-  return ['orbital', 'reactor', 'hyperlane', 'throat'].includes(mapId) ? 'core' : 'dark';
+type AtlasRegion = 'core' | 'forge' | 'dark';
+
+function atlasRegion(mapId: string): AtlasRegion {
+  if (['splice', 'foundry', 'cinder'].includes(mapId)) return 'forge';
+  if (['blackout', 'throat', 'umbral'].includes(mapId)) return 'dark';
+  return 'core';
+}
+
+function atlasRegionLabel(region: AtlasRegion): string {
+  if (region === 'forge') return 'FORGE SECTOR';
+  if (region === 'dark') return 'DARK SECTOR';
+  return 'CORE SECTOR';
 }
 
 function masteryLevel(mapId: string): number {
@@ -281,6 +295,7 @@ function SectorAtlas(props: {
       <div className="atlas-field" ref={fieldRef} data-testid="atlas-field">
         <canvas className="atlas-stars-canvas" ref={canvasRef} aria-hidden="true" />
         <div className="atlas-region-label atlas-region-core">CORE RELAY</div>
+        <div className="atlas-region-label atlas-region-forge">THE FORGE BELT</div>
         <div className="atlas-region-label atlas-region-dark">THE DARK REACHES</div>
         {ALL_MAPS.map((m, i) => {
           const unlocked = mapUnlocked(i);
@@ -357,7 +372,7 @@ function SectorAtlas(props: {
       </div>
 
       <aside className="atlas-dock" data-testid="sector-dock" aria-live="polite">
-        <div className="dock-kicker">{atlasRegion(selectedMap.id) === 'core' ? 'CORE SECTOR' : 'DARK SECTOR'}</div>
+        <div className="dock-kicker">{atlasRegionLabel(atlasRegion(selectedMap.id))}</div>
         <h2>{selectedMap.name}</h2>
         <div className="dock-mastery-row">
           <MasteryStars level={selectedMastery} />

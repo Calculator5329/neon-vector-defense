@@ -56,6 +56,22 @@ export const MAPS: GameMap[] = [
 
 export const MAPS2: GameMap[] = [
   {
+    id: 'carousel',
+    name: 'The Carousel',
+    desc: 'An outer-ring patrol route that slowly spirals inward. The long approach gives commanders time to breathe.',
+    difficulty: 'Easy',
+    pathWidth: 48,
+    music: 'orbital',
+    path: [
+      { x: -40, y: 95 }, { x: 1180, y: 95 }, { x: 1180, y: 625 }, { x: 100, y: 625 },
+      { x: 100, y: 165 }, { x: 1040, y: 165 }, { x: 1040, y: 555 }, { x: 240, y: 555 },
+      { x: 240, y: 260 }, { x: 900, y: 260 }, { x: 900, y: 460 }, { x: 460, y: 460 },
+      { x: 460, y: 760 },
+    ],
+    blockers: [],
+    theme: { bg1: '#061218', bg2: '#0a2430', path: '#103040', pathEdge: '#35a7d8' },
+  },
+  {
     id: 'mobius',
     name: 'Möbius Drift',
     desc: 'A serpentine causeway folding back on itself. Towers cover many passes — and carriers pulse them all.',
@@ -90,6 +106,42 @@ export const MAPS2: GameMap[] = [
     theme: { bg1: '#0d0a04', bg2: '#1d1408', path: '#251a0c', pathEdge: '#8f6c2e' },
   },
   {
+    id: 'splice',
+    name: 'Splice Junction',
+    desc: 'Braided service corridors cross through the same central choke. Coverage looks generous until the route folds back.',
+    difficulty: 'Medium',
+    pathWidth: 42,
+    music: 'reactor',
+    path: [
+      { x: -40, y: 250 }, { x: 270, y: 250 }, { x: 520, y: 360 }, { x: 270, y: 470 },
+      { x: 650, y: 470 }, { x: 520, y: 360 }, { x: 650, y: 250 }, { x: 1010, y: 250 },
+      { x: 760, y: 360 }, { x: 1010, y: 470 }, { x: 1320, y: 470 },
+    ],
+    blockers: [
+      { x: 395, y: 360, r: 42 },
+      { x: 885, y: 360, r: 42 },
+    ],
+    theme: { bg1: '#100817', bg2: '#22102d', path: '#29163a', pathEdge: '#b14fd7' },
+  },
+  {
+    id: 'mirror',
+    name: 'Mirror Array',
+    desc: 'A rotationally symmetric double-S through relay mirrors. Few obstructions, but every tower angle is awkward.',
+    difficulty: 'Medium',
+    pathWidth: 42,
+    music: 'orbital',
+    path: [
+      { x: -40, y: 180 }, { x: 180, y: 180 }, { x: 180, y: 540 }, { x: 420, y: 540 },
+      { x: 420, y: 180 }, { x: 640, y: 180 }, { x: 640, y: 540 }, { x: 860, y: 540 },
+      { x: 860, y: 180 }, { x: 1100, y: 180 }, { x: 1100, y: 540 }, { x: 1320, y: 540 },
+    ],
+    blockers: [
+      { x: 320, y: 360, r: 44 },
+      { x: 960, y: 360, r: 44 },
+    ],
+    theme: { bg1: '#071018', bg2: '#10202b', path: '#142a36', pathEdge: '#69d3ff' },
+  },
+  {
     id: 'throat',
     name: 'The Throat',
     desc: 'Wreckage chokes the sector into one tight double-back. A kill-box paradise — until a carrier walks in.',
@@ -113,6 +165,30 @@ export const MAPS2: GameMap[] = [
 
 // THE HOLLOW sectors — the dark past the Combine's old line.
 export const MAPS3: GameMap[] = [
+  {
+    id: 'foundry',
+    name: 'Foundry Floor',
+    desc: 'Industrial switchbacks divided by furnace walls. The lane is readable; the build grid is not.',
+    difficulty: 'Hard',
+    pathWidth: 36,
+    music: 'hyperlane',
+    path: [
+      { x: -40, y: 130 }, { x: 1000, y: 130 }, { x: 1000, y: 260 }, { x: 250, y: 260 },
+      { x: 250, y: 390 }, { x: 1050, y: 390 }, { x: 1050, y: 520 }, { x: 300, y: 520 },
+      { x: 300, y: 650 }, { x: 1320, y: 650 },
+    ],
+    blockers: [
+      { x: 230, y: 195, r: 42 }, { x: 390, y: 195, r: 42 }, { x: 550, y: 195, r: 42 },
+      { x: 710, y: 195, r: 42 }, { x: 870, y: 195, r: 42 }, { x: 1030, y: 195, r: 42 },
+      { x: 230, y: 325, r: 42 }, { x: 390, y: 325, r: 42 }, { x: 550, y: 325, r: 42 },
+      { x: 710, y: 325, r: 42 }, { x: 870, y: 325, r: 42 }, { x: 1030, y: 325, r: 42 },
+      { x: 230, y: 455, r: 42 }, { x: 390, y: 455, r: 42 }, { x: 550, y: 455, r: 42 },
+      { x: 710, y: 455, r: 42 }, { x: 870, y: 455, r: 42 }, { x: 1030, y: 455, r: 42 },
+      { x: 360, y: 585, r: 42 }, { x: 500, y: 585, r: 42 }, { x: 640, y: 585, r: 42 },
+      { x: 780, y: 585, r: 42 }, { x: 940, y: 585, r: 42 }, { x: 1100, y: 585, r: 42 },
+    ],
+    theme: { bg1: '#150905', bg2: '#2c1308', path: '#3a1a0c', pathEdge: '#f07a2f' },
+  },
   {
     id: 'umbral',
     name: 'Umbral Reach',
@@ -153,7 +229,20 @@ export const MAPS3: GameMap[] = [
   },
 ];
 
-export const ALL_MAPS = [...MAPS, ...MAPS2, ...MAPS3];
+export const ALL_MAPS = [
+  MAPS[0],      // Orbital Relay
+  MAPS2[0],     // The Carousel
+  MAPS[1],      // Twin Reactor
+  MAPS2[3],     // Splice Junction
+  MAPS2[1],     // Mobius Drift
+  MAPS2[4],     // Mirror Array
+  MAPS[2],      // Hyperlane Junction
+  MAPS2[2],     // Blackout Reach
+  MAPS2[5],     // The Throat
+  MAPS3[0],     // Foundry Floor
+  MAPS3[1],     // Umbral Reach
+  MAPS3[2],     // Cinder Causeway
+];
 
 export const DIFFICULTIES: DifficultyDef[] = [
   { id: 'easy', name: 'Recruit', lives: 200, cash: 900, costMult: 0.85, hpMult: 0.9, lateScale: 0.015, waves: 50, desc: '200 cores · cheap towers · no phase-cloaks · 50 waves' },

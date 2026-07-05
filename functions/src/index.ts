@@ -59,7 +59,8 @@ setGlobalOptions({ region: 'us-central1', maxInstances: 10 });
 const db: Firestore = getFirestore();
 
 const VALID_MAPS = new Set([
-  'orbital', 'reactor', 'hyperlane', 'mobius', 'blackout', 'throat', 'umbral', 'cinder',
+  'orbital', 'carousel', 'reactor', 'splice', 'mobius', 'mirror',
+  'hyperlane', 'blackout', 'throat', 'foundry', 'umbral', 'cinder',
 ]);
 const VALID_DIFFS = new Set(['easy', 'normal', 'hard', 'extinction']);
 
