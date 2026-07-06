@@ -4,6 +4,19 @@
 const KEY = 'nvd-progress-v1';
 const DEMO_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1';
 
+// Random suffix for the anonymous device correlation id. Prefers crypto so the
+// id doesn't collide and CodeQL's insecure-randomness rule stays satisfied; the
+// Math.random fallback only fires where Web Crypto is unavailable.
+function randomIdSuffix(): string {
+  const c = (typeof globalThis !== 'undefined' ? globalThis.crypto : undefined);
+  if (c?.randomUUID) return c.randomUUID().replace(/-/g, '').slice(0, 12);
+  if (c?.getRandomValues) {
+    const bytes = c.getRandomValues(new Uint8Array(8));
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
 interface Progress {
   /** indices into ARCHIVE recovered across all runs */
   archive: number[];
@@ -228,10 +241,14 @@ export const progress = {
     const c = cache as unknown as { fpRuns?: number; fpBest?: number; fpKills?: number };
     return { runs: c.fpRuns ?? 0, bestWave: c.fpBest ?? 0, kills: c.fpKills ?? 0 };
   },
-  /** anonymous per-device id (no login) — correlates feedback, scores & telemetry */
+  /** anonymous per-device id (no login) — a CLIENT-SIDE correlation key for
+   *  analytics sampling and telemetry rows. NOT an auth token: server ownership
+   *  is always the Firebase Anonymous Auth uid, never this value. Generated from
+   *  crypto random when available (CodeQL: Math.random is not a security PRNG)
+   *  with a plain-random fallback for exotic environments. */
   get uid(): string {
     const c = cache as unknown as { uid?: string };
-    if (!c.uid) { c.uid = 'w_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); save(); }
+    if (!c.uid) { c.uid = 'w_' + randomIdSuffix(); save(); }
     return c.uid;
   },
   markSession() {

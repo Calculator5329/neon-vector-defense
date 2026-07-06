@@ -18,9 +18,14 @@ test.describe('production bundle', () => {
 
   test('emits a build tag and shows no stale toast on a fresh bundle', async ({ page }) => {
     const portalRequests: string[] = [];
+    const PORTAL_HOSTS = ['sdk.crazygames.com', 'game-cdn.poki.com', 'poki-gdn.com'];
     page.on('request', (request) => {
       const url = request.url();
-      if (/sdk\.crazygames\.com|game-cdn\.poki\.com|poki-gdn\.com/.test(url)) portalRequests.push(url);
+      // hostname match (not substring) so an unrelated host that merely contains
+      // one of these strings can't register — CodeQL js/regex/missing-regexp-anchor
+      let host = '';
+      try { host = new URL(url).hostname; } catch { host = ''; }
+      if (PORTAL_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) portalRequests.push(url);
     });
     await page.goto('/');
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });

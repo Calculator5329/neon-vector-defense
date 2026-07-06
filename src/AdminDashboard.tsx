@@ -1155,11 +1155,14 @@ function compressRanges(nums: number[]): string {
   const s = [...nums].sort((a, b) => a - b);
   const out: string[] = [];
   let lo = s[0], prev = s[0];
-  for (let i = 1; i <= s.length; i++) {
+  // flush the running range after the loop instead of a sentinel i===length
+  // iteration that read s[length] out of bounds (CodeQL js/index-out-of-bounds)
+  for (let i = 1; i < s.length; i++) {
     if (s[i] === prev + 1) { prev = s[i]; continue; }
     out.push(lo === prev ? `${lo}` : `${lo}–${prev}`);
     lo = prev = s[i];
   }
+  out.push(lo === prev ? `${lo}` : `${lo}–${prev}`);
   return out.join(', ');
 }
 

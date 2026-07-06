@@ -1622,7 +1622,11 @@ test.describe('browser perf harness', () => {
     const firestorePosts: string[] = [];
     await page.route('**/*', async (route) => {
       const request = route.request();
-      if (request.method() === 'POST' && request.url().includes('firestore.googleapis.com') && !request.url().includes('/Listen/channel')) {
+      // hostname match, not substring, so only real Firestore POSTs are aborted
+      // (CodeQL js/incomplete-url-substring-sanitization)
+      let host = '';
+      try { host = new URL(request.url()).hostname; } catch { host = ''; }
+      if (request.method() === 'POST' && host === 'firestore.googleapis.com' && !request.url().includes('/Listen/channel')) {
         firestorePosts.push(request.url());
         await route.abort();
         return;

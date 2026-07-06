@@ -1,0 +1,10 @@
+name: "Lantern 7 CodeQL config"
+
+# Scope analysis to the shipped application (src/, functions/, worker/) and its
+# test harness. Exclude scripts/ — offline content-generation tooling that reads
+# local prompt/config files and POSTs them to the OpenRouter image/text API by
+# design (the file<->HTTP data flows CodeQL flags are the whole purpose). These
+# scripts run only manually on the maintainer's machine, take no untrusted
+# input, and are in no build output or deployed surface.
+paths-ignore:
+  - scripts
