@@ -386,6 +386,70 @@ describe('reSimulate', () => {
   });
 });
 
+// A player just below an unlock threshold crosses it mid-run and places the
+// newly unlocked tower. Availability must re-derive dynamically in re-sim
+// (recorded lifetimeKillsAtStart + live ladder) or this legal placement gets
+// rejected as a desync — the owner-reported REPLAY DESYNC of 2026-07-05.
+function runMidRunUnlockCampaign(): { bundle: RunUploadBundle; placedTowerId: string } {
+  const tesla = TOWER_MAP.tesla;
+  const baseKills = Math.max(0, tesla.unlockAt - 100);
+  const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 321, lifetimeKills: baseKills });
+  game.paused = false;
+  game.speed = 4;
+  game.autoNext = true;
+  const bot = new Bot(game, 'standard', seededRng(7));
+  game.startWave();
+  let placed = false;
+  for (let i = 0; i < 80_000 && game.wave <= 10 && game.phase !== 'gameover'; i++) {
+    const unlocked = baseKills + game.totalKills >= tesla.unlockAt;
+    // once the threshold is crossed, stop the bot's spending so credits bank
+    // up for the newly unlocked tower — the scenario under test
+    if (placed || !unlocked) bot.act(game.time);
+    if (!placed && unlocked && game.credits >= tesla.cost + 10) {
+      for (const pos of [
+        { x: 480, y: 250 }, { x: 200, y: 250 }, { x: 700, y: 480 },
+        { x: 900, y: 300 }, { x: 1050, y: 550 }, { x: 400, y: 470 },
+      ]) {
+        if (game.placeTower(tesla, pos)) { placed = true; break; }
+      }
+    }
+    if (game.phase === 'build') game.startWave();
+    game.update(0.05);
+  }
+  assert.ok(placed, 'live run must place the mid-run-unlocked tower');
+  return { bundle: game.buildRunUploadBundle('UNLOCK', 'test-build'), placedTowerId: tesla.id };
+}
+
+describe('mid-run unlock availability', () => {
+  test('re-sim verifies a run that places a tower unlocked mid-run', () => {
+    const { bundle } = runMidRunUnlockCampaign();
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'verified', result.reason ?? '');
+  });
+
+  test('playback driver re-applies the mid-run-unlocked placement without desync', () => {
+    const { bundle, placedTowerId } = runMidRunUnlockCampaign();
+    const driver = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+    assert.ok(driver, 'driver builds');
+    assert.equal(driver.seekTo(driver.endT), true);
+    assert.equal(driver.divergedAtT, null, 'no REPLAY DESYNC');
+    assert.ok(driver.game.towers.some((t) => t.def.id === placedTowerId), 'unlocked tower present in replay');
+  });
+
+  test('sub-tick backward jitter never rebuilds from the seed', () => {
+    // At 0.5x-4x the playhead advances less than one tick per frame while
+    // game.time carries float drift — the driver must tolerate a 1-tick
+    // "rewind" without a full re-simulation (the SIMULATING-loop bug).
+    const bundle = runSeededBotCampaign();
+    const driver = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
+    assert.ok(driver);
+    assert.equal(driver.seekTo(driver.endT / 2), true);
+    const before = driver.game;
+    assert.equal(driver.seekTo(driver.endT / 2 - Game.SIM_STEP * 0.4), true, 'jitter seek settles');
+    assert.equal(driver.game, before, 'game instance not rebuilt for sub-tick jitter');
+  });
+});
+
 describe('playback driver budgeted seeks', () => {
   test('budget-sliced seeks converge to the same state as a synchronous seek', () => {
     const bundle = runSeededBotCampaign();

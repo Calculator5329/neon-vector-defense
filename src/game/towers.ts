@@ -21,6 +21,9 @@ function track(name: string, upgrades: UpgradeDef[]): UpgradeTrack {
 }
 
 // Tiers 1-4 are always buyable on both tracks; tiers 5-6 (BONUS) require committing the tower to that track.
+// NOTE: unlockAt is part of the versioned replay surface — re-simulation derives
+// mid-run unlock availability from this ladder (reSimulate.ts setupReplayGame),
+// so bump REPLAY_ENGINE_VERSION whenever any unlockAt value changes.
 export const TOWERS: TowerDef[] = [
   {
     id: 'pulse', name: 'Pulse Turret', short: 'PLS', cost: 170, unlockAt: 0,

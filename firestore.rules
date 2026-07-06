@@ -305,7 +305,7 @@ service cloud.firestore {
     function isValidRunSetup(data) {
       return data is map
           && data.keys().hasAll(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion'])
-          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion', 'balance', 'daily', 'weekly', 'gauntlet', 'gauntletProtocol', 'replayEngine'])
+          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'lifetimeKillsAtStart', 'balanceVersion', 'balance', 'daily', 'weekly', 'gauntlet', 'gauntletProtocol', 'replayEngine'])
           && data.map is string && isValidMapId(data.map)
           && data.mapName is string && data.mapName.size() <= 80
           // 8-hex from current clients; 1-7 char base36 from the first v3 client
@@ -318,6 +318,9 @@ service cloud.firestore {
           && data.startingCash is int && data.startingCash >= 0 && data.startingCash < 100000000
           && data.startingLives is int && data.startingLives >= 1 && data.startingLives < 1000000
           && data.availableTowerIds is list && data.availableTowerIds.size() >= 1 && data.availableTowerIds.size() <= 40
+          // lifetimeKillsAtStart (optional, 2026-07-05) is key-allowed above but NOT
+          // value-validated here: this rule sits at Firestore's 1000-expression cap
+          // (see the gauntlet leg-chain precedent). reSimulate sanitizes it instead.
           && data.balanceVersion is string && data.balanceVersion.size() <= 40
           && (!('balance' in data) || isValidBalanceDoc(data.balance))
           && (!('daily' in data) || isValidDailyChallengeSnapshot(data.daily))

@@ -186,6 +186,10 @@ export interface PublicRunDoc {
     startingCash: number;
     startingLives: number;
     availableTowerIds: string[];
+    /** Banked kills when the run started — re-sim derives mid-run unlock
+     *  availability from this + the towers.ts ladder. Absent on pre-2026-07-05
+     *  runs, which fall back to the static availableTowerIds override. */
+    lifetimeKillsAtStart?: number;
     balanceVersion: string;
     balance?: BalanceConfigDoc;
     daily?: DailyChallenge;
@@ -1150,6 +1154,7 @@ export class RunRecorder {
         startingCash: this.start.startingCash,
         startingLives: this.start.startingLives,
         availableTowerIds: [...this.start.availableTowerIds],
+        lifetimeKillsAtStart: Math.max(0, Math.floor(this.start.lifetimeKillsAtStart)),
           balanceVersion: balanceVersion() || build,
           ...(balance ? { balance } : {}),
           ...(this.dailySnapshot ? { daily: this.dailySnapshot } : {}),

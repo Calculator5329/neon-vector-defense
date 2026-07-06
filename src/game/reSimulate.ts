@@ -15,7 +15,7 @@ import {
   type RunUploadBundle,
 } from './runTelemetry';
 import { decodeReplayActionBundle } from './replayCodec';
-import { TOWER_MAP } from './towers';
+import { TOWERS, TOWER_MAP } from './towers';
 import type { AbilityId, TargetFilter, TargetMode, Vec } from './types';
 import type { FreeplayContractId, FreeplayRelicId, RiskWaveId } from './freeplay';
 
@@ -72,10 +72,31 @@ export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: st
       : { error: 'unknown map or difficulty' };
   }
 
+  // Availability must mirror the LIVE rule or mid-run unlocks desync: the engine
+  // gates placeTower on baseKills + totalKills vs unlockAt, so a tower unlocked
+  // mid-run (then placed) is legal live but absent from the start-of-run
+  // availableTowerIds snapshot. When the recorded set is exactly what the current
+  // unlock ladder derives from lifetimeKillsAtStart, replay in dynamic mode
+  // (recorded baseKills, no override) so unlocks re-earn at the same ticks.
+  // A recorded set that DIFFERS from the derivation is a constrained pool
+  // (daily arsenal, relic drafts) and stays a static override. NOTE: this makes
+  // towers.ts unlockAt part of the versioned sim surface — bump
+  // REPLAY_ENGINE_VERSION whenever the unlock ladder changes.
+  // Rules only key-allow this field (the /runs rule is at the 1000-expression
+  // cap), so sanitize defensively: any non-finite/absurd value falls back to 0,
+  // which fails the derivation match below and keeps the static override path.
+  const rawLifetime = Number(run.setup.lifetimeKillsAtStart ?? 0);
+  const lifetimeKillsAtStart = Number.isFinite(rawLifetime) && rawLifetime >= 0 && rawLifetime < 1e9
+    ? Math.floor(rawLifetime)
+    : 0;
+  const derivedIds = TOWERS.filter((t) => t.unlockAt <= lifetimeKillsAtStart).map((t) => t.id);
+  const recordedIds = [...(run.setup.availableTowerIds ?? [])].sort();
+  const dynamicUnlocks = recordedIds.length === derivedIds.length
+    && [...derivedIds].sort().every((id, i) => id === recordedIds[i]);
   const game = new Game(map, diff, {
     seed: run.setup.seed >>> 0,
-    lifetimeKills: 0,
-    availableTowerIds: run.setup.availableTowerIds,
+    lifetimeKills: dynamicUnlocks ? lifetimeKillsAtStart : 0,
+    availableTowerIds: dynamicUnlocks ? undefined : run.setup.availableTowerIds,
     replayMode: true,
   });
   game.paused = false;
@@ -599,7 +620,12 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
     budgetMs = Number.POSITIVE_INFINITY,
   ): boolean => withPlaybackBalance(() => {
     const targetTick = Math.max(0, Math.round(tSeconds / Game.SIM_STEP));
-    if (targetTick < currentTick()) reset();
+    // One tick of grace: at 0.5x-4x the playhead advances less than a tick per
+    // frame while game.time carries float drift, so the engine reads a tick
+    // "ahead" of the target. Treating that as a rewind re-simulated the whole
+    // run from t=0 every few frames (the owner-reported SIMULATING loop).
+    // Only a real rewind (2+ ticks behind) rebuilds from the seed.
+    if (targetTick + 1 < currentTick()) reset();
     const budget = {
       left: budgetTicks,
       deadline: Number.isFinite(budgetMs) ? performance.now() + budgetMs : Number.POSITIVE_INFINITY,
