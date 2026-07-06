@@ -281,7 +281,10 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   const gameRef = useRef<Game | null>(null);
   const runRef = useRef(-1);
   if (!gameRef.current || runRef.current !== run) {
-    const nextGame = new Game(activeMap, activeDiff, gauntlet ? { seed: gauntlet.seed } : {});
+    const nextGame = new Game(activeMap, activeDiff, {
+      ...(gauntlet ? { seed: gauntlet.seed } : {}),
+      ...(DEMO_MODE ? { lifetimeKills: DEMO_UNLOCK_KILLS } : {}),
+    });
     if (dailySeed) nextGame.startDailyChallenge(dailySeed);
     if (weeklySeed) nextGame.startWeeklyChallenge(weeklySeed);
     if (gauntlet) nextGame.setGauntletChallenge(gauntlet);
