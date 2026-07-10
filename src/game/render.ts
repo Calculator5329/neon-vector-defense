@@ -1,6 +1,8 @@
 import type { DamageType, Enemy, EnemyDef, GameMap, Pickup, Tower, TowerDef, Vec } from './types';
 import { Game, W, H } from './engine';
 import { BULWARK_RADIUS, ELITE_AFFIX_META } from './eliteAffixes';
+import { displayedMapTheme } from './mapThemes';
+import { meta } from './meta';
 
 // ============================================================
 // Sprite caching — all hulls are pre-rendered as crisp vector
@@ -356,7 +358,7 @@ export function buildBackground(map: GameMap): HTMLCanvasElement {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const c = cv.getContext('2d')!;
-  const th = map.theme;
+  const th = displayedMapTheme(map);
   const rnd = mulberry(map.id.length * 7919 + map.path.length);
 
   // deep space gradient
@@ -492,8 +494,9 @@ export interface RenderUi {
 }
 
 export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) {
-  let bg = bgCache.get(game.map.id);
-  if (!bg) { bg = buildBackground(game.map); bgCache.set(game.map.id, bg); }
+  const bgKey = `${game.map.id}:${meta.equippedMapTheme}`;
+  let bg = bgCache.get(bgKey);
+  if (!bg) { bg = buildBackground(game.map); bgCache.set(bgKey, bg); }
 
   ctx.save();
   // camera shake (suppressed in reduced-motion)
@@ -798,7 +801,7 @@ function vignetteSprite(): HTMLCanvasElement {
 }
 
 function drawAnimatedLane(ctx: CanvasRenderingContext2D, game: Game) {
-  const th = game.map.theme;
+  const th = displayedMapTheme(game.map);
   // corner beacon pylons: pulsing diamonds at every lane turn
   const path = game.map.path;
   for (let i = 1; i < path.length - 1; i++) {
@@ -939,16 +942,16 @@ export function drawBlockers(ctx: CanvasRenderingContext2D, map: GameMap, time: 
     if (b.r <= 0) continue;
     ctx.save();
     const grd = ctx.createRadialGradient(b.x, b.y, 4, b.x, b.y, b.r);
-    grd.addColorStop(0, map.theme.pathEdge);
+    grd.addColorStop(0, displayedMapTheme(map).pathEdge);
     grd.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.globalAlpha = 0.55 + 0.15 * Math.sin(time * 2);
     ctx.fillStyle = grd;
     circle(ctx, b.x, b.y, b.r);
     ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = map.theme.pathEdge;
+    ctx.strokeStyle = displayedMapTheme(map).pathEdge;
     ctx.lineWidth = 2;
-    ctx.shadowColor = map.theme.pathEdge;
+    ctx.shadowColor = displayedMapTheme(map).pathEdge;
     ctx.shadowBlur = 10;
     circle(ctx, b.x, b.y, b.r * 0.55);
     ctx.stroke();

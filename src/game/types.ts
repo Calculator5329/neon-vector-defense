@@ -295,6 +295,8 @@ export interface WaveGroup {
 
 export type Wave = WaveGroup[];
 
+export interface MapTheme { bg1: string; bg2: string; path: string; pathEdge: string }
+
 export interface GameMap {
   id: string;
   name: string;
@@ -309,7 +311,8 @@ export interface GameMap {
   zones?: { x: number; y: number; r: number }[];
   /** ambience track id override (defaults to map id) */
   music?: string;
-  theme: { bg1: string; bg2: string; path: string; pathEdge: string };
+  /** Standard palette; alternate packs resolve only in rendering. */
+  theme: MapTheme;
 }
 
 export interface DifficultyDef {

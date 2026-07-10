@@ -9,6 +9,7 @@ import { drawTowerBody } from './render';
 import { TELEMETRY_BUILD } from './leaderboard';
 import { meta } from './meta';
 import { paletteById } from './palette';
+import { displayedMapTheme } from './mapThemes';
 import type { Game } from './engine';
 import type { PublicRunDoc, RunOutcome } from './runTelemetry';
 import type { TowerDef } from './types';
@@ -98,7 +99,7 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   cv.width = CARD_W; cv.height = CARD_H;
   const ctx = cv.getContext('2d')!;
   const map = ALL_MAPS.find((m) => m.id === input.mapId);
-  const th = map?.theme ?? { bg1: '#0a1030', bg2: '#04060f', path: '#2a3a7a', pathEdge: '#4bcffa' };
+  const th = map ? displayedMapTheme(map) : { bg1: '#0a1030', bg2: '#04060f', path: '#2a3a7a', pathEdge: '#4bcffa' };
   const oc = OUTCOME[input.outcome];
   // tint the card's neon identity with the player's equipped Signal Palette (cosmetic = social proof)
   const accent = paletteById(meta.equippedPalette).color;

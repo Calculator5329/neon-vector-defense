@@ -177,7 +177,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   registry like `PALETTES[]`, Salvage-priced tiers, applied purely in
   `render.ts` lookups; replay playback renders the *viewer's* skin, never the
   runner's, so replays stay verification-identical.
-- [ ] **Map theme packs.** The per-map `theme` block (`bg1/bg2/path/pathEdge`)
+- [x] **Map theme packs.** *(done 2026-07-10)* The per-map `theme` block (`bg1/bg2/path/pathEdge`)
   becomes selectable: ship 3–4 alternate themes per sector (e.g. Ember,
   Glacier, Void) as pure palette swaps on existing maps.
 - [ ] **HQ/base customization.** Player-chosen core visual (shape shader +

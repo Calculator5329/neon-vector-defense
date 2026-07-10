@@ -1,4 +1,5 @@
 import type { DifficultyDef, GameMap } from './types';
+import { standardMapTheme } from './mapThemes';
 
 // All coordinates in a 1280x720 logical space.
 export const MAPS: GameMap[] = [
@@ -15,7 +16,7 @@ export const MAPS: GameMap[] = [
       { x: 1160, y: 300 }, { x: 1320, y: 300 },
     ],
     blockers: [{ x: 640, y: 360, r: 0 }],
-    theme: { bg1: '#070b1a', bg2: '#0d1330', path: '#141d3d', pathEdge: '#2e4a8f' },
+    theme: standardMapTheme('orbital'),
   },
   {
     id: 'reactor',
@@ -33,7 +34,7 @@ export const MAPS: GameMap[] = [
       { x: 395, y: 285, r: 58 },
       { x: 885, y: 385, r: 58 },
     ],
-    theme: { bg1: '#0c071a', bg2: '#1a0d30', path: '#241440', pathEdge: '#6b2e8f' },
+    theme: standardMapTheme('reactor'),
   },
   {
     id: 'hyperlane',
@@ -50,7 +51,7 @@ export const MAPS: GameMap[] = [
       { x: 200, y: 250, r: 80 },
       { x: 1080, y: 650, r: 70 },
     ],
-    theme: { bg1: '#160707', bg2: '#2b0d14', path: '#3a1420', pathEdge: '#8f2e44' },
+    theme: standardMapTheme('hyperlane'),
   },
 ];
 
@@ -69,7 +70,7 @@ export const MAPS2: GameMap[] = [
       { x: 460, y: 760 },
     ],
     blockers: [],
-    theme: { bg1: '#061218', bg2: '#0a2430', path: '#103040', pathEdge: '#35a7d8' },
+    theme: standardMapTheme('carousel'),
   },
   {
     id: 'mobius',
@@ -84,7 +85,7 @@ export const MAPS2: GameMap[] = [
       { x: 170, y: 660 }, { x: 660, y: 660 }, { x: 660, y: 770 },
     ],
     blockers: [],
-    theme: { bg1: '#06140f', bg2: '#0b2b1f', path: '#103428', pathEdge: '#2e8f6e' },
+    theme: standardMapTheme('mobius'),
   },
   {
     id: 'blackout',
@@ -103,7 +104,7 @@ export const MAPS2: GameMap[] = [
       { x: 640, y: 360, r: 160 },
       { x: 1010, y: 440, r: 150 },
     ],
-    theme: { bg1: '#0d0a04', bg2: '#1d1408', path: '#251a0c', pathEdge: '#8f6c2e' },
+    theme: standardMapTheme('blackout'),
   },
   {
     id: 'splice',
@@ -123,7 +124,7 @@ export const MAPS2: GameMap[] = [
       { x: 395, y: 360, r: 24 },
       { x: 885, y: 360, r: 24 },
     ],
-    theme: { bg1: '#100817', bg2: '#22102d', path: '#29163a', pathEdge: '#b14fd7' },
+    theme: standardMapTheme('splice'),
   },
   {
     id: 'mirror',
@@ -141,7 +142,7 @@ export const MAPS2: GameMap[] = [
       { x: 320, y: 360, r: 44 },
       { x: 960, y: 360, r: 44 },
     ],
-    theme: { bg1: '#071018', bg2: '#10202b', path: '#142a36', pathEdge: '#69d3ff' },
+    theme: standardMapTheme('mirror'),
   },
   {
     id: 'throat',
@@ -161,7 +162,7 @@ export const MAPS2: GameMap[] = [
       { x: 80, y: 80, r: 90 },
       { x: 760, y: 350, r: 70 },
     ],
-    theme: { bg1: '#140707', bg2: '#260c0c', path: '#331111', pathEdge: '#8f2e2e' },
+    theme: standardMapTheme('throat'),
   },
 ];
 
@@ -191,7 +192,7 @@ export const MAPS3: GameMap[] = [
       { x: 390, y: 585, r: 36 }, { x: 500, y: 585, r: 36 }, { x: 640, y: 585, r: 36 },
       { x: 780, y: 585, r: 36 }, { x: 940, y: 585, r: 36 }, { x: 1100, y: 585, r: 36 },
     ],
-    theme: { bg1: '#150905', bg2: '#2c1308', path: '#3a1a0c', pathEdge: '#f07a2f' },
+    theme: standardMapTheme('foundry'),
   },
   {
     id: 'umbral',
@@ -210,7 +211,7 @@ export const MAPS3: GameMap[] = [
       { x: 600, y: 330, r: 150 },
       { x: 940, y: 350, r: 150 },
     ],
-    theme: { bg1: '#0a0614', bg2: '#190b28', path: '#22103a', pathEdge: '#8a5cff' },
+    theme: standardMapTheme('umbral'),
   },
   {
     id: 'cinder',
@@ -229,7 +230,7 @@ export const MAPS3: GameMap[] = [
       { x: 760, y: 410, r: 62 },
       { x: 1010, y: 120, r: 58 },
     ],
-    theme: { bg1: '#140a04', bg2: '#281408', path: '#34190a', pathEdge: '#d06a2a' },
+    theme: standardMapTheme('cinder'),
   },
 ];
 
