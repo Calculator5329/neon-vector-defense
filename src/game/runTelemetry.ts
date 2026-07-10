@@ -29,8 +29,9 @@ export const RUN_TELEMETRY_SCHEMA = 3;
  *      target_filter preferences that affect deterministic target selection.
  *  v5: Mirror Hull snapshots top damage type at spawn; Recalibrate clears
  *      adaptive resistance and weakens live Mirror Hull snapshots.
- *  v6: Gauntlet Protocol shortened wave tables, leg bank, and drafted relic setup. */
-export const REPLAY_ENGINE_VERSION = 6;
+ *  v6: Gauntlet Protocol shortened wave tables, leg bank, and drafted relic setup.
+ *  v7: deterministic between-wave bonus-round choices and shots. */
+export const REPLAY_ENGINE_VERSION = 7;
 export const RUN_EVENT_CHUNK_SIZE = 650;
 const FINAL_TOWER_DOC_CAP = 3;
 const IDLE_AFTER_S = 25;
@@ -117,6 +118,7 @@ export interface RunTelemetryState {
     leaks: number;
     abilitiesCast: number;
     cashEarned: number;
+    bonusSalvage: number;
   };
 }
 
@@ -874,6 +876,10 @@ export class RunRecorder {
     });
   }
 
+  recordBonusAction(state: RunTelemetryState, type: 'bonus_opt_in' | 'bonus_skip' | 'bonus_shot', payload: Record<string, unknown> = {}): void {
+    this.record(type, state, payload);
+  }
+
   recordBlueprint(state: RunTelemetryState, action: 'save' | 'apply', count: number): void {
     if (action === 'save') this.placement.blueprintSaves++;
     else {
@@ -934,6 +940,7 @@ export class RunRecorder {
       reason: reason ?? null,
       kills: state.totalKills,
       cashEarned: Math.round(state.runStats.cashEarned),
+      bonusSalvage: Math.max(0, Math.round(state.runStats.bonusSalvage)),
       leaks: state.runStats.leaks,
     });
     this.snapshot('run_end', state);

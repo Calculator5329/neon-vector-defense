@@ -202,7 +202,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   only", "no abilities", fixed loadout) generated date-seeded like Daily
   Challenge; own small leaderboard per drill using the existing
   replay-token path.
-- [ ] **Between-wave bonus round (opt-in).** 15-second target-shooting
+- [x] **Between-wave bonus round (opt-in).** *(done 2026-07-10)* 15-second target-shooting
   interlude for bonus Salvage — deterministic, seeded from the run, recorded
   in the replay action stream so verification still reproduces it.
 

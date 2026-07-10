@@ -116,6 +116,7 @@ export type RunOutcome = 'victory' | 'gameover' | 'abandoned';
 export interface RunRewardInput {
   wave: number; kills: number; cashEarned: number; won: boolean;
   freeplay: boolean; diffId: string; isDailyChallenge: boolean; outcome: RunOutcome; dailyId?: string;
+  bonusSalvage?: number;
 }
 export interface RunMetaReward { xp: number; salvage: number; breakdown: { label: string; xp: number; salvage: number }[]; }
 
@@ -132,6 +133,7 @@ export function deriveRunReward(input: RunRewardInput): RunMetaReward {
   add(`Wave ${input.wave}`, input.wave * 10 * mult, input.wave * 2);
   add(`${input.kills.toLocaleString()} hulls`, input.kills * 1 * mult, input.cashEarned / 200);
   if (input.won) add('Sector held', 250 * mult, 60);
+  if (input.bonusSalvage) add('Target practice', 0, Math.max(0, Math.floor(input.bonusSalvage)));
   const xp = breakdown.reduce((s, b) => s + b.xp, 0);
   const salvage = breakdown.reduce((s, b) => s + b.salvage, 0);
   return { xp: Math.round(xp), salvage: Math.round(salvage), breakdown };

@@ -55,6 +55,9 @@ export const REPLAY_ACTION_TYPES = new Set([
   'freeplay_risk_accept',
   'freeplay_risk_decline',
   'speed_change',
+  'bonus_opt_in',
+  'bonus_skip',
+  'bonus_shot',
 ]);
 
 // Construct + prime a Game from a recorded run's setup. This may apply embedded
@@ -360,6 +363,17 @@ function applyAction(game: Game, event: RunEvent): { ok: true } | { ok: false; r
     case 'speed_change': {
       game.speed = eventSpeed(event) ?? replaySpeed(game.speed);
       return { ok: true };
+    }
+    case 'bonus_opt_in':
+      settleBuildPhase(game, event);
+      return game.startBonusRound() ? { ok: true } : { ok: false, reason: 'bonus round opt-in failed' };
+    case 'bonus_skip':
+      settleBuildPhase(game, event);
+      return game.skipBonusRound() ? { ok: true } : { ok: false, reason: 'bonus round skip failed' };
+    case 'bonus_shot': {
+      const actual = game.shootBonusTarget(eventPos(event));
+      const expected = intField(event, 'targetId');
+      return actual === expected ? { ok: true } : { ok: false, reason: `bonus shot mismatch ${actual}` };
     }
     default:
       return { ok: true };

@@ -34,6 +34,9 @@ const ACTION_TYPES = [
   'freeplay_risk_accept',
   'freeplay_risk_decline',
   'speed_change',
+  'bonus_opt_in',
+  'bonus_skip',
+  'bonus_shot',
   'run_end',
 ] as const;
 
@@ -129,6 +132,14 @@ export function encodeReplayActions(events: RunEvent[], tables?: Partial<ReplayA
         break;
       case 'speed_change':
         data += enc(enumCode(SPEEDS, cleanSpeed(event.speed)));
+        break;
+      case 'bonus_opt_in':
+      case 'bonus_skip':
+        break;
+      case 'bonus_shot':
+        data += enc(signedToUInt(pos(event.x)));
+        data += enc(signedToUInt(pos(event.y)));
+        data += enc(typeof event.targetId === 'number' && event.targetId >= 0 ? Math.floor(event.targetId) + 1 : 0);
         break;
       case 'run_end':
         data += enc(enumCode(['victory', 'gameover', 'abandoned'] as const, str(event.outcome) || 'abandoned'));
@@ -255,6 +266,17 @@ export function decodeReplayActions(pack: ReplayActionPack | null | undefined, t
         event.speed = SPEEDS[speed] ?? 1;
         break;
       }
+      case 'bonus_opt_in':
+      case 'bonus_skip':
+        break;
+      case 'bonus_shot': {
+        const x = read(); const y = read(); const targetId = read();
+        if (x == null || y == null || targetId == null) return events;
+        event.x = uintToSigned(x) / 10;
+        event.y = uintToSigned(y) / 10;
+        event.targetId = targetId - 1;
+        break;
+      }
       case 'run_end': {
         const outcome = read();
         if (outcome == null) return events;
@@ -358,6 +380,14 @@ function normalizeActionEvent(event: RunEvent): RunEvent {
       break;
     case 'speed_change':
       out.speed = cleanSpeed(event.speed);
+      break;
+    case 'bonus_opt_in':
+    case 'bonus_skip':
+      break;
+    case 'bonus_shot':
+      out.x = pos(event.x) / 10;
+      out.y = pos(event.y) / 10;
+      out.targetId = typeof event.targetId === 'number' && event.targetId >= 0 ? Math.floor(event.targetId) : -1;
       break;
     case 'run_end':
       out.outcome = (['victory', 'gameover', 'abandoned'] as const)[enumCode(['victory', 'gameover', 'abandoned'] as const, str(event.outcome) || 'abandoned')];

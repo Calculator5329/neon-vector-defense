@@ -105,6 +105,19 @@ button {
   cursor: pointer;
 }
 
+.bonus-offer {
+  position: absolute; left: 50%; bottom: 72px; z-index: 24; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: rgba(8, 14, 34, .96); border: 1px solid var(--gold); border-radius: var(--r-md);
+  box-shadow: 0 0 18px rgba(255, 211, 42, .22); color: var(--text);
+}
+.bonus-offer b { color: var(--gold); }
+.bonus-offer button { background: var(--panel2); color: var(--text); border: 1px solid var(--edge); border-radius: 5px; padding: 5px 10px; }
+.bonus-round { position: absolute; inset: 0; z-index: 30; background: rgba(3, 8, 22, .76); overflow: hidden; }
+.bonus-round-head { position: absolute; z-index: 2; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px; padding: 8px 16px; border: 1px solid var(--gold); border-radius: var(--r-pill); background: var(--panel); color: var(--gold); font-variant-numeric: tabular-nums; }
+.bonus-target { position: absolute; width: 60px; height: 60px; transform: translate(-50%, -50%); border-radius: 50%; border: 4px solid var(--pink); background: radial-gradient(circle, var(--gold) 0 13%, transparent 15% 38%, var(--accent) 40% 48%, transparent 50%); box-shadow: 0 0 22px var(--pink); }
+.bonus-target:hover, .bonus-target:focus-visible { scale: 1.12; }
+
 .no-shift-counter {
   display: inline-block;
   min-width: var(--nvd-counter-width, auto);

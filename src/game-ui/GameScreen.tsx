@@ -352,11 +352,11 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
   // unlock modals must never stack on the briefing overlay
   const relicOfferOpen = game.phase === 'build' && game.freeplayState.nextRelicOffer.length > 0;
-  overlayRef.current = !briefed || contractOpen || relicOfferOpen;
+  overlayRef.current = !briefed || contractOpen || relicOfferOpen || game.bonusRound !== null;
   const terminalPhase = game.phase === 'gameover' || game.phase === 'victory';
   // cloakTip and the first-run coach are non-blocking, so they are
   // intentionally NOT part of blockingOverlay
-  const blockingOverlay = !briefed || unlockModal !== null || contractOpen || relicOfferOpen ||
+  const blockingOverlay = !briefed || unlockModal !== null || contractOpen || relicOfferOpen || game.bonusRound !== null ||
     terminalPhase;
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
@@ -715,6 +715,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           wave: game.wave, kills: game.totalKills, cashEarned: game.runStats.cashEarned,
           won: game.phase !== 'gameover', freeplay: game.freeplay, diffId: game.diff.id,
           isDailyChallenge: game.isDailyChallenge, dailyId: game.dailyMeta().daily || undefined, outcome: game.phase as 'victory' | 'gameover',
+          bonusSalvage: game.runStats.bonusSalvage,
         }, {
           towerKindsUsed: new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)]).size,
           abilitiesCast: game.runStats.abilitiesCast,
@@ -1403,8 +1404,35 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
             />
           )}
 
+          {game.bonusRoundOffered && !game.autoNext && (
+            <div className="bonus-offer" role="dialog" aria-label="Optional bonus round">
+              <b>SALVAGE SIGNAL</b>
+              <span>15-second target drill?</span>
+              <button onClick={() => { game.startBonusRound(); setTick((value) => value + 1); }}>PLAY</button>
+              <button onClick={() => { game.skipBonusRound(); setTick((value) => value + 1); }}>SKIP</button>
+            </div>
+          )}
+          {game.bonusRound && (
+            <div className="bonus-round" role="dialog" aria-label="Salvage target drill">
+              <div className="bonus-round-head">
+                <b>TARGET DRILL</b>
+                <span>{game.bonusRound.remaining.toFixed(1)}s</span>
+                <span>+{game.runStats.bonusSalvage} SALVAGE</span>
+              </div>
+              {game.bonusRound.targets.map((target) => (
+                <button
+                  key={target.id}
+                  className="bonus-target"
+                  aria-label={`Target ${target.id + 1}`}
+                  style={{ left: `${target.x / W * 100}%`, top: `${target.y / H * 100}%` }}
+                  onClick={() => { game.shootBonusTarget(target); setTick((value) => value + 1); }}
+                />
+              ))}
+            </div>
+          )}
+
           {game.phase === 'build' && (
-            <button className="wave-btn" data-testid="launch-wave" disabled={relicOfferOpen} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
+            <button className="wave-btn" data-testid="launch-wave" disabled={relicOfferOpen || game.bonusRound !== null} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
               ▶ LAUNCH WAVE {game.wave + 1}
             </button>
           )}

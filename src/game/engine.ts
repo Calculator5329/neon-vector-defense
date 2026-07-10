@@ -68,6 +68,13 @@ import {
   gauntletProtocolWaveCount,
   type GauntletProtocolLeg,
 } from './gauntletProtocol';
+import {
+  BONUS_ROUND_SECONDS,
+  BONUS_SALVAGE_PER_HIT,
+  BONUS_TARGET_RADIUS,
+  bonusTargets,
+  type BonusRoundState,
+} from './bonusRound';
 
 export const W = 1280;
 export const H = 720;
@@ -248,7 +255,47 @@ export class Game {
     leaks: 0,
     abilitiesCast: 0,
     cashEarned: 0,
+    bonusSalvage: 0,
   };
+
+  bonusRound: BonusRoundState | null = null;
+  private bonusDecidedWaves = new Set<number>();
+
+  get bonusRoundOffered(): boolean {
+    return this.phase === 'build' && this.wave > 0 && !this.freeplay && !this.bonusDecidedWaves.has(this.wave);
+  }
+
+  startBonusRound(): boolean {
+    if (!this.bonusRoundOffered) return false;
+    this.bonusDecidedWaves.add(this.wave);
+    this.bonusRound = { wave: this.wave, remaining: BONUS_ROUND_SECONDS, targets: bonusTargets(this.seed, this.wave), hits: 0 };
+    this.recorder.recordBonusAction(this.telemetryState(), 'bonus_opt_in');
+    return true;
+  }
+
+  skipBonusRound(): boolean {
+    if (!this.bonusRoundOffered) return false;
+    this.bonusDecidedWaves.add(this.wave);
+    this.recorder.recordBonusAction(this.telemetryState(), 'bonus_skip');
+    return true;
+  }
+
+  shootBonusTarget(pos: Vec): number | null {
+    if (!this.bonusRound || this.bonusRound.remaining <= 0) return null;
+    const target = this.bonusRound.targets.find((item) => Math.hypot(item.x - pos.x, item.y - pos.y) <= BONUS_TARGET_RADIUS);
+    if (target) {
+      this.bonusRound.targets = this.bonusRound.targets.filter((item) => item !== target);
+      this.bonusRound.hits++;
+      this.runStats.bonusSalvage += BONUS_SALVAGE_PER_HIT;
+    }
+    this.recorder.recordBonusAction(this.telemetryState(), 'bonus_shot', {
+      x: Math.round(pos.x * 10) / 10,
+      y: Math.round(pos.y * 10) / 10,
+      targetId: target?.id ?? -1,
+    });
+    if (this.bonusRound.targets.length === 0) this.bonusRound.remaining = 0;
+    return target?.id ?? -1;
+  }
 
   readonly recorder: RunRecorder;
 
@@ -966,6 +1013,10 @@ export class Game {
 
   startWave() {
     if (this.phase !== 'build') return;
+    if (this.bonusRound) return;
+    // Launching is the default-skip path. Auto-next and replay therefore never
+    // pause for an unrecorded interlude.
+    if (this.bonusRoundOffered) this.skipBonusRound();
     this.waveStartTotalKills = this.baseKills + this.totalKills;
     this.wave++;
     this.phase = 'wave';
@@ -1634,6 +1685,12 @@ export class Game {
 
   private tick(dt: number) {
     this.time += dt;
+
+    if (this.bonusRound) {
+      this.bonusRound.remaining = Math.max(0, this.bonusRound.remaining - dt / Math.max(1, this.speed));
+      if (this.bonusRound.remaining <= 0) this.bonusRound = null;
+      return;
+    }
 
     // Pickups expire in real time relative to the selected speed, but the work
     // happens inside the fixed tick so replay results never depend on frame
