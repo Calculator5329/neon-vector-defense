@@ -6,6 +6,7 @@ import { needsAgeGate } from './game/consent';
 import { buildAIHelpContext } from './game/aiContext';
 import { appMetrics } from './game/metrics';
 import { dailyChallenge, dailyChallengeSignature, loadRemoteDailyOverride } from './game/dailyChallenge';
+import { protocolDrills, type ProtocolDrill } from './game/protocolDrills';
 import {
   loadRemoteWeeklyGauntlet,
   loadRemoteWeeklyOverride,
@@ -97,10 +98,11 @@ function Main() {
     DIFFICULTIES.find((d) => d.id === PERF_PARAMS.get('diff'))
     ?? (progress.record.runs < 1 ? DIFFICULTIES[0] : DIFFICULTIES[1]));
   const [dailySeed, setDailySeed] = useState(() => dailyChallenge());
+  const [drillSeed, setDrillSeed] = useState<ProtocolDrill | null>(null);
   const [weeklySeed, setWeeklySeed] = useState(() => weeklyChallenge());
   const [gauntlet, setGauntlet] = useState<WeeklyGauntletDoc | null>(null);
   const [gauntletProtocolRoute, setGauntletProtocolRoute] = useState(() => gauntletProtocolRouteForWeek());
-  const [runMode, setRunMode] = useState<'campaign' | 'daily' | 'weekly' | 'gauntlet' | 'gauntletProtocol'>('campaign');
+  const [runMode, setRunMode] = useState<'campaign' | 'daily' | 'drill' | 'weekly' | 'gauntlet' | 'gauntletProtocol'>('campaign');
   const [comeback, setComeback] = useState(false);
   const [staleBuild, setStaleBuild] = useState(false);
   useEffect(() => {
@@ -177,6 +179,15 @@ function Main() {
     portal.gameplayStart();
     setScreen('game');
   };
+  const startDrill = (drill: ProtocolDrill) => {
+    setDrillSeed(drill);
+    setMap(ALL_MAPS.find((m) => m.id === drill.mapId) ?? MAPS[0]);
+    setDiff(DIFFICULTIES.find((d) => d.id === drill.diffId) ?? DIFFICULTIES[1]);
+    setRunMode('drill');
+    sfx.click();
+    portal.gameplayStart();
+    setScreen('game');
+  };
   const startWeekly = () => {
     appMetrics.recordDeployAttempt(weeklySeed.mapId, weeklySeed.diffId, true);
     setMap(ALL_MAPS.find((m) => m.id === weeklySeed.mapId) ?? MAPS[0]);
@@ -216,11 +227,11 @@ function Main() {
       {screen === 'menu'
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
             dailySeed={dailySeed} weeklySeed={weeklySeed} gauntlet={gauntlet} gauntletProtocol={gauntletProtocolRoute}
-            onStart={startCampaign} onStartDaily={startDaily} onStartWeekly={startWeekly} onStartGauntlet={startGauntlet} onStartGauntletProtocol={startGauntletProtocol} />
+            drills={protocolDrills()} onStart={startCampaign} onStartDaily={startDaily} onStartDrill={startDrill} onStartWeekly={startWeekly} onStartGauntlet={startGauntlet} onStartGauntletProtocol={startGauntletProtocol} />
         : <GameScreen
             map={map}
             diff={diff}
-            dailySeed={runMode === 'daily' ? dailySeed : null}
+            dailySeed={runMode === 'daily' ? dailySeed : runMode === 'drill' ? drillSeed : null}
             weeklySeed={runMode === 'weekly' ? weeklySeed : null}
             gauntlet={runMode === 'gauntlet' ? gauntlet : null}
             gauntletProtocol={runMode === 'gauntletProtocol' ? gauntletProtocolRoute : null}

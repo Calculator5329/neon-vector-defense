@@ -18,7 +18,7 @@ import { actionHash, decodeReplayActionBundle, type ReplayActionPack } from './r
 
 const VALID_MAPS = new Set(ALL_MAPS.map((m) => m.id));
 const VALID_DIFFS = new Set(DIFFICULTIES.map((d) => d.id));
-const DAILY_BOARD_RE = /^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const DAILY_BOARD_RE = /^(?:daily-[0-9]{4}-[0-9]{2}-[0-9]{2}|drill-[0-9]{4}-[0-9]{2}-[0-9]{2}-(?:slows-only|no-abilities|fixed-loadout))$/;
 const WEEKLY_BOARD_RE = /^weekly-[0-9]{4}-W[0-9]{2}$/;
 const LEADERBOARD_CACHE_TTL_MS = 30_000;
 const REPLAY_TOKEN_KEY = 'nvd-replay-tokens-v1';
@@ -133,6 +133,9 @@ export function boardId(mapId: string, diffId: string, freeplay: boolean): strin
 export function dailyBoardId(dailyId: string): string {
   return DAILY_BOARD_RE.test(dailyId) ? dailyId : '';
 }
+
+/** Protocol drills intentionally share the replay-token-backed daily board path. */
+export const protocolDrillBoardId = dailyBoardId;
 
 export function weeklyBoardId(weeklyId: string): string {
   return WEEKLY_BOARD_RE.test(weeklyId) ? weeklyId : '';
@@ -384,6 +387,8 @@ export async function submitDailyScore(dailyId: string, entry: ScoreEntry): Prom
   }
   return false;
 }
+
+export const submitProtocolDrillScore = submitDailyScore;
 
 export async function submitWeeklyScore(weeklyId: string, entry: ScoreEntry): Promise<boolean> {
   if (!canSubmitScore()) return false;
@@ -1024,6 +1029,8 @@ export async function fetchDailyTop(dailyId: string, limit = 10): Promise<ScoreE
     return [];
   }
 }
+
+export const fetchProtocolDrillTop = fetchDailyTop;
 
 export async function fetchWeeklyTop(weeklyId: string, limit = 10): Promise<ScoreEntry[]> {
   return fetchRitualTop('weeklyBoards', weeklyId, 'weekly', limit);

@@ -60,6 +60,7 @@ import {
   dailyTowerIds as challengeTowerIds,
   type DailyChallenge,
 } from './dailyChallenge';
+import { protocolDrillForId } from './protocolDrills';
 import { weeklyChallenge, weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from './weeklyChallenge';
 import {
   gauntletProtocolRelics,
@@ -321,7 +322,7 @@ export class Game {
   freeplay = false;
   freeplayState: FreeplayState = createFreeplayState();
   dailyChallenge: DailyChallenge | null = null;
-  private challengeMode: 'daily' | 'weekly' | null = null;
+  private challengeMode: 'daily' | 'weekly' | 'drill' | null = null;
   gauntletChallenge: WeeklyGauntletDoc | null = null;
   gauntletProtocol: GauntletProtocolLeg | null = null;
   dailyTowerIds: Set<string> | null = null;
@@ -380,6 +381,10 @@ export class Game {
 
   get isWeeklyChallenge(): boolean {
     return this.challengeMode === 'weekly';
+  }
+
+  get isProtocolDrill(): boolean {
+    return this.challengeMode === 'drill';
   }
 
   get isGauntletChallenge(): boolean {
@@ -474,7 +479,7 @@ export class Game {
     this.phase = 'build';
     this.wave = 0;
     this.dailyChallenge = challenge;
-    this.challengeMode = 'daily';
+    this.challengeMode = protocolDrillForId(challenge.id) ? 'drill' : 'daily';
     this.recorder.setDailyChallenge(challenge);
     this.dailyTowerIds = dailyChallengeTowerSet(challenge);
     this.recorder.setAvailableTowerIds([...this.dailyTowerIds]);
@@ -630,10 +635,11 @@ export class Game {
   dailyMeta() {
     const challenge = this.dailyChallenge;
     const weekly = this.challengeMode === 'weekly';
+    const drill = this.challengeMode === 'drill';
     return {
       daily: !weekly ? challenge?.id ?? '' : '',
       weekly: weekly ? challenge?.id ?? '' : '',
-      label: weekly ? 'Weekly Mutation' : 'Daily Challenge',
+      label: weekly ? 'Weekly Mutation' : drill ? 'Protocol Drill' : 'Daily Challenge',
       modifiers: challenge ? (weekly ? weeklyModifierNames(challenge as WeeklyChallenge) : dailyModifierNames(challenge)) : [],
       summary: challenge ? (weekly ? weeklyModifierNames(challenge as WeeklyChallenge) : dailyModifierNames(challenge)).join(' / ') : '',
       arsenal: challenge?.arsenal.name ?? '',
@@ -1493,6 +1499,7 @@ export class Game {
   // ---------- commander abilities ----------
 
   abilityReady(id: AbilityId): boolean {
+    if (this.dailyChallenge && protocolDrillForId(this.dailyChallenge.id)?.noAbilities) return false;
     const a = this.abilities.find((x) => x.def.id === id)!;
     const dailyRecharge = this.dailyChallenge?.boon.freeAbilityRecharge && !this.dailyAbilityRechargeUsed;
     return this.wave >= a.def.unlockWave && (a.cd <= 0 || !!dailyRecharge);
@@ -1707,7 +1714,8 @@ export class Game {
           vox('archive');
         }
       });
-      const finalWave = this.gauntletProtocol ? gauntletProtocolWaveCount(this.gauntletProtocol.leg) : this.diff.waves;
+      const drillWaves = this.dailyChallenge ? protocolDrillForId(this.dailyChallenge.id)?.maxWaves : undefined;
+      const finalWave = this.gauntletProtocol ? gauntletProtocolWaveCount(this.gauntletProtocol.leg) : drillWaves ?? this.diff.waves;
       if (this.wave >= finalWave && !this.freeplay) {
         this.phase = 'victory';
         if (this.campaignProgressEnabled()) progress.recordWave(this.map.id, this.diff.id, this.wave);

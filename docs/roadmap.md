@@ -198,7 +198,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   join the replay manifest before any shared-map leaderboard exists).
 
 ### Mini-games (reuse Daily/Gauntlet infrastructure)
-- [ ] **Protocol Drills.** Short single-mechanic challenges (e.g. "slows
+- [x] **Protocol Drills.** *(done 2026-07-10)* Short single-mechanic challenges (e.g. "slows
   only", "no abilities", fixed loadout) generated date-seeded like Daily
   Challenge; own small leaderboard per drill using the existing
   replay-token path.

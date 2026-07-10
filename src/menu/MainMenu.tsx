@@ -6,6 +6,7 @@ import { ENEMY_LIST } from '../game/enemies';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
 import { dailyModifierNames, type DailyChallenge } from '../game/dailyChallenge';
+import type { ProtocolDrill } from '../game/protocolDrills';
 import { weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from '../game/weeklyChallenge';
 import type { GauntletProtocolRoute } from '../game/gauntletProtocol';
 import { fetchReplayOfTheDay, type ReplaySpotlight } from '../game/replaySpotlight';
@@ -23,7 +24,7 @@ import { IS_PORTAL_BUILD } from '../game/portal';
 
 // ---------------- Main menu ----------------
 
-type DeployMode = 'campaign' | 'daily' | 'weekly' | 'gauntlet' | 'gauntletProtocol';
+type DeployMode = 'campaign' | 'daily' | 'drill' | 'weekly' | 'gauntlet' | 'gauntletProtocol';
 
 const ATLAS_POS: Record<string, [number, number]> = {
   orbital: [8, 34],
@@ -207,6 +208,9 @@ function SectorAtlas(props: {
   deployMode: DeployMode;
   setDeployMode: (mode: DeployMode) => void;
   dailySeed: DailyChallenge;
+  drills: ProtocolDrill[];
+  selectedDrill: ProtocolDrill;
+  setSelectedDrill: (drill: ProtocolDrill) => void;
   weeklySeed: WeeklyChallenge;
   gauntlet: WeeklyGauntletDoc | null;
   gauntletProtocol: GauntletProtocolRoute;
@@ -451,6 +455,18 @@ function SectorAtlas(props: {
             <span className="diff-name">DAILY CHALLENGE</span>
             <span className="diff-desc daily-card-mods">{dailyMods.join(' / ')}</span>
           </button>
+          <div className="protocol-drills" aria-label="Protocol Drills">
+            {props.drills.map((drill) => (
+              <button key={drill.id}
+                className={`diff-card atlas-protocol-row daily-protocol ${props.deployMode === 'drill' && props.selectedDrill.id === drill.id ? 'active' : ''}`}
+                data-testid={`diff-card-${drill.drillType}`}
+                title={drill.rules.join('\n')}
+                onClick={() => { props.setSelectedDrill(drill); props.setDeployMode('drill'); sfx.click(); }}>
+                <span className="diff-name">{drill.title.split(' ')[0]} DRILL</span>
+                <span className="diff-desc">{drill.arsenal.desc} · {drill.maxWaves} waves</span>
+              </button>
+            ))}
+          </div>
           <WeeklyOpsSection
             weeklySeed={props.weeklySeed}
             gauntlet={props.gauntlet}
@@ -470,17 +486,20 @@ export function MainMenu(props: {
   map: GameMap; diff: DifficultyDef;
   setMap: (m: GameMap) => void; setDiff: (d: DifficultyDef) => void;
   dailySeed: DailyChallenge;
+  drills: ProtocolDrill[];
   weeklySeed: WeeklyChallenge;
   gauntlet: WeeklyGauntletDoc | null;
   gauntletProtocol: GauntletProtocolRoute;
   onStart: () => void;
   onStartDaily: () => void;
+  onStartDrill: (drill: ProtocolDrill) => void;
   onStartWeekly: () => void;
   onStartGauntlet: () => void;
   onStartGauntletProtocol: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
   const [deployMode, setDeployMode] = useState<DeployMode>('campaign');
+  const [selectedDrill, setSelectedDrill] = useState(props.drills[0]);
   const [, bumpClaim] = useState(0); // re-read meta.claimableCount() for the nav badge after a claim
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -490,7 +509,7 @@ export function MainMenu(props: {
   const apexLocked = !DEMO_MODE && progress.record.victories < 1;
   const firstTime = !DEMO_MODE && progress.record.runs < 1;
   const gauntletProtocolUnlocked = DEMO_MODE || progress.record.victories >= 1;
-  const selectedUnlocked = deployMode === 'daily' || deployMode === 'weekly' || deployMode === 'gauntlet'
+  const selectedUnlocked = deployMode === 'daily' || deployMode === 'drill' || deployMode === 'weekly' || deployMode === 'gauntlet'
     || (deployMode === 'gauntletProtocol' && gauntletProtocolUnlocked)
     || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
@@ -591,6 +610,9 @@ export function MainMenu(props: {
             deployMode={deployMode}
             setDeployMode={setDeployMode}
             dailySeed={props.dailySeed}
+            drills={props.drills}
+            selectedDrill={selectedDrill}
+            setSelectedDrill={setSelectedDrill}
             weeklySeed={props.weeklySeed}
             gauntlet={props.gauntlet}
             gauntletProtocol={props.gauntletProtocol}
@@ -624,6 +646,8 @@ export function MainMenu(props: {
             <span className="dbar-label">DEPLOYING TO</span>
             <span className="dbar-sec">{deployMode === 'daily'
               ? (ALL_MAPS.find((m) => m.id === props.dailySeed.mapId)?.name ?? props.dailySeed.mapId)
+              : deployMode === 'drill'
+                ? (ALL_MAPS.find((m) => m.id === selectedDrill.mapId)?.name ?? selectedDrill.mapId)
               : deployMode === 'weekly'
                 ? (ALL_MAPS.find((m) => m.id === props.weeklySeed.mapId)?.name ?? props.weeklySeed.mapId)
                 : deployMode === 'gauntlet' && props.gauntlet
@@ -634,6 +658,8 @@ export function MainMenu(props: {
             <span className="dbar-dot">·</span>
             <span className="dbar-diff">{deployMode === 'daily'
               ? 'DAILY CHALLENGE'
+              : deployMode === 'drill'
+                ? selectedDrill.title.toUpperCase()
               : deployMode === 'weekly'
                 ? 'WEEKLY MUTATION'
                 : deployMode === 'gauntlet'
@@ -647,6 +673,8 @@ export function MainMenu(props: {
               if (deployMode === 'daily') {
                 appMetrics.recordDeployAttempt(props.dailySeed.mapId, props.dailySeed.diffId, true);
                 props.onStartDaily();
+              } else if (deployMode === 'drill') {
+                props.onStartDrill(selectedDrill);
               } else if (deployMode === 'weekly') {
                 appMetrics.recordDeployAttempt(props.weeklySeed.mapId, props.weeklySeed.diffId, true);
                 props.onStartWeekly();
@@ -661,6 +689,8 @@ export function MainMenu(props: {
             }}>
             {deployMode === 'daily'
               ? '▶ DAILY CHALLENGE'
+              : deployMode === 'drill'
+                ? '▶ START DRILL'
               : deployMode === 'weekly'
                 ? '▶ WEEKLY MUTATION'
                 : deployMode === 'gauntlet'

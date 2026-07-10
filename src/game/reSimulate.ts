@@ -1,5 +1,6 @@
 import { balanceDocSnapshot, balanceVersion, setBalanceDoc as applyBalanceDoc } from './balanceConfig';
 import { dailyChallengeForId } from './dailyChallenge';
+import { protocolDrillForId } from './protocolDrills';
 import { Game } from './engine';
 import { ALL_MAPS, DIFFICULTIES } from './maps';
 import { resolveReplayMap } from './mapVersions';
@@ -117,7 +118,9 @@ export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: st
     }
     game.startWeeklyChallenge(challenge);
   } else if (run.summary.daily || run.setup.daily) {
-    const challenge = run.setup.daily ?? (run.summary.daily ? dailyChallengeForId(run.summary.daily) : null);
+    const challengeId = run.summary.daily ?? run.setup.daily?.id ?? '';
+    const canonicalDrill = protocolDrillForId(challengeId);
+    const challenge = canonicalDrill ?? run.setup.daily ?? (run.summary.daily ? dailyChallengeForId(run.summary.daily) : null);
     if (!challenge) return { error: `unsupported daily id ${run.summary.daily}` };
     if (challenge.mapId !== map.id || challenge.diffId !== diff.id) {
       return { error: 'daily challenge does not match replay setup' };
