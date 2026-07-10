@@ -327,6 +327,8 @@ export const meta = {
   equip(slot: string, id: string) { cache.cosmeticEquipped[slot] = id; save(); },
   get equippedPalette(): string { return cache.cosmeticEquipped['accent'] ?? 'standard'; },
   get equippedMapTheme(): string { return cache.cosmeticEquipped['map-theme'] ?? 'standard'; },
+  /** Local viewer paint; deliberately absent from run/replay state. */
+  get equippedSignalSkin(): string { return cache.cosmeticEquipped['signal-skin'] ?? 'standard'; },
 
   reset() { cache = fresh(); save(); },
 };

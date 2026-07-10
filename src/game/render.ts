@@ -2,6 +2,7 @@ import type { DamageType, Enemy, EnemyDef, GameMap, Pickup, Tower, TowerDef, Vec
 import { Game, W, H } from './engine';
 import { BULWARK_RADIUS, ELITE_AFFIX_META } from './eliteAffixes';
 import { displayedMapTheme } from './mapThemes';
+import { displayedCosmeticSet, type CosmeticSet } from './cosmeticSets';
 import { meta } from './meta';
 
 // ============================================================
@@ -1037,8 +1038,9 @@ function drawTower(ctx: CanvasRenderingContext2D, t: Tower, time: number, select
 // shadowBlur pass + 3-5 gradient allocations PER TOWER PER FRAME, the single biggest
 // fixed render cost. Bake it once per visual variant and blit it instead.
 const platformCache = new Map<string, HTMLCanvasElement>();
-function towerPlatform(def: TowerDef, ascended: boolean, powered: boolean, overdriven: boolean): HTMLCanvasElement {
-  const key = `${def.id}|${ascended ? 1 : 0}|${powered ? 1 : 0}|${overdriven ? 1 : 0}`;
+function towerPlatform(def: TowerDef, ascended: boolean, powered: boolean, overdriven: boolean, skinId: string): HTMLCanvasElement {
+  // The paint id is essential: otherwise changing skins can reuse the old baked hull.
+  const key = `${def.id}|${ascended ? 1 : 0}|${powered ? 1 : 0}|${overdriven ? 1 : 0}|${skinId}`;
   let s = platformCache.get(key);
   if (s) return s;
   s = makeSprite(72, (c) => {
@@ -1098,6 +1100,10 @@ export function drawTowerBody(
   ctx: CanvasRenderingContext2D, pos: Vec, def: TowerDef,
   angle: number, tierA: number, tierB: number, alpha = 1, flash = 0, time = 0, recoil = 0, overdriven = false,
 ) {
+  const skin = displayedCosmeticSet();
+  if (skin.towerBody || skin.towerGlow) {
+    def = { ...def, color: skin.towerBody ?? def.color, glow: skin.towerGlow ?? def.glow };
+  }
   const ascended = tierA >= 5 || tierB >= 5; // bonus tiers transform the whole instrument
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -1105,7 +1111,7 @@ export function drawTowerBody(
 
   // base platform — cached sprite (replaces a per-frame shadowBlur + 3 gradients/tower)
   const powered = tierA + tierB >= 6 || ascended;
-  const plat = towerPlatform(def, ascended, powered, overdriven);
+  const plat = towerPlatform(def, ascended, powered, overdriven, skin.id);
   const pdim = plat.width / SS;
   ctx.drawImage(plat, -pdim / 2, -pdim / 2, pdim, pdim);
 
@@ -2045,7 +2051,9 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, game: Game) {
   // additive blending gives the glow; no shadowBlur, no per-projectile gradients
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
+  const skin = displayedCosmeticSet();
   for (const p of game.projectiles) {
+    const color = skin.projectileColor ?? p.color;
     const ang = Math.atan2(p.vel.y, p.vel.x);
     ctx.save();
     ctx.translate(p.pos.x, p.pos.y);
@@ -2054,14 +2062,14 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, game: Game) {
       ctx.fillStyle = '#d8dff0';
       path(ctx, [[7, 0], [3, -2.6], [-4, -2.6], [-6, 0], [-4, 2.6], [3, 2.6]]);
       ctx.fill();
-      ctx.fillStyle = p.color;
+      ctx.fillStyle = color;
       path(ctx, [[-4, -2.6], [-8, -4.5], [-6, 0], [-8, 4.5], [-4, 2.6], [-6, 0]]);
       ctx.fill();
-      ctx.fillStyle = withAlphaCss('#ffb86c', 0.55);
-      path(ctx, [[-6, -1.8], [-16, 0], [-6, 1.8]]);
+      ctx.fillStyle = withAlphaCss(color, 0.55);
+      path(ctx, projectileTrailPath(skin, -6, 1.8));
       ctx.fill();
     } else if (p.kind === 'drone') {
-      ctx.fillStyle = withAlphaCss(p.color, 0.82);
+      ctx.fillStyle = withAlphaCss(color, 0.82);
       path(ctx, [[8, 0], [-4, -4.5], [-1, 0], [-4, 4.5]]);
       ctx.fill();
       ctx.fillStyle = withAlphaCss('#ffffff', 0.72);
@@ -2069,8 +2077,8 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, game: Game) {
       ctx.fill();
     } else {
       // energy bolt: colored tail + white core
-      ctx.fillStyle = withAlphaCss(p.color, 0.7);
-      path(ctx, [[7, 0], [1, -2.1], [-14, 0], [1, 2.1]]);
+      ctx.fillStyle = withAlphaCss(color, 0.7);
+      path(ctx, projectileTrailPath(skin, 7, 2.1));
       ctx.fill();
       ctx.fillStyle = withAlphaCss('#ffffff', 0.8);
       path(ctx, [[7, 0], [2, -1], [-5, 0], [2, 1]]);
@@ -2079,6 +2087,15 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, game: Game) {
     ctx.restore();
   }
   ctx.restore();
+}
+
+function projectileTrailPath(skin: CosmeticSet, nose: number, width: number): [number, number][] {
+  const direction = nose < 0 ? -1 : 1;
+  const tip = nose < 0 ? nose : -14;
+  if (skin.projectileTrail === 'flare') return [[nose, -width], [tip - direction * 7, 0], [nose, width]];
+  if (skin.projectileTrail === 'ribbon') return [[nose, -width], [tip, -width * 0.45], [tip - direction * 4, width * 0.45], [nose, width]];
+  if (skin.projectileTrail === 'echo') return [[nose, -width], [tip, 0], [nose, width], [nose - direction * 5, 0]];
+  return [[nose, -width], [tip, 0], [nose, width]];
 }
 
 function drawBeams(ctx: CanvasRenderingContext2D, game: Game) {
@@ -2105,11 +2122,14 @@ function drawParticles(ctx: CanvasRenderingContext2D, game: Game) {
   ctx.globalCompositeOperation = 'lighter';
   ctx.textAlign = 'center';
   ctx.font = 'bold 10px Rajdhani, sans-serif';
+  const impactColor = displayedCosmeticSet().impactParticle;
   for (const pt of game.particles) {
     const a = pt.life / pt.maxLife;
+    // Text communicates combat state and smoke conveys status; rings/sparks are impact paint.
+    const color = impactColor && pt.kind !== 'text' && pt.kind !== 'smoke' ? impactColor : pt.color;
     if (pt.kind === 'ring') {
       ctx.globalAlpha = a;
-      ctx.strokeStyle = pt.color;
+      ctx.strokeStyle = color;
       ctx.lineWidth = 2.5;
       circle(ctx, pt.pos.x, pt.pos.y, pt.size * (1.45 - a * 0.95));
       ctx.stroke();
@@ -2119,16 +2139,16 @@ function drawParticles(ctx: CanvasRenderingContext2D, game: Game) {
       ctx.stroke();
     } else if (pt.kind === 'text') {
       ctx.globalAlpha = a;
-      ctx.fillStyle = pt.color;
+      ctx.fillStyle = color;
       ctx.fillText(pt.text ?? '', pt.pos.x, pt.pos.y);
     } else if (pt.kind === 'smoke') {
       ctx.globalAlpha = a * 0.35;
-      ctx.fillStyle = pt.color;
+      ctx.fillStyle = color;
       circle(ctx, pt.pos.x, pt.pos.y, pt.size * (2.2 - a));
       ctx.fill();
     } else {
       ctx.globalAlpha = a;
-      ctx.fillStyle = pt.color;
+      ctx.fillStyle = color;
       ctx.fillRect(pt.pos.x - pt.size / 2, pt.pos.y - pt.size / 2, pt.size, pt.size);
     }
   }

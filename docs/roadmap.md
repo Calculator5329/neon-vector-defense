@@ -172,7 +172,7 @@ unlock thresholds** — and is sequenced so items sell through Salvage today and
 flip to real entitlements when the Monetization MVP (priority #2) lands.
 
 ### Cosmetics (extend the existing `palette.ts` pattern)
-- [ ] **Signal Skins — towers & projectiles.** Generalize `AccentPalette` into
+- [x] **Signal Skins — towers & projectiles.** *(done 2026-07-10)* Generalize `AccentPalette` into
   a `CosmeticSet` (tower body/glow, projectile trail, impact particles) with a
   registry like `PALETTES[]`, Salvage-priced tiers, applied purely in
   `render.ts` lookups; replay playback renders the *viewer's* skin, never the
