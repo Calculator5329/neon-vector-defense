@@ -161,7 +161,66 @@ Last updated: 2026-07-05 (campaign expanded to 12 sectors)
 - [x] Production deploy hardening checks
 - [x] Build-tag reload toast (conservative shell precache retained by design)
 - [x] CrazyGames/Poki SDK adapter and portal build flavors
-- [ ] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
+- [ ] [ETHAN] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
+
+## Customization & paid-features backlog (added 2026-07-10)
+
+Owner direction: build out skins, maps, mini-games, and customization as the
+future paid surface. Everything here obeys the Guardrails below — **cosmetic /
+content / QoL only, never touching combat stats, score math, bot plans, or
+unlock thresholds** — and is sequenced so items sell through Salvage today and
+flip to real entitlements when the Monetization MVP (priority #2) lands.
+
+### Cosmetics (extend the existing `palette.ts` pattern)
+- [ ] **Signal Skins — towers & projectiles.** Generalize `AccentPalette` into
+  a `CosmeticSet` (tower body/glow, projectile trail, impact particles) with a
+  registry like `PALETTES[]`, Salvage-priced tiers, applied purely in
+  `render.ts` lookups; replay playback renders the *viewer's* skin, never the
+  runner's, so replays stay verification-identical.
+- [ ] **Map theme packs.** The per-map `theme` block (`bg1/bg2/path/pathEdge`)
+  becomes selectable: ship 3–4 alternate themes per sector (e.g. Ember,
+  Glacier, Void) as pure palette swaps on existing maps.
+- [ ] **HQ/base customization.** Player-chosen core visual (shape shader +
+  idle animation + death effect) from a cosmetic registry; visible in replays
+  via manifest-carried cosmetic ids (display-only metadata, excluded from
+  `actionHash`).
+- [ ] **Victory/defeat flourishes.** Purchasable end-of-run effects (particle
+  bursts, banner styles) — pure UI layer.
+
+### Maps & content
+- [ ] **Map pack: Sectors 13–16.** Four new `GameMap` entries exercising
+  underused mechanics (multi-entrance paths, narrow pathWidth, heavy blocker
+  fields); versioned in `mapVersions.ts`; balance-CI gate must pass.
+- [ ] **Custom-map format + local editor (foundation for UGC).** Schema-
+  validated JSON (same shape as `MAPS[]` entries + version hash), a dev-mode
+  editor screen for path/blocker painting, local-only play. Sharing/upload is
+  a LATER step gated on moderation + replay-integrity design (map hash must
+  join the replay manifest before any shared-map leaderboard exists).
+
+### Mini-games (reuse Daily/Gauntlet infrastructure)
+- [ ] **Protocol Drills.** Short single-mechanic challenges (e.g. "slows
+  only", "no abilities", fixed loadout) generated date-seeded like Daily
+  Challenge; own small leaderboard per drill using the existing
+  replay-token path.
+- [ ] **Between-wave bonus round (opt-in).** 15-second target-shooting
+  interlude for bonus Salvage — deterministic, seeded from the run, recorded
+  in the replay action stream so verification still reproduces it.
+
+### Monetization scaffolding (sequence-gated)
+- [ ] [ETHAN] **Account upgrade path.** Anonymous Auth → linked account
+  (email/Google) preserving uid + Salvage + cosmetics; required before any
+  real-money purchase (entitlements must key to an authenticated uid —
+  priority #2's own rule).
+- [ ] **Entitlement model (server-side).** Firestore `entitlements/{uid}`
+  written only by Cloud Functions, read by the client cosmetic registry;
+  Salvage purchases and (later) Stripe purchases both funnel through it —
+  one grant path, auditable.
+- [ ] [ETHAN] **Stripe MVP** (already a launch-gate item in the business
+  plan): web checkout for cosmetic bundles + supporter pack; webhooks →
+  entitlement grants; no gameplay advantage, ever.
+- [ ] **Seasonal cosmetic track ("Recovered-Signal Pass" v1).** Time-boxed
+  cosmetic unlock ladder fed by existing quest/streak meta — free tier +
+  premium tier (entitlement-gated); zero gameplay deltas, per Guardrails.
 
 ## Guardrails
 
