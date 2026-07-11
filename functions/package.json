@@ -9,6 +9,7 @@
   "scripts": {
     "prebuild": "node ../scripts/bundle-resim.mjs",
     "build": "tsc",
+    "test": "npm run build && node --test test/*.test.mjs",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",

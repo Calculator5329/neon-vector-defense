@@ -41,6 +41,7 @@ import {
   type ReSimResult,
 } from './generated/reSimulate.js';
 import { validateReplayManifest, type ReplayChunkInput } from './replayIntegrity.js';
+import { applySalvagePurchase, readEntitlementState } from './entitlementHelpers.js';
 import {
   canonicalLeaderboardCash,
   feedbackTokenHash,
@@ -660,6 +661,97 @@ interface FeedbackRepliesResult {
   replies: FeedbackReplyRow[];
 }
 
+interface EntitlementPurchaseResult {
+  granted: boolean;
+  alreadyOwned: boolean;
+  cosmeticIds: string[];
+  salvageBalance: number;
+}
+
+const ENTITLEMENT_REQUEST_RE = /^[A-Za-z0-9_-]{8,80}$/;
+
+/**
+ * The single grant path for cosmetic entitlements. The transaction owns the
+ * catalog price, wallet check, entitlement snapshot, and immutable receipt.
+ * A later payment webhook can call the same internal shape with a different
+ * source; this task deliberately exposes only Salvage purchases.
+ */
+async function grantSalvageEntitlement(uid: string, cosmeticId: string, requestId: string): Promise<EntitlementPurchaseResult> {
+  const entitlementRef = db.doc(`entitlements/${uid}`);
+  const receiptRef = entitlementRef.collection('grants').doc(requestId);
+  return db.runTransaction(async (tx) => {
+    const [entitlementSnap, receiptSnap] = await Promise.all([
+      tx.get(entitlementRef),
+      tx.get(receiptRef),
+    ]);
+    const current = readEntitlementState(entitlementSnap.exists ? entitlementSnap.data() : undefined);
+
+    if (receiptSnap.exists) {
+      if (receiptSnap.get('cosmeticId') !== cosmeticId) {
+        throw new HttpsError('already-exists', 'request-id-reused');
+      }
+      return {
+        granted: true,
+        alreadyOwned: current.cosmeticIds.includes(cosmeticId),
+        cosmeticIds: current.cosmeticIds,
+        salvageBalance: current.salvageBalance,
+      };
+    }
+
+    const purchase = applySalvagePurchase(current, cosmeticId);
+    if (!purchase.ok) {
+      if (purchase.reason === 'unknown-cosmetic') throw new HttpsError('invalid-argument', 'unknown-cosmetic');
+      throw new HttpsError('failed-precondition', 'insufficient-salvage');
+    }
+    if (purchase.alreadyOwned) {
+      return {
+        granted: true,
+        alreadyOwned: true,
+        cosmeticIds: purchase.state.cosmeticIds,
+        salvageBalance: purchase.state.salvageBalance,
+      };
+    }
+
+    tx.set(entitlementRef, {
+      schemaVersion: 1,
+      uid,
+      cosmeticIds: purchase.state.cosmeticIds,
+      salvageBalance: purchase.state.salvageBalance,
+      salvageSpent: purchase.state.salvageSpent,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: false });
+    tx.create(receiptRef, {
+      schemaVersion: 1,
+      uid,
+      cosmeticId,
+      source: 'salvage',
+      cost: purchase.cost,
+      requestId,
+      grantedAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      granted: true,
+      alreadyOwned: false,
+      cosmeticIds: purchase.state.cosmeticIds,
+      salvageBalance: purchase.state.salvageBalance,
+    };
+  });
+}
+
+const purchaseCosmeticEntitlement = onCall(
+  callableOptions(10),
+  async (req: CallableRequest): Promise<EntitlementPurchaseResult> => {
+    const uid = requireAuthUid(req);
+    const data = req.data as Record<string, unknown> | undefined;
+    const cosmeticId = typeof data?.cosmeticId === 'string' ? data.cosmeticId : '';
+    const requestId = typeof data?.requestId === 'string' ? data.requestId : '';
+    if (!ENTITLEMENT_REQUEST_RE.test(requestId)) throw new HttpsError('invalid-argument', 'bad-request-id');
+    return grantSalvageEntitlement(uid, cosmeticId, requestId);
+  },
+);
+
+export { purchaseCosmeticEntitlement };
+
 function readFeedbackPayload(raw: unknown): { uid: string; text: string; ctx: string } | null {
   if (!raw || typeof raw !== 'object') return null;
   const d = raw as Record<string, unknown>;
@@ -966,6 +1058,8 @@ interface DeleteResult {
     replayOwners: number;
     boardScores: number;
     feedback: number;
+    entitlementGrants: number;
+    entitlements: number;
     runs: number;
     rateLimits: number;
     /** owner-index runIds with no corroborating signal — left for manual review */
@@ -1053,7 +1147,8 @@ export const deleteMyData = onCall(
 
     const deleted = {
       telemetry: 0, runAnalytics: 0, runCheckpoints: 0,
-      replayOwners: 0, boardScores: 0, feedback: 0, runs: 0, rateLimits: 0,
+      replayOwners: 0, boardScores: 0, feedback: 0, entitlementGrants: 0, entitlements: 0,
+      runs: 0, rateLimits: 0,
       skippedRuns: 0,
     };
     const errors: string[] = [];
@@ -1067,6 +1162,11 @@ export const deleteMyData = onCall(
     await phase('leaderboardRunIds', async () => { leaderboardRunIds = await collectLeaderboardRunIds(uid); });
     await phase('telemetry', async () => { deleted.telemetry = await deleteByQuery(() => db.collection('telemetry').where('uid', '==', uid)); });
     await phase('feedback', async () => { deleted.feedback = await deleteByQuery(() => db.collection('feedback').where('uid', '==', uid)); });
+    await phase('entitlements', async () => {
+      deleted.entitlementGrants = await deleteByQuery(() => db.collection(`entitlements/${uid}/grants`));
+      const ref = db.doc(`entitlements/${uid}`);
+      if ((await ref.get()).exists) { await ref.delete(); deleted.entitlements = 1; }
+    });
     await phase('boardScores', async () => { deleted.boardScores = await deleteByQuery(() => db.collectionGroup('scores').where('uid', '==', uid)); });
     await phase('runArtifacts', async () => { const r = await deleteRunArtifacts(uid, leaderboardRunIds); deleted.runCheckpoints = r.runCheckpoints; deleted.replayOwners = r.replayOwners; deleted.runs = r.runs; deleted.skippedRuns = r.skippedRuns; });
     await phase('runAnalytics', async () => { deleted.runAnalytics = await deleteByQuery(() => db.collection('runAnalytics').where('uid', '==', uid)); });

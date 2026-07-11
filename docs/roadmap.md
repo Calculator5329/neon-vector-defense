@@ -218,7 +218,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   (email/Google) preserving uid + Salvage + cosmetics; required before any
   real-money purchase (entitlements must key to an authenticated uid —
   priority #2's own rule).
-- [ ] **Entitlement model (server-side).** Firestore `entitlements/{uid}`
+- [x] **Entitlement model (server-side).** *(done 2026-07-11)* Firestore `entitlements/{uid}`
   written only by Cloud Functions, read by the client cosmetic registry;
   Salvage purchases and (later) Stripe purchases both funnel through it —
   one grant path, auditable.

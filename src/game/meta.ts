@@ -9,6 +9,7 @@
 // (same FNV-1a pattern as freeplay.ts), no backend, no rules change.
 
 import { progress } from './storage';
+import { ownsEntitlement } from './entitlements';
 
 const META_KEY = 'nvd-meta-v2'; // v2: re-seed (v1 over-credited lifetime kills → absurd ranks)
 const DEMO_MODE = typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1';
@@ -321,10 +322,20 @@ export const meta = {
   markComebackSeen(dayKey: string) { cache.comebackSeenFor = dayKey; save(); },
   get comebackSeenFor(): string { return cache.comebackSeenFor; },
 
-  owns(id: string): boolean { return cache.cosmetics.includes(id); },
+  owns(id: string): boolean { return ownsEntitlement(id, cache.cosmetics.includes(id)); },
+  /** @deprecated Paid grants are asynchronous and must use purchaseEntitlement(). */
   buyCosmetic(id: string, cost: number): boolean {
-    if (cache.cosmetics.includes(id) || cache.salvage < cost) return false;
-    cache.salvage -= cost; cache.cosmetics.push(id); save(); return true;
+    // Retained temporarily for older UI call sites, but intentionally cannot
+    // mutate ownership: every paid grant must pass the server transaction.
+    void id;
+    void cost;
+    return false;
+  },
+  /** Mirror a confirmed server grant for anonymous offline fallback. */
+  recordServerEntitlement(id: string, salvageBalance: number) {
+    if (!cache.cosmetics.includes(id)) cache.cosmetics.push(id);
+    cache.salvage = Math.max(0, Math.floor(salvageBalance));
+    save();
   },
   equip(slot: string, id: string) { cache.cosmeticEquipped[slot] = id; save(); },
   get equippedPalette(): string { return cache.cosmeticEquipped['accent'] ?? 'standard'; },

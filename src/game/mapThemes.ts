@@ -29,6 +29,7 @@ const STANDARD_MAP_THEMES: Record<string, MapTheme> = {
 const FALLBACK: MapTheme = { bg1: '#070b1a', bg2: '#0d1330', path: '#141d3d', pathEdge: '#2e4a8f' };
 export const standardMapTheme = (mapId: string): MapTheme => STANDARD_MAP_THEMES[mapId] ?? FALLBACK;
 export const mapThemePackById = (id: string): MapThemePack => MAP_THEME_PACKS.find((pack) => pack.id === id) ?? MAP_THEME_PACKS[0];
+export const ownsMapThemePack = (pack: MapThemePack): boolean => pack.cost === 0 || meta.owns(`map-theme-${pack.id}`);
 
 /** Resolve from local viewer state; this value is deliberately never serialized into a run. */
 export function displayedMapTheme(map: Pick<GameMap, 'id' | 'theme'>, packId = meta.equippedMapTheme): MapTheme {

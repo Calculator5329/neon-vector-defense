@@ -26,6 +26,10 @@ export function cosmeticSetById(id: string): CosmeticSet {
   return COSMETIC_SETS.find((set) => set.id === id) ?? COSMETIC_SETS[0];
 }
 
+export function ownsCosmeticSet(set: CosmeticSet): boolean {
+  return set.cost === 0 || meta.owns(`signal-skin-${set.id}`);
+}
+
 /** Resolve exclusively from this device's state, including during replay playback. */
 export function displayedCosmeticSet(id = meta.equippedSignalSkin): CosmeticSet {
   return cosmeticSetById(id);

@@ -22,6 +22,10 @@ export function paletteById(id: string): AccentPalette {
   return PALETTES.find((p) => p.id === id) ?? PALETTES[0];
 }
 
+export function ownsPalette(palette: AccentPalette): boolean {
+  return (palette.cost === 0 && !palette.unlockOnly) || meta.owns(`palette-${palette.id}`);
+}
+
 /** Apply the equipped palette to the live document (call on boot + after equip). */
 export function applyAccent(): void {
   if (typeof document === 'undefined') return;

@@ -722,6 +722,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Cosmetic-only account entitlements. The authenticated player can read
+    // their compact registry snapshot; every write is performed by Cloud
+    // Functions through the Admin SDK. Grant receipts stay operator-auditable
+    // and are never exposed to the client.
+    match /entitlements/{uid} {
+      allow get: if (isPlayer() && request.auth.uid == uid) || isAdmin();
+      allow list: if false;
+      allow write: if false;
+
+      match /grants/{grantId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+
     // Deep re-simulation verdict reasons: written only by Functions with Admin SDK.
     // Public leaderboard rows expose only the compact verify/verifyTs fields.
     match /runVerificationReasons/{runId} {
