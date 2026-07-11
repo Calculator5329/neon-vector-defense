@@ -163,6 +163,13 @@ Last updated: 2026-07-05 (campaign expanded to 12 sectors)
 - [x] CrazyGames/Poki SDK adapter and portal build flavors
 - [ ] [ETHAN] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
 
+- [ ] **Replay pipeline E2E verification (Ethan directive 2026-07-11).**
+  Prove replays are FULLY working on the current build: scripted run →
+  manifest + actionHash → upload path → verifyRun re-simulation →
+  `verified` verdict, plus a deliberately-tampered replay yielding
+  `divergent`. Fix any breakage found; add the E2E as a repeatable script.
+  *Accept:* both verdicts reproduce on demand; breakages filed+fixed.
+
 ## Customization & paid-features backlog (added 2026-07-10)
 
 Owner direction: build out skins, maps, mini-games, and customization as the
@@ -236,3 +243,8 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - Privacy export/delete must cover every local key that can affect score retry, identity, consent, or private replies.
 - Admin allowlists in `firestore.rules`, Functions helpers, and client admin code must stay synchronized.
 - AI help remains optional and must keep secrets in the Worker, not in Vite-exposed variables.
+
+## Cross-project: AI asset intake (G1, added 2026-07-10)
+
+- [ ] (G1) `assets/incoming/` intake for Signal Skin concept batches from local-ai-lab — manifest-validated and review-gated; concepts only, nothing auto-ships to the live game (guardrails above apply)
+- [ ] (G1) Publish skin-concept constraints (dimensions, format, neon palette rules) for the lab's NVD prompt matrices
