@@ -195,7 +195,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   bursts, banner styles) — pure UI layer.
 
 ### Maps & content
-- [ ] **Map pack: Sectors 13–16.** Four new `GameMap` entries exercising
+- [x] **Map pack: Sectors 13–16.** *(done 2026-07-11)* Four new `GameMap` entries exercising
   underused mechanics (multi-entrance paths, narrow pathWidth, heavy blocker
   fields); versioned in `mapVersions.ts`; balance-CI gate must pass.
 - [ ] **Custom-map format + local editor (foundation for UGC).** Schema-

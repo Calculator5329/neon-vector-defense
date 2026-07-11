@@ -234,6 +234,99 @@ export const MAPS3: GameMap[] = [
   },
 ];
 
+// THE FRACTURE sectors — four hostile approaches beyond the old Hollow line.
+// Each route enters from a different edge so the closing atlas leg tests every
+// ingress orientation instead of repeating the campaign's usual west approach.
+export const MAPS4: GameMap[] = [
+  {
+    id: 'crossfeed',
+    name: 'Crossfeed Gate',
+    desc: 'North and west approach geometry folds through a shared relay throat. The long cross-map sightlines hide a vicious final turn.',
+    difficulty: 'Hard',
+    pathWidth: 40,
+    music: 'reactor',
+    path: [
+      { x: 360, y: -40 }, { x: 360, y: 150 }, { x: 110, y: 150 }, { x: 110, y: 360 },
+      { x: 560, y: 360 }, { x: 560, y: 110 }, { x: 850, y: 110 }, { x: 850, y: 560 },
+      { x: 1080, y: 560 }, { x: 1080, y: 300 }, { x: 1320, y: 300 },
+    ],
+    blockers: [
+      { x: 240, y: 270, r: 48 },
+      { x: 710, y: 260, r: 56 },
+      { x: 970, y: 430, r: 44 },
+    ],
+    theme: { bg1: '#071517', bg2: '#0b3032', path: '#104044', pathEdge: '#44f0dd' },
+  },
+  {
+    id: 'needleglass',
+    name: 'Needleglass Run',
+    desc: 'A razor-thin eastbound filament leaves generous build pockets, but almost no forgiveness for coverage gaps.',
+    difficulty: 'Hard',
+    pathWidth: 28,
+    music: 'orbital',
+    path: [
+      { x: -40, y: 610 }, { x: 180, y: 610 }, { x: 180, y: 420 }, { x: 470, y: 420 },
+      { x: 470, y: 650 }, { x: 720, y: 650 }, { x: 720, y: 230 }, { x: 1010, y: 230 },
+      { x: 1010, y: 500 }, { x: 1180, y: 500 }, { x: 1180, y: 160 }, { x: 1320, y: 160 },
+    ],
+    blockers: [
+      { x: 330, y: 535, r: 46 },
+      { x: 595, y: 535, r: 46 },
+      { x: 865, y: 365, r: 46 },
+      { x: 1100, y: 340, r: 42 },
+    ],
+    theme: { bg1: '#100816', bg2: '#26102f', path: '#35153f', pathEdge: '#f06dff' },
+  },
+  {
+    id: 'bastion',
+    name: 'Bastion Lattice',
+    desc: 'A south-entry siege lane threads a defensive graveyard. Dense bastions turn every tower cluster into a commitment.',
+    difficulty: 'Hard',
+    pathWidth: 34,
+    music: 'hyperlane',
+    path: [
+      { x: 210, y: 760 }, { x: 210, y: 610 }, { x: 480, y: 610 }, { x: 480, y: 430 },
+      { x: 170, y: 430 }, { x: 170, y: 210 }, { x: 680, y: 210 }, { x: 680, y: 500 },
+      { x: 1010, y: 500 }, { x: 1010, y: 170 }, { x: 1190, y: 170 }, { x: 1190, y: 360 },
+      { x: 1320, y: 360 },
+    ],
+    blockers: [
+      { x: 80, y: 90, r: 42 }, { x: 220, y: 90, r: 42 }, { x: 360, y: 90, r: 42 },
+      { x: 500, y: 90, r: 42 }, { x: 640, y: 90, r: 42 }, { x: 780, y: 90, r: 42 },
+      { x: 920, y: 90, r: 42 }, { x: 1060, y: 70, r: 38 }, { x: 1210, y: 70, r: 38 },
+      { x: 330, y: 320, r: 40 }, { x: 510, y: 320, r: 40 }, { x: 820, y: 320, r: 40 },
+      { x: 900, y: 630, r: 42 }, { x: 1060, y: 630, r: 42 }, { x: 1220, y: 630, r: 42 },
+      { x: 80, y: 570, r: 40 }, { x: 600, y: 630, r: 40 }, { x: 740, y: 630, r: 40 },
+    ],
+    theme: { bg1: '#171006', bg2: '#34230a', path: '#46300e', pathEdge: '#ffd15a' },
+  },
+  {
+    id: 'eventide',
+    name: 'Eventide Crown',
+    desc: 'A right-entry coronation spiral circles a dead star. Beacon light rewards broad coverage while the route steadily closes around the core.',
+    difficulty: 'Hard',
+    pathWidth: 38,
+    music: 'reactor',
+    path: [
+      { x: 1320, y: 100 }, { x: 1120, y: 100 }, { x: 1120, y: 620 }, { x: 150, y: 620 },
+      { x: 150, y: 170 }, { x: 950, y: 170 }, { x: 950, y: 500 }, { x: 340, y: 500 },
+      { x: 340, y: 290 }, { x: 770, y: 290 }, { x: 770, y: 410 }, { x: 560, y: 410 },
+      { x: 560, y: -40 },
+    ],
+    blockers: [
+      { x: 640, y: 350, r: 36 },
+      { x: 1050, y: 370, r: 46 },
+      { x: 245, y: 395, r: 44 },
+    ],
+    zones: [
+      { x: 150, y: 395, r: 145 },
+      { x: 640, y: 350, r: 165 },
+      { x: 1080, y: 350, r: 145 },
+    ],
+    theme: { bg1: '#060912', bg2: '#10162b', path: '#171f3d', pathEdge: '#ff527b' },
+  },
+];
+
 export const ALL_MAPS = [
   MAPS[0],      // Orbital Relay
   MAPS2[0],     // The Carousel
@@ -247,6 +340,10 @@ export const ALL_MAPS = [
   MAPS3[0],     // Foundry Floor
   MAPS3[1],     // Umbral Reach
   MAPS3[2],     // Cinder Causeway
+  MAPS4[0],     // Crossfeed Gate
+  MAPS4[1],     // Needleglass Run
+  MAPS4[2],     // Bastion Lattice
+  MAPS4[3],     // Eventide Crown
 ];
 
 export const DIFFICULTIES: DifficultyDef[] = [

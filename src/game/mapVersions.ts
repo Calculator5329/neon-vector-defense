@@ -46,6 +46,21 @@ export function hashReplayMapGeometry(geom: Pick<GameMap, 'id' | 'path' | 'block
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
+/** Authored geometry revision for live sectors. The replay manifest remains
+ * hash-pinned; this human-readable revision tells future map tuning which
+ * initial geometry must be frozen in HISTORICAL_MAP_GEOMETRY before editing. */
+export interface LiveMapGeometryVersion {
+  revision: number;
+  hash: string;
+}
+
+export const MAP_GEOMETRY_VERSIONS: Readonly<Record<string, LiveMapGeometryVersion>> = Object.freeze({
+  crossfeed: Object.freeze({ revision: 1, hash: '2b15b235' }),
+  needleglass: Object.freeze({ revision: 1, hash: 'ce3cacd2' }),
+  bastion: Object.freeze({ revision: 1, hash: '0770b511' }),
+  eventide: Object.freeze({ revision: 1, hash: 'bc3acc56' }),
+});
+
 /** Append-only: geometry of map versions that were live at some point but have
  *  since been re-tuned. Never edit an entry — add a new one. */
 export const HISTORICAL_MAP_GEOMETRY: ReplayMapGeometry[] = [
