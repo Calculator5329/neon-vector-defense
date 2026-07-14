@@ -2,6 +2,14 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-07-11 - Mount the Signal Skin and Map Theme pickers
+
+- Wired `SignalSkinPicker` and `MapThemePicker` (built 2026-07-10 but never
+  mounted) into the Operations Board as SIGNAL SKINS and MAP THEMES shop
+  sections alongside the existing Signal Palettes, so players can now buy and
+  equip them with Salvage in-game. Viewer-side only; no sim/score/replay
+  paths touched.
+
 ## 2026-06-28 - Audit backlog implementation pass
 
 - Removed the visible owned-palette equip status while preserving purchase and

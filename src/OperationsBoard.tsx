@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from './game/meta';
 import { PALETTES, applyAccent } from './game/palette';
 import { sfx } from './game/sound';
+import SignalSkinPicker from './ui/SignalSkinPicker';
+import MapThemePicker from './ui/MapThemePicker';
 
 // Third menu tab: Warden Rank + Salvage wallet + Watch Streak + the daily/weekly
 // Operations Board. All reads come from the `meta` singleton (localStorage); claiming a
@@ -72,7 +74,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
           )}
         </div>
         <div className="ops-chips">
-          <div className="ops-chip salvage" title="Salvage — earned per run, spent on Signal Palettes below">
+          <div className="ops-chip salvage" title="Salvage — earned per run, spent on the cosmetics below">
             <span className="ops-chip-val no-shift-counter"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}</span>
             <span className="ops-chip-label">SALVAGE</span>
           </div>
@@ -131,6 +133,16 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
             );
           })}
         </div>
+      </div>
+
+      <div className="ops-shop" data-testid="ops-shop-signal-skins">
+        <div className="menu-section-label">SIGNAL SKINS</div>
+        <SignalSkinPicker onChange={(skin) => { pushStatus({ kind: 'ok', text: `${skin.name} signal skin equipped.` }); sfx.click(); rerender(); }} />
+      </div>
+
+      <div className="ops-shop" data-testid="ops-shop-map-themes">
+        <div className="menu-section-label">MAP THEMES</div>
+        <MapThemePicker onChange={(pack) => { pushStatus({ kind: 'ok', text: `${pack.name} map theme equipped.` }); sfx.click(); rerender(); }} />
       </div>
 
       <div className={`ops-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-atomic="true" aria-hidden={!status}>
