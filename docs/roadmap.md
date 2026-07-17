@@ -3,7 +3,22 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-05 (campaign expanded to 12 sectors)
+Last updated: 2026-07-16 (owner replay-bug report filed)
+
+## Now — owner bug report (Ethan, 2026-07-16 audit review)
+
+- [ ] **BUG: replay playback is inaccurate — enemies don't die accurately.**
+  Owner-observed: during replay playback, enemy deaths diverge from the
+  original run (kills happen late/early or not at all). Likely determinism
+  drift between live sim and re-sim. *Accept when*: a recorded run re-simulated
+  via verifyRun produces identical kill frames/score, proven on ≥3 seeds.
+- [ ] **BUG: replay verification gets stuck in simulating loops.** Owner-observed:
+  verification sometimes never terminates ("simulating" forever). Needs a
+  reproduction, a max-tick/timeout guard that reports `divergent` instead of
+  hanging, and a root-cause fix. Supersedes the ambiguous status of the
+  2026-07-11 replay-pipeline E2E directive — that item is NOT proven.
+  *(Note: manifest fences this repo `agents: docs-only`; code fixes need an
+  Ethan fence promotion or an explicitly approved lane.)*
 
 ## Next up (owner-triaged, 2026-07-04)
 
