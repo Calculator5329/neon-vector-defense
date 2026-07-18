@@ -303,6 +303,28 @@ describe('reSimulate', () => {
     assert.equal(result.divergence?.field, 'kills');
   });
 
+  // Named-artifact regression: run r_mr2q0g0p (2026-07-01, The Throat freeplay)
+  // logged wave 61 / kills 0 / 381 boss leak cores / 113s — a physically impossible
+  // summary ("replay-desync ghost run", docs/plans/BALANCE-2026-07-18.md finding 4).
+  // Whatever produced that doc, the re-sim path must never bless such a summary: it
+  // reproduces the honest sim (real kills, real leaks, real duration/wave) and any
+  // one mismatch is divergent. This locks that the whole ghost-shaped summary — not
+  // just a single tampered field — is rejected.
+  test('flags a ghost-run summary (impossible wave/kills/leaks/duration) as divergent', () => {
+    const bundle = cloneBundle(runSeededBotCampaign());
+    assert.ok(bundle.run.summary.kills > 0, 'fixture must record real kills to make the ghost shape a contradiction');
+    bundle.run.summary.wave = 61;
+    bundle.run.summary.kills = 0;
+    bundle.run.summary.leaks = 381;
+    bundle.run.summary.coresLeft = 0;
+    bundle.run.summary.durationS = 113;
+    const result = reSimulate(bundle);
+    assert.equal(result.verdict, 'divergent', result.reason ?? '');
+    // The re-sim's reconstructed summary is the honest run, never the ghost values.
+    assert.notEqual(result.summary?.kills, 0);
+    assert.notEqual(result.summary?.wave, 61);
+  });
+
   test('flags a tampered player action as divergent', () => {
     const bundle = cloneBundle(runSeededBotCampaign());
     const events = allEvents(bundle);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { W, H } from './game/engine';
 import { buildBackground, drawTowerBody, drawMarkers, drawBlockers, drawReplayEnemy, drawReplayMapEffects, render } from './game/render';
-import { createReplayPlayback, type ReplayPlayback } from './game/reSimulate';
+import { createReplayPlaybackDiagnostic, type ReplayPlayback } from './game/reSimulate';
 import { setReplaySilent } from './game/sound';
 import { TOWER_MAP } from './game/towers';
 import { ALL_MAPS } from './game/maps';
@@ -578,10 +578,25 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   // matches the actual game. Null for runs that can't be faithfully re-simulated on
   // this client (engine/balance drift, partial record, deep-freeplay marathon) — those
   // fall back to the cosmetic reconstruction below.
-  const driver = useMemo<ReplayPlayback | null>(
-    () => (run.integrity === 'complete' ? createReplayPlayback(run) : null),
+  const { driver, fidelityReason } = useMemo<{ driver: ReplayPlayback | null; fidelityReason: string | null }>(
+    () => {
+      if (run.integrity !== 'complete') {
+        return { driver: null, fidelityReason: `record integrity: ${run.integrity}` };
+      }
+      const diag = createReplayPlaybackDiagnostic(run);
+      return { driver: diag.playback, fidelityReason: diag.reason };
+    },
     [run],
   );
+
+  // Surface (never hide) why a run rendered cosmetically instead of frame-accurately.
+  // This is a FIDELITY notice, not a verifyRun verdict — it must never expose
+  // verified/divergent to players (roadmap Guardrails).
+  useEffect(() => {
+    if (!driver && fidelityReason) {
+      console.warn(`[replay] cosmetic preview — not frame-accurate (${fidelityReason})`);
+    }
+  }, [driver, fidelityReason]);
 
   // Draw the geometry the run was RECORDED on (mapVersions resolves re-tuned
   // maps by hash); fall back to the current map only for unknown hashes so a
@@ -897,6 +912,11 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       {run.integrity === 'partial' && (
         <div className="replay-integrity-banner" role="status">
           PARTIAL RECORD &mdash; some events could not be recovered
+        </div>
+      )}
+      {!driver && run.integrity !== 'partial' && (
+        <div className="replay-integrity-banner" role="status">
+          COSMETIC PREVIEW &mdash; not a frame-accurate replay of the recorded run
         </div>
       )}
       {desync && (

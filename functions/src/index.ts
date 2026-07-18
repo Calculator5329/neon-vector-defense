@@ -603,12 +603,22 @@ function authenticateSetupSnapshots(run: Record<string, unknown>, config: ReSimC
   return null;
 }
 
+// Re-simulation wall-clock budget (ms). Kept under the smallest verifyRunCore caller
+// timeout (post-accept verification runs in a 60s callable) so a pathological run
+// yields `unverifiable` on deadline rather than hanging to the Function timeout.
+const VERIFY_RESIM_WALL_CLOCK_MS = 30_000;
+
 async function verifyRunCore(runId: string, explicitRows?: ScoreRowRef[], source = 'callable'): Promise<VerifyRunResult> {
   const bundle = await readReSimBundle(runId);
   let result: ReSimResult;
   if (bundle.bundle) {
     const config = await loadReSimConfig();
-    result = authenticateSetupSnapshots(bundle.bundle.run, config) ?? reSimulate(bundle.bundle);
+    // Wall-clock cap on re-simulation so a dense marathon returns `unverifiable`
+    // instead of burning to the Function timeout and presenting as "stuck
+    // simulating." Held well under the smallest caller timeout (post-accept
+    // verification runs inside a 60s callable): a slow run is not a dishonest one.
+    result = authenticateSetupSnapshots(bundle.bundle.run, config)
+      ?? reSimulate(bundle.bundle, { wallClockMs: VERIFY_RESIM_WALL_CLOCK_MS });
   } else {
     result = { verdict: 'unverifiable', reason: bundle.reason ?? 'unverifiable' };
   }

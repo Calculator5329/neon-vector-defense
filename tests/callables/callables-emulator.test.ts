@@ -35,7 +35,9 @@ import {
   type GauntletProtocolLeg,
 } from '../../src/game/gauntletProtocol';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
-import type { RunUploadBundle } from '../../src/game/runTelemetry';
+import { buildRunManifest, type RunUploadBundle } from '../../src/game/runTelemetry';
+import { decodeReplayActionBundle, encodeReplayActions } from '../../src/game/replayCodec';
+import { TOWER_MAP } from '../../src/game/towers';
 import { replayActionHash } from '../../functions/src/replayIntegrity.ts';
 import { replayTokenHash } from '../../functions/src/securityHelpers.ts';
 
@@ -306,6 +308,35 @@ function makeRealRunBundle(): RunUploadBundle {
       game.update(0.05);
     }
     return game.buildRunUploadBundle('VERIFY', 'callables-emulator-test');
+  } finally {
+    setBalanceDoc(null);
+  }
+}
+
+// Like makeRealRunBundle but with a real legal tower placement, so a tampered-ACTION
+// (not just tampered-summary) divergence can be exercised on the real callable.
+function makeRunWithPlacement(): RunUploadBundle {
+  setBalanceDoc(LIVE_BALANCE_DOC);
+  try {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 4242, lifetimeKills: 1_000_000 });
+    game.paused = false;
+    game.speed = 4;
+    game.credits = 20_000;
+    game.recorder.setStartingResources(game.credits, game.lives);
+    let placed = false;
+    for (let y = 40; y < 680 && !placed; y += 28) {
+      for (let x = 40; x < 1240 && !placed; x += 28) {
+        if (!game.canPlace({ x, y })) continue;
+        placed = !!game.placeTower(TOWER_MAP.pulse, { x, y });
+      }
+    }
+    assert.equal(placed, true, 'placement fixture must legally place a tower');
+    game.startWave();
+    for (let i = 0; i < 8_000 && game.phase !== 'gameover' && game.phase !== 'victory'; i += 1) {
+      if (game.phase === 'build') game.startWave();
+      game.update(0.05);
+    }
+    return game.buildRunUploadBundle('VERIFYPLACE', 'callables-emulator-test');
   } finally {
     setBalanceDoc(null);
   }
@@ -771,6 +802,42 @@ describe('verifyRun callable', () => {
     const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
     assert.equal(reason?.verdict, 'divergent');
     assert.equal(reason?.reason, 'summary.kills');
+  });
+
+  test('admin verifyRun records divergent for a re-signed impossible player action', async () => {
+    // A coherent-but-dishonest replay: place a legal tower, then move that placement
+    // onto Orbital Relay's blocked center and re-sign the manifest, so the callable
+    // re-simulates and rejects the impossible action as divergent (not merely a hash
+    // mismatch). Proves tamper->divergent on the REAL server code via an ACTION, not
+    // just a summary field.
+    const bundle = cloneBundle(makeRunWithPlacement());
+    const events = decodeReplayActionBundle(bundle.run.actions, bundle.chunks);
+    const placement = events.find((event) => event.type === 'tower_place');
+    assert.ok(placement, 'placement fixture must contain a tower_place action');
+    placement.x = 640;
+    placement.y = 360;
+    const rootCount = bundle.run.actions.count;
+    const towerIds = bundle.run.actions.towerIds;
+    bundle.run.actions = encodeReplayActions(events.slice(0, rootCount), { towerIds });
+    bundle.chunks = bundle.chunks.map((chunk, index) => ({
+      ...chunk,
+      actions: encodeReplayActions(events.slice(rootCount + index * 650, rootCount + (index + 1) * 650), { towerIds }),
+    }));
+    bundle.run.manifest = buildRunManifest(bundle.run.actions, bundle.chunks);
+
+    const rowId = `verify-${unique('badaction')}`;
+    await seedRunBundle(bundle, rowId);
+
+    const result = await callCallable<VerifyRunResult>('verifyRun', { runId: bundle.run.runId }, adminUser());
+
+    assert.equal(result.verdict, 'divergent', result.reason ?? '');
+    assert.equal(result.rowsUpdated, 1);
+
+    const row = await adminDocData(`boards/orbital_easy/scores/${rowId}`);
+    assert.equal(row?.verify, 'divergent');
+
+    const reason = await adminDocData(`runVerificationReasons/${bundle.run.runId}`);
+    assert.equal(reason?.verdict, 'divergent');
   });
 
   test('verifyRun rejects forged balance snapshots before re-simulation', async () => {

@@ -143,21 +143,51 @@ export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: st
   return { game };
 }
 
-export function reSimulate(bundle: ReSimBundle): ReSimResult {
+export interface ReSimOptions {
+  /**
+   * Wall-clock budget (ms) for the WHOLE re-simulation. The tick-count guard in
+   * `advanceToTick` bounds how many ticks a single advance runs, but a dense
+   * marathon (thousands of live enemies/tick) can burn minutes of real CPU while
+   * staying UNDER the tick cap — which presents to the caller (a Cloud Function
+   * with a hard timeout) as "verification stuck in a simulating loop." This is a
+   * wall-clock belt over that tick-count suspenders: on deadline the verdict is
+   * `unverifiable` ("wall-clock budget exceeded"), never `divergent` — a slow run
+   * is not a dishonest one. Default is generous so an honest run never trips it;
+   * the server callable overrides it to stay under the Function timeout. Pass
+   * `Infinity` to disable (tests / one-shot local consumers).
+   */
+  wallClockMs?: number;
+}
+
+// Generous default: an honest 80-wave/deep-freeplay re-sim finishes in well under a
+// second on normal hardware, so 30s only ever fires on a pathological/dense run.
+export const DEFAULT_RESIM_WALL_CLOCK_MS = 30_000;
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+export function reSimulate(bundle: ReSimBundle, options?: ReSimOptions): ReSimResult {
+  const wallClockMs = options?.wallClockMs ?? DEFAULT_RESIM_WALL_CLOCK_MS;
+  const deadline = Number.isFinite(wallClockMs)
+    ? nowMs() + Math.max(0, wallClockMs)
+    : Number.POSITIVE_INFINITY;
   const balanceSnapshot = bundle.run?.setup?.balance;
   if (balanceSnapshot) {
     const previous = balanceDocSnapshot();
     applyBalanceDoc(balanceSnapshot);
     try {
-      return reSimulateCore(bundle, true);
+      return reSimulateCore(bundle, true, deadline);
     } finally {
       applyBalanceDoc(previous);
     }
   }
-  return reSimulateCore(bundle, false);
+  return reSimulateCore(bundle, false, deadline);
 }
 
-function reSimulateCore(bundle: ReSimBundle, hasBalanceSnapshot: boolean): ReSimResult {
+function reSimulateCore(bundle: ReSimBundle, hasBalanceSnapshot: boolean, deadline: number): ReSimResult {
   const unverifiable = (reason: string): ReSimResult => ({ verdict: 'unverifiable', reason });
   const run = bundle.run;
   if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return unverifiable(`unsupported schemaVersion ${run.schemaVersion}`);
@@ -215,7 +245,7 @@ function reSimulateCore(bundle: ReSimBundle, hasBalanceSnapshot: boolean): ReSim
 
   for (const action of actions) {
     game.speed = currentSpeed;
-    const stepResult = advanceToEvent(game, action.event);
+    const stepResult = advanceToEvent(game, action.event, deadline);
     if (stepResult) return stepResult;
     const applied = applyAction(game, action.event);
     if (!applied.ok) {
@@ -237,7 +267,7 @@ function reSimulateCore(bundle: ReSimBundle, hasBalanceSnapshot: boolean): ReSim
   const endEvent = [...allEvents].reverse().find((event) => event.type === 'run_end');
   if (!validSimTick(endEvent)) return unverifiable('run_end event is missing exact simTick timing');
   game.speed = currentSpeed;
-  const finalAdvance = advanceToTick(game, simTick(endEvent));
+  const finalAdvance = advanceToTick(game, simTick(endEvent), deadline);
   if (finalAdvance) return finalAdvance;
   if (run.summary.phase !== 'wave') settleBuildPhase(game, endEvent);
   if (game.phase !== 'gameover' && game.phase !== 'victory' && run.summary.outcome === 'abandoned') {
@@ -267,18 +297,27 @@ function validateChunks(run: PublicRunDoc, chunks: RunEventChunkDoc[]): string |
   return null;
 }
 
-function advanceToEvent(game: Game, event: RunEvent): ReSimResult | null {
+function advanceToEvent(game: Game, event: RunEvent, deadline: number): ReSimResult | null {
   if (!validSimTick(event)) return { verdict: 'unverifiable', reason: 'invalid event simTick' };
-  return advanceToTick(game, simTick(event));
+  return advanceToTick(game, simTick(event), deadline);
 }
 
-function advanceToTick(game: Game, targetTick: number): ReSimResult | null {
+function advanceToTick(game: Game, targetTick: number, deadline: number): ReSimResult | null {
   if (!Number.isFinite(targetTick) || targetTick < 0) return { verdict: 'unverifiable', reason: 'invalid event simTick' };
   const targetT = targetTick * Game.SIM_STEP;
   const limit = Math.max(0, targetT) + Game.SIM_STEP / 2;
   let guard = 0;
+  let stepped = 0;
   while (game.time + Game.SIM_STEP / 2 < limit && guard++ < 1_200_000 && game.phase !== 'gameover') {
     game.update(Game.SIM_STEP / replaySpeed(game.speed));
+    // Wall-clock deadline check on the first tick of each advance and every 64 after
+    // (cheap, and the only reliable bound given ~40x per-tick cost variance across
+    // enemy density). `deadline` is absolute, so checking per-advance correctly bounds
+    // the WHOLE re-sim even when a run is a long sequence of short advances. A slow
+    // dense run returns unverifiable rather than hanging the caller — never divergent.
+    if ((stepped++ & 63) === 0 && nowMs() > deadline) {
+      return { verdict: 'unverifiable', reason: 're-simulation wall-clock budget exceeded' };
+    }
   }
   if (guard >= 1_200_000) return { verdict: 'unverifiable', reason: 're-simulation step limit exceeded' };
   return null;
@@ -493,8 +532,8 @@ function eventAt(event: RunEvent, eventIndex: number): ReSimDivergence['at'] {
   return { eventIndex, t: event.t, wave: event.wave, type: event.type };
 }
 
-export function reSimulateUploadBundle(bundle: RunUploadBundle): ReSimResult {
-  return reSimulate(bundle);
+export function reSimulateUploadBundle(bundle: RunUploadBundle, options?: ReSimOptions): ReSimResult {
+  return reSimulate(bundle, options);
 }
 
 // ── Deterministic playback driver ────────────────────────────────────────────
@@ -536,18 +575,36 @@ export interface ReplayPlayback {
 const PLAYBACK_MAX_DURATION_S = 3_600;
 const PLAYBACK_KILL_CAP = 250_000;
 
+/** Why a run could not be driven frame-accurately — a *fidelity* reason, NOT a
+ *  `verifyRun` verdict. Surfaced to the viewer so it can label a cosmetic preview
+ *  instead of silently rendering a fake battle. Never expose this as verification. */
+export interface ReplayPlaybackDiagnostic {
+  playback: ReplayPlayback | null;
+  reason: string | null;
+}
+
 /**
- * Build a frame-accurate playback driver for a run, or null when the run cannot be
+ * Build a frame-accurate playback driver for a run, or return the reason it cannot be
  * faithfully re-simulated on this client (schema/engine/balance drift, unresolved
  * daily, missing tick timing, or a marathon past the duration/kill caps). Callers
- * fall back to the cosmetic reconstruction on null. Expects `run.events` already
- * merged with its chunk events (fetchRunReplay does this).
+ * fall back to the cosmetic reconstruction when `playback` is null and should surface
+ * `reason` (log/label) rather than hiding it. Expects `run.events` already merged with
+ * its chunk events (fetchRunReplay does this).
  */
-export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChunkDoc[] }): ReplayPlayback | null {
-  if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return null;
-  if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) return null;
-  if ((run.summary.durationS ?? 0) > PLAYBACK_MAX_DURATION_S) return null;
-  if ((run.summary.kills ?? 0) > PLAYBACK_KILL_CAP) return null;
+export function createReplayPlaybackDiagnostic(
+  run: PublicRunDoc & { chunks?: RunEventChunkDoc[] },
+): ReplayPlaybackDiagnostic {
+  const drop = (reason: string): ReplayPlaybackDiagnostic => ({ playback: null, reason });
+  if (run.schemaVersion !== RUN_TELEMETRY_SCHEMA) return drop(`schema version ${run.schemaVersion} unsupported`);
+  if ((run.setup.replayEngine ?? 1) !== REPLAY_ENGINE_VERSION) {
+    return drop(`engine version mismatch: run=${run.setup.replayEngine ?? 1} current=${REPLAY_ENGINE_VERSION}`);
+  }
+  if ((run.summary.durationS ?? 0) > PLAYBACK_MAX_DURATION_S) {
+    return drop(`run duration ${Math.round(run.summary.durationS ?? 0)}s exceeds the ${PLAYBACK_MAX_DURATION_S}s playback cap`);
+  }
+  if ((run.summary.kills ?? 0) > PLAYBACK_KILL_CAP) {
+    return drop(`run kills ${run.summary.kills} exceed the ${PLAYBACK_KILL_CAP} density cap`);
+  }
 
   // Balance must match: re-running under different tower/enemy math would render a
   // battle that never happened. Mirrors reSimulate's balance guard (the sentinel
@@ -556,7 +613,9 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
   if (!balanceSnapshot) {
     const currentBalance = balanceVersion();
     const recordedBalance = run.setup.balanceVersion === run.build ? '' : (run.setup.balanceVersion ?? '');
-    if (recordedBalance !== currentBalance) return null;
+    if (recordedBalance !== currentBalance) {
+      return drop(`balance version mismatch: run=${recordedBalance || 'identity'} current=${currentBalance || 'identity'}`);
+    }
   }
   const withPlaybackBalance = <T,>(fn: () => T): T => {
     if (!balanceSnapshot) return fn();
@@ -569,7 +628,7 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
     }
   };
 
-  if (!run.actions) return null;
+  if (!run.actions) return drop('run has no recorded action stream');
   const events = decodeReplayActionBundle(run.actions, run.chunks ?? []);
   const actions = events
     .filter((event) => REPLAY_ACTION_TYPES.has(event.type) && validSimTick(event))
@@ -577,7 +636,9 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
     .sort((a, b) => a.tick - b.tick);
   // Every action must carry exact tick timing, or the re-sim can't place it — same
   // rule reSimulate enforces. A run with actions but no valid ticks is not drivable.
-  if (events.some((event) => REPLAY_ACTION_TYPES.has(event.type)) && actions.length === 0) return null;
+  if (events.some((event) => REPLAY_ACTION_TYPES.has(event.type)) && actions.length === 0) {
+    return drop('recorded actions lack sim-tick timing');
+  }
 
   const endEvent = [...events].reverse().find((event) => event.type === 'run_end');
   const endTick = validSimTick(endEvent)
@@ -586,7 +647,7 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
   const initialSpeed = eventSpeed(events[0]) ?? 1;
 
   const first = withPlaybackBalance(() => setupReplayGame(run));
-  if ('error' in first) return null;
+  if ('error' in first) return drop(first.error);
 
   let game = first.game;
   let cursor = 0;
@@ -667,14 +728,27 @@ export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChun
   });
 
   return {
-    get game() { return game; },
-    endT: endTick * Game.SIM_STEP,
-    get seekProgress() {
-      return pendingTick == null ? null : Math.min(1, currentTick() / Math.max(1, pendingTick));
+    playback: {
+      get game() { return game; },
+      endT: endTick * Game.SIM_STEP,
+      get seekProgress() {
+        return pendingTick == null ? null : Math.min(1, currentTick() / Math.max(1, pendingTick));
+      },
+      get divergedAtT() { return divergedAtT; },
+      seekTo,
     },
-    get divergedAtT() { return divergedAtT; },
-    seekTo,
+    reason: null,
   };
+}
+
+/**
+ * Build a frame-accurate playback driver for a run, or null when it cannot be
+ * faithfully re-simulated on this client. Thin wrapper over
+ * `createReplayPlaybackDiagnostic` preserving the historical `ReplayPlayback | null`
+ * contract for callers that don't need the fidelity reason.
+ */
+export function createReplayPlayback(run: PublicRunDoc & { chunks?: RunEventChunkDoc[] }): ReplayPlayback | null {
+  return createReplayPlaybackDiagnostic(run).playback;
 }
 
 // The functions bundle re-simulates outside the browser, where the boot-time
