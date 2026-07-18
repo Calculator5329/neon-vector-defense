@@ -347,10 +347,10 @@ export const ALL_MAPS = [
 ];
 
 export const DIFFICULTIES: DifficultyDef[] = [
-  { id: 'easy', name: 'Recruit', lives: 200, cash: 900, costMult: 0.85, hpMult: 0.9, lateScale: 0.015, waves: 50, desc: '200 cores · cheap towers · no phase-cloaks · 50 waves' },
-  { id: 'normal', name: 'Veteran', lives: 120, cash: 700, costMult: 1.0, hpMult: 1.4, lateScale: 0.03, waves: 60, desc: '120 cores · adaptive armada · 60 waves' },
-  { id: 'hard', name: 'Apex', lives: 80, cash: 700, costMult: 1.2, hpMult: 1.8, lateScale: 0.075, waves: 70, desc: '80 cores · hardened adaptive hulls · escalating siege · 70 waves' },
-  { id: 'extinction', name: 'Extinction', lives: 70, cash: 950, costMult: 1.2, hpMult: 1.95, lateScale: 0.11, waves: 80, desc: '70 cores · relentless armada · brutal escalating adaptation · 80 waves' },
+  { id: 'easy', name: 'Recruit', lives: 200, cash: 900, costMult: 0.85, hpMult: 0.9, lateScale: 0.14, waves: 50, desc: '200 cores · cheap towers · no phase-cloaks · 50 waves' },
+  { id: 'normal', name: 'Veteran', lives: 120, cash: 700, costMult: 1.0, hpMult: 1.4, lateScale: 0.15, waves: 60, desc: '120 cores · adaptive armada · 60 waves' },
+  { id: 'hard', name: 'Apex', lives: 80, cash: 700, costMult: 1.2, hpMult: 1.8, lateScale: 0.185, waves: 70, desc: '80 cores · hardened adaptive hulls · escalating siege · 70 waves' },
+  { id: 'extinction', name: 'Extinction', lives: 70, cash: 950, costMult: 1.2, hpMult: 1.95, lateScale: 0.205, waves: 80, desc: '70 cores · relentless armada · brutal escalating adaptation · 80 waves' },
 ];
 
 /** Total length of a polyline path. */

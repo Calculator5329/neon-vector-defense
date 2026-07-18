@@ -39,11 +39,18 @@ function layered(id: string): Layered {
   return out;
 }
 
+export const LATE_SCALE_START_WAVE = 35;
+
+/** HP multiplier the engine applies at a given wave (mirrors engine.makeEnemy). */
+export function lateScaleMultiplier(diff: DifficultyDef, wave: number, balanceLateScale = 1): number {
+  return 1 + Math.max(0, wave - LATE_SCALE_START_WAVE) * diff.lateScale * balanceLateScale;
+}
+
 /** HP multiplier the engine applies at a given wave (mirrors engine.makeEnemy). */
 function hpScale(diff: DifficultyDef, wave: number): number {
   const ramp = Math.min(1, wave / 25);
   const diffMult = 1 + (diff.hpMult - 1) * ramp;
-  const late = 1 + Math.max(0, wave - 25) * diff.lateScale;
+  const late = lateScaleMultiplier(diff, wave);
   const fp = 1 + Math.max(0, wave - diff.waves) * 0.18;
   return diffMult * late * fp;
 }
