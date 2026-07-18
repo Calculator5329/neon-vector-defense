@@ -122,6 +122,10 @@ service cloud.firestore {
       return n is number && n >= 0.25 && n <= 4;
     }
 
+    function isBalanceWave(n) {
+      return n is number && n >= 1 && n <= 200 && n == int(n);
+    }
+
     function isValidBalanceIncome(x) {
       return x is map
         && x.keys().hasOnly(['killMult', 'waveBonusMult'])
@@ -137,12 +141,15 @@ service cloud.firestore {
 
     function isValidBalanceDiff(x) {
       return x is map
-        && x.keys().hasOnly(['hpMult', 'lateScale', 'costMult', 'cashMult', 'livesMult'])
+        && x.keys().hasOnly(['hpMult', 'lateScale', 'costMult', 'cashMult', 'livesMult', 'earlyWaveCashMult', 'earlyWaveCashStart', 'earlyWaveCashEnd'])
         && (!('hpMult' in x) || isBalanceMult(x.hpMult))
         && (!('lateScale' in x) || isBalanceMult(x.lateScale))
         && (!('costMult' in x) || isBalanceMult(x.costMult))
         && (!('cashMult' in x) || isBalanceMult(x.cashMult))
-        && (!('livesMult' in x) || isBalanceMult(x.livesMult));
+        && (!('livesMult' in x) || isBalanceMult(x.livesMult))
+        && (!('earlyWaveCashMult' in x) || isBalanceMult(x.earlyWaveCashMult))
+        && (!('earlyWaveCashStart' in x) || isBalanceWave(x.earlyWaveCashStart))
+        && (!('earlyWaveCashEnd' in x) || isBalanceWave(x.earlyWaveCashEnd));
     }
 
     function isValidBalanceEnemy(x) {

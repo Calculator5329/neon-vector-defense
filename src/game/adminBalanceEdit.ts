@@ -16,7 +16,16 @@ export const TOWER_BALANCE_FIELDS = [
 ] as const;
 
 export const ENEMY_BALANCE_FIELDS = ['hpMult', 'rewardMult', 'speedMult'] as const;
-export const DIFF_BALANCE_FIELDS = ['hpMult', 'lateScale', 'costMult', 'cashMult', 'livesMult'] as const;
+export const DIFF_BALANCE_FIELDS = [
+  'hpMult',
+  'lateScale',
+  'costMult',
+  'cashMult',
+  'livesMult',
+  'earlyWaveCashMult',
+  'earlyWaveCashStart',
+  'earlyWaveCashEnd',
+] as const;
 export const INCOME_BALANCE_FIELDS = ['killMult', 'waveBonusMult'] as const;
 export const GLOBAL_BALANCE_FIELDS = ['abilityCooldownMult'] as const;
 

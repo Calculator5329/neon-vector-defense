@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
 import { Bot } from '../../src/game/bot';
-import { setBalanceDoc } from '../../src/game/balanceConfig';
+import { diffEarlyWaveCashMult, setBalanceDoc } from '../../src/game/balanceConfig';
 import {
   EXPOSED_DAMAGE_TAKEN_PER_STACK,
   EXPOSED_DURATION,
@@ -536,6 +536,19 @@ function totalWaveKills(waves: number): number {
   return total;
 }
 
+function enemyKillRewardOnWave(diffId: typeof DIFFICULTIES[number], wave: number): number {
+  const game = new Game(ALL_MAPS[0], diffId);
+  const enemy = internals(game).makeEnemy('scout', false);
+  enemy.uid = 3000;
+  enemy.hp = 1;
+  enemy.maxHp = 1;
+  game.wave = wave;
+  const before = game.credits;
+  game.enemies.push(enemy);
+  game.damageEnemy(enemy, 1000, 'kinetic', false);
+  return game.credits - before;
+}
+
 describe('engine correctness fixes', () => {
   test('spire-revealed cloaked hulls are hit by non-detector projectiles', () => {
     const game = makeGame();
@@ -968,5 +981,31 @@ describe('bot fairness and live run context', () => {
     assert.ok(game.towers.length > 0);
     assert.equal(game.towers.some((tower) => tower.def.id === 'prismarr'), false);
     assert.equal(game.towers.every((tower) => game.towerAvailable(tower.def)), true);
+  });
+});
+
+describe('extinction bounty multipliers', () => {
+  test('applies early-extinction wave bounty bonus from balance config only for waves 1-15', () => {
+    const recruitWave1Base = enemyKillRewardOnWave(DIFFICULTIES[0], 1);
+    const recruitWave16Base = enemyKillRewardOnWave(DIFFICULTIES[0], 16);
+    const veteranWave1Base = enemyKillRewardOnWave(DIFFICULTIES[1], 1);
+    const veteranWave16Base = enemyKillRewardOnWave(DIFFICULTIES[1], 16);
+    const extinctionWave1Base = enemyKillRewardOnWave(DIFFICULTIES[3], 1);
+    const extinctionWave16Base = enemyKillRewardOnWave(DIFFICULTIES[3], 16);
+    const extinctionWave15Base = enemyKillRewardOnWave(DIFFICULTIES[3], 15);
+
+    setBalanceDoc({ diffs: { extinction: { earlyWaveCashMult: 1.12 } } });
+    assert.equal(diffEarlyWaveCashMult('extinction', 1), 1.12);
+    assert.equal(diffEarlyWaveCashMult('extinction', 16), 1);
+    assert.equal(diffEarlyWaveCashMult('easy', 1), 1);
+    assert.equal(diffEarlyWaveCashMult('normal', 1), 1);
+
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[3], 1), Math.round(extinctionWave1Base * 1.12));
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[3], 15), Math.round(extinctionWave15Base * 1.12));
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[3], 16), extinctionWave16Base);
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[1], 1), veteranWave1Base);
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[1], 16), veteranWave16Base);
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[0], 1), recruitWave1Base);
+    assert.equal(enemyKillRewardOnWave(DIFFICULTIES[0], 16), recruitWave16Base);
   });
 });
