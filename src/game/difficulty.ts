@@ -40,12 +40,9 @@ function layered(id: string): Layered {
 }
 
 export const LATE_SCALE_START_WAVE = 35;
-export const LATE_SCALE_CURVE: Record<string, { startWave: number; perWave: number }> = {
-  easy: { startWave: LATE_SCALE_START_WAVE, perWave: 0.21 },
-  normal: { startWave: LATE_SCALE_START_WAVE, perWave: 0.24 },
-  hard: { startWave: LATE_SCALE_START_WAVE, perWave: 0.285 },
-  extinction: { startWave: LATE_SCALE_START_WAVE, perWave: 0.325 },
-};
+export const LATE_SCALE_CURVE: Record<string, { startWave: number; perWave: number }> = Object.fromEntries(
+  DIFFICULTIES.map((diff) => [diff.id, { startWave: LATE_SCALE_START_WAVE, perWave: diff.lateScale }]),
+) as Record<string, { startWave: number; perWave: number }>;
 
 /** HP multiplier the engine applies at a given wave (mirrors engine.makeEnemy). */
 export function lateScaleMultiplier(diff: DifficultyDef, wave: number, balanceLateScale = 1): number {
