@@ -1,0 +1,143 @@
+{
+  "$comment": "NVD Signal-Skin concept constraints v1 — machine-readable companion to CONSTRAINTS.md. The local-ai-lab prompt matrices AND the assets/incoming/ intake validator should both read this file so there is one source of truth. See CONSTRAINTS.md for prose + rationale and code citations.",
+  "constraintsVersion": "1",
+  "game": "neon-vector-defense",
+  "publishedUtc": "2026-07-18",
+  "decision": "APPROVED",
+  "autoShip": false,
+  "logicalBoard": { "w": 1280, "h": 720 },
+  "judgeBackdrop": "#0a0f1e",
+  "kinds": {
+    "signal-skin": {
+      "mapsTo": "src/game/cosmeticSets.ts CosmeticSet",
+      "requiredColors": ["towerBody", "towerGlow", "projectileColor", "impactParticle"],
+      "requiredEnum": { "projectileTrail": ["standard", "flare", "ribbon", "echo"] }
+    },
+    "accent": {
+      "mapsTo": "src/game/palette.ts AccentPalette",
+      "requiredColors": ["color"]
+    },
+    "map-theme": {
+      "mapsTo": "src/game/mapThemes.ts MapThemePack.palette",
+      "requiredColors": ["bg1", "bg2", "path", "pathEdge"]
+    },
+    "hq-core": {
+      "mapsTo": "roadmap: HQ/base customization",
+      "requiredColors": ["towerBody", "towerGlow"]
+    },
+    "flourish": {
+      "mapsTo": "roadmap: victory/defeat flourishes",
+      "requiredColors": ["primary"]
+    }
+  },
+  "dimensions": {
+    "signal-skin": { "canvas": { "w": 1024, "h": 1024 }, "format": "png", "alpha": true, "orientationDeg": 0, "orientationNote": "top-down, nose points +x (east) = engine 0-radian facing", "subjectFillPct": [60, 75], "readableAtPx": 90 },
+    "hq-core": { "canvas": { "w": 1024, "h": 1024 }, "format": "png", "alpha": true, "orientationDeg": 0, "subjectFillPct": [60, 75] },
+    "projectile-study": { "canvas": { "w": 1024, "h": 512 }, "format": "png", "alpha": true, "orientationNote": "projectile travels +x, trail behind, small impact burst" },
+    "map-theme": { "canvas": { "w": 1280, "h": 720 }, "format": "png", "alpha": false, "aspect": "16:9" }
+  },
+  "format": {
+    "master": "png",
+    "bitDepth": 8,
+    "colorSpace": "sRGB",
+    "companionAllowed": ["webp"],
+    "sourceOfRecord": "png",
+    "stripMetadata": true,
+    "maxConceptsPerBatch": 12,
+    "maxFileBytes": 6291456
+  },
+  "paletteRules": {
+    "twoToneRequired": true,
+    "twoToneNote": "towerGlow is a higher-luminance member of the same (or deliberately complementary) hue family as towerBody",
+    "dominant": { "hslSaturationMin": 0.60, "luminanceRange": [0.45, 0.80], "contrastVsBackdropMin": 4.5 },
+    "metallicException": { "appliesToHueFamily": "chrome-metallic", "saturationFloorWaived": true, "glowLuminanceMin": 0.90 },
+    "whiteFills": "small core/energy points only, never a dominant fill",
+    "mapTheme": { "bgLuminanceMax": 0.12, "bg2LighterThanBg1": true, "pathLuminanceRange": [0.10, 0.20], "pathDesaturated": true, "pathEdgeLuminanceRange": [0.55, 0.80], "singleHueMood": true },
+    "singleDominantHueFamily": true
+  },
+  "hueFamilies": [
+    "lantern-cyan", "ember-orange", "frost", "void-violet", "toxin-green",
+    "auric-gold", "magma-pink", "tidal-teal", "spectral-magenta",
+    "prestige-gold", "chrome-metallic"
+  ],
+  "reservedColors": {
+    "#ff4757": "invalid-placement / danger red (render.ts:562,655; dossier GRID OFFLINE) — not a dominant skin color",
+    "#4bcffa": "default free Lantern-Cyan accent + base energy color (palette.ts; render.ts:58) — a paid skin must not restate it"
+  },
+  "prohibited": [
+    "danger-red #ff4757 as dominant",
+    "default accent #4bcffa as dominant for a paid skin",
+    "desaturated gray dominant (reads as disabled/dead)",
+    "muddy multi-hue blends (brown/olive/beige)",
+    "pure-white dominant fills",
+    "real-world logos / brands / recognizable IP",
+    "personal or financial data / EXIF-GPS metadata"
+  ],
+  "guardrails": [
+    "cosmetic/content/QoL only — never touches combat stats, score math, bot plans, or unlock thresholds",
+    "viewer-side paint only — excluded from actionHash and the replay manifest; replays render the viewer's skin",
+    "nothing auto-ships: manifest-validated, review-gated, lands in assets/incoming/ only, human merge required",
+    "accepted media is Reserved (not MIT) per docs/asset_provenance.md; no third-party/IP source material"
+  ],
+  "manifestSchema": {
+    "type": "object",
+    "required": ["batchId", "source", "createdUtc", "constraintsVersion", "concepts"],
+    "properties": {
+      "batchId": { "type": "string" },
+      "source": { "type": "string", "const": "local-ai-lab" },
+      "generator": { "type": "string" },
+      "createdUtc": { "type": "string" },
+      "constraintsVersion": { "type": "string", "const": "1" },
+      "concepts": {
+        "type": "array",
+        "maxItems": 12,
+        "items": {
+          "type": "object",
+          "required": ["conceptId", "kind", "name", "hueFamily", "files"],
+          "properties": {
+            "conceptId": { "type": "string" },
+            "kind": { "enum": ["signal-skin", "accent", "map-theme", "hq-core", "flourish"] },
+            "name": { "type": "string" },
+            "hueFamily": { "enum": ["lantern-cyan", "ember-orange", "frost", "void-violet", "toxin-green", "auric-gold", "magma-pink", "tidal-teal", "spectral-magenta", "prestige-gold", "chrome-metallic"] },
+            "files": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["path", "role", "w", "h", "format"],
+                "properties": {
+                  "path": { "type": "string" },
+                  "role": { "enum": ["tower-body", "projectile-study", "impact-study", "board", "hq-core", "flourish"] },
+                  "w": { "type": "integer" },
+                  "h": { "type": "integer" },
+                  "format": { "enum": ["png", "webp"] }
+                }
+              }
+            },
+            "proposedCosmeticSet": {
+              "type": "object",
+              "properties": {
+                "towerBody": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "towerGlow": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "projectileTrail": { "enum": ["standard", "flare", "ribbon", "echo"] },
+                "projectileColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "impactParticle": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+              }
+            },
+            "proposedPalette": {
+              "type": "object",
+              "properties": {
+                "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "bg1": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "bg2": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "path": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "pathEdge": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+              }
+            },
+            "notes": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
