@@ -1,5 +1,7 @@
 # Lantern 7
 
+![neon-vector-defense screenshot](docs/screenshots/app.png)
+
 [![Live game](https://img.shields.io/badge/live-Lantern%207-22c55e?style=flat-square)](https://neon-vector-defense-7.web.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-20232a?style=flat-square&logo=react)](https://react.dev/)
