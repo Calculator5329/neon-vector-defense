@@ -15,6 +15,7 @@ import { balanceDocSnapshot, balanceVersion, type BalanceConfigDoc } from './bal
 import type { DailyChallenge } from './dailyChallenge';
 import type { WeeklyChallenge, WeeklyGauntletDoc } from './weeklyChallenge';
 import type { GauntletProtocolLeg } from './gauntletProtocol';
+import { isEnemyInherentlyCloaked } from './waves';
 import { actionHash, encodeReplayActions, isReplayActionEvent, normalizeReplayActionEvents, type ReplayActionPack } from './replayCodec';
 import { hashReplayMapGeometry } from './mapVersions';
 
@@ -909,7 +910,8 @@ export class RunRecorder {
       this.combat.biggestLeakCores = coresLost;
       this.combat.biggestLeakWave = state.wave;
     }
-    if (traits.cloaked) this.combat.cloakedLeakCores += coresLost;
+    const wasCloaked = traits.cloaked || isEnemyInherentlyCloaked(enemy?.def?.id ?? enemyId);
+    if (wasCloaked) this.combat.cloakedLeakCores += coresLost;
     if (traits.revealed) this.combat.revealedLeakCores += coresLost;
     if (traits.armored) this.combat.armoredLeakCores += coresLost;
     if (traits.boss) this.combat.bossLeakCores += coresLost;

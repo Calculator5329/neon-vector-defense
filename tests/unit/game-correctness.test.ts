@@ -12,7 +12,7 @@ import {
   MIRROR_HULL_RECALIBRATED_RESIST,
   RECALIBRATE_MIRROR_WEAKEN_S,
 } from '../../src/game/engine';
-import { ENEMIES } from '../../src/game/enemies';
+import { ENEMIES, rbe } from '../../src/game/enemies';
 import { dailyChallenge, dailyModifierNames, type DailyChallenge } from '../../src/game/dailyChallenge';
 import { sanitizeFirestoreData } from '../../src/game/firestoreSanitize';
 import { buildGhostCurves, ghostAtWave, ghostCurvesForMap, type WaveCurveLite } from '../../src/game/ghostCurve';
@@ -22,7 +22,7 @@ import { actionHash, decodeReplayActionBundle, encodeReplayActions } from '../..
 import { normalizeProgress, progress } from '../../src/game/storage';
 import { computeStats, TOWER_MAP, TOWERS, TOWERS_BY_UNLOCK } from '../../src/game/towers';
 import type { Enemy, EnemyDef, Tower } from '../../src/game/types';
-import { getWave } from '../../src/game/waves';
+import { getWave, hasCloakedWave, isWaveGroupCloaked } from '../../src/game/waves';
 import { partitionRunDeletions, validDeletedRunIds } from '../../functions/src/deleteHelpers';
 import { isStaleBuild } from '../../src/buildFreshness';
 import { canSubmitScore, canWriteAnalytics, optOutOfSale, resetConsent, setAgeFromBirthDate } from '../../src/game/consent';
@@ -179,6 +179,66 @@ describe('damage resistance rules', () => {
     const combo = game.damageEnemy(armored, 20, 'kinetic', false);
     assert.ok(combo > kineticAlone, `combo ${combo} should beat kinetic alone ${kineticAlone}`);
     assert.ok(combo > shredAlone, `combo ${combo} should beat shred alone ${shredAlone}`);
+  });
+});
+
+describe('phantom cloak telemetry and preview flags', () => {
+  test('phantom hulls are tagged cloaked at spawn even when the wave entry is not cloaked', () => {
+    const game = makeGame();
+    const phantom = internals(game).makeEnemy('phantom', false);
+    assert.equal(phantom.cloaked, true);
+  });
+
+  test('phantom leaks increment cloaked leak telemetry counters', () => {
+    const game = makeGame();
+    const phantom = internals(game).makeEnemy('phantom', false);
+    phantom.pos = { ...game.map.path[game.map.path.length - 1] };
+    phantom.wp = game.map.path.length;
+    phantom.dist = 999;
+    game.phase = 'wave';
+    game.enemies.push(phantom);
+    game.update(Game.SIM_STEP);
+
+    assert.equal(game.runStats.leaks, rbe('phantom'));
+    const analytics = game.buildRunAnalyticsDoc('T', 'u_test', 'test-build');
+    assert.equal(analytics.combat.cloakedLeakCores, rbe('phantom'));
+  });
+
+  test('preview grouping flags waves with inherently cloaked enemy types', () => {
+    const runDef = getWave(11);
+    assert.equal(isWaveGroupCloaked(runDef.find((g) => g.type === 'phantom')!), true);
+    assert.equal(isWaveGroupCloaked({ type: 'scout', count: 6, gap: 1 }), false);
+  });
+
+  test('wave preview warning is triggered by inherently cloaked wave types', () => {
+    const wave11 = getWave(11);
+    const wave1 = getWave(1);
+    assert.equal(wave11.some((g) => isWaveGroupCloaked(g)), true);
+    assert.equal(wave1.some((g) => isWaveGroupCloaked(g)), false);
+    assert.equal(hasCloakedWave(wave11), true);
+    assert.equal(hasCloakedWave(wave1), false);
+  });
+
+  test('telemetry infers cloaked leaks for inherently cloaked IDs when leak traits are absent', () => {
+    const game = makeGame();
+    const state = game.telemetryState();
+    game.recorder.recordLeak(state, 'phantom', 12, {});
+    const analytics = game.buildRunAnalyticsDoc('T', 'u_test', 'test-build');
+    assert.equal(analytics.combat.cloakedLeakCores, 12);
+  });
+
+  test('watchfire sweep marks cloaked hulls as revealed', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: 900000 });
+    const watchfire = game.placeTower(TOWERS.find((tower) => tower.id === 'watchfire')!, findPlaceable(game));
+    assert.ok(watchfire);
+    const phantom = internals(game).makeEnemy('phantom', false);
+    phantom.pos = { x: watchfire.pos.x, y: Math.max(8, watchfire.pos.y - 70) };
+    phantom.wp = 1;
+    phantom.dist = 1;
+    game.enemies.push(phantom);
+    game.phase = 'wave';
+    game.update(Game.SIM_STEP);
+    assert.equal(phantom.revealed, true);
   });
 });
 

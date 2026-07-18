@@ -65,6 +65,7 @@ import { buildGhostCurves, ghostCurvesForMap, type GhostCurve } from '../game/gh
 import { GHOST_CURVES_RAW } from '../game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from '../game/dossier';
 import type { GameMap, DifficultyDef, TowerDef, Tower, TargetFilter, TargetMode, Vec, EnemyDef, WaveGroup } from '../game/types';
+import { hasCloakedWave, isWaveGroupCloaked } from '../game/waves';
 import { AIHelpWidget } from '../widgets/AIHelpWidget';
 import { FeedbackWidget } from '../widgets/FeedbackWidget';
 import { PERF_MAP, DEMO_MODE, AI_HELP_ENABLED, WIDGET_OPEN_EVENT } from '../appShared';
@@ -221,7 +222,7 @@ function summarizeWave(groups: WaveGroup[]) {
     if (!def) continue;
     const row = byType.get(group.type) ?? { def, count: 0, cloaked: false, boss: !!def.boss };
     row.count += group.count;
-    row.cloaked = row.cloaked || !!group.cloaked;
+    row.cloaked = row.cloaked || isWaveGroupCloaked(group);
     row.boss = row.boss || !!def.boss;
     byType.set(group.type, row);
   }
@@ -1247,7 +1248,9 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   };
 
   const nextWaveNumber = game.wave + 1;
-  const nextWavePreview = game.phase === 'build' ? summarizeWave(game.previewWave(nextWaveNumber)) : [];
+  const nextWaveGroups = game.phase === 'build' ? game.previewWave(nextWaveNumber) : [];
+  const nextWavePreview = summarizeWave(nextWaveGroups);
+  const hasNextWaveCloak = nextWaveGroups ? hasCloakedWave(nextWaveGroups) : false;
   const displayedWaveLimit = activeGauntletRoute ? gauntletProtocolWaveCount(gauntletLeg) : activeDiff.waves;
   const adaptationType = game.adaptation.type;
   const adaptationResist = Math.round(game.adaptation.resist * 100);
@@ -1539,7 +1542,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
                   setPlacing={(d) => setPlacementMode(d)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
               )}
               {game.phase === 'build' && (
-                <WavePreviewPanel wave={nextWaveNumber} items={nextWavePreview} onHover={recordWavePreviewHover} />
+                <WavePreviewPanel wave={nextWaveNumber} items={nextWavePreview} onHover={recordWavePreviewHover} hasCloakedIncoming={hasNextWaveCloak} />
               )}
             </div>
           ) : (
@@ -2019,19 +2022,20 @@ function WavePreviewPanel({
   wave,
   items,
   onHover,
+  hasCloakedIncoming,
 }: {
   wave: number;
   items: ReturnType<typeof summarizeWave>;
   onHover: () => void;
+  hasCloakedIncoming: boolean;
 }) {
-  const hasCloak = items.some((item) => item.cloaked);
   const hasBoss = items.some((item) => item.boss);
   return (
     <div className="wave-preview-panel" data-testid="wave-preview" onMouseEnter={onHover} onFocus={onHover}>
       <div className="wave-preview-head">
         <span>NEXT WAVE {wave}</span>
         <div className="wave-preview-flags">
-          {hasCloak && <b className="cloak">CLOAK</b>}
+          {hasCloakedIncoming && <b className="cloak">CLOAKED WAVE INCOMING</b>}
           {hasBoss && <b className="boss">BOSS</b>}
         </div>
       </div>
