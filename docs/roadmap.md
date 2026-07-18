@@ -7,18 +7,22 @@ Last updated: 2026-07-16 (owner replay-bug report filed)
 
 ## Now — owner bug report (Ethan, 2026-07-16 audit review)
 
-- [ ] **BUG: replay playback is inaccurate — enemies don't die accurately.**
-  Owner-observed: during replay playback, enemy deaths diverge from the
-  original run (kills happen late/early or not at all). Likely determinism
-  drift between live sim and re-sim. *Accept when*: a recorded run re-simulated
-  via verifyRun produces identical kill frames/score, proven on ≥3 seeds.
-- [ ] **BUG: replay verification gets stuck in simulating loops.** Owner-observed:
-  verification sometimes never terminates ("simulating" forever). Needs a
-  reproduction, a max-tick/timeout guard that reports `divergent` instead of
-  hanging, and a root-cause fix. Supersedes the ambiguous status of the
-  2026-07-11 replay-pipeline E2E directive — that item is NOT proven.
-  *(Note: manifest fences this repo `agents: docs-only`; code fixes need an
-  Ethan fence promotion or an explicitly approved lane.)*
+- [x] **BUG: replay playback is inaccurate — enemies don't die accurately.**
+  *(done 2026-07-18, bal-replay-sweep-0718)* Root cause was NOT determinism
+  drift — the fixed-timestep accumulator makes the tick sequence pacing-
+  independent (locked by `tests/unit/replay-determinism.test.ts`, byte-identical
+  kill frames under jittered vs uniform dt across seeds). The owner symptom was
+  the viewer *silently* falling back to a cosmetic reconstruction; the viewer now
+  labels "COSMETIC PREVIEW — not a frame-accurate replay" and logs the reason
+  (`createReplayPlaybackDiagnostic`). Frame parity on ≥3 seeds is asserted by
+  `npm run test:replay-e2e` (driver reproduces identical kills/leaks/wave).
+- [x] **BUG: replay verification gets stuck in simulating loops.**
+  *(done 2026-07-18, bal-replay-sweep-0718)* Root cause: the server verify path
+  had a tick-count guard but no wall-clock deadline, so a dense marathon could
+  burn to the Cloud Function timeout under the tick cap. `reSimulate` now takes a
+  `wallClockMs` budget and returns `unverifiable` (not `divergent`) on deadline;
+  `verifyRunCore` caps it at 30s. The bounded/anti-hang case is asserted in
+  `npm run test:replay-e2e`.
 
 ## Next up (owner-triaged, 2026-07-04)
 
@@ -178,12 +182,14 @@ Last updated: 2026-07-16 (owner replay-bug report filed)
 - [x] CrazyGames/Poki SDK adapter and portal build flavors
 - [ ] [ETHAN] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
 
-- [ ] **Replay pipeline E2E verification (Ethan directive 2026-07-11).**
-  Prove replays are FULLY working on the current build: scripted run →
-  manifest + actionHash → upload path → verifyRun re-simulation →
-  `verified` verdict, plus a deliberately-tampered replay yielding
-  `divergent`. Fix any breakage found; add the E2E as a repeatable script.
-  *Accept:* both verdicts reproduce on demand; breakages filed+fixed.
+- [x] **Replay pipeline E2E verification (Ethan directive 2026-07-11).**
+  *(done 2026-07-18, bal-replay-sweep-0718)* `npm run test:replay-e2e`
+  (wired into `npm run ci`, and run as a subprocess by `test:jest`) records
+  seeded combat runs under jittered pacing → manifest + actionHash →
+  mock upload → `reSimulate` → `verified` with summary + driver frame parity,
+  a tampered action → `divergent`, and a zero-budget → bounded `unverifiable`,
+  on 3 seeds. Both verdicts reproduce on demand; Gaps A–D closed (see
+  `docs/plans/unblock-replay-pipeline-e2e-verification-ethan-d-20260718/`).
 
 ## Customization & paid-features backlog (added 2026-07-10)
 

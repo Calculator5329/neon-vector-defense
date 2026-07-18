@@ -2,6 +2,59 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-07-18 - Replay pipeline E2E: real script + viewer fidelity label + determinism lock
+
+Closes Gaps A–D from `docs/plans/unblock-replay-pipeline-e2e-verification-ethan-d-20260718/`
+(Balance round finding 4 — "fix ALL remaining replay issues"). Verification,
+viewer-label, and test scaffolding only; no combat/score/bot/unlock math touched.
+
+- **Gap A — the named E2E now actually runs and exercises combat.** Rewrote
+  `scripts/replay-e2e.ts` from a combat-free smoke gate into a real proof:
+  records seeded bot campaigns through waves with enemy deaths on **3 seeds
+  (123/223/987) under jittered variable frame pacing**, and per seed asserts
+  `reSimulate` → `verified` with exact summary parity, the client
+  `createReplayPlayback` driver reproduces identical kill frames, a tampered
+  player action → `divergent`, and a zero wall-clock budget returns a bounded
+  `unverifiable` (never hangs). Wired as `npm run test:replay-e2e` and into
+  `npm run ci`. Replaced the grep-only `tests/jest/replay-e2e.test.cjs` (which
+  read the script as text and matched string literals) with a real subprocess
+  run that requires exit 0 + the `replay-e2e: PASS` sentinel.
+- **Gap B — the viewer no longer presents a cosmetic reconstruction as the real
+  battle.** `createReplayPlaybackDiagnostic` now returns the *reason* a run can't
+  be driven frame-accurately (schema/engine/balance drift, duration/kill caps,
+  missing tick timing, setup error); `ReplayViewer` logs it and shows a visible
+  "COSMETIC PREVIEW — not a frame-accurate replay" label. This is a fidelity
+  notice, never a `verifyRun` verdict (no verified/divergent leaked to players).
+  `createReplayPlayback` keeps its historical `ReplayPlayback | null` contract.
+- **Gap C — server verify path can no longer hang (owner "stuck simulating"
+  root cause).** `reSimulate(bundle, { wallClockMs })` adds a wall-clock deadline
+  to the re-sim advance loop (every 64 ticks, mirroring the playback stepper); on
+  deadline it returns `unverifiable: 're-simulation wall-clock budget exceeded'`,
+  never `divergent` (a slow run is not a dishonest one). The tick-count guard
+  stays as a belt-and-suspenders bound. `verifyRunCore` caps re-sim at 30s, well
+  under the smallest caller (post-accept) Function timeout.
+- **Gap D — determinism-under-variable-pacing regression lock.** New
+  `tests/unit/replay-determinism.test.ts` records the same autoNext run twice —
+  once with uniform `update(SIM_STEP)`, once with a seeded jittered dt stream —
+  and requires byte-identical kill frames, action/tick timeline (actionHash), and
+  summary, locking the fixed-timestep accumulator invariant (`engine.ts:1662-1681`).
+- Added a server-side tampered-**action** → `divergent` case to the callable
+  emulator test (all three verdicts already proven server-side; this adds the
+  action-rejection path alongside the existing summary/hash cases).
+- **Ghost-run artifact explained (r_mr2q0g0p: wave 61 / kills 0 / 381 boss leak
+  cores / 113s).** 113s is impossible for a real wave-61 freeplay run, and
+  kills 0 with 381 leaks is a summary populated without the sim actually running
+  — i.e., a viewer cosmetic reconstruction / desync, not a verified battle. It is
+  prevented on two fronts now surfaced+tested: (1) the viewer no longer presents a
+  reconstruction as the real run (Gap B label), and (2) the re-sim verify path
+  reproduces the recorded actions and flags any such summary as `divergent`/
+  `unverifiable` (tampered-summary, impossible-action, and a **named regression
+  anchored to the exact ghost shape** — wave 61 / kills 0 / 381 leaks / 113s —
+  in `reSimulate.test.ts`, plus the server action-rejection case in
+  `callables-emulator.test.ts`); it can no longer hang on a dense run (Gap C). No
+  valid late-wave freeplay data existed to re-balance from — re-collect after this
+  lands, per `docs/plans/BALANCE-2026-07-18.md`.
+
 ## 2026-07-18 - Unblock lane planning updates
 
 - Marked roadmap lane status for all five landed unblock deliveries from

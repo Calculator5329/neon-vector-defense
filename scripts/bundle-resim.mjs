@@ -89,8 +89,13 @@ export interface ReSimBundle {
   chunks: Array<Record<string, unknown>>;
 }
 
-export function reSimulate(bundle: ReSimBundle): ReSimResult;
-export function reSimulateUploadBundle(bundle: ReSimBundle): ReSimResult;
+export interface ReSimOptions {
+  wallClockMs?: number;
+}
+
+export const DEFAULT_RESIM_WALL_CLOCK_MS: number;
+export function reSimulate(bundle: ReSimBundle, options?: ReSimOptions): ReSimResult;
+export function reSimulateUploadBundle(bundle: ReSimBundle, options?: ReSimOptions): ReSimResult;
 export function setBalanceDoc(raw: unknown): void;
 export function setDailyOverrideDoc(raw: unknown): void;
 export function setWeeklyOverrideDoc(raw: unknown): void;
