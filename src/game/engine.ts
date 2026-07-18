@@ -15,7 +15,7 @@ import {
 } from './eliteAffixes';
 import { ABILITIES } from './abilities';
 import { ARCHIVE } from './lore';
-import { getBalance } from './balanceConfig';
+import { diffEarlyWaveCashMult, getBalance } from './balanceConfig';
 import { progress } from './storage';
 import { computeStats, sellValue, TOWER_MAP, TOWERS } from './towers';
 import {
@@ -1473,8 +1473,8 @@ export class Game {
     if (e.dead) return;
     e.dead = true;
     const dailyIncome = this.dailyChallenge?.twist.killRewardMultiplier ?? 1;
-    const reward = Math.max(1, Math.round(e.def.reward * (e.elite?.rewardMult ?? 1) * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * incomeMult(this.wave) *
-      (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1) * dailyIncome));
+    const reward = Math.max(1, Math.round(e.def.reward * (e.elite?.rewardMult ?? 1) * getBalance().enemy(e.def.id).rewardMult * getBalance().killMult * diffEarlyWaveCashMult(this.diff.id, this.wave) *
+      incomeMult(this.wave) * (this.freeplay ? freeplayIncomeMult(this.wave, this.freeplayState.relics, this.freeplayState.currentMutators) : 1) * dailyIncome));
     this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;

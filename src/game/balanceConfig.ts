@@ -9,7 +9,7 @@
 //
 // Wire shape (all optional, admin-authored, clamped to [0.25, 4]):
 //   { version?, income?:{killMult?,waveBonusMult?}, global?:{abilityCooldownMult?},
-//     diffs?:{ [diffId]:{hpMult?,lateScale?,costMult?,cashMult?,livesMult?} },
+//     diffs?:{ [diffId]:{hpMult?,lateScale?,costMult?,cashMult?,livesMult?,earlyWaveCashMult?,earlyWaveCashStart?,earlyWaveCashEnd?} },
 //     enemies?:{ [enemyId]:{hpMult?,rewardMult?,speedMult?} },
 //     towers?:{ [towerId]:{costMult?,damageMult?,rangeMult?,fireRateMult?,projectileSpeedMult?,splashMult?,slowMult?,burnMult?} } }
 
@@ -19,7 +19,16 @@ export interface BalanceConfigDoc {
   version?: string;
   income?: { killMult?: number; waveBonusMult?: number };
   global?: { abilityCooldownMult?: number };
-  diffs?: Record<string, { hpMult?: number; lateScale?: number; costMult?: number; cashMult?: number; livesMult?: number }>;
+  diffs?: Record<string, {
+    hpMult?: number;
+    lateScale?: number;
+    costMult?: number;
+    cashMult?: number;
+    livesMult?: number;
+    earlyWaveCashMult?: number;
+    earlyWaveCashStart?: number;
+    earlyWaveCashEnd?: number;
+  }>;
   enemies?: Record<string, { hpMult?: number; rewardMult?: number; speedMult?: number }>;
   towers?: Record<string, {
     costMult?: number; damageMult?: number; rangeMult?: number; fireRateMult?: number;
@@ -27,7 +36,16 @@ export interface BalanceConfigDoc {
   }>;
 }
 
-export interface DiffOverride { hpMult: number; lateScale: number; costMult: number; cashMult: number; livesMult: number }
+export interface DiffOverride {
+  hpMult: number;
+  lateScale: number;
+  costMult: number;
+  cashMult: number;
+  livesMult: number;
+  earlyWaveCashMult: number;
+  earlyWaveCashStart: number;
+  earlyWaveCashEnd: number;
+}
 export interface EnemyOverride { hpMult: number; rewardMult: number; speedMult: number }
 export interface TowerOverride {
   costMult: number; damageMult: number; rangeMult: number; fireRateMult: number;
@@ -44,7 +62,16 @@ export interface ResolvedBalance {
   tower(id: string): TowerOverride;
 }
 
-const IDENTITY_DIFF: DiffOverride = { hpMult: 1, lateScale: 1, costMult: 1, cashMult: 1, livesMult: 1 };
+const IDENTITY_DIFF: DiffOverride = {
+  hpMult: 1,
+  lateScale: 1,
+  costMult: 1,
+  cashMult: 1,
+  livesMult: 1,
+  earlyWaveCashMult: 1,
+  earlyWaveCashStart: 1,
+  earlyWaveCashEnd: 15,
+};
 const IDENTITY_ENEMY: EnemyOverride = { hpMult: 1, rewardMult: 1, speedMult: 1 };
 const IDENTITY_TOWER: TowerOverride = {
   costMult: 1, damageMult: 1, rangeMult: 1, fireRateMult: 1,
@@ -56,6 +83,12 @@ function clampMult(n: unknown, def = 1, min = 0.25, max = 4): number {
   const x = typeof n === 'number' ? n : NaN;
   if (!Number.isFinite(x)) return def;
   return Math.min(max, Math.max(min, x));
+}
+
+function clampWave(n: unknown, def: number, min = 1, max = 200): number {
+  const x = typeof n === 'number' ? n : NaN;
+  if (!Number.isFinite(x)) return def;
+  return Math.max(min, Math.min(max, Math.floor(x)));
 }
 
 const IDENTITY: ResolvedBalance = {
@@ -93,6 +126,9 @@ export function setBalanceDoc(raw: BalanceConfigDoc | null | undefined): void {
       return {
         hpMult: clampMult(d.hpMult), lateScale: clampMult(d.lateScale), costMult: clampMult(d.costMult),
         cashMult: clampMult(d.cashMult), livesMult: clampMult(d.livesMult),
+        earlyWaveCashMult: clampMult(d.earlyWaveCashMult),
+        earlyWaveCashStart: clampWave(d.earlyWaveCashStart, 1),
+        earlyWaveCashEnd: clampWave(d.earlyWaveCashEnd, 15),
       };
     },
     enemy: (id) => {
@@ -117,6 +153,12 @@ export function getBalance(): ResolvedBalance { return current; }
 export function balanceVersion(): string { return current.version; }
 export function balanceDocSnapshot(): BalanceConfigDoc | null {
   return currentDoc ? cloneBalanceDoc(currentDoc) : null;
+}
+
+export function diffEarlyWaveCashMult(diffId: string, wave: number): number {
+  const override = getBalance().diff(diffId);
+  if (wave < override.earlyWaveCashStart || wave > override.earlyWaveCashEnd) return 1;
+  return override.earlyWaveCashMult;
 }
 
 function cloneBalanceDoc(raw: BalanceConfigDoc): BalanceConfigDoc {

@@ -678,6 +678,10 @@ describe('feedback and config rules', () => {
       enemies: { scout: { hpMult: 1.2, rewardMult: 1, speedMult: 0.9 }, mirror: { hpMult: 1.05 } },
     }));
     await assertSucceeds(setDoc(doc(adminDb(), 'config', 'balance'), {
+      version: 'test-extinction',
+      diffs: { extinction: { earlyWaveCashMult: 1.12, earlyWaveCashStart: 1, earlyWaveCashEnd: 15 } },
+    }));
+    await assertSucceeds(setDoc(doc(adminDb(), 'config', 'balance'), {
       version: 'test-tower',
       towers: { siphon: { damageMult: 1.15, projectileSpeedMult: 1.2, splashMult: 1.1, slowMult: 1, burnMult: 1 } },
     }));
