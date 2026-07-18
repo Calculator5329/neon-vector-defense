@@ -208,6 +208,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   `actionHash`).
 - [ ] **Victory/defeat flourishes.** Purchasable end-of-run effects (particle
   bursts, banner styles) — pure UI layer.
+  *Plan landed 2026-07-18: `docs/plans/unblock-victory-defeat-flourishes-purchasable-en-20260718/` (lane `victory-defeat-flourishes`); implementation dispatch pending.*
 
 ### Maps & content
 - [x] **Map pack: Sectors 13–16.** *(done 2026-07-11)* Four new `GameMap` entries exercising
@@ -218,6 +219,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   editor screen for path/blocker painting, local-only play. Sharing/upload is
   a LATER step gated on moderation + replay-integrity design (map hash must
   join the replay manifest before any shared-map leaderboard exists).
+  *Plan landed 2026-07-18: `docs/plans/unblock-custom-map-format-local-editor-foundatio-20260718/` (lane `custom-map-format-local-editor`); implementation dispatch pending.*
 
 ### Mini-games (reuse Daily/Gauntlet infrastructure)
 - [x] **Protocol Drills.** *(done 2026-07-10)* Short single-mechanic challenges (e.g. "slows
@@ -243,6 +245,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - [ ] **Seasonal cosmetic track ("Recovered-Signal Pass" v1).** Time-boxed
   cosmetic unlock ladder fed by existing quest/streak meta — free tier +
   premium tier (entitlement-gated); zero gameplay deltas, per Guardrails.
+  *Plan landed 2026-07-18: `docs/plans/unblock-seasonal-cosmetic-track-recovered-signal-20260718/` (lane `seasonal-cosmetic-track`); implementation dispatch pending.*
 
 ## Guardrails
 
@@ -262,4 +265,5 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 ## Cross-project: AI asset intake (G1, added 2026-07-10)
 
 - [ ] (G1) `assets/incoming/` intake for Signal Skin concept batches from local-ai-lab — manifest-validated and review-gated; concepts only, nothing auto-ships to the live game (guardrails above apply)
-- [ ] (G1) Publish skin-concept constraints (dimensions, format, neon palette rules) for the lab's NVD prompt matrices
+  *Plan landed 2026-07-18: `docs/plans/unblock-g1-assets-incoming-intake-for-signal-ski-20260718/` (lane `g1-assets-incoming-intake`); implementation dispatch pending.*
+- [x] (G1) Publish skin-concept constraints (dimensions, format, neon palette rules) for the lab's NVD prompt matrices. *(done 2026-07-18, g1-publish-skin-concept-constraints)*

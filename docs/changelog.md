@@ -2,6 +2,16 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-07-18 - Unblock lane planning updates
+
+- Marked roadmap lane status for all five landed unblock deliveries from
+  `docs/plans/`:
+  - `g1-assets-incoming-intake`: plan landed at `docs/plans/unblock-g1-assets-incoming-intake-for-signal-ski-20260718/`; implementation dispatch pending.
+  - `g1-publish-skin-concept-constraints`: item fully executed and marked done in `docs/roadmap.md`.
+  - `victory-defeat-flourishes`: plan landed at `docs/plans/unblock-victory-defeat-flourishes-purchasable-en-20260718/`; implementation dispatch pending.
+  - `seasonal-cosmetic-track`: plan landed at `docs/plans/unblock-seasonal-cosmetic-track-recovered-signal-20260718/`; implementation dispatch pending.
+  - `custom-map-format-local-editor`: plan landed at `docs/plans/unblock-custom-map-format-local-editor-foundatio-20260718/`; implementation dispatch pending.
+
 ## 2026-07-11 - Mount the Signal Skin and Map Theme pickers
 
 - Wired `SignalSkinPicker` and `MapThemePicker` (built 2026-07-10 but never
