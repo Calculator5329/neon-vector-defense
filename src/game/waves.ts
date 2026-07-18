@@ -4,6 +4,21 @@ function g(type: string, count: number, gap: number, opts: Partial<WaveGroup> = 
   return { type, count, gap, ...opts };
 }
 
+/** Enemy IDs that are phase-cloaked from spawn unless explicitly overridden. */
+const INHERENT_CLOAK_ENEMIES = new Set<string>(['phantom']);
+
+export function isEnemyInherentlyCloaked(typeId: string): boolean {
+  return INHERENT_CLOAK_ENEMIES.has(typeId);
+}
+
+export function isWaveGroupCloaked(group: WaveGroup): boolean {
+  return !!group.cloaked || isEnemyInherentlyCloaked(group.type);
+}
+
+export function hasCloakedWave(groups: Wave[]): boolean {
+  return groups.some(isWaveGroupCloaked);
+}
+
 // 70 designed waves. Index 0 = wave 1.
 const WAVES: Wave[] = [
   /* 1 */ [g('scout', 10, 1.0)],

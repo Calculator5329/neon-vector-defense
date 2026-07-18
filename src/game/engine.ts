@@ -18,7 +18,13 @@ import { ARCHIVE } from './lore';
 import { getBalance } from './balanceConfig';
 import { progress } from './storage';
 import { computeStats, sellValue, TOWER_MAP, TOWERS } from './towers';
-import { getWave, waveBonus, incomeMult } from './waves';
+import {
+  getWave,
+  isEnemyInherentlyCloaked,
+  isWaveGroupCloaked,
+  waveBonus,
+  incomeMult,
+} from './waves';
 import { sfx, vox, playStinger, setBossMusic } from './sound';
 import {
   RunRecorder,
@@ -1059,7 +1065,10 @@ export class Game {
     if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'mirror')) { this.announce('MIRROR HULL signature detected - adaptation scan imminent'); vox('wave-boss'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'leviathan')) { this.announce('⚠ LEVIATHAN-CLASS SIGNATURE DETECTED'); vox('wave-leviathan'); }
     else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.type === 'titan')) { this.announce('⚠ TITAN-class carrier inbound'); vox('wave-boss'); }
-    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some((g) => g.cloaked)) { this.announce('⚠ Phase-cloaked signatures — sensor coverage advised'); vox('wave-cloaked'); }
+    else if (!(this.freeplay && this.freeplayState.currentMutators.length > 0) && def.some(isWaveGroupCloaked)) {
+      this.announce('⚠ Phase-cloaked signatures — sensor coverage advised');
+      vox('wave-cloaked');
+    }
     else { vox('wave-incoming'); }
     // capital-hull waves swap to the boss theme; normal waves resume the sector score
     setBossMusic(def.some((g) => ENEMIES[g.type]?.boss));
@@ -1115,7 +1124,7 @@ export class Game {
       resonanceTimer: 0,
       exposed: 0,
       exposedTimer: 0,
-      cloaked,
+      cloaked: cloaked || isEnemyInherentlyCloaked(typeId),
       phase: this.rng() * Math.PI * 2,
       dead: false,
       finished: false,
@@ -2147,6 +2156,7 @@ export class Game {
         delta = Math.atan2(Math.sin(delta), Math.cos(delta));
         if (Math.abs(delta) <= tol) {
           any = true;
+          e.revealed = true;
           this.damageEnemy(e, st.damage * dt, st.damageType, false, t);
           if (st.slowPower > 0) this.applySlow(e, st.slowPower, st.slowDuration);
           if (st.burnDps > 0) this.applyBurn(e, st.burnDps, st.burnDuration, t);
