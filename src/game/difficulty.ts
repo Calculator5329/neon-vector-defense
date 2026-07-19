@@ -39,11 +39,22 @@ function layered(id: string): Layered {
   return out;
 }
 
+export const LATE_SCALE_START_WAVE = 35;
+export const LATE_SCALE_CURVE: Record<string, { startWave: number; perWave: number }> = Object.fromEntries(
+  DIFFICULTIES.map((diff) => [diff.id, { startWave: LATE_SCALE_START_WAVE, perWave: diff.lateScale }]),
+) as Record<string, { startWave: number; perWave: number }>;
+
+/** HP multiplier the engine applies at a given wave (mirrors engine.makeEnemy). */
+export function lateScaleMultiplier(diff: DifficultyDef, wave: number, balanceLateScale = 1): number {
+  const curve = LATE_SCALE_CURVE[diff.id] ?? { startWave: LATE_SCALE_START_WAVE, perWave: diff.lateScale };
+  return 1 + Math.max(0, wave - curve.startWave) * curve.perWave * balanceLateScale;
+}
+
 /** HP multiplier the engine applies at a given wave (mirrors engine.makeEnemy). */
 function hpScale(diff: DifficultyDef, wave: number): number {
   const ramp = Math.min(1, wave / 25);
   const diffMult = 1 + (diff.hpMult - 1) * ramp;
-  const late = 1 + Math.max(0, wave - 25) * diff.lateScale;
+  const late = lateScaleMultiplier(diff, wave);
   const fp = 1 + Math.max(0, wave - diff.waves) * 0.18;
   return diffMult * late * fp;
 }

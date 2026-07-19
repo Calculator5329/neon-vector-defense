@@ -25,6 +25,7 @@ import {
   waveBonus,
   incomeMult,
 } from './waves';
+import { lateScaleMultiplier } from './difficulty';
 import { sfx, vox, playStinger, setBossMusic } from './sound';
 import {
   RunRecorder,
@@ -1096,9 +1097,9 @@ export class Game {
     const bd = bo.diff(this.diff.id);
     const ramp = Math.min(1, this.wave / 25);
     const diffMult = 1 + (this.diff.hpMult * bd.hpMult - 1) * ramp;
-    // post-25 climb that kills the mid-game "escape velocity" — steeper on the
+    // post-35 climb that kills the mid-game "escape velocity" — steeper on the
     // harder protocols so Apex/Extinction keep demanding new strategy late.
-    const late = 1 + Math.max(0, this.wave - 25) * this.diff.lateScale * bd.lateScale;
+    const late = lateScaleMultiplier(this.diff, this.wave, bd.lateScale);
     // beyond the designed campaign (freeplay) the siege steepens hard.
     const fp = 1 + Math.max(0, this.wave - this.diff.waves) * 0.18;
     const mutatorHp =

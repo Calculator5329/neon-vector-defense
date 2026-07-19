@@ -15,8 +15,8 @@ export function isWaveGroupCloaked(group: WaveGroup): boolean {
   return !!group.cloaked || isEnemyInherentlyCloaked(group.type);
 }
 
-export function hasCloakedWave(groups: Wave[]): boolean {
-  return groups.some(isWaveGroupCloaked);
+export function hasCloakedWave(wave: Wave): boolean {
+  return wave.some(isWaveGroupCloaked);
 }
 
 // 70 designed waves. Index 0 = wave 1.
