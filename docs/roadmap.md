@@ -273,3 +273,5 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - [ ] (G1) `assets/incoming/` intake for Signal Skin concept batches from local-ai-lab — manifest-validated and review-gated; concepts only, nothing auto-ships to the live game (guardrails above apply)
   *Plan landed 2026-07-18: `docs/plans/unblock-g1-assets-incoming-intake-for-signal-ski-20260718/` (lane `g1-assets-incoming-intake`); implementation dispatch pending.*
 - [x] (G1) Publish skin-concept constraints (dimensions, format, neon palette rules) for the lab's NVD prompt matrices. *(done 2026-07-18, g1-publish-skin-concept-constraints)*
+
+- [ ] [refactor] Module-stub Firestore reads in the qa-screens scaffold (added via Visions, 2026-07-19)
