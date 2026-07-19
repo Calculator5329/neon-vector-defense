@@ -275,3 +275,5 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - [x] (G1) Publish skin-concept constraints (dimensions, format, neon palette rules) for the lab's NVD prompt matrices. *(done 2026-07-18, g1-publish-skin-concept-constraints)*
 
 - [ ] [refactor] Module-stub Firestore reads in the qa-screens scaffold (added via Visions, 2026-07-19)
+
+- [ ] [lost] Queue the [ETHAN] agents-fence promotion so the P0 replay fixes can dispatch (added via Visions, 2026-07-19)
