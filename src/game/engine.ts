@@ -690,10 +690,13 @@ export class Game {
     const challenge = this.dailyChallenge;
     const weekly = this.challengeMode === 'weekly';
     const drill = this.challengeMode === 'drill';
+    // THE YAKKOB is a local-ranked special edition — never surface its id as an online
+    // board (the date-keyed daily boards reject it anyway), so no submit is even attempted.
+    const special = challenge?.special === 'yakkob';
     return {
-      daily: !weekly ? challenge?.id ?? '' : '',
+      daily: !weekly && !special ? challenge?.id ?? '' : '',
       weekly: weekly ? challenge?.id ?? '' : '',
-      label: weekly ? 'Weekly Mutation' : drill ? 'Protocol Drill' : 'Daily Challenge',
+      label: special ? 'THE YAKKOB' : weekly ? 'Weekly Mutation' : drill ? 'Protocol Drill' : 'Daily Challenge',
       modifiers: challenge ? (weekly ? weeklyModifierNames(challenge as WeeklyChallenge) : dailyModifierNames(challenge)) : [],
       summary: challenge ? (weekly ? weeklyModifierNames(challenge as WeeklyChallenge) : dailyModifierNames(challenge)).join(' / ') : '',
       arsenal: challenge?.arsenal.name ?? '',

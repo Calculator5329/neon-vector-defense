@@ -4559,3 +4559,98 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
     min-height: 112px;
   }
 }
+
+/* ---------------- THE YAKKOB special edition ---------------- */
+
+/* The glowing special-edition card that takes the Weekly Mutation's slot once unlocked. */
+.yakkob-op-card {
+  border-color: rgba(255, 205, 74, 0.55);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 205, 74, 0.14), transparent 60%),
+    rgba(24, 16, 6, 0.82);
+  animation: yakkob-glow 2.4s ease-in-out infinite;
+}
+.yakkob-op-card span { color: var(--gold); }
+.yakkob-op-card b { color: #ffe6a3; }
+.yakkob-op-card.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(255, 205, 74, 0.5), 0 0 26px rgba(255, 205, 74, 0.28);
+}
+@keyframes yakkob-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 205, 74, 0.12); }
+  50% { box-shadow: 0 0 24px rgba(255, 205, 74, 0.34); }
+}
+
+/* The displaced Weekly Mutation, now a sealed mystery box. */
+.special-box-card { border-style: dashed; border-color: rgba(129, 218, 255, 0.32); }
+.special-box-card span { color: var(--dim); }
+.special-box-card b { color: var(--dim); letter-spacing: 2px; }
+
+/* squished shop icons are drawn squashed on the canvas; the class is a styling hook. */
+.tower-icon-squished { image-rendering: pixelated; }
+
+/* ---- the digging dwarf: the unlock ritual ---- */
+.yakkob-dwarf {
+  position: absolute;
+  right: 22px;
+  bottom: 96px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 6px;
+  border: 1px solid rgba(255, 205, 74, 0.4);
+  border-radius: 10px;
+  background: rgba(18, 12, 4, 0.72);
+  cursor: pointer;
+  animation: yakkob-dwarf-attn 1.6s ease-in-out infinite;
+}
+.yakkob-dwarf:hover { border-color: var(--gold); }
+.yakkob-dwarf-canvas {
+  width: 132px;
+  height: 116px;
+  image-rendering: pixelated;
+  display: block;
+}
+.yakkob-dwarf-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.yakkob-dwarf-ping {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #201400;
+  font-weight: 800;
+  font-family: 'Orbitron', sans-serif;
+  box-shadow: 0 0 14px rgba(255, 205, 74, 0.7);
+  animation: yakkob-ping 1s ease-in-out infinite;
+}
+.yakkob-dwarf.unlocking { animation: yakkob-unlock-pop 0.6s ease-out forwards; }
+.yakkob-dwarf.unlocking .yakkob-dwarf-ping { display: none; }
+@keyframes yakkob-dwarf-attn {
+  0%, 100% { transform: translateY(0); box-shadow: 0 0 8px rgba(255, 205, 74, 0.15); }
+  50% { transform: translateY(-3px); box-shadow: 0 0 20px rgba(255, 205, 74, 0.4); }
+}
+@keyframes yakkob-ping {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.75; }
+}
+@keyframes yakkob-unlock-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); border-color: var(--gold); box-shadow: 0 0 34px rgba(255, 205, 74, 0.7); }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yakkob-op-card, .yakkob-dwarf, .yakkob-dwarf-ping { animation: none; }
+}
