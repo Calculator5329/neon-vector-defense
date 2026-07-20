@@ -6,6 +6,8 @@ import { ENEMY_LIST } from '../game/enemies';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
 import { dailyModifierNames, type DailyChallenge } from '../game/dailyChallenge';
+import { THE_YAKKOB } from '../game/yakkob';
+import { YakkobDwarf } from './YakkobDwarf';
 import type { ProtocolDrill } from '../game/protocolDrills';
 import { weeklyModifierNames, type WeeklyChallenge, type WeeklyGauntletDoc } from '../game/weeklyChallenge';
 import type { GauntletProtocolRoute } from '../game/gauntletProtocol';
@@ -24,7 +26,7 @@ import { IS_PORTAL_BUILD } from '../game/portal';
 
 // ---------------- Main menu ----------------
 
-type DeployMode = 'campaign' | 'daily' | 'drill' | 'weekly' | 'gauntlet' | 'gauntletProtocol';
+type DeployMode = 'campaign' | 'daily' | 'drill' | 'weekly' | 'gauntlet' | 'gauntletProtocol' | 'yakkob';
 
 const ATLAS_POS: Record<string, [number, number]> = {
   orbital: [8, 34],
@@ -158,22 +160,51 @@ function WeeklyOpsSection(props: {
   gauntlet: WeeklyGauntletDoc | null;
   gauntletProtocol: GauntletProtocolRoute;
   gauntletProtocolUnlocked: boolean;
+  yakkobUnlocked: boolean;
   deployMode: DeployMode;
   setDeployMode: (mode: DeployMode) => void;
 }) {
   const weeklyMods = weeklyModifierNames(props.weeklySeed);
   return (
     <div className="weekly-ops-strip atlas-weekly-ops" data-testid="weekly-ops-strip">
-      <button
-        className={`weekly-op-card ${props.deployMode === 'weekly' ? 'active' : ''}`}
-        data-testid="weekly-mutation-card"
-        aria-pressed={props.deployMode === 'weekly'}
-        title={props.weeklySeed.rules.join('\n')}
-        onClick={() => { props.setDeployMode('weekly'); sfx.click(); }}
-      >
-        <span>WEEKLY MUTATION</span>
-        <b>{weeklyMods.slice(0, 4).join(' / ')}</b>
-      </button>
+      {props.yakkobUnlocked ? (
+        // Unlocked: THE YAKKOB takes the Weekly Mutation's slot as a glowing special edition.
+        <button
+          className={`weekly-op-card yakkob-op-card ${props.deployMode === 'yakkob' ? 'active' : ''}`}
+          data-testid="yakkob-card"
+          aria-pressed={props.deployMode === 'yakkob'}
+          title={THE_YAKKOB.rules.join('\n')}
+          onClick={() => { props.setDeployMode('yakkob'); sfx.click(); }}
+        >
+          <span>✦ THE YAKKOB ✦</span>
+          <b>Prism Array · Watchfire Beacon</b>
+        </button>
+      ) : (
+        <button
+          className={`weekly-op-card ${props.deployMode === 'weekly' ? 'active' : ''}`}
+          data-testid="weekly-mutation-card"
+          aria-pressed={props.deployMode === 'weekly'}
+          title={props.weeklySeed.rules.join('\n')}
+          onClick={() => { props.setDeployMode('weekly'); sfx.click(); }}
+        >
+          <span>WEEKLY MUTATION</span>
+          <b>{weeklyMods.slice(0, 4).join(' / ')}</b>
+        </button>
+      )}
+      {props.yakkobUnlocked && (
+        // The displaced Weekly Mutation, now a sealed "special box" — contents & window undisclosed.
+        <button
+          className={`weekly-op-card special-box-card ${props.deployMode === 'weekly' ? 'active' : ''}`}
+          data-testid="special-box-card"
+          aria-pressed={props.deployMode === 'weekly'}
+          aria-label="Special box. Contents undisclosed. Available for a limited, undisclosed time."
+          title={'A sealed special box.\nContents undisclosed. Open window: undisclosed.'}
+          onClick={() => { props.setDeployMode('weekly'); sfx.click(); }}
+        >
+          <span>❓ SPECIAL BOX</span>
+          <b>Undisclosed · closes ??:??</b>
+        </button>
+      )}
       <button
         className={`weekly-op-card ${props.deployMode === 'gauntlet' ? 'active' : ''}`}
         data-testid="weekly-gauntlet-card"
@@ -215,6 +246,7 @@ function SectorAtlas(props: {
   gauntlet: WeeklyGauntletDoc | null;
   gauntletProtocol: GauntletProtocolRoute;
   gauntletProtocolUnlocked: boolean;
+  yakkobUnlocked: boolean;
   firstTime: boolean;
   apexLocked: boolean;
 }) {
@@ -472,6 +504,7 @@ function SectorAtlas(props: {
             gauntlet={props.gauntlet}
             gauntletProtocol={props.gauntletProtocol}
             gauntletProtocolUnlocked={props.gauntletProtocolUnlocked}
+            yakkobUnlocked={props.yakkobUnlocked}
             deployMode={props.deployMode}
             setDeployMode={props.setDeployMode}
           />
@@ -496,6 +529,9 @@ export function MainMenu(props: {
   onStartWeekly: () => void;
   onStartGauntlet: () => void;
   onStartGauntletProtocol: () => void;
+  onStartYakkob: () => void;
+  yakkobUnlocked: boolean;
+  onUnlockYakkob: () => void;
 }) {
   const [tab, setTab] = useState<'deploy' | 'board' | 'ops'>('deploy');
   const [deployMode, setDeployMode] = useState<DeployMode>('campaign');
@@ -511,6 +547,7 @@ export function MainMenu(props: {
   const gauntletProtocolUnlocked = DEMO_MODE || progress.record.victories >= 1;
   const selectedUnlocked = deployMode === 'daily' || deployMode === 'drill' || deployMode === 'weekly' || deployMode === 'gauntlet'
     || (deployMode === 'gauntletProtocol' && gauntletProtocolUnlocked)
+    || (deployMode === 'yakkob' && props.yakkobUnlocked)
     || mapUnlocked(ALL_MAPS.findIndex((m) => m.id === props.map.id));
   // nav-tab cues: claimable operations + newly-identified hulls awaiting a Bestiary visit.
   // foesSeen must use the SAME basis the Bestiary acks with (ENEMY_LIST intersection, not the
@@ -521,6 +558,10 @@ export function MainMenu(props: {
   return (
     <div className="menu-root">
       <div className="menu-stars" />
+
+      {tab === 'deploy' && !props.yakkobUnlocked && (
+        <YakkobDwarf onUnlock={() => { props.onUnlockYakkob(); setDeployMode('yakkob'); }} />
+      )}
 
       <header className="menu-topbar">
         <div className="menu-brand">
@@ -617,6 +658,7 @@ export function MainMenu(props: {
             gauntlet={props.gauntlet}
             gauntletProtocol={props.gauntletProtocol}
             gauntletProtocolUnlocked={gauntletProtocolUnlocked}
+            yakkobUnlocked={props.yakkobUnlocked}
             firstTime={firstTime}
             apexLocked={apexLocked}
           />
@@ -646,6 +688,8 @@ export function MainMenu(props: {
             <span className="dbar-label">DEPLOYING TO</span>
             <span className="dbar-sec">{deployMode === 'daily'
               ? (ALL_MAPS.find((m) => m.id === props.dailySeed.mapId)?.name ?? props.dailySeed.mapId)
+              : deployMode === 'yakkob'
+                ? (ALL_MAPS.find((m) => m.id === THE_YAKKOB.mapId)?.name ?? THE_YAKKOB.mapId)
               : deployMode === 'drill'
                 ? (ALL_MAPS.find((m) => m.id === selectedDrill.mapId)?.name ?? selectedDrill.mapId)
               : deployMode === 'weekly'
@@ -658,6 +702,8 @@ export function MainMenu(props: {
             <span className="dbar-dot">·</span>
             <span className="dbar-diff">{deployMode === 'daily'
               ? 'DAILY CHALLENGE'
+              : deployMode === 'yakkob'
+                ? 'THE YAKKOB'
               : deployMode === 'drill'
                 ? selectedDrill.title.toUpperCase()
               : deployMode === 'weekly'
@@ -673,6 +719,9 @@ export function MainMenu(props: {
               if (deployMode === 'daily') {
                 appMetrics.recordDeployAttempt(props.dailySeed.mapId, props.dailySeed.diffId, true);
                 props.onStartDaily();
+              } else if (deployMode === 'yakkob') {
+                appMetrics.recordDeployAttempt(THE_YAKKOB.mapId, THE_YAKKOB.diffId, true);
+                props.onStartYakkob();
               } else if (deployMode === 'drill') {
                 props.onStartDrill(selectedDrill);
               } else if (deployMode === 'weekly') {
@@ -689,6 +738,8 @@ export function MainMenu(props: {
             }}>
             {deployMode === 'daily'
               ? '▶ DAILY CHALLENGE'
+              : deployMode === 'yakkob'
+                ? '▶ THE YAKKOB'
               : deployMode === 'drill'
                 ? '▶ START DRILL'
               : deployMode === 'weekly'

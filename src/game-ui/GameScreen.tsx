@@ -40,6 +40,7 @@ import {
   type RiskWaveId,
 } from '../game/freeplay';
 import type { DailyChallenge } from '../game/dailyChallenge';
+import { isYakkob, isYakkobSquishedTower } from '../game/yakkob';
 import type { WeeklyChallenge, WeeklyGauntletDoc } from '../game/weeklyChallenge';
 import {
   GAUNTLET_PROTOCOL_START_CORES,
@@ -716,7 +717,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           wave: game.wave, kills: game.totalKills, cashEarned: game.runStats.cashEarned,
           won: game.phase !== 'gameover', freeplay: game.freeplay, diffId: game.diff.id,
           isDailyChallenge: game.isDailyChallenge, dailyId: game.dailyMeta().daily || undefined, outcome: game.phase as 'victory' | 'gameover',
-          bonusSalvage: game.runStats.bonusSalvage,
+          bonusSalvage: game.runStats.bonusSalvage, yakkob: isYakkob(game.dailyChallenge),
         }, {
           towerKindsUsed: new Set([...game.towers.map((t) => t.def.id), ...Object.keys(game.runStats.dmg)]).size,
           abilitiesCast: game.runStats.abilitiesCast,
@@ -2078,6 +2079,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, vete
   // lifetime kills (banked at run end) + this run's kills so the bar fills live
   const kills = liveUnlockKills(game);
   const dailyMode = game.isDailyChallenge;
+  const yakkobMode = isYakkob(game.dailyChallenge);
   // the next tower the player will unlock, for the BTD-style progress bar
   const next = dailyMode ? undefined : TOWERS_BY_UNLOCK.find((d) => d.unlockAt > kills);
   const prevThreshold = TOWERS_BY_UNLOCK.filter((d) => d.unlockAt <= kills).reduce((m, d) => Math.max(m, d.unlockAt), 0);
@@ -2124,7 +2126,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, vete
               onClick={() => { sfx.click(); game.recorder.recordTowerShopSelect(def, afford ? 'selected' : 'unaffordable'); setPlacing(placing?.id === def.id ? null : def); }}
               title={def.desc}
             >
-              <TowerIcon def={def} />
+              <TowerIcon def={def} squish={yakkobMode && isYakkobSquishedTower(def.id)} />
               <div className="shop-name">{def.name}</div>
               <div className="shop-foot">
                 <span className="shop-cost">⌬{displayCost}</span>
@@ -2163,7 +2165,10 @@ const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, vete
   );
 }, (a, b) => a.sig === b.sig && a.placing === b.placing);
 
-function TowerIcon({ def }: { def: TowerDef }) {
+// `squish` is THE YAKKOB's signature quirk: the two available towers come back from the
+// vault at 0.75× height, full width — they look short. Scaled about the body's center (y=24
+// in the 1.25× space) so the icon stays put and just squashes vertically.
+function TowerIcon({ def, squish = false }: { def: TowerDef; squish?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -2172,10 +2177,11 @@ function TowerIcon({ def }: { def: TowerDef }) {
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.save();
     ctx.scale(1.25, 1.25);
+    if (squish) { ctx.translate(0, 24); ctx.scale(1, 0.75); ctx.translate(0, -24); }
     drawTowerBody(ctx, { x: 24, y: 24 }, def, -Math.PI / 2, 0, 0, 1, 0, 1);
     ctx.restore();
-  }, [def]);
-  return <canvas ref={ref} width={60} height={60} className="tower-icon" />;
+  }, [def, squish]);
+  return <canvas ref={ref} width={60} height={60} className={`tower-icon${squish ? ' tower-icon-squished' : ''}`} />;
 }
 
 // ---------------- Upgrade panel ----------------

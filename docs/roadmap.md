@@ -3,7 +3,17 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-16 (owner replay-bug report filed)
+Last updated: 2026-07-20 (THE YAKKOB special edition shipped)
+
+## Special editions
+
+- [x] **THE YAKKOB** — dwarf-unlock special challenge (Prism Array + Watchfire Beacon only,
+  squished icons, local-ranked). *(done 2026-07-20; see changelog. Built on branch
+  `agent/claude/yakkob-special-edition-20260720`.)*
+- [ ] **THE YAKKOB — optional online leaderboard.** Currently local-only because a fixed
+  challenge id is rejected by the date-keyed daily boards. A persistent online board would
+  need a `submitYakkobScore`-style Cloud Function + Firestore rules + collection — an
+  **Ethan-only deploy**. Left as a follow-up.
 
 ## Now — owner bug report (Ethan, 2026-07-16 audit review)
 

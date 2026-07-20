@@ -6,6 +6,7 @@ import { needsAgeGate } from './game/consent';
 import { buildAIHelpContext } from './game/aiContext';
 import { appMetrics } from './game/metrics';
 import { dailyChallenge, dailyChallengeSignature, loadRemoteDailyOverride } from './game/dailyChallenge';
+import { THE_YAKKOB } from './game/yakkob';
 import { protocolDrills, type ProtocolDrill } from './game/protocolDrills';
 import {
   loadRemoteWeeklyGauntlet,
@@ -102,7 +103,8 @@ function Main() {
   const [weeklySeed, setWeeklySeed] = useState(() => weeklyChallenge());
   const [gauntlet, setGauntlet] = useState<WeeklyGauntletDoc | null>(null);
   const [gauntletProtocolRoute, setGauntletProtocolRoute] = useState(() => gauntletProtocolRouteForWeek());
-  const [runMode, setRunMode] = useState<'campaign' | 'daily' | 'drill' | 'weekly' | 'gauntlet' | 'gauntletProtocol'>('campaign');
+  const [runMode, setRunMode] = useState<'campaign' | 'daily' | 'drill' | 'weekly' | 'gauntlet' | 'gauntletProtocol' | 'yakkob'>('campaign');
+  const [yakkobUnlocked, setYakkobUnlocked] = useState(() => meta.yakkobUnlocked);
   const [comeback, setComeback] = useState(false);
   const [staleBuild, setStaleBuild] = useState(false);
   useEffect(() => {
@@ -179,6 +181,15 @@ function Main() {
     portal.gameplayStart();
     setScreen('game');
   };
+  const startYakkob = () => {
+    appMetrics.recordDeployAttempt(THE_YAKKOB.mapId, THE_YAKKOB.diffId, true);
+    setMap(ALL_MAPS.find((m) => m.id === THE_YAKKOB.mapId) ?? MAPS[0]);
+    setDiff(DIFFICULTIES.find((d) => d.id === THE_YAKKOB.diffId) ?? DIFFICULTIES[1]);
+    setRunMode('yakkob');
+    sfx.click();
+    portal.gameplayStart();
+    setScreen('game');
+  };
   const startDrill = (drill: ProtocolDrill) => {
     setDrillSeed(drill);
     setMap(ALL_MAPS.find((m) => m.id === drill.mapId) ?? MAPS[0]);
@@ -227,11 +238,12 @@ function Main() {
       {screen === 'menu'
         ? <MainMenu map={map} diff={diff} setMap={setMap} setDiff={setDiff}
             dailySeed={dailySeed} weeklySeed={weeklySeed} gauntlet={gauntlet} gauntletProtocol={gauntletProtocolRoute}
-            drills={protocolDrills()} onStart={startCampaign} onStartDaily={startDaily} onStartDrill={startDrill} onStartWeekly={startWeekly} onStartGauntlet={startGauntlet} onStartGauntletProtocol={startGauntletProtocol} />
+            drills={protocolDrills()} onStart={startCampaign} onStartDaily={startDaily} onStartDrill={startDrill} onStartWeekly={startWeekly} onStartGauntlet={startGauntlet} onStartGauntletProtocol={startGauntletProtocol}
+            onStartYakkob={startYakkob} yakkobUnlocked={yakkobUnlocked} onUnlockYakkob={() => { if (meta.unlockYakkob()) setYakkobUnlocked(true); }} />
         : <GameScreen
             map={map}
             diff={diff}
-            dailySeed={runMode === 'daily' ? dailySeed : runMode === 'drill' ? drillSeed : null}
+            dailySeed={runMode === 'daily' ? dailySeed : runMode === 'yakkob' ? THE_YAKKOB : runMode === 'drill' ? drillSeed : null}
             weeklySeed={runMode === 'weekly' ? weeklySeed : null}
             gauntlet={runMode === 'gauntlet' ? gauntlet : null}
             gauntletProtocol={runMode === 'gauntletProtocol' ? gauntletProtocolRoute : null}

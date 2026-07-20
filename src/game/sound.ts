@@ -488,6 +488,20 @@ export const sfx = {
   },
   victory: () => [523, 659, 784, 1046, 1318, 1568].forEach((f, i) =>
     later(i * 130, () => voice({ freq: f, type: 'triangle', dur: 0.3, vol: 0.11, detune: 6, echo: 0.5 }))),
+
+  // THE YAKKOB — a plucked, hall-lit medieval lute fanfare for the digging dwarf's arrival.
+  // Fully synthesized (no asset): a rising phrase in D, capped by an open-fifth chord and
+  // a low earthen drum. Swap in /audio/yakkob-arrival.mp3 here if a real clip ever lands.
+  yakkobArrival: () => {
+    const lute = (freq: number, dur = 0.34, vol = 0.10) =>
+      voice({ freq, type: 'triangle', dur, vol, detune: 7, echo: 0.5, attack: 0.008, lp: 3200 });
+    // D4, A4, D5, Bb4, C5 — a hopeful, slightly modal climb out of the dark
+    ([[0, 293.66], [140, 440], [280, 587.33], [420, 466.16], [560, 523.25]] as [number, number][])
+      .forEach(([ms, f]) => later(ms, () => lute(f)));
+    later(760, () => { lute(293.66, 0.95, 0.09); lute(440, 0.95, 0.08); lute(587.33, 0.95, 0.07); });
+    thump(90, 0.5, 0.15);                 // pick strikes the vault floor
+    later(760, () => thump(70, 0.7, 0.13)); // the chord lands
+  },
 };
 
 // ---------------- generative ambient score ----------------

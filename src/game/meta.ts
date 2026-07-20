@@ -45,6 +45,10 @@ export interface MetaState {
   comebackSeenFor: string;
   cosmetics: string[];
   cosmeticEquipped: Record<string, string>;
+  /** THE YAKKOB special edition — unlocked by clicking the digging dwarf on the menu. */
+  yakkobUnlocked: boolean;
+  /** Best wave reached in THE YAKKOB (local-ranked; the challenge never hits online boards). */
+  bestYakkobWave: number;
 }
 
 function fresh(): MetaState {
@@ -52,6 +56,7 @@ function fresh(): MetaState {
     xp: 0, salvage: 0, salvageLifetime: 0, seeded: false,
     questProgress: {}, questClaimed: [], creditedRuns: [], creditedDailies: [],
     bestDailyWave: 0, bestStreak: 0, comebackSeenFor: '', cosmetics: [], cosmeticEquipped: {},
+    yakkobUnlocked: false, bestYakkobWave: 0,
   };
 }
 function load(): MetaState {
@@ -118,6 +123,8 @@ export interface RunRewardInput {
   wave: number; kills: number; cashEarned: number; won: boolean;
   freeplay: boolean; diffId: string; isDailyChallenge: boolean; outcome: RunOutcome; dailyId?: string;
   bonusSalvage?: number;
+  /** Set for THE YAKKOB runs — routes the wave to the local yakkob best instead of the daily best. */
+  yakkob?: boolean;
 }
 export interface RunMetaReward { xp: number; salvage: number; breakdown: { label: string; xp: number; salvage: number }[]; }
 
@@ -240,6 +247,15 @@ export const meta = {
   get salvage(): number { return cache.salvage; },
   get salvageLifetime(): number { return cache.salvageLifetime; },
   get bestDailyWave(): number { return cache.bestDailyWave; },
+  get bestYakkobWave(): number { return cache.bestYakkobWave; },
+  get yakkobUnlocked(): boolean { return DEMO_MODE || cache.yakkobUnlocked; },
+  /** Unlock THE YAKKOB (idempotent). Returns true only on the transition from locked → unlocked. */
+  unlockYakkob(): boolean {
+    if (cache.yakkobUnlocked) return false;
+    cache.yakkobUnlocked = true;
+    save();
+    return true;
+  },
   get streak(): StreakInfo { return computeStreak(progress.sessionDays); },
 
   board(now = new Date()): QuestWithProgress[] {
@@ -268,7 +284,8 @@ export const meta = {
       cache.creditedDailies.push(dailyId);
       if (cache.creditedDailies.length > 45) cache.creditedDailies = cache.creditedDailies.slice(-45);
     }
-    if (input.isDailyChallenge) cache.bestDailyWave = Math.max(cache.bestDailyWave, Math.max(0, Math.floor(input.wave)));
+    if (input.yakkob) cache.bestYakkobWave = Math.max(cache.bestYakkobWave, Math.max(0, Math.floor(input.wave)));
+    else if (input.isDailyChallenge) cache.bestDailyWave = Math.max(cache.bestDailyWave, Math.max(0, Math.floor(input.wave)));
     if (input.won && !input.freeplay && input.diffId === 'extinction' && !cache.cosmetics.includes(EXTINCTION_CAPSTONE_PALETTE)) {
       cache.cosmetics.push(EXTINCTION_CAPSTONE_PALETTE);
       reward.salvage += EXTINCTION_CAPSTONE_SALVAGE;

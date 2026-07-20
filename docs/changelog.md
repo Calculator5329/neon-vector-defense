@@ -2,6 +2,30 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-07-20 - THE YAKKOB special edition (dwarf-unlock challenge)
+
+A hand-authored "special edition" challenge, unlocked by a bit of theatre and ranked
+locally on-device (its fixed id never touches the date-keyed online daily boards, so no
+Functions/Firestore changes and no deploy).
+
+- **Unlock ritual.** A procedurally-drawn pixelated dwarf digs a hole in the corner of
+  the main-menu deploy tab (`src/menu/YakkobDwarf.tsx`), arriving with a synthesized
+  medieval lute fanfare (`sfx.yakkobArrival` in `sound.ts`) and a pulsing "!" to pull the
+  eye. Clicking him sets `meta.yakkobUnlocked` (persisted in localStorage) and opens the
+  vault. Respects `prefers-reduced-motion`.
+- **Dock swap.** Once unlocked, THE YAKKOB takes the Weekly Mutation's slot as a glowing
+  gold card; the displaced Weekly is re-skinned as a sealed **"❓ SPECIAL BOX"**
+  (contents + open window undisclosed) — the weekly logic underneath is untouched.
+- **The challenge** (`src/game/yakkob.ts`). Arsenal is locked to exactly the **Prism
+  Array + Watchfire Beacon** (both premium beams at 40% requisition so the opening is
+  playable), Glass Cannon twist, double drops. Runs on the existing daily-challenge engine
+  path; `dailyMeta()` withholds the online board id for it and `meta.creditRun` routes its
+  score to a local `bestYakkobWave`.
+- **The gag.** Inside THE YAKKOB only, the two towers' shop icons render squished to
+  **0.75× height, full width** — they look short (`TowerIcon squish` in `GameScreen.tsx`).
+- Tests: `tests/unit/yakkob.test.ts` (pool is exactly the two towers, no pulse injection,
+  cost/affordability, local-only id). Typecheck clean; no regressions to existing suites.
+
 ## 2026-07-18 - Replay pipeline E2E: real script + viewer fidelity label + determinism lock
 
 Closes Gaps A–D from `docs/plans/unblock-replay-pipeline-e2e-verification-ethan-d-20260718/`

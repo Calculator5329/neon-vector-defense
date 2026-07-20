@@ -55,6 +55,13 @@ export interface DailyChallenge {
   twist: DailyTwist;
   boon: DailyBoon;
   rules: string[];
+  /**
+   * Marks a hand-authored "special edition" challenge (not a seeded daily). Special
+   * challenges carry a fixed, non-date id, so they never submit to the date-keyed online
+   * daily boards (client + server both reject a non-`daily-YYYY-MM-DD` id) — they are
+   * local-ranked only. Currently only THE YAKKOB (`'yakkob'`) uses this.
+   */
+  special?: 'yakkob';
 }
 
 export interface DailyOverrideDoc {
