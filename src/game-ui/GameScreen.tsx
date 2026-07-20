@@ -1923,6 +1923,26 @@ function SubmitScore({ game, map, diff, gauntletProtocolRunIds }: { game: Game; 
     if (eligible && !DEMO_MODE) game.recorder.recordLeaderboardOpen();
   }, [eligible, game]);
   if (!eligible) return null;
+
+  // THE YAKKOB is a local-ranked special edition — it must never touch the public
+  // replay/score boards (Firestore rejects its fixed id → "insufficient permissions").
+  // Its wave is already banked on-device via meta.creditRun({ yakkob }); show that
+  // local ranking instead of the global submit form. No network write happens here.
+  if (isYakkob(game.dailyChallenge)) {
+    const bestWave = Math.max(meta.bestYakkobWave, game.wave);
+    return (
+      <div className="submit-score demo-score-disabled" data-testid="yakkob-local-rank">
+        <div className="debrief-section-title">THE YAKKOB · LOCAL RANKING</div>
+        <div className="submit-score-preview" aria-label={`Best yakkob wave ${bestWave}, this run reached wave ${game.wave}, ${game.totalKills} kills`}>
+          <span><b>Best wave</b> W{bestWave}</span>
+          <span><b>This run</b> W{game.wave}</span>
+          <span><b>Kills</b> {game.totalKills.toLocaleString()}</span>
+        </div>
+        <p className="submit-hint">Special edition — ranked locally on this device, never sent to the public global boards.</p>
+      </div>
+    );
+  }
+
   const board = boardId(map.id, diff.id, game.freeplay);
   const freeplayMeta = game.freeplay ? game.freeplayMeta() : null;
   const dailyMeta = game.isDailyChallenge ? game.dailyMeta() : null;

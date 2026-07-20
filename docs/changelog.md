@@ -2,7 +2,22 @@
 
 Running log of notable changes. Most recent first.
 
-## 2026-07-20 - THE YAKKOB dock polish: no scrollbar, tap-to-deploy, short towers everywhere
+## 2026-07-20 - Fix THE YAKKOB debrief attempting a global leaderboard submit
+
+Owner report: a YAKKOB run's debrief showed "GLOBAL LEADERBOARD — FOUNDRY FLOOR /
+VETERAN" and its replay/score submit failed with `FirebaseError: Missing or
+insufficient permissions`.
+
+- **Root cause.** THE YAKKOB is a local-ranked special edition (`yakkob.ts`), but
+  `game.isDailyChallenge` is just `dailyChallenge !== null` → true for a YAKKOB run,
+  while its `dailyId` resolves to empty (special editions are excluded from the daily
+  boards). So `SubmitScore` fell through to the **global** campaign board
+  (`boardId(foundry, normal)`) and called `submitRunReplay` + `submitScore`, which
+  Firestore rules reject for the modified run.
+- **Fix (`GameScreen.tsx`).** `SubmitScore` now short-circuits for `isYakkob(...)` runs
+  to a "THE YAKKOB · LOCAL RANKING" panel (best wave / this run / kills) that sends
+  nothing off-device — no `submitRunReplay`, no `submitScore`. The wave is already
+  banked locally via `meta.creditRun({ yakkob })`, so the panel just surfaces it.
 
 Owner feedback pass on the challenges dock and THE YAKKOB special edition.
 
