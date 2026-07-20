@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { REPLAY_ENGINE_VERSION } from '../../src/game/runTelemetry';
 
 const E2E_ANON_UID = 'e2e_anon_uid_1';
 
@@ -16,6 +17,9 @@ const progressSeed = {
   clearedMaps: ['orbital'],
   tut: true,
   cloakTip: true,
+  // a returning player (runs>=1) defaults to Veteran, whose one-time intro would
+  // otherwise block the briefing this flow deploys into (mirrors tut/cloakTip)
+  veteranIntroSeen: true,
   apexW: true,
   foes: ['scout'],
   foesAck: 0,
@@ -340,7 +344,7 @@ test.describe('QA regression real-flow audit', () => {
     await seedLocalState(page);
   });
 
-  test('submits a real v6 run bundle and opens the frame-accurate replay viewer', async ({ page }) => {
+  test('submits a real v7 run bundle and opens the frame-accurate replay viewer', async ({ page }) => {
     test.setTimeout(60_000);
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
@@ -375,7 +379,7 @@ test.describe('QA regression real-flow audit', () => {
 
     const payload = await page.evaluate(() => JSON.parse(sessionStorage.getItem('nvd-e2e-public-run') ?? 'null'));
     expect(payload?.run?.schemaVersion).toBe(3);
-    expect(payload.run.setup.replayEngine).toBe(6);
+    expect(payload.run.setup.replayEngine).toBe(REPLAY_ENGINE_VERSION);
     expect(payload.run.setup.mapHash).toMatch(/^[0-9a-f]{8}$/);
     expect(payload.run.actions.codec).toBe('r3');
     const actionTypes = payload.chunks

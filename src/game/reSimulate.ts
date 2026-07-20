@@ -572,8 +572,17 @@ export interface ReplayPlayback {
 // 30k KILL cap excluded ordinary campaign victories (a 60-wave Veteran clear is
 // ~65k kills) and silently dropped them to the hollow cosmetic path; kills stay
 // only as a generous entity-density backstop for pathological runs.
-const PLAYBACK_MAX_DURATION_S = 3_600;
+// Must exceed the LONGEST legitimate run, or ordinary victories drop to the hollow
+// cosmetic path (enemies never die). The longest campaign is Extinction — 80 waves,
+// ~3,840s of sim-time at a brisk pace and more with human between-wave pacing — so a
+// 3,600s cap silently made every Extinction clear (and any deep freeplay/marathon)
+// un-replayable. durationS is SIM time (engine.ts `Math.round(this.time)`), so idle
+// build phases barely cost re-sim ticks; kills are the real density gate below, and
+// seekTo() is wall-clock-budgeted so a big run can never hang. Re-seek is cheap
+// (sim runs >1500× realtime → ~1-2s per sim-hour), so headroom is nearly free.
+const PLAYBACK_MAX_DURATION_S = 10_800;
 const PLAYBACK_KILL_CAP = 250_000;
+export const REPLAY_PLAYBACK_MAX_DURATION_S = PLAYBACK_MAX_DURATION_S;
 
 /** Why a run could not be driven frame-accurately — a *fidelity* reason, NOT a
  *  `verifyRun` verdict. Surfaced to the viewer so it can label a cosmetic preview

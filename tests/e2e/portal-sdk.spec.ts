@@ -17,6 +17,7 @@ const progressSeed = {
   clearedMaps: [],
   tut: true,
   cloakTip: true,
+  veteranIntroSeen: true,
   audioMuted: false,
   musicOff: false,
 };

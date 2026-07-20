@@ -4,7 +4,7 @@ import { Bot } from '../../src/game/bot';
 import { Game } from '../../src/game/engine';
 import { ALL_MAPS, DIFFICULTIES } from '../../src/game/maps';
 import { decodeReplayActionBundle, encodedReplayActionBytes } from '../../src/game/replayCodec';
-import { createReplayPlayback, reSimulate } from '../../src/game/reSimulate';
+import { createReplayPlayback, reSimulate, REPLAY_PLAYBACK_MAX_DURATION_S } from '../../src/game/reSimulate';
 import type { RunUploadBundle } from '../../src/game/runTelemetry';
 
 function seededRng(seed: number): () => number {
@@ -125,8 +125,15 @@ describe('replay v3 fidelity', () => {
     const campaignScale = { ...bundle.run, summary: { ...bundle.run.summary, kills: 65_000 }, chunks: bundle.chunks };
     assert.ok(createReplayPlayback(campaignScale), 'campaign-scale kill counts must stay drivable');
 
-    const marathon = { ...bundle.run, summary: { ...bundle.run.summary, durationS: 3_601 }, chunks: bundle.chunks };
-    assert.equal(createReplayPlayback(marathon), null, 'multi-hour marathons fall back');
+    // The longest campaign (Extinction, 80 waves) runs ~3,840s of sim time — it MUST
+    // stay frame-accurate, or every Extinction/deep-freeplay clear falls back to the
+    // hollow cosmetic replay (towers fire, nothing dies). Regression for that report.
+    assert.ok(REPLAY_PLAYBACK_MAX_DURATION_S >= 4_000, 'duration cap must cover an 80-wave Extinction run');
+    const extinctionLength = { ...bundle.run, summary: { ...bundle.run.summary, durationS: 3_840 }, chunks: bundle.chunks };
+    assert.ok(createReplayPlayback(extinctionLength), 'an 80-wave-length run must stay drivable');
+
+    const marathon = { ...bundle.run, summary: { ...bundle.run.summary, durationS: REPLAY_PLAYBACK_MAX_DURATION_S + 1 }, chunks: bundle.chunks };
+    assert.equal(createReplayPlayback(marathon), null, 'runs past the duration cap fall back');
 
     const pathological = { ...bundle.run, summary: { ...bundle.run.summary, kills: 250_001 }, chunks: bundle.chunks };
     assert.equal(createReplayPlayback(pathological), null, 'density backstop still applies');

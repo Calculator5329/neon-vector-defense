@@ -24,6 +24,60 @@ Last updated: 2026-07-16 (owner replay-bug report filed)
   `verifyRunCore` caps it at 30s. The bounded/anti-hang case is asserted in
   `npm run test:replay-e2e`.
 
+## Now — feedback pass (Ethan, 2026-07-20)
+
+- [x] **Replays: "he shoots but enemies don't die / starts at end / shows victory".**
+  *(done 2026-07-20)* Marathon/Extinction runs exceeded the 3,600s playback duration
+  cap (below the 80-wave campaign length!) → cosmetic fallback that can't show kills;
+  raised to 10,800s. Fixed cosmetic-path start-at-end (lone synthetic keyframe now
+  starts at 0) and the persistent VICTORY stamp (gated on playhead reaching the end).
+  See `docs/changelog.md`.
+- [ ] **Replay re-sim determinism (pre-existing, filed as a task).** `reSimulate`
+  returns `divergent` for deep-freeplay-with-relic and Recalibrate ability_cast runs
+  (tests/unit/reSimulate.test.ts, 21/23). Core to "get replays right" — a divergent run
+  plays back wrong even when the driver runs.
+- [ ] **Old runs are orphaned by engine/balance version drift.** Any run recorded
+  before an engine bump can never be re-simulated frame-accurately (correct by design,
+  but it means historical replays are cosmetic-only). Consider recording a compact
+  death/kill timeline so the cosmetic reconstruction can at least show enemies dying.
+
+
+- [x] **Debrief "NEW INSTRUMENTS UNLOCKED" overflowed off-screen.** A full clear
+  banks 7+ instruments at once; the vertical list with per-row descriptions
+  pushed later unlocks (EMP Spire onward) below the fold. Redesigned to a compact
+  horizontal grid of icon chips (icon + short name + hover tooltip). *(done
+  2026-07-20)*
+- [x] **Phase Anchor "push forward" upgrade track removed.** The Repulsor Field
+  track pushed hulls *toward* the exit (trash). Replaced with the Warden Array
+  track (detection + slow + range lockdown), preserving the cloak-detection
+  utility. Track structure stays a 2-tuple (`tracks[0|1]` is load-bearing). *(done
+  2026-07-20)*
+- [x] **Intro to Veteran mode on first deploy.** *(done 2026-07-20)* One-time
+  "THE ARMADA ADAPTS" briefing on first Veteran (normal) campaign deploy —
+  phase-cloaks (~wave 14), adaptive armada, leaner economy. `veteranIntroSeen`
+  flag in `storage.ts`. This is the actual fix for the Recruit→Veteran onboarding
+  gap (the "HP cliff" premise was corrected — see below).
+- [x] **Mastery-routing nudge.** *(done 2026-07-20)* Dominant Recruit clear →
+  "you've outgrown Recruit, try Veteran" debrief callout.
+- [x] **Recruit→Veteran HP cliff — corrected, no change made.** Difficulty HP
+  already ramps over 25 waves; early Veteran ≈ early Recruit. The "+56%" was the
+  wave-25+ asymptote misapplied. No HP nerf (would undercut "not too easy").
+- [x] **Wave 13–16 "wall" — sim-bot artifact, closed.** No real difficulty spike
+  in the per-wave model; the bot is just weak there.
+- [ ] **Validate late-game scaling (still open).** The sim bot is too weak to
+  reproduce the "2-tower minimal clear" exploit; needs fresh real-player runs or a
+  hand-authored 2-tower Throat/Recruit scenario test. Apex/Extinction stay
+  untouched (Ethan constraint).
+- [ ] **Mass-unlock dump smell.** One 60-wave Veteran clear (66k kills) crosses
+  ~7 unlock thresholds at once, dumping every early instrument in a single
+  debrief — anticlimactic vs. the BTD-style progressive reveal. Consider staging
+  the reveal or rebalancing early `unlockAt` thresholds. (Layout no longer hides
+  them; this is the pacing question.)
+- [ ] **Pre-existing test failure (not from this pass):** `tests/unit/
+  game-correctness.test.ts` › "watchfire sweep marks cloaked hulls as revealed"
+  fails on clean master (`placeTower` returns null in headless node —
+  `assert.ok(watchfire)` at :233). Triage separately.
+
 ## Next up (owner-triaged, 2026-07-04)
 
 - **Wave 1 — DONE:** Weekly Champion's Gauntlet + Weekly Mutation (weekly seed

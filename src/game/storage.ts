@@ -43,6 +43,8 @@ interface Progress {
   sessionDays: Record<string, number>;
   /** QoL preference: place up to 4/4 upgrades immediately after a base build. */
   veteranDeploy: boolean;
+  /** one-time Veteran-protocol intro shown on first Veteran (normal) deploy */
+  veteranIntroSeen: boolean;
 }
 
 export interface RunRecord {
@@ -68,7 +70,7 @@ export interface BlueprintEntry {
 }
 
 function freshProgress(): Progress {
-  return { archive: [], best: {}, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {}, veteranDeploy: false };
+  return { archive: [], best: {}, totalWaves: 0, runs: 0, victories: 0, kills: 0, blueprints: {}, history: [], playerName: '', clearedMaps: [], firstSeenAt: 0, lastSeenAt: 0, sessions: 0, sessionDays: {}, veteranDeploy: false, veteranIntroSeen: false };
 }
 
 const RETIRED_DIFF_ID = 'ng' + 'plus';
@@ -160,6 +162,7 @@ export function normalizeProgress(value: unknown): Progress {
   out.sessions = finiteNumber(src.sessions);
   out.sessionDays = numberRecord(src.sessionDays);
   out.veteranDeploy = src.veteranDeploy === true;
+  out.veteranIntroSeen = src.veteranIntroSeen === true;
   return out;
 }
 
@@ -231,6 +234,8 @@ export const progress = {
   set preferredSpeed(v: number) { (cache as unknown as { prefSpeed?: number }).prefSpeed = v; save(); },
   get veteranDeploy(): boolean { return cache.veteranDeploy; },
   set veteranDeploy(v: boolean) { cache.veteranDeploy = v; save(); },
+  get veteranIntroSeen(): boolean { return cache.veteranIntroSeen; },
+  set veteranIntroSeen(v: boolean) { cache.veteranIntroSeen = v; save(); },
   /** chosen music pack id */
   get musicPack(): string { return (cache as unknown as { musicPack?: string }).musicPack ?? 'concord'; },
   set musicPack(v: string) { (cache as unknown as { musicPack?: string }).musicPack = v; save(); },

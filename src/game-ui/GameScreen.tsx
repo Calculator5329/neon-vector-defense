@@ -315,6 +315,13 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   const [coachStage, setCoachStage] = useState<'place' | 'launch' | 'upgrade' | null>(
     PERF_MAP === null && !DEMO_MODE && !dailySeed && !weeklySeed && !gauntlet && !progress.tutorialSeen ? 'place' : null);
   const [briefed, setBriefed] = useState(PERF_MAP !== null || DEMO_MODE || !!dailySeed || !!weeklySeed || !!gauntlet);
+  // One-time Veteran-protocol intro: the jump from Recruit is informational, not an
+  // HP wall (early HP already ramps in over 25 waves) — the real step-change is
+  // phase-cloaks + a leaner economy. Set expectations on the first Veteran campaign
+  // deploy so cloaks/economy don't ambush a new player.
+  const firstVeteranDeploy = PERF_MAP === null && !DEMO_MODE && !dailySeed && !weeklySeed && !gauntlet
+    && !activeGauntletRoute && activeDiff.id === 'normal' && !progress.veteranIntroSeen;
+  const [veteranIntroDone, setVeteranIntroDone] = useState(!firstVeteranDeploy);
   const botRef = useRef<Bot | null>(null);
   const fpsRef = useRef({ frames: 0, t: 0, fps: 0, worst: 999 });
   // adaptive render quality: smoothed fps + a hysteresis flag (see render.setRenderQuality)
@@ -353,11 +360,11 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   selectedRef.current = game.towers.find((t) => t.uid === selectedUid) ?? null;
   // unlock modals must never stack on the briefing overlay
   const relicOfferOpen = game.phase === 'build' && game.freeplayState.nextRelicOffer.length > 0;
-  overlayRef.current = !briefed || contractOpen || relicOfferOpen || game.bonusRound !== null;
+  overlayRef.current = !veteranIntroDone || !briefed || contractOpen || relicOfferOpen || game.bonusRound !== null;
   const terminalPhase = game.phase === 'gameover' || game.phase === 'victory';
   // cloakTip and the first-run coach are non-blocking, so they are
   // intentionally NOT part of blockingOverlay
-  const blockingOverlay = !briefed || unlockModal !== null || contractOpen || relicOfferOpen || game.bonusRound !== null ||
+  const blockingOverlay = !veteranIntroDone || !briefed || unlockModal !== null || contractOpen || relicOfferOpen || game.bonusRound !== null ||
     terminalPhase;
   const sideOpenRef = useRef(sideOpen);
   const blockingOverlayRef = useRef(blockingOverlay);
@@ -1451,7 +1458,12 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
               <button className="coach-skip" onClick={dismissCoach}>SKIP GUIDE</button>
             </div>
           )}
-          {!briefed && (
+          {!veteranIntroDone && (
+            <VeteranIntro
+              onDone={() => { progress.veteranIntroSeen = true; setVeteranIntroDone(true); sfx.click(); }}
+            />
+          )}
+          {!briefed && veteranIntroDone && (
             <BriefingOverlay
               lines={BRIEFING}
               portrait="/art/briefing.webp"
@@ -1713,6 +1725,35 @@ function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => voi
   );
 }
 
+// One-time briefing on the first Veteran deploy. Recruit → Veteran is not an HP
+// wall (difficulty HP already ramps in over the first 25 waves); the real
+// step-change is phase-cloaks and a tighter economy. Name them up front.
+function VeteranIntro({ onDone }: { onDone: () => void }) {
+  const points: { icon: string; title: string; body: ReactNode }[] = [
+    { icon: '📡', title: 'Phase-cloaks incoming', body: <>From around <b>wave 14</b>, hulls arrive <b>cloaked</b> — invisible until a detector sees them. Field a <b>Railgun · Spotter Uplink</b>, <b>Drone · Sensor Suite</b>, or an <b>EMP Spire</b> before they slip through.</> },
+    { icon: '🛡️', title: 'Adaptive armada', body: <>Tougher hulls that keep scaling deeper into the run. A single doctrine stalls out — mix damage types and commit your upgrade tracks.</> },
+    { icon: '⌬', title: 'Leaner economy', body: <>Fewer cores, tighter credits, pricier towers. Every build has to earn its slot — spend deliberately, sell what stops paying.</> },
+  ];
+  return (
+    <Modal onClose={onDone} overlayClass="cutscene-overlay" boxClass="cutscene-box veteran-intro" labelledBy="veteran-intro-title" testId="veteran-intro">
+      <div className="unlock-eyebrow" style={{ color: 'var(--gold)' }}>◆ VETERAN PROTOCOL ◆</div>
+      <h2 id="veteran-intro-title" className="cutscene-title" style={{ color: 'var(--gold)' }}>THE ARMADA ADAPTS</h2>
+      <p className="tip-text">You cleared a campaign — command trusts you with the real siege. Three things change:</p>
+      <ul className="veteran-intro-points">
+        {points.map((p) => (
+          <li key={p.title}>
+            <span className="veteran-intro-icon" aria-hidden="true">{p.icon}</span>
+            <span><b>{p.title}.</b> {p.body}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="overlay-btns">
+        <button className="start-btn small" onClick={onDone} data-testid="veteran-intro-ack">UNDERSTOOD ▸</button>
+      </div>
+    </Modal>
+  );
+}
+
 function MusicButton() {
   const [on, setOn] = useState(isMusicOn());
   return (
@@ -1744,6 +1785,12 @@ function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: 
     { label: game.lives > 0 ? 'Cores Remaining' : 'Cores Lost', value: game.lives > 0 ? game.lives.toLocaleString() : game.runStats.leaks.toLocaleString() },
     { label: 'Credits Earned', value: Math.round(game.runStats.cashEarned).toLocaleString() },
   ];
+  // Mastery routing: a dominant Recruit clear (kept most cores, not freeplay) means
+  // the player has outgrown the tutorial protocol — nudge them up to Veteran rather
+  // than letting them farm easy. Reward mastery by routing, not by nerfing.
+  const masteredRecruit = diff.id === 'easy' && game.phase === 'victory' && !game.freeplay
+    && game.startingLives > 0 && game.lives >= Math.ceil(game.startingLives * 0.7)
+    && !progress.best(map.id, 'normal');
   return (
     <div className={`debrief-layout ${submitEligible ? 'has-submit' : ''}`}>
       <div className="debrief-main">
@@ -1755,21 +1802,35 @@ function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: 
             </div>
           ))}
         </div>
+        {masteredRecruit && (
+          <div className="debrief-nudge" data-testid="debrief-veteran-nudge">
+            <span className="debrief-nudge-icon" aria-hidden="true">▲</span>
+            <span>
+              <b>Sector held with cores to spare.</b> You've outgrown Recruit — <b>Veteran</b> awaits:
+              a tougher adaptive armada, phase-cloaks, and a leaner economy. Pick <b>Veteran</b> at deploy.
+            </span>
+          </div>
+        )}
         {freshUnlocks.length > 0 && (
           <div className="debrief-unlocks" data-testid="debrief-unlocks">
-            <div className="debrief-section-title">◆ NEW INSTRUMENTS UNLOCKED ◆</div>
-            {freshUnlocks.map((d) => (
-              <div className="debrief-unlock-row" key={d.id}>
-                <span className="debrief-unlock-badge" style={{ ['--tc' as string]: d.color, ['--tg' as string]: d.glow }}>
-                  <TowerIcon def={d} />
+            <div className="debrief-section-title">
+              ◆ {freshUnlocks.length} NEW INSTRUMENT{freshUnlocks.length > 1 ? 'S' : ''} UNLOCKED ◆
+            </div>
+            <div className="debrief-unlock-icons">
+              {freshUnlocks.map((d) => (
+                <span
+                  className="debrief-unlock-chip"
+                  key={d.id}
+                  title={`${d.name} — ${d.base.damageType} · ⌬${d.cost}\n${d.desc}`}
+                  aria-label={`${d.name}, ${d.base.damageType}, cost ${d.cost}`}
+                >
+                  <span className="debrief-unlock-badge" style={{ ['--tc' as string]: d.color, ['--tg' as string]: d.glow }}>
+                    <TowerIcon def={d} />
+                  </span>
+                  <i className="debrief-unlock-name" style={{ color: d.glow }}>{d.name}</i>
                 </span>
-                <span className="debrief-unlock-text">
-                  <b style={{ color: d.glow }}>{d.name}</b>
-                  <i>{d.base.damageType} · ⌬{d.cost}</i>
-                  <em>{d.desc}</em>
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
         <MetaReward reward={reward} />

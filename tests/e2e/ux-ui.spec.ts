@@ -28,6 +28,9 @@ const progressSeed = {
   clearedMaps: [],
   tut: true,
   cloakTip: true,
+  // treat seeded players as having seen the one-time Veteran intro so a non-demo
+  // deploy on Veteran isn't blocked by it (mirrors tut/cloakTip first-run suppression)
+  veteranIntroSeen: true,
 };
 
 const metaSeed = {

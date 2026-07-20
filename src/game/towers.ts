@@ -384,7 +384,7 @@ export const TOWERS: TowerDef[] = [
   },
   {
     id: 'anchor', name: 'Phase Anchor', short: 'ANC', cost: 700, unlockAt: 115000,
-    desc: 'A caged singularity that never fires. It rewrites where hulls ARE — pinning a column in a kill-pocket, or hurling it forward off its escorts. Its "ascension" is control, not damage.',
+    desc: 'A caged singularity that never fires. It rewrites where hulls ARE — dragging a column back into a kill-pocket and pinning it there, blind escorts laid bare. Its "ascension" is control, not damage.',
     lore: 'The civilian ancestor of the Abyss Gate: harbor-tugs once used it to berth freighters in a storm. The Concord kept the gentle version. The Combine did not.',
     color: '#8e7bef', glow: '#cdbcff', style: 'gravity',
     base: base({
@@ -400,13 +400,13 @@ export const TOWERS: TowerDef[] = [
         u('EVENT WELL', 'BONUS: deep pull, +20% range.', 1900, (s) => { s.drag = 110; s.range *= 1.2; }),
         u('THE PIT', 'BONUS: a column simply stops existing forward. Brutal pull, deep slow, wide.', 3800, (s) => { s.drag = 180; s.slowPower = 0.7; s.slowDuration = 2; s.range *= 1.2; }),
       ]),
-      track('Repulsor Field', [
-        u('Reverse Polarity', 'Push hulls FORWARD, away from the anchor.', 320, (s) => { s.drag = -26; }),
-        u('Phase Detector', 'Reveals cloaked hulls in the field.', 440, (s) => { s.detection = true; }),
-        u('Hard Shove', 'Stronger forward push.', 650, (s) => { s.drag = -48; }),
-        u('Dispersion Field', '+25% range, harder push.', 1000, (s) => { s.range *= 1.25; s.drag = -70; }),
-        u('SCATTER ENGINE', 'BONUS: violent forward scatter — shatters heal-clusters and escorts.', 1900, (s) => { s.drag = -110; }),
-        u('THE EXILE GATE', 'BONUS: hurls hulls forward then strands them mid-lane in your kill-zone.', 3800, (s) => { s.drag = -170; s.slowPower = 0.4; s.range *= 1.3; }),
+      track('Warden Array', [
+        u('Phase Detector', 'Reveals cloaked hulls anywhere in the field.', 320, (s) => { s.detection = true; }),
+        u('Resonant Lattice', '+30% range.', 450, (s) => { s.range *= 1.3; }),
+        u('Deep Sap', 'Slow 45%, longer hold.', 650, (s) => { s.slowPower = 0.45; s.slowDuration = 1.4; }),
+        u('Graviton Mesh', '+25% range, stronger pull.', 1000, (s) => { s.range *= 1.25; s.drag = 40; }),
+        u('WARDEN FIELD', 'BONUS: field-wide detection and a heavy slow — nothing hides, nothing rushes.', 1900, (s) => { s.detection = true; s.slowPower = 0.6; s.range *= 1.2; }),
+        u('THE UNBLINKING EYE', 'BONUS: total lockdown — deep pull, deep slow, wide, every hull laid bare.', 3800, (s) => { s.detection = true; s.drag = 110; s.slowPower = 0.7; s.slowDuration = 2; s.range *= 1.3; }),
       ]),
     ],
   },

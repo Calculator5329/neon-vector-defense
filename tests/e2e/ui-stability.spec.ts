@@ -44,6 +44,7 @@ const progressSeed = {
   uid: 'w_ui_stability',
   tut: true,
   cloakTip: true,
+  veteranIntroSeen: true,
   apexW: true,
   foes: ['scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono'],
   foesAck: 0,

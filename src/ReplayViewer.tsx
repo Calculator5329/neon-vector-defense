@@ -546,15 +546,20 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       return { t0: 0, tEnd: b, span: b, fade: FADE_S };
     }
     const snaps = run.snapshots.length ? run.snapshots : [reconstructAt(run, 0).snap];
-    let a = snaps[0].t;
+    const last = snaps[snaps.length - 1].t;
+    // A lone synthetic run-end keyframe sits at durationS — starting there would open the
+    // replay already finished (the owner-reported "it starts at the end"). Only trust
+    // snaps[0].t as a start when there's a real sequence of keyframes.
+    let a = snaps.length > 1 ? snaps[0].t : 0;
     // A PURE Freeplay/Daily run opens deep (~wave 50) on a trivial opener — skip ~10 waves of
     // warmup. Guarded on a deep first keyframe so a campaign-that-continued-into-freeplay (whose
-    // snapshots start at wave 1) still plays back from wave 1.
+    // snapshots start at wave 1) still plays back from wave 1, and never onto/past the last
+    // keyframe (which would again strand the playhead at the end).
     if (run.summary.freeplay && snaps.length > 1 && snaps[0].wave > 5) {
       const skip = snaps.find((s) => s.wave >= snaps[0].wave + 10);
-      if (skip) a = skip.t;
+      if (skip && skip.t < last - 1) a = skip.t;
     }
-    const b = Math.max(snaps[snaps.length - 1].t, a + 1);
+    const b = Math.max(last, a + 1);
     const sp = b - a;
     return { t0: a, tEnd: b, span: sp, fade: FADE_S };
   }, [run]);
@@ -893,7 +898,13 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const s = run.summary;
   const snap = hud.snap;
   const outcome = s.outcome;
-  const showStamp = hud.terminal;
+  // Only stamp the outcome once the playhead has actually reached the end. In the
+  // cosmetic path reconstructAt() reports terminal=true from t=0 (its lone synthetic
+  // run-end keyframe is always the "last" one), which used to plaster VICTORY over the
+  // whole replay while the board played wave 1. Gate on the playhead (in tEnd's own
+  // coordinate space, so no durationS rounding mismatch) — the driver path's phase-based
+  // terminal already only trips at the end, and this stays consistent with it.
+  const showStamp = hud.terminal && tRef.current >= tEnd - 0.05;
 
   return (
     <div className="replay-root" data-testid="replay-root">

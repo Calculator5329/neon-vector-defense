@@ -2,7 +2,106 @@
 
 Running log of notable changes. Most recent first.
 
-## 2026-07-18 - Replay pipeline E2E: real script + viewer fidelity label + determinism lock
+## 2026-07-20 - Replays: marathon runs play for real + fix start-at-end / persistent VICTORY
+
+Owner report: replays show towers firing but enemies never die, open at the end,
+and stamp VICTORY. Root-caused to three separate issues.
+
+- **Marathon/Extinction runs fell back to the hollow cosmetic path (primary cause
+  of "enemies don't die").** The frame-accurate driver is correct — it reproduces
+  exact kills — but a run is ~48s/wave, so a wave-80 run is ~3,845s and exceeded the
+  `PLAYBACK_MAX_DURATION_S` cap of **3,600s**, which is *below* the game's own longest
+  campaign (Extinction = 80 waves). So every Extinction clear and any deep marathon
+  dropped to the cosmetic reconstruction (arrows flow, nothing dies, victory stamp).
+  Raised the cap to **10,800s** (`durationS` is sim-time, so idle build phases barely
+  cost re-sim ticks; the 250k kill cap + wall-clock-budgeted seeking remain the real
+  guards). Exported `REPLAY_PLAYBACK_MAX_DURATION_S`; regression test asserts an
+  80-wave-length (3,840s) run stays frame-accurate. (`reSimulate.ts`, `replay-fidelity.test.ts`.)
+- **"It starts at the end."** In the cosmetic path, `t0` was `snaps[0].t`; when the
+  only keyframe is the synthetic run-end (v3 docs carry no snapshots, or a lone-snapshot
+  legacy doc), that equals `durationS`, opening the replay already finished. Now a lone
+  synthetic keyframe starts at 0, and the freeplay deep-open skip can never land on/past
+  the final keyframe. (`ReplayViewer.tsx` t0 memo.)
+- **Persistent "VICTORY" stamp over an early wave.** `reconstructAt` reports
+  `terminal = idx === snaps.length - 1`, which is always true for the single synthetic
+  keyframe, so `showStamp` was true from t=0. Gated the stamp on the playhead actually
+  reaching `tEnd`. The driver path (phase-based terminal) was already correct. (`ReplayViewer.tsx`.)
+- Seeded `veteranIntroSeen: true` in the e2e progress seeds (ux-ui, qa-regression,
+  qa-screens, ui-stability, portal-sdk): a returning player defaults to Veteran, whose
+  new one-time intro would otherwise block the briefing those flows deploy into. Also
+  un-stale'd the frame-accurate replay e2e (`replayEngine` 6 → current `REPLAY_ENGINE_VERSION`);
+  it now passes end-to-end (verifies start-at-0 + full scrub domain).
+
+Known-still-broken (pre-existing, filed separately, NOT from this change): `reSimulate`
+returns `divergent` for a deep-freeplay-with-relic run and a Recalibrate ability_cast
+case (real determinism defects in the marathon/freeplay family).
+
+## 2026-07-20 - Veteran onboarding: first-deploy intro + mastery nudge
+
+Balance follow-up (Ethan-approved directions). Corrects the earlier "Recruit→
+Veteran HP cliff" premise: the engine already ramps difficulty HP in over the
+first 25 waves (`engine.ts` `ramp = min(1, wave/25)`), so early Veteran ≈ early
+Recruit — the real step-change is informational (phase-cloaks from ~wave 14 +
+leaner economy), not enemy HP. So this ships onboarding, **not** an HP nerf, and
+touches **no** enemy HP / no Apex/Extinction values (per Ethan's constraint).
+
+- **Veteran intro (one-time).** On a player's first Veteran (normal) campaign
+  deploy, a briefing modal ("THE ARMADA ADAPTS") names the three real changes:
+  phase-cloaks incoming (~wave 14 — bring a detector), adaptive armada, leaner
+  economy. Gated by a new persistent `veteranIntroSeen` flag (`storage.ts`),
+  suppressed in demo/daily/weekly/gauntlet, shown before the sector briefing.
+  Verified: fires once on first Veteran deploy, never again, never on Recruit.
+- **Mastery-routing nudge.** A dominant Recruit clear (kept ≥70% cores, not
+  freeplay, no Veteran progress yet) shows a debrief callout routing the player
+  up to Veteran — rewards mastery by routing, not by nerfing.
+- Analysis + the corrected findings (incl. the wave 13–16 "wall" being a sim-bot
+  artifact, and late-game-scaling validation still open) in
+  `docs/plans/BALANCE-2026-07-20-followup.md`.
+
+## 2026-07-20 - Debrief unlocks grid + Phase Anchor push-forward removal
+
+Feedback pass (Ethan).
+
+- **Debrief "NEW INSTRUMENTS UNLOCKED" no longer overflows off-screen.** A full
+  60-wave clear banks 7+ instruments at once; the old vertical list (badge +
+  name + type + full description per row) grew past the viewport and hid the
+  later unlocks (EMP Spire onward). Rebuilt as a compact horizontal grid of icon
+  chips — icon badge + short name, with the type/cost/description on hover
+  (`title`) and an `aria-label`. Header now counts the unlocks. 7 instruments now
+  render in 2 rows (~170px tall) inside the debrief column instead of a
+  420px+ stack. (`GameScreen.tsx` `debrief-unlocks`, `App.css`.)
+- **Phase Anchor "push forward" upgrade track removed.** The Repulsor Field track
+  (Reverse Polarity / Hard Shove / Dispersion Field / SCATTER ENGINE / THE EXILE
+  GATE) shoved hulls *toward* the exit — counterproductive and weak. Replaced
+  with the **Warden Array** track (Phase Detector → Resonant Lattice → Deep Sap →
+  Graviton Mesh → WARDEN FIELD → THE UNBLINKING EYE): detection + slow + range
+  lockdown, no forward push anywhere. Cloak-detection utility that was buried in
+  the old track is preserved and elevated. The tower's top-line description was
+  updated to drop the forward-hurl copy. Structure stays a 2-track tuple
+  (`tracks[0|1]` is load-bearing across engine/UI/AI). (`towers.ts`.)
+- Follow-ups filed in `docs/roadmap.md`: Veteran-mode intro on first unlock
+  (owner "maybe"), the mass-unlock dump pacing smell, and a pre-existing
+  unrelated `watchfire sweep` unit-test failure on clean master.
+
+## 2026-07-20 - Fix RECOMMENDED protocol pill spacing + layout regression guard
+
+Feedback fix: the first-time "RECOMMENDED" pill in the difficulty dock overlapped
+the protocol name.
+
+- **Root cause.** `.diff-card.atlas-protocol-row` is a two-column grid
+  (`name | desc`), but the static `.start-pill` was emitted as a plain third
+  child. Grid auto-placement dropped the pill into col-1/row-1 and shoved the
+  name ("Recruit") into col-2 beside it, with the description wrapping to row-2.
+- **Fix (`src/App.css`).** `.diff-card.atlas-protocol-row .start-pill` now spans
+  `grid-column: 1 / -1` (`justify-self: start`), so the badge sits on its own
+  top row and name+desc keep the normal two-column row beneath. The map-node
+  "START HERE" pill was unaffected (it stays `position: absolute`, so it never
+  became a grid child).
+- **Regression guard (`tests/e2e/menu-recommended-pill.spec.ts`).** New Playwright
+  spec seeds a first-time player, exposes the pill, and asserts the layout
+  invariant (pill sits above the name, name+desc share a row on desktop, no
+  overlaps) plus a frozen-animation pixel snapshot of the dock. Verified the
+  guard fails on the pre-fix CSS and passes on the fix, desktop + mobile.
 
 Closes Gaps A–D from `docs/plans/unblock-replay-pipeline-e2e-verification-ethan-d-20260718/`
 (Balance round finding 4 — "fix ALL remaining replay issues"). Verification,

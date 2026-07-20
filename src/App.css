@@ -427,6 +427,16 @@
   margin: 0 auto 1px;
   white-space: nowrap;
 }
+/* In the atlas-protocol-row layout .diff-card is a 2-column grid
+   (name | desc). A static .start-pill is a third grid child, so
+   auto-placement drops it into col-1/row-1 and shoves the name into
+   col-2 beside it. Span the pill across its own top row so name+desc
+   keep the normal two-column row beneath it. */
+.diff-card.atlas-protocol-row .start-pill {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin: 0 0 2px;
+}
 
 .map-grid {
   display: grid;
@@ -1800,13 +1810,25 @@
   background: linear-gradient(180deg, rgba(255, 211, 42, 0.07), rgba(8, 13, 28, 0.4));
 }
 .debrief-unlocks .debrief-section-title { color: var(--gold); }
-.debrief-unlock-row {
+/* Unlocks read as a compact horizontal grid of icon chips, not a tall stack —
+   a full 60-wave clear can bank 7+ instruments at once, and the old vertical
+   list with per-row descriptions pushed the later unlocks off-screen. */
+.debrief-unlock-icons {
   display: flex;
-  align-items: center;
-  gap: 11px;
-  padding-block: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px 10px;
+  margin-top: 8px;
 }
-.debrief-unlock-row + .debrief-unlock-row { border-top: 1px solid rgba(65, 86, 145, 0.4); }
+.debrief-unlock-chip {
+  flex: 0 0 auto;
+  width: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: help;
+}
 .debrief-unlock-badge {
   flex: 0 0 auto;
   width: 44px;
@@ -1818,11 +1840,65 @@
   background: rgba(10, 14, 26, 0.7);
   box-shadow: 0 0 12px color-mix(in srgb, var(--tg, transparent) 35%, transparent);
 }
+.debrief-unlock-name {
+  font-style: normal;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* Mastery-routing nudge on a dominant Recruit clear. */
+.debrief-nudge {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid rgba(255, 211, 42, 0.4);
+  border-radius: 10px;
+  padding: 10px 13px;
+  background: linear-gradient(180deg, rgba(255, 211, 42, 0.1), rgba(8, 13, 28, 0.4));
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d7e0f5;
+}
+.debrief-nudge b { color: var(--gold); font-weight: 600; }
+.debrief-nudge-icon {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 15px;
+  line-height: 1.2;
+  filter: drop-shadow(0 0 6px rgba(255, 211, 42, 0.6));
+}
+
+/* Veteran-protocol first-deploy intro. */
+.cutscene-box.veteran-intro { max-width: 520px; text-align: center; }
+.veteran-intro-points {
+  list-style: none;
+  margin: 14px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  text-align: left;
+}
+.veteran-intro-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #c3cef0;
+}
+.veteran-intro-points li b { color: var(--text); }
+.veteran-intro-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1.2;
+}
 .debrief-unlock-badge svg { width: 30px; height: 30px; }
-.debrief-unlock-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.debrief-unlock-text b { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1px; }
-.debrief-unlock-text i { font-style: normal; font-size: 10.5px; letter-spacing: 1.4px; color: var(--dim); text-transform: uppercase; }
-.debrief-unlock-text em { font-style: normal; font-size: 11.5px; line-height: 1.3; color: #b9c6e8; }
 .aar {
   text-align: left;
 }
