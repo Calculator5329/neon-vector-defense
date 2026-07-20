@@ -4581,6 +4581,50 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   50% { box-shadow: 0 0 24px rgba(255, 205, 74, 0.34); }
 }
 
+/* Attention beckon — a more insistent pulse + breathing lift than the idle glow, so the
+   freshly-unlocked YAKKOB obviously wants a press. Overrides the base yakkob-glow. */
+.yakkob-op-card.yakkob-attn { animation: yakkob-beckon 1.5s ease-in-out infinite; }
+@keyframes yakkob-beckon {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 205, 74, 0.18); transform: translateY(0); border-color: rgba(255, 205, 74, 0.55); }
+  50% { box-shadow: 0 0 26px rgba(255, 205, 74, 0.5), 0 0 0 2px rgba(255, 205, 74, 0.34); transform: translateY(-2px); border-color: var(--gold); }
+}
+
+/* "TAP TO DEPLOY" call-to-action pill inside the card. */
+.yakkob-cta {
+  display: block;
+  width: max-content;
+  margin-top: 7px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #201400;
+  font-family: 'Orbitron', sans-serif;
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 1.6px;
+  animation: yakkob-cta-pulse 1.1s ease-in-out infinite;
+}
+@keyframes yakkob-cta-pulse {
+  0%, 100% { opacity: 0.82; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(2px); }
+}
+
+/* One-shot light sweep the moment the card lands in the dock. */
+.yakkob-op-card { position: relative; overflow: hidden; }
+.yakkob-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 32%, rgba(255, 246, 214, 0.55) 50%, transparent 68%);
+  transform: translateX(-120%);
+  animation: yakkob-sweep 1.1s ease-out 1;
+}
+@keyframes yakkob-sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+
 /* The displaced Weekly Mutation, now a sealed mystery box. */
 .special-box-card { border-style: dashed; border-color: rgba(129, 218, 255, 0.32); }
 .special-box-card span { color: var(--dim); }
@@ -4652,5 +4696,6 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   100% { transform: scale(0.8); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .yakkob-op-card, .yakkob-dwarf, .yakkob-dwarf-ping { animation: none; }
+  .yakkob-op-card, .yakkob-op-card.yakkob-attn, .yakkob-cta, .yakkob-dwarf, .yakkob-dwarf-ping { animation: none; }
+  .yakkob-shimmer::after { display: none; }
 }

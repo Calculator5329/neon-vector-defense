@@ -161,6 +161,8 @@ function WeeklyOpsSection(props: {
   gauntletProtocol: GauntletProtocolRoute;
   gauntletProtocolUnlocked: boolean;
   yakkobUnlocked: boolean;
+  yakkobJustPlaced: boolean;
+  onStartYakkob: () => void;
   deployMode: DeployMode;
   setDeployMode: (mode: DeployMode) => void;
 }) {
@@ -168,16 +170,18 @@ function WeeklyOpsSection(props: {
   return (
     <div className="weekly-ops-strip atlas-weekly-ops" data-testid="weekly-ops-strip">
       {props.yakkobUnlocked ? (
-        // Unlocked: THE YAKKOB takes the Weekly Mutation's slot as a glowing special edition.
+        // Unlocked: THE YAKKOB takes the Weekly Mutation's slot as a glowing special edition
+        // and calls for a press. `yakkob-shimmer` fires a one-shot light sweep the moment it lands.
         <button
-          className={`weekly-op-card yakkob-op-card ${props.deployMode === 'yakkob' ? 'active' : ''}`}
+          className={`weekly-op-card yakkob-op-card yakkob-attn ${props.yakkobJustPlaced ? 'yakkob-shimmer' : ''} ${props.deployMode === 'yakkob' ? 'active' : ''}`}
           data-testid="yakkob-card"
-          aria-pressed={props.deployMode === 'yakkob'}
+          aria-label="Deploy THE YAKKOB"
           title={THE_YAKKOB.rules.join('\n')}
-          onClick={() => { props.setDeployMode('yakkob'); sfx.click(); }}
+          onClick={() => { props.setDeployMode('yakkob'); props.onStartYakkob(); }}
         >
           <span>✦ THE YAKKOB ✦</span>
           <b>Prism Array · Watchfire Beacon</b>
+          <em className="yakkob-cta" aria-hidden="true">▶ TAP TO DEPLOY</em>
         </button>
       ) : (
         <button
@@ -189,20 +193,6 @@ function WeeklyOpsSection(props: {
         >
           <span>WEEKLY MUTATION</span>
           <b>{weeklyMods.slice(0, 4).join(' / ')}</b>
-        </button>
-      )}
-      {props.yakkobUnlocked && (
-        // The displaced Weekly Mutation, now a sealed "special box" — contents & window undisclosed.
-        <button
-          className={`weekly-op-card special-box-card ${props.deployMode === 'weekly' ? 'active' : ''}`}
-          data-testid="special-box-card"
-          aria-pressed={props.deployMode === 'weekly'}
-          aria-label="Special box. Contents undisclosed. Available for a limited, undisclosed time."
-          title={'A sealed special box.\nContents undisclosed. Open window: undisclosed.'}
-          onClick={() => { props.setDeployMode('weekly'); sfx.click(); }}
-        >
-          <span>❓ SPECIAL BOX</span>
-          <b>Undisclosed · closes ??:??</b>
         </button>
       )}
       <button
@@ -247,6 +237,7 @@ function SectorAtlas(props: {
   gauntletProtocol: GauntletProtocolRoute;
   gauntletProtocolUnlocked: boolean;
   yakkobUnlocked: boolean;
+  onStartYakkob: () => void;
   firstTime: boolean;
   apexLocked: boolean;
 }) {
@@ -256,6 +247,9 @@ function SectorAtlas(props: {
   // dock has two faces: campaign protocols vs seeded challenges (daily + weekly ops)
   const [dockTab, setDockTab] = useState<'protocols' | 'challenges'>(
     props.deployMode === 'campaign' ? 'protocols' : 'challenges');
+  // one-shot shimmer sweep on the YAKKOB card the moment it lands in the dock
+  const [yakkobPlaced, setYakkobPlaced] = useState(false);
+  const prevYakkobUnlocked = useRef(props.yakkobUnlocked);
   const dailyMods = dailyModifierNames(props.dailySeed);
   const selectedMap = ALL_MAPS.find((m) => m.id === props.map.id) ?? ALL_MAPS[0];
   const selectedMastery = masteryLevel(selectedMap.id);
@@ -311,6 +305,24 @@ function SectorAtlas(props: {
       if (fallback) props.setMap(fallback);
     }
   }, [props.map, props.setMap]);
+
+  // The moment THE YAKKOB unlocks: flip the dock to CHALLENGES, scroll its card (row 2,
+  // right under DAILY) into view, focus it, and fire the one-shot shimmer.
+  useEffect(() => {
+    if (props.yakkobUnlocked && !prevYakkobUnlocked.current) {
+      setDockTab('challenges');
+      setYakkobPlaced(true);
+      const raf = requestAnimationFrame(() => {
+        const card = weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="yakkob-card"]');
+        card?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        card?.focus();
+      });
+      const clear = setTimeout(() => setYakkobPlaced(false), 1500);
+      prevYakkobUnlocked.current = props.yakkobUnlocked;
+      return () => { cancelAnimationFrame(raf); clearTimeout(clear); };
+    }
+    prevYakkobUnlocked.current = props.yakkobUnlocked;
+  }, [props.yakkobUnlocked]);
 
   const moveNodeFocus = (current: HTMLButtonElement, delta: number) => {
     const nodes = [...fieldRef.current?.querySelectorAll<HTMLButtonElement>('[data-atlas-node="true"]') ?? []];
@@ -487,24 +499,14 @@ function SectorAtlas(props: {
             <span className="diff-name">DAILY CHALLENGE</span>
             <span className="diff-desc daily-card-mods">{dailyMods.join(' / ')}</span>
           </button>
-          <div className="protocol-drills" aria-label="Protocol Drills">
-            {props.drills.map((drill) => (
-              <button key={drill.id}
-                className={`diff-card atlas-protocol-row daily-protocol ${props.deployMode === 'drill' && props.selectedDrill.id === drill.id ? 'active' : ''}`}
-                data-testid={`diff-card-${drill.drillType}`}
-                title={drill.rules.join('\n')}
-                onClick={() => { props.setSelectedDrill(drill); props.setDeployMode('drill'); sfx.click(); }}>
-                <span className="diff-name">{drill.title.split(' ')[0]} DRILL</span>
-                <span className="diff-desc">{drill.arsenal.desc} · {drill.maxWaves} waves</span>
-              </button>
-            ))}
-          </div>
           <WeeklyOpsSection
             weeklySeed={props.weeklySeed}
             gauntlet={props.gauntlet}
             gauntletProtocol={props.gauntletProtocol}
             gauntletProtocolUnlocked={props.gauntletProtocolUnlocked}
             yakkobUnlocked={props.yakkobUnlocked}
+            yakkobJustPlaced={yakkobPlaced}
+            onStartYakkob={props.onStartYakkob}
             deployMode={props.deployMode}
             setDeployMode={props.setDeployMode}
           />
@@ -659,6 +661,7 @@ export function MainMenu(props: {
             gauntletProtocol={props.gauntletProtocol}
             gauntletProtocolUnlocked={gauntletProtocolUnlocked}
             yakkobUnlocked={props.yakkobUnlocked}
+            onStartYakkob={props.onStartYakkob}
             firstTime={firstTime}
             apexLocked={apexLocked}
           />

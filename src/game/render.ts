@@ -3,6 +3,7 @@ import { Game, W, H } from './engine';
 import { BULWARK_RADIUS, ELITE_AFFIX_META } from './eliteAffixes';
 import { displayedMapTheme } from './mapThemes';
 import { displayedCosmeticSet, type CosmeticSet } from './cosmeticSets';
+import { isYakkob, isYakkobSquishedTower } from './yakkob';
 import { meta } from './meta';
 
 // ============================================================
@@ -650,7 +651,9 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, ui: RenderUi) 
     ctx.save();
     ctx.globalAlpha = 0.8;
     const tiers = ui.placingTiers ?? { a: 0, b: 0 };
-    drawTowerBody(ctx, ui.hover, ui.placing, -Math.PI / 2, tiers.a, tiers.b, ui.canPlaceHere ? 1 : 0.35, 0, game.time, 0);
+    // THE YAKKOB's squished towers preview short too — before placement, not just after
+    const ghostSquishY = isYakkob(game.dailyChallenge) && isYakkobSquishedTower(ui.placing.id) ? 0.75 : 1;
+    drawTowerBody(ctx, ui.hover, ui.placing, -Math.PI / 2, tiers.a, tiers.b, ui.canPlaceHere ? 1 : 0.35, 0, game.time, 0, false, ghostSquishY);
     if (ui.keyboardCursor) {
       ctx.strokeStyle = ui.canPlaceHere ? ui.placing.glow : '#ff4757';
       ctx.shadowColor = ctx.strokeStyle;
@@ -996,7 +999,9 @@ function drawTower(ctx: CanvasRenderingContext2D, t: Tower, time: number, select
   // idle scanning sway: turrets that haven't fired recently slowly sweep their arc
   const idle = t.flash <= 0 && t.recoil <= 0 && AIMED_STYLES.includes(t.def.style);
   const angle = idle ? t.angle + Math.sin(time * 0.6 + t.uid) * 0.18 : t.angle;
-  drawTowerBody(ctx, t.pos, t.def, angle, t.tierA, t.tierB, 1, t.flash, time, t.recoil, overdriven);
+  // THE YAKKOB's two vault towers come back squashed — short on the field, not just in the shop.
+  const squishY = isYakkob(game.dailyChallenge) && isYakkobSquishedTower(t.def.id) ? 0.75 : 1;
+  drawTowerBody(ctx, t.pos, t.def, angle, t.tierA, t.tierB, 1, t.flash, time, t.recoil, overdriven, squishY);
   // veterancy stars on the field
   const rank = Game.rankOf(t);
   if (rank > 0) {
@@ -1099,6 +1104,7 @@ function towerPlatform(def: TowerDef, ascended: boolean, powered: boolean, overd
 export function drawTowerBody(
   ctx: CanvasRenderingContext2D, pos: Vec, def: TowerDef,
   angle: number, tierA: number, tierB: number, alpha = 1, flash = 0, time = 0, recoil = 0, overdriven = false,
+  squishY = 1,
 ) {
   const skin = displayedCosmeticSet();
   if (skin.towerBody || skin.towerGlow) {
@@ -1108,6 +1114,7 @@ export function drawTowerBody(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(pos.x, pos.y);
+  if (squishY !== 1) ctx.scale(1, squishY); // THE YAKKOB: short towers, full width
 
   // base platform — cached sprite (replaces a per-frame shadowBlur + 3 gradients/tower)
   const powered = tierA + tierB >= 6 || ascended;

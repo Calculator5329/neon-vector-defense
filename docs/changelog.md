@@ -2,6 +2,27 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-07-20 - THE YAKKOB dock polish: no scrollbar, tap-to-deploy, short towers everywhere
+
+Owner feedback pass on the challenges dock and THE YAKKOB special edition.
+
+- **Removed Protocol Drills from the challenges dock.** They padded the stack and
+  forced a scrollbar; the dock now reads DAILY CHALLENGE → THE YAKKOB → CHAMPION
+  GAUNTLET → GAUNTLET PROTOCOL. (Drill run-mode plumbing is untouched — this is a
+  menu-surface removal.)
+- **Unlock flow.** Clicking the digging dwarf now flips the dock to CHALLENGES,
+  scrolls THE YAKKOB card (row 2, under DAILY) into view, focuses it, and fires a
+  one-shot shimmer sweep as it lands. THE YAKKOB replaces the WEEKLY MUTATION slot
+  and the separate dashed "SPECIAL BOX" card is gone — net card count stays flat, so
+  no scrollbar at normal window heights. (`MainMenu.tsx`, `App.css`.)
+- **Tap-to-deploy.** THE YAKKOB card carries a stronger attention beckon + a pulsing
+  "▶ TAP TO DEPLOY" pill, and tapping it now launches the run immediately instead of
+  only selecting the mode. (`MainMenu.tsx`, `App.css`.)
+- **Squished towers on the battlefield, not just in the shop.** The Prism Array and
+  Watchfire Beacon now render at 0.75× height on the field and in the placement-preview
+  ghost, matching their squashed shop icons. Threaded a `squishY` param through
+  `drawTowerBody`. (`render.ts`.)
+
 ## 2026-07-20 - Replays: marathon runs play for real + fix start-at-end / persistent VICTORY
 
 Owner report: replays show towers firing but enemies never die, open at the end,
