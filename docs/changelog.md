@@ -2,6 +2,16 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-07-26 - Canonical agent guide repaired
+
+- Replaced the malformed centralization-era `CLAUDE.md` scaffold with a
+  repository-specific mission and verification matrix.
+- Preserved the superseded scaffold verbatim under
+  `docs/archive/2026-07-26/`.
+- Consolidated the durable replay-schema, generated-artifact, security,
+  deployment, and owner-only boundaries into the canonical guide.
+- Kept ignored local handoff notes and agent-worktree metadata untouched.
+
 ## 2026-07-20 - Fix THE YAKKOB debrief attempting a global leaderboard submit
 
 Owner report: a YAKKOB run's debrief showed "GLOBAL LEADERBOARD — FOUNDRY FLOOR /

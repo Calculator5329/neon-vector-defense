@@ -3,7 +3,13 @@
 Current build status and near-term priorities. For the full historical 80-idea
 audit backlog, see [idea_backlog.md](./idea_backlog.md).
 
-Last updated: 2026-07-20 (THE YAKKOB special edition shipped)
+Last updated: 2026-07-26 (agent-guide hygiene)
+
+## Repository hygiene
+
+- [x] Replace the malformed centralization-era agent-guide scaffold with the
+  repository's current mission, verification matrix, replay/security
+  boundaries, and owner-only operations. *(done 2026-07-26)*
 
 ## Special editions
 
