@@ -180,6 +180,9 @@ export interface GameOptions {
   /** Engine-driven replay/re-simulation: keep recorder local, but do not mutate
    *  player progression while the historical run is being replayed. */
   replayMode?: boolean;
+  /** Compatibility switch for historical replays that recorded target-practice
+   *  actions. Live games leave this off: the interstitial was retired. */
+  bonusRoundsEnabled?: boolean;
 }
 
 /** a forward (repel) gravity push can never shove a hull closer than this to the exit */
@@ -269,7 +272,7 @@ export class Game {
   private bonusDecidedWaves = new Set<number>();
 
   get bonusRoundOffered(): boolean {
-    return this.phase === 'build' && this.wave > 0 && !this.freeplay && !this.bonusDecidedWaves.has(this.wave);
+    return this.bonusRoundsEnabled && this.phase === 'build' && this.wave > 0 && !this.freeplay && !this.bonusDecidedWaves.has(this.wave);
   }
 
   startBonusRound(): boolean {
@@ -355,6 +358,7 @@ export class Game {
   private readonly baseKills: number;
   private readonly availableTowerIdsOverride: Set<string> | null;
   private readonly replayMode: boolean;
+  private readonly bonusRoundsEnabled: boolean;
   /** per-instance entity uid sequence — module-global counters made uids
    *  irreproducible across runs, which blocks deterministic re-simulation */
   private uidSeq = 1;
@@ -395,6 +399,7 @@ export class Game {
       ? new Set(opts.availableTowerIds.filter((id) => TOWER_MAP[id]))
       : null;
     this.replayMode = opts.replayMode === true;
+    this.bonusRoundsEnabled = opts.bonusRoundsEnabled === true;
     const bdiff = getBalance().diff(diff.id);
     this.credits = Math.round(diff.cash * bdiff.cashMult);
     this.lives = Math.max(1, Math.round(diff.lives * bdiff.livesMult));

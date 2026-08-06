@@ -60,6 +60,33 @@ afterEach(() => {
   setBalanceDoc(null);
 });
 
+describe('retired target-practice interstitial', () => {
+  test('never offers a bonus round in a live game', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 20260806 });
+    game.wave = 1;
+    game.phase = 'build';
+
+    assert.equal(game.bonusRoundOffered, false);
+    assert.equal(game.startBonusRound(), false);
+    assert.equal(game.skipBonusRound(), false);
+    assert.equal(game.bonusRound, null);
+  });
+
+  test('keeps the retired mechanic available for historical replay actions', () => {
+    const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], {
+      seed: 20260806,
+      replayMode: true,
+      bonusRoundsEnabled: true,
+    });
+    game.wave = 1;
+    game.phase = 'build';
+
+    assert.equal(game.bonusRoundOffered, true);
+    assert.equal(game.startBonusRound(), true);
+    assert.equal(game.bonusRound?.remaining, 15);
+  });
+});
+
 // Mirrors the soft-resistance constants in engine.ts. Resistances reduce
 // damage instead of zeroing it; shred now ramps Exposed stacks instead of
 // instantly bypassing the target's plating.

@@ -2,6 +2,17 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-08-06 - Target-practice interstitial retired
+
+- Removed the 15-second target-practice offer and drill from every live
+  between-wave build phase. New runs no longer record implicit bonus-round
+  skip actions when launching the next wave.
+- Kept the deterministic bonus-round engine path behind a replay-only
+  compatibility switch so historical Battle Plans containing target-practice
+  actions continue to re-simulate.
+- Added regression coverage for both halves: live games never offer the drill,
+  while historical replay games can still execute it.
+
 ## 2026-07-26 - Canonical agent guide repaired
 
 - Replaced the malformed centralization-era `CLAUDE.md` scaffold with a

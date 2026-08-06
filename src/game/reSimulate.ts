@@ -102,6 +102,9 @@ export function setupReplayGame(run: PublicRunDoc): { game: Game } | { error: st
     lifetimeKills: dynamicUnlocks ? lifetimeKillsAtStart : 0,
     availableTowerIds: dynamicUnlocks ? undefined : run.setup.availableTowerIds,
     replayMode: true,
+    // Target practice is retired in live play, but old action streams must
+    // still reproduce the interlude they recorded.
+    bonusRoundsEnabled: true,
   });
   game.paused = false;
   game.speed = 1;

@@ -1415,35 +1415,8 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
             />
           )}
 
-          {game.bonusRoundOffered && !game.autoNext && (
-            <div className="bonus-offer" role="dialog" aria-label="Optional bonus round">
-              <b>SALVAGE SIGNAL</b>
-              <span>15-second target drill?</span>
-              <button onClick={() => { game.startBonusRound(); setTick((value) => value + 1); }}>PLAY</button>
-              <button onClick={() => { game.skipBonusRound(); setTick((value) => value + 1); }}>SKIP</button>
-            </div>
-          )}
-          {game.bonusRound && (
-            <div className="bonus-round" role="dialog" aria-label="Salvage target drill">
-              <div className="bonus-round-head">
-                <b>TARGET DRILL</b>
-                <span>{game.bonusRound.remaining.toFixed(1)}s</span>
-                <span>+{game.runStats.bonusSalvage} SALVAGE</span>
-              </div>
-              {game.bonusRound.targets.map((target) => (
-                <button
-                  key={target.id}
-                  className="bonus-target"
-                  aria-label={`Target ${target.id + 1}`}
-                  style={{ left: `${target.x / W * 100}%`, top: `${target.y / H * 100}%` }}
-                  onClick={() => { game.shootBonusTarget(target); setTick((value) => value + 1); }}
-                />
-              ))}
-            </div>
-          )}
-
           {game.phase === 'build' && (
-            <button className="wave-btn" data-testid="launch-wave" disabled={relicOfferOpen || game.bonusRound !== null} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
+            <button className="wave-btn" data-testid="launch-wave" disabled={relicOfferOpen} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
               ▶ LAUNCH WAVE {game.wave + 1}
             </button>
           )}

@@ -3,6 +3,16 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-08-06 - Target practice is retired from live play
+
+- The 15-second target-practice interstitial no longer appears between waves.
+  The normal build-and-launch rhythm should not be interrupted by a repeated
+  optional mini-game.
+- New runs do not offer the drill or record implicit skip actions.
+- Historical replay compatibility is deliberately retained: replay-driven
+  `Game` instances may still execute recorded bonus-round actions, so removing
+  the live feature does not invalidate old Battle Plans.
+
 ## 2026-07-05 - Campaign expands to twelve sectors
 
 - The campaign now has twelve authored `GameMap` sectors, still using only the

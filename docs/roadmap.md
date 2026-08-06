@@ -302,9 +302,10 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   only", "no abilities", fixed loadout) generated date-seeded like Daily
   Challenge; own small leaderboard per drill using the existing
   replay-token path.
-- [x] **Between-wave bonus round (opt-in).** *(done 2026-07-10)* 15-second target-shooting
-  interlude for bonus Salvage — deterministic, seeded from the run, recorded
-  in the replay action stream so verification still reproduces it.
+- [x] **Retire the between-wave target-practice popup.** *(built 2026-07-10;
+  removed 2026-08-06 at Ethan's direction)* New runs no longer offer or record
+  the 15-second interlude. Historical replay actions remain supported so old
+  Battle Plans still verify and play accurately.
 
 ### Monetization scaffolding (sequence-gated)
 - [ ] [ETHAN] **Account upgrade path.** Anonymous Auth → linked account
