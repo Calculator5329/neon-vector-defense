@@ -2,6 +2,21 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-08-13 - Recorded: the Sectors 13-16 server allowlist never deployed
+
+No code changed. Owner ruling `q-deploy-drift=record_and_stage`
+(doc-truth-packet-20260812).
+
+Measured today: `src/game/maps.ts` ships 16 maps; `firestore.rules:106` and
+`functions/src/index.ts:63-64` each allowlist 12. Missing on the server: `crossfeed`,
+`needleglass`, `bastion`, `eventide`. The roadmap has ticked this map pack as done
+since 2026-07-11 with no note that the server half never went out, so a score posted
+on any of those four maps is rejected by the live rules.
+
+The roadmap entry now says so, and a new open item tracks the server half. The exact
+allowlist edits, the pre-deploy check, the deploy command and its undo are staged in
+`~/projects/planning/owner-actions/deploy-drift-20260813.md`. Deploying is Ethan-only.
+
 ## 2026-08-06 - Target-practice interstitial retired
 
 - Removed the 15-second target-practice offer and drill from every live

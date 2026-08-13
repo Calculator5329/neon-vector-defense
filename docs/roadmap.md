@@ -290,6 +290,22 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - [x] <!-- workspace:id=work:1a2a269f-27b2-5d83-a125-9e2164f81fb2 --> **Map pack: Sectors 13–16.** *(done 2026-07-11)* Four new `GameMap` entries exercising
   underused mechanics (multi-entrance paths, narrow pathWidth, heavy blocker
   fields); versioned in `mapVersions.ts`; balance-CI gate must pass.
+  > **Only half of this shipped. Measured 2026-08-13.** The client has all 16 maps.
+  > The server does not: `firestore.rules:106` and `functions/src/index.ts:63-64` both
+  > allowlist 12 map ids, and `crossfeed`, `needleglass`, `bastion` and `eventide` are
+  > not among them. A player who reaches sector 13-16 and posts a score is rejected by
+  > the deployed rules. The tick above stands for the client work, which is done; the
+  > server half was never deployed. The fix is two one-line allowlist edits plus a
+  > `firebase deploy --only firestore:rules,functions`, both written out in
+  > `~/projects/planning/owner-actions/deploy-drift-20260813.md`. Deploying is
+  > Ethan-only, and this repo's agent fence is `docs-only`, so no agent will do either
+  > half without a decision. Filed under owner ruling `q-deploy-drift=record_and_stage`
+  > (doc-truth-packet-20260812).
+- [ ] <!-- filed 2026-08-13, id sweep will stamp it --> **Ship the server half of the
+      Sectors 13-16 map pack.** Add `crossfeed`, `needleglass`, `bastion`, `eventide`
+      to the Firestore rules allowlist and the Cloud Function allowlist, then deploy.
+      Commands and undo: `~/projects/planning/owner-actions/deploy-drift-20260813.md`.
+      Blocked on Ethan: the deploy is owner-only.
 - [ ] <!-- workspace:id=work:0b2d10a1-316a-5b64-a8f9-12d1f0ecd639 --> **Custom-map format + local editor (foundation for UGC).** Schema-
   validated JSON (same shape as `MAPS[]` entries + version hash), a dev-mode
   editor screen for path/blocker painting, local-only play. Sharing/upload is
