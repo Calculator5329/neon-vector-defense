@@ -86,7 +86,7 @@ Cloudflare Worker setup:
 
 ```bash
 cd worker
-copy wrangler.toml.example wrangler.toml
+cp wrangler.toml.example wrangler.toml
 npm install
 npm run secret:key
 npm run secret:cookie
@@ -99,7 +99,7 @@ same commands with `npx wrangler@latest ...`.
 Then build the game with the Worker URL:
 
 ```bash
-$env:VITE_AI_HELP_URL="https://your-worker-name.your-subdomain.workers.dev"
+export VITE_AI_HELP_URL="https://your-worker-name.your-subdomain.workers.dev"
 npm run build
 firebase deploy --only hosting,firestore:rules,functions
 ```

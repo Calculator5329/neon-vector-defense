@@ -1,5 +1,7 @@
 # Design brief — Gauntlet Protocol (roguelite runs)
 
+> **SUPERSEDED 2026-08-12.** This brief is history, not open work. Gauntlet Protocol shipped: see `docs/decision_log.md` ('2026-07-05 - Gauntlet Protocol is a verified three-leg weekly route') for the decisions actually taken, `src/game/gauntletProtocol.ts` for the code, and `submitGauntletProtocolScore` at functions/src/index.ts:889 for the server side. Do not cut a mission from this file.
+
 Status: DRAFT for owner sign-off (2026-07-05). Waves 1–2 of the content plan are
 merged; this is the last wave-2 item and it needs design decisions before a
 Codex mission is cut. Each decision below has a recommendation — approve, amend,

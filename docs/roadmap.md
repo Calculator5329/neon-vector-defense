@@ -50,7 +50,7 @@ Last updated: 2026-07-26 (agent-guide hygiene)
   See `docs/changelog.md`.
 - [ ] <!-- workspace:id=work:604904ef-f1f9-5bea-a460-50af21eb2f2e --> **Replay re-sim determinism (pre-existing, filed as a task).** `reSimulate`
   returns `divergent` for deep-freeplay-with-relic and Recalibrate ability_cast runs
-  (tests/unit/reSimulate.test.ts, 21/23). Core to "get replays right" — a divergent run
+  (tests/unit/reSimulate.test.ts, 19 of 21 passing as of 2026-08-12). Core to "get replays right" — a divergent run
   plays back wrong even when the driver runs.
 - [ ] <!-- workspace:id=work:b5ae06ba-3ae3-59aa-ae9c-5e57c364ebd2 --> **Old runs are orphaned by engine/balance version drift.** Any run recorded
   before an engine bump can never be re-simulated frame-accurately (correct by design,
@@ -92,7 +92,7 @@ Last updated: 2026-07-26 (agent-guide hygiene)
 - [ ] <!-- workspace:id=work:ef205c7b-c63d-542c-b3c0-7395680452e4 --> **Pre-existing test failure (not from this pass):** `tests/unit/
   game-correctness.test.ts` › "watchfire sweep marks cloaked hulls as revealed"
   fails on clean master (`placeTower` returns null in headless node —
-  `assert.ok(watchfire)` at :233). Triage separately.
+  `assert.ok(watchfire)` at :260 (re-measured 2026-08-12)). Triage separately.
 
 ## Next up (owner-triaged, 2026-07-04)
 
@@ -111,7 +111,7 @@ Last updated: 2026-07-26 (agent-guide hygiene)
 
 | Pillar | Status | Source-of-truth files |
 | --- | --- | --- |
-| Core tower-defense loop | 12 sectors, 4 protocols, 21 towers, 7 abilities, 19 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
+| Core tower-defense loop | 16 sectors, 4 protocols, 21 towers, 7 abilities, 19 enemy archetypes, deterministic elite variants, phased Umbra boss | `engine.ts`, `maps.ts`, `towers.ts`, `enemies.ts`, `waves.ts`, `eliteAffixes.ts` |
 | Battle Plan replays | Public schema-v3 `runs/{runId}` docs with setup snapshots, r3 player-action packs, manifest `actionHash`, public chunks, `?run=` viewer, replay-of-the-day card | `runTelemetry.ts`, `replayCodec.ts`, `reSimulate.ts`, `leaderboard.ts`, `ReplayViewer.tsx`, `replaySpotlight.ts` |
 | Replay-backed leaderboards | Server-only board writes, replay token verification, admin `verifyRun` re-simulation badges, canonical score values, server-time ordering | `leaderboard.ts`, `reSimulate.ts`, `functions/src/index.ts`, `firestore.rules` |
 | Weekly Arena | UTC ISO-week Weekly Mutation boards, admin-crowned Champion's Gauntlet seeded from verified campaign runs, replay-backed weekly/gauntlet score submission | `weeklyChallenge.ts`, `leaderboard.ts`, `engine.ts`, `functions/src/index.ts`, `AdminDashboard.tsx` |

@@ -264,6 +264,14 @@ Public Champion's Gauntlet seed doc. Admins publish it manually or through the
 }
 ```
 
+### `entitlements/{uid}`
+
+Cosmetic-only account entitlements. Written only by Cloud Functions (functions/src/index.ts:690, the single grant path, with `grants/{requestId}` receipts), read by the authenticated player, cached client-side by src/game/entitlements.ts, and covered by the deleteMyData cascade.
+
+### `replayStreams/{uid}/runs/{runId}` and its `chunks/cN` subcollection
+
+Private per-player replay stream mirror written during a run by src/game/leaderboard.ts. Rules at firestore.rules:540 bind writes to the authenticated uid. Deleted by the production wipe (docs/runbooks/data-reset.md).
+
 ## Cloud Functions
 
 Region: `us-central1`
@@ -274,6 +282,7 @@ Region: `us-central1`
 | `submitDailyScore` | Validate same-day/yesterday Daily Challenge replay and write the daily board row |
 | `submitWeeklyScore` | Validate current/previous Weekly Mutation replay and write the weekly board row |
 | `submitGauntletScore` | Validate current Champion's Gauntlet replay and write the gauntlet board row |
+| `submitGauntletProtocolScore` | Validate one to three consecutive Gauntlet Protocol leg replays, check bank continuity between legs, and write the aggregate `gauntletProtocolBoards/{weekly}` row |
 | `crownWeeklyGauntlet` | Admin-only select a verified prior-week campaign run and publish `config/weeklyGauntlet` |
 | `verifyRun` | Admin-only re-simulate a public replay and persist a verification verdict |
 | `submitFeedback` | Rate-limit feedback, write server-only feedback doc, return private reply receipt token |
@@ -416,7 +425,13 @@ receipts must be included in `/privacy` local export/delete controls.
 | `nvd-meta-v2` | `meta.ts` | Rank XP, Salvage, quests, streak, cosmetics |
 | `nvd-consent-v1` | `consent.ts` | Age band, analytics consent, GPC |
 | `nvd-replay-tokens-v1` | `leaderboard.ts` | Private replay tokens for score submit/retry |
-| `nvd-feedback-receipts-v2` | `App.tsx` | Private feedback reply receipts and local submitted-message quotes |
+| `nvd-feedback-receipts-v2` | `FeedbackWidget.tsx` | Private feedback reply receipts and local submitted-message quotes |
+| `nvd-server-uid-v1` | `anonAuth.ts` | Anonymous player identity |
+| `nvd-feedback-ids-v1` | `PrivacyView.tsx` | Submitted feedback ids |
+| `nvd-feedback-read-v1` | `PrivacyView.tsx` | Read-state for replies |
+| `nvd-feedback-dismissed-v1` | `PrivacyView.tsx` | Dismissed replies |
+
+This table must stay equal to `LOCAL_KEYS` in src/PrivacyView.tsx.
 
 Demo mode (`?demo=1`) skips meta and progression writes.
 
@@ -424,7 +439,7 @@ Demo mode (`?demo=1`) skips meta and progression writes.
 
 | Category | Count | Notes |
 | --- | ---: | --- |
-| Sectors (maps) | 12 | Orbital Relay, The Carousel, Twin Reactor, Splice Junction, Mobius Drift, Mirror Array, Hyperlane Junction, Blackout Reach, The Throat, Foundry Floor, Umbral Reach, Cinder Causeway |
+| Sectors (maps) | 16 | Orbital Relay, The Carousel, Twin Reactor, Splice Junction, Mobius Drift, Mirror Array, Hyperlane Junction, Blackout Reach, The Throat, Foundry Floor, Umbral Reach, Cinder Causeway, Crossfeed Gate, Needleglass Run, Bastion Lattice, Eventide Crown. Only the first twelve are on the server map allowlist, so the last four cannot upload a replay or post a score. |
 | Protocols (difficulties) | 4 | Recruit through Extinction |
 | Towers | 21 | 2 upgrade tracks each; kill-gated unlock ladder |
 | Commander abilities | 7 | Q/W/E/R/T/Y/U; Recalibrate clears current adaptation and weakens live Mirror Hulls |
@@ -439,7 +454,7 @@ The Worker holds the OpenRouter API key and enforces:
 
 Frontend sends compact gameplay context (`aiContext.ts`), not raw local history.
 
-Setup documented in [README.md](../README.md#ai-help-setup).
+Setup documented in [docs/runbooks/firebase-operations.md](./runbooks/firebase-operations.md), section 'Cloudflare Worker setup'.
 
 ## Generated assets
 

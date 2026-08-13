@@ -158,11 +158,7 @@ Use these rules for all new React chrome:
 
 | Store | Key / collection | Contents |
 | --- | --- | --- |
-| localStorage | `nvd-progress-v1` | Kills, archive, blueprints, settings, QoL preferences, session days |
-| localStorage | `nvd-meta-v2` | XP, Salvage, quest progress, streak |
-| localStorage | `nvd-consent-v1` | Age band, analytics consent |
-| localStorage | `nvd-replay-tokens-v1` | Private replay tokens used for score retry |
-| localStorage | `nvd-feedback-receipts-v2` | Private feedback reply receipts |
+| localStorage | see docs/tech_spec.md, 'Client localStorage keys' | Full list, which must stay equal to `LOCAL_KEYS` in src/PrivacyView.tsx, plus the `nvd-entitlements-v1:` cosmetic cache prefix |
 | Firestore | `runs/{runId}` | Public run replays (Battle Plan source) |
 | Firestore | `runs/{runId}/chunks/cN` | Public overflow replay events |
 | Firestore | `replayOwners/{uid}/runs/{runId}` | Replay ownership index for admin deletion |
