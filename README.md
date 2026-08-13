@@ -18,7 +18,7 @@ procedural audio, and Firebase-backed leaderboards.
 
 ## Gameplay
 
-- **12 sectors on an interactive starmap** — a Sector Atlas constellation
+- **16 sectors on an interactive starmap** — a Sector Atlas constellation
   spanning three regions (Core Relay, The Forge Belt, The Dark Reaches), each
   sector with a custom lane shape, no-build zones, mastery stars, and visual
   theme, unlocked along a sequential campaign chain.
@@ -32,8 +32,9 @@ procedural audio, and Firebase-backed leaderboards.
 - **21 towers with 2 upgrade tracks** — including support, crowd-control,
   anti-cloak, burst, drone, missile, gravity, resonance, targeting, and
   late-game towers.
-- **6 commander abilities** — Q/W/E/R/T/Y abilities for orbital strikes, slow
-  fields, overdrive, emergency salvage, and late-run control tools.
+- **7 commander abilities** — Q/W/E/R/T/Y/U abilities for orbital strikes, slow
+  fields, overdrive, emergency salvage, adaptation reset, and late-run control
+  tools.
 - **Enemy variants** — armored, blast-proof, cryo-proof, phase-cloaked, repair,
   boss, and nested-hull units.
 - **Progression** — service records, tower unlocks, freeplay, recovered signal
