@@ -51,6 +51,7 @@ Also run the checks that cover the changed surface:
 
 ## Operating rules
 
+- This repo's agents fence in `workspace.json` is `docs-only` (re-checked 2026-08-12). Agents may edit prose under `docs/` and the root markdown files; agents may not edit `src/`, `functions/`, `worker/`, `scripts/`, or `firestore.rules`. Ask Ethan to promote the fence to `full` before dispatching code work; the open request is docs/roadmap.md line 350. The repository has been public since 2026-07-27, so no personal or financial data goes into a commit.
 - Before editing, inspect `git status`, the recent log, active orchestrator
   sessions, and leases. Stop on unexpected tracked changes or a lease
   conflict; never modify `.orc/` state by hand.

@@ -34,7 +34,7 @@ The codebase follows a practical three-layer split. UI components observe game s
 | `render.ts` | Canvas drawing, camera shake, quality scaling, tower/enemy art |
 | `towers.ts` / `enemies.ts` / `waves.ts` | Static content definitions and stat computation |
 | `eliteAffixes.ts` | Deterministic elite variant planning, tuning constants, and Bestiary reveal metadata |
-| `maps.ts` / `difficulty.ts` | 12 sectors x 4 protocols |
+| `maps.ts` / `difficulty.ts` | 16 sectors x 4 protocols |
 | `bot.ts` | Headless AI at rookie / standard / expert tiers |
 | `runTelemetry.ts` | Run setup, compact r3 action streams, public replay chunks, private checkpoint docs |
 | `leaderboard.ts` | Firestore facade; replay upload/read; score submit via Cloud Functions |
@@ -66,15 +66,10 @@ The codebase follows a practical three-layer split. UI components observe game s
    `startWave()` will launch, and keyboard/Veteran Deploy controls still call the
    canonical `placeTower` and `upgradeTower` engine APIs
 3. `Game` instance runs a fixed-timestep update loop; `render()` draws to canvas each frame
-4. `RunRecorder` captures deterministic player actions and public summary data during play
+4. `RunRecorder` captures compact r3 player actions during play, including
+   ability casts, target modes, target filters, and wave starts for re-simulation
 5. On terminal state: upload replay, optional leaderboard submit (via callable), meta credit, dossier share
 6. A campaign victory can continue on the same `Game` instance as freeplay; the
-
-2. `Game` instance runs a fixed-timestep update loop; `render()` draws to canvas each frame
-3. `RunRecorder` captures compact r3 player actions during play, including
-   ability casts, target modes, target filters, and wave starts for re-simulation
-4. On terminal state: upload replay, optional leaderboard submit (via callable), meta credit, dossier share
-5. A campaign victory can continue on the same `Game` instance as freeplay; the
    first campaign terminal state and the later freeplay terminal state are
    persisted as separate progression moments so kills/runs do not double-count.
 
@@ -163,11 +158,7 @@ Use these rules for all new React chrome:
 
 | Store | Key / collection | Contents |
 | --- | --- | --- |
-| localStorage | `nvd-progress-v1` | Kills, archive, blueprints, settings, QoL preferences, session days |
-| localStorage | `nvd-meta-v2` | XP, Salvage, quest progress, streak |
-| localStorage | `nvd-consent-v1` | Age band, analytics consent |
-| localStorage | `nvd-replay-tokens-v1` | Private replay tokens used for score retry |
-| localStorage | `nvd-feedback-receipts-v2` | Private feedback reply receipts |
+| localStorage | see docs/tech_spec.md, 'Client localStorage keys' | Full list, which must stay equal to `LOCAL_KEYS` in src/PrivacyView.tsx, plus the `nvd-entitlements-v1:` cosmetic cache prefix |
 | Firestore | `runs/{runId}` | Public run replays (Battle Plan source) |
 | Firestore | `runs/{runId}/chunks/cN` | Public overflow replay events |
 | Firestore | `replayOwners/{uid}/runs/{runId}` | Replay ownership index for admin deletion |
