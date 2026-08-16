@@ -251,6 +251,12 @@ Last updated: 2026-07-26 (agent-guide hygiene)
 - [x] <!-- workspace:id=work:526f0f27-072e-54de-b910-35d63dc9d5f5 --> Build-tag reload toast (conservative shell precache retained by design)
 - [x] <!-- workspace:id=work:d989eb44-648c-58c2-a0df-be7ebd16ad31 --> CrazyGames/Poki SDK adapter and portal build flavors
 - [ ] <!-- workspace:id=work:8b1ea672-f61f-57b9-975e-4d1fc5a2a490 --> [ETHAN] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
+  *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
+  2426f25f — agents may draft the store copy, thumbnails and screenshots now
+  so they are waiting; the portal ACCOUNT and the upload stay owner-only, and
+  per his same-day inbox answer 4a630a05 the launch itself is parked, so the
+  drafts queue as low-priority agent work and nothing gets listed until he
+  unparks.)*
 
 - [x] <!-- workspace:id=work:42d16144-cc53-538e-a45e-472a0d3687b4 --> **Replay pipeline E2E verification (Ethan directive 2026-07-11).**
   *(done 2026-07-18, bal-replay-sweep-0718)* `npm run test:replay-e2e`
@@ -324,17 +330,26 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   Battle Plans still verify and play accurately.
 
 ### Monetization scaffolding (sequence-gated)
-- [ ] <!-- workspace:id=work:d83cda8f-c8ad-5786-bb16-542a0447ec2c --> [ETHAN] **Account upgrade path.** Anonymous Auth → linked account
+- [ ] <!-- workspace:id=work:d83cda8f-c8ad-5786-bb16-542a0447ec2c --> **Account upgrade path.** Anonymous Auth → linked account
   (email/Google) preserving uid + Salvage + cosmetics; required before any
   real-money purchase (entitlements must key to an authenticated uid —
   priority #2's own rule).
+  *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
+  2426f25f — build it now, regardless of Stripe; losing progress on a device
+  change is a bug whether or not money is involved. [ETHAN] gate cleared;
+  this is now ordinary agent work.)*
 - [x] <!-- workspace:id=work:54edc4fc-d147-58c3-8655-980a901eea28 --> **Entitlement model (server-side).** *(done 2026-07-11)* Firestore `entitlements/{uid}`
   written only by Cloud Functions, read by the client cosmetic registry;
   Salvage purchases and (later) Stripe purchases both funnel through it —
   one grant path, auditable.
-- [ ] <!-- workspace:id=work:496916b9-ab22-5ca3-8396-cc95692c912f --> [ETHAN] **Stripe MVP** (already a launch-gate item in the business
+- [x] <!-- workspace:id=work:496916b9-ab22-5ca3-8396-cc95692c912f --> [ETHAN] **Stripe MVP** (already a launch-gate item in the business
   plan): web checkout for cosmetic bundles + supporter pack; webhooks →
   entitlement grants; no gameplay advantage, ever.
+  *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
+  2426f25f — PARKED until the game has players worth charging; matches his
+  same-day inbox answer 4a630a05 "Park the Neon launch until you have time
+  for Stripe; agents stop surfacing it". Wake condition: Ethan unparks
+  explicitly. Do not build or re-surface before then.)*
 - [ ] <!-- workspace:id=work:48399282-9e9d-5d41-b995-cb7540e7ff2e --> **Seasonal cosmetic track ("Recovered-Signal Pass" v1).** Time-boxed
   cosmetic unlock ladder fed by existing quest/streak meta — free tier +
   premium tier (entitlement-gated); zero gameplay deltas, per Guardrails.
@@ -364,3 +379,9 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - [ ] <!-- workspace:id=work:8e0fc7ca-cfcb-5307-81e9-613be760745a --> [refactor] Module-stub Firestore reads in the qa-screens scaffold (added via Visions, 2026-07-19)
 
 - [ ] <!-- workspace:id=work:46c75774-4594-59f2-8c39-22a5b50de35d --> [lost] Queue the [ETHAN] agents-fence promotion so the P0 replay fixes can dispatch (added via Visions, 2026-07-19)
+  *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
+  2426f25f — raise the fence to `agents: full`. DECIDED but NOT yet executed:
+  the agent edit to ~/projects/workspace.json was blocked by the permission
+  guard, so the one-line flip `"agents": "docs-only"` → `"agents": "full"` on
+  the games/neon-vector-defense entry needs Ethan's hands or an allowed
+  session. Once flipped, the P0 replay fixes can dispatch.)*
