@@ -307,7 +307,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   > Ethan-only, and this repo's agent fence is `docs-only`, so no agent will do either
   > half without a decision. Filed under owner ruling `q-deploy-drift=record_and_stage`
   > (doc-truth-packet-20260812).
-- [ ] <!-- filed 2026-08-13, id sweep will stamp it --> **Ship the server half of the
+- [ ] <!-- workspace:id=work:a7258872-7b1d-59ce-a3aa-20e1f05e8e14 --> <!-- filed 2026-08-13, id sweep will stamp it --> **Ship the server half of the
       Sectors 13-16 map pack.** Add `crossfeed`, `needleglass`, `bastion`, `eventide`
       to the Firestore rules allowlist and the Cloud Function allowlist, then deploy.
       Commands and undo: `~/projects/planning/owner-actions/deploy-drift-20260813.md`.
