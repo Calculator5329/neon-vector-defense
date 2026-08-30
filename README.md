@@ -1,4 +1,6 @@
-# Lantern 7
+# Neon Vector Defense
+
+The game ships under the in-world title **Lantern 7**; this repo is its home.
 
 ![neon-vector-defense screenshot](docs/screenshots/app.png)
 
