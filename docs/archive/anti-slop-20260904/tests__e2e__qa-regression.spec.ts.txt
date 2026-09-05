@@ -86,19 +86,19 @@ async function fulfillPatched(route: Route, patch: (source: string) => string) {
 }
 
 async function installQaNetwork(page: Page) {
-  await page.route((url) => url.pathname === '/src/game/balanceConfig.ts', (route) => fulfillPatched(
+  await page.route('**/src/game/balanceConfig.ts', (route) => fulfillPatched(
     route,
     replacementFor('loadRemoteBalance', `{
   return;
 }`),
   ));
-  await page.route((url) => url.pathname === '/src/game/dailyChallenge.ts', (route) => fulfillPatched(
+  await page.route('**/src/game/dailyChallenge.ts', (route) => fulfillPatched(
     route,
     replacementFor('loadRemoteDailyOverride', `{
   return;
 }`),
   ));
-  await page.route((url) => url.pathname === '/src/game/weeklyChallenge.ts', (route) => fulfillPatched(route, (source) => {
+  await page.route('**/src/game/weeklyChallenge.ts', (route) => fulfillPatched(route, (source) => {
     let patched = source;
     patched = replacementFor('loadRemoteWeeklyOverride', `{
   return;
@@ -117,14 +117,14 @@ async function installQaNetwork(page: Page) {
 }`)(patched);
     return patched;
   }));
-  await page.route((url) => url.pathname === '/src/game/replaySpotlight.ts', (route) => fulfillPatched(
+  await page.route('**/src/game/replaySpotlight.ts', (route) => fulfillPatched(
     route,
     replacementFor('fetchReplayOfTheDay', `{
   const raw = sessionStorage.getItem('nvd-e2e-spotlight');
   return raw ? JSON.parse(raw) : null;
 }`),
   ));
-  await page.route((url) => url.pathname === '/src/game/leaderboard.ts', (route) => fulfillPatched(route, (source) => {
+  await page.route('**/src/game/leaderboard.ts', (route) => fulfillPatched(route, (source) => {
     let patched = source;
     patched = replacementFor('submitRunReplay', `{
   const codec = await import('./replayCodec');
@@ -509,7 +509,6 @@ test.describe('QA regression real-flow audit', () => {
     test.setTimeout(45_000);
     await page.goto('/');
     await page.getByTestId('dock-tab-challenges').click();
-    await test.info().attach('weekly-dock', { body: await page.screenshot(), contentType: 'image/png' });
     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible({ timeout: 15_000 });
     await page.getByTestId('weekly-mutation-card').click();
     await page.getByTestId('deploy-button').click();

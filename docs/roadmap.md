@@ -7,6 +7,8 @@ Last updated: 2026-07-26 (agent-guide hygiene)
 
 ## Repository hygiene
 
+- [x] Complete the 2026-09-04 anti-slop cleanup and replay/menu repairs. Final lane verification: browser 81 passed/27 platform or preview skips, engine 139/139, replay three seeds, meta isolation, security 82/82, focused layout/unlock 4/4, and build passed. Evidence is in docs/archive/anti-slop-20260904/README.md. *(verified 2026-09-04)*
+
 - [x] <!-- workspace:id=work:5bb5bee5-4be9-5177-b097-d481c9224123 --> Replace the malformed centralization-era agent-guide scaffold with the
   repository's current mission, verification matrix, replay/security
   boundaries, and owner-only operations. *(done 2026-07-26)*
@@ -385,3 +387,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   guard, so the one-line flip `"agents": "docs-only"` → `"agents": "full"` on
   the games/neon-vector-defense entry needs Ethan's hands or an allowed
   session. Once flipped, the P0 replay fixes can dispatch.)*
+
+- [ ] Investigate freeplay replay drift: unchanged seed-337 fixture disagrees on live versus replay kills/cash. Preserve the exact replay-equality assertion; see `archive/anti-slop-20260904/replay-base.log`.
+
+- [ ] Diagnose the 10 browser failures measured during anti-slop verification (weekly card, atlas/recruiter flow, palette purchase); preserve assertions and classify against original behavior. See `archive/anti-slop-20260904/e2e.log`.

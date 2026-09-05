@@ -1,0 +1,506 @@
+
+> neon-vector-defense@1.0.0 test:security
+> npm run test:rules && npm run test:worker && npm run test:functions && npm run test:callables
+
+
+> neon-vector-defense@1.0.0 test:rules
+> npm run check:deploy-env && firebase emulators:exec --only firestore "npm run test:rules:run"
+
+
+> neon-vector-defense@1.0.0 check:deploy-env
+> tsx scripts/deploy-preflight.ts
+
+OK Node.js: found 24.18.0; required >=20
+OK Java: openjdk version "21.0.7" 2025-04-15 LTS; required >=21 for firebase-tools emulators
+OK Firebase project: .firebaserc includes neon-vector-defense-7
+OK App Check: client token key missing; Functions enforcement expected OFF until rollout flip; Firestore enforcement is a Firebase Console switch after token metrics are clean
+i  emulators: Starting emulators: firestore
+⚠  hub: emulator hub unable to start on port 4400, starting on 4401 instead.
+i  firestore: downloading cloud-firestore-emulator-v1.21.0.jar...
+
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: npm run test:rules:run
+
+> neon-vector-defense@1.0.0 test:rules:run
+> tsx --test tests/security/firestore-rules.test.ts
+
+[2026-09-05T01:19:44.714Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7cf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L755
+▶ public replay rules
+  ✔ allow signed-in create and public get, but deny updates (350.462172ms)
+[2026-09-05T01:19:44.752Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.761Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L505, false for 'create' @ L755, false for 'update' @ L755
+  ✔ deny unauthenticated replay and chunk creates (45.300283ms)
+[2026-09-05T01:19:44.789Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ deny malformed public replay docs (27.859926ms)
+[2026-09-05T01:19:44.821Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ deny public replay docs with malformed nested summaries (32.458647ms)
+[2026-09-05T01:19:44.851Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.863Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.873Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ require replay manifests and reject malformed manifests (51.563646ms)
+[2026-09-05T01:19:44.901Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.911Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7d9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.921Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7da error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.931Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7db error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.941Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7dc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ reject v2 public replay fields and hashes (67.76461ms)
+[2026-09-05T01:19:44.970Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7dd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+[2026-09-05T01:19:44.981Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7de error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ deny retired protocol and outcome values in replay summaries (39.607024ms)
+  ✔ allow deep-freeplay runs whose compounded score multiplier exceeds 100 (33.097569ms)
+[2026-09-05T01:19:45.043Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ still reject an absurd (garbage) score multiplier (29.746954ms)
+[2026-09-05T01:19:45.084Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ allow daily challenge replay summaries without freeplay or multiplier (40.438664ms)
+[2026-09-05T01:19:45.158Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ allow weekly mutation and gauntlet replay metadata (73.808789ms)
+[2026-09-05T01:19:45.202Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L755
+[2026-09-05T01:19:45.210Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L505, false for 'create' @ L755, false for 'update' @ L755
+  ✔ allow replay chunk create and deny chunk updates (52.031198ms)
+  ✔ allow replay action packs up to the client and function validation cap (42.689618ms)
+[2026-09-05T01:19:45.279Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L483, false for 'create' @ L755, false for 'update' @ L755
+  ✔ reject replay action packs above the upload cap (26.276802ms)
+[2026-09-05T01:19:45.331Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7e7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L521, false for 'update' @ L755
+  ✔ allow private replay owner index creates and deny public reads or updates (51.688838ms)
+[2026-09-05T01:19:45.354Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7ea error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L525, false for 'create' @ L755, false for 'update' @ L521, false for 'update' @ L755
+[2026-09-05T01:19:45.371Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7eb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L525, false for 'create' @ L755, false for 'update' @ L521, false for 'update' @ L755
+  ✔ deny replay owner entries planted under another uid (39.913558ms)
+[2026-09-05T01:19:45.394Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7ec error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L525, false for 'create' @ L755, false for 'update' @ L521, false for 'update' @ L755
+  ✔ deny malformed replay owner index docs (23.291078ms)
+[2026-09-05T01:19:45.452Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7ed error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L543, false for 'create' @ L755, false for 'update' @ L543, false for 'update' @ L755
+  ✔ allow uid-bound live replay stream parent upserts and keep reads admin-only (58.235983ms)
+[2026-09-05T01:19:45.509Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L549, false for 'update' @ L755
+[2026-09-05T01:19:45.541Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L550, false for 'create' @ L755, false for 'update' @ L549, false for 'update' @ L755
+[2026-09-05T01:19:45.548Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L550, false for 'create' @ L755, false for 'update' @ L549, false for 'update' @ L755
+  ✔ allow live replay stream chunk creates and deny mutation or malformed actions (95.762078ms)
+  ✔ allow final replay submit batch shape (41.976628ms)
+✔ public replay rules (2616.440392ms)
+[2026-09-05T01:19:45.613Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L453, false for 'create' @ L755, false for 'update' @ L453, false for 'update' @ L755
+[2026-09-05T01:19:45.620Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L460, false for 'create' @ L755, false for 'update' @ L460, false for 'update' @ L755
+[2026-09-05T01:19:45.627Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L465, false for 'create' @ L755, false for 'update' @ L465, false for 'update' @ L755
+[2026-09-05T01:19:45.636Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7f9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L470, false for 'create' @ L755, false for 'update' @ L470, false for 'update' @ L755
+[2026-09-05T01:19:45.643Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7fa error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L475, false for 'create' @ L755, false for 'update' @ L475, false for 'update' @ L755
+▶ leaderboard and telemetry write rules
+  ✔ deny direct board and daily-board writes (51.919334ms)
+[2026-09-05T01:19:45.672Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7fb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L645, false for 'update' @ L755
+  ✔ allow bounded telemetry creates and deny updates (29.538949ms)
+[2026-09-05T01:19:45.700Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7fc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L646, false for 'create' @ L755, false for 'update' @ L645, false for 'update' @ L755
+[2026-09-05T01:19:45.721Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7fd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L646, false for 'create' @ L755, false for 'update' @ L645, false for 'update' @ L755
+  ✔ deny telemetry writes that are unauthenticated or spoof another uid (48.276384ms)
+[2026-09-05T01:19:45.749Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7fe error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L646, false for 'create' @ L755, false for 'update' @ L645, false for 'update' @ L755
+  ✔ deny telemetry writes for retired protocol ids (28.044638ms)
+[2026-09-05T01:19:45.780Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f7ff error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L559, false for 'update' @ L755
+  ✔ allow private run analytics create and deny public updates (31.338315ms)
+[2026-09-05T01:19:45.803Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f800 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L560, false for 'create' @ L755, false for 'update' @ L559, false for 'update' @ L755
+  ✔ deny legacy v1 private run analytics creates (22.596013ms)
+  ✔ allow checkpoint chunk creates and keep reads admin-only (48.65687ms)
+[2026-09-05T01:19:45.874Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f804 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L560, false for 'create' @ L755, false for 'update' @ L559, false for 'update' @ L755
+[2026-09-05T01:19:45.880Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f805 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L597, false for 'create' @ L755, false for 'update' @ L596, false for 'update' @ L755
+  ✔ deny analytics and checkpoint writes that spoof another uid (28.435378ms)
+✔ leaderboard and telemetry write rules (289.374539ms)
+[2026-09-05T01:19:45.898Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f806 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L626, false for 'create' @ L755, false for 'update' @ L627, false for 'update' @ L755
+▶ feedback and config rules
+  ✔ deny public feedback create/list/read and keep admin moderation working (153.924699ms)
+[2026-09-05T01:19:46.074Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f80d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L697, false for 'create' @ L755, false for 'update' @ L697, false for 'update' @ L755
+[2026-09-05T01:19:46.169Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f811 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L697, false for 'create' @ L755, false for 'update' @ L697, false for 'update' @ L755
+[2026-09-05T01:19:46.196Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f812 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L697, false for 'create' @ L755, false for 'update' @ L697, false for 'update' @ L755
+[2026-09-05T01:19:46.218Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f813 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L697, false for 'create' @ L755, false for 'update' @ L697, false for 'update' @ L755
+  ✔ allow public balance reads and admin-only writes (200.096028ms)
+[2026-09-05T01:19:46.271Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f816 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L706, false for 'create' @ L755, false for 'update' @ L706, false for 'update' @ L755
+[2026-09-05T01:19:46.289Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f817 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Property email_verified is undefined on object. for 'create' @ L706, false for 'create' @ L755, Property email_verified is undefined on object. for 'update' @ L706, false for 'update' @ L755, Property email_verified is undefined on object. for 'create' @ L706, false for 'create' @ L755
+[2026-09-05T01:19:46.331Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f819 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L706, false for 'create' @ L755, false for 'update' @ L706, false for 'update' @ L755
+[2026-09-05T01:19:46.350Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f81a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L706, false for 'create' @ L755, false for 'update' @ L706, false for 'update' @ L755
+[2026-09-05T01:19:46.367Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f81b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L706, false for 'create' @ L755, false for 'update' @ L706, false for 'update' @ L755
+  ✔ allow public daily override reads and admin-only validated writes (153.948562ms)
+[2026-09-05T01:19:46.449Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f81f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Property email_verified is undefined on object. for 'create' @ L713, false for 'create' @ L755, Property email_verified is undefined on object. for 'update' @ L713, false for 'update' @ L755, Property email_verified is undefined on object. for 'create' @ L713, false for 'create' @ L755
+[2026-09-05T01:19:46.493Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f821 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L713, false for 'create' @ L755, false for 'update' @ L713, false for 'update' @ L755
+[2026-09-05T01:19:46.549Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f823 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L720, false for 'create' @ L755, false for 'update' @ L720, false for 'update' @ L755
+  ✔ allow public weekly override and gauntlet reads with admin-only validated writes (191.989672ms)
+[2026-09-05T01:19:46.620Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f827 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L729, false for 'create' @ L755, false for 'update' @ L729, false for 'update' @ L755
+[2026-09-05T01:19:46.635Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f828 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L729, false for 'create' @ L755, false for 'update' @ L729, false for 'update' @ L755
+  ✔ global-top aggregate is public read, server-only write (54.332118ms)
+[2026-09-05T01:19:46.706Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x1237f82d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L751, false for 'create' @ L755, false for 'update' @ L751, false for 'update' @ L755
+  ✔ re-simulation reason docs are admin-read and server-only write (70.726802ms)
+✔ feedback and config rules (825.502352ms)
+▶ real recorder payload end-to-end (regression: prod submit rejected)
+  ✔ a real bot-run bundle passes stream and submit batches (381.727402ms)
+✔ real recorder payload end-to-end (regression: prod submit rejected) (381.89715ms)
+ℹ tests 35
+ℹ suites 4
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4804.607871
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+> neon-vector-defense@1.0.0 test:worker
+> node --test tests/worker/*.test.mjs
+
+▶ AI worker request gate
+  ✔ allows the configured app origin and returns CORS headers (19.263917ms)
+  ✔ rejects bad origins before calling OpenRouter (0.53444ms)
+  ✔ rejects missing origins before calling OpenRouter (0.387685ms)
+  ✔ rejects oversized requests before parsing JSON (0.920451ms)
+  ✔ rejects oversized actual bodies even with a small content length (0.374393ms)
+  ✔ limits resettable cookie conversations to five (4.405509ms)
+  ✔ enforces optional KV quota even when cookies are reset (1.149003ms)
+  ✔ KV quota bucket ignores User-Agent rotation (0.803042ms)
+  ✔ fails closed when configured KV quota is unavailable (0.36103ms)
+✔ AI worker request gate (28.979472ms)
+ℹ tests 9
+ℹ suites 1
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67.458003
+
+> neon-vector-defense@1.0.0 test:functions
+> npm --prefix functions ci && npm --prefix functions run build && tsx --test tests/functions/*.test.ts
+
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: undefined,
+npm warn EBADENGINE   required: { node: '22' },
+npm warn EBADENGINE   current: { node: 'v24.18.0', npm: '11.16.0' }
+npm warn EBADENGINE }
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 298 packages, and audited 299 packages in 2s
+
+49 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (4 moderate, 1 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+npm warn allow-scripts 2 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   @firebase/util@1.15.1 (postinstall: node ./postinstall.js)
+npm warn allow-scripts   protobufjs@7.6.4 (postinstall: node scripts/postinstall)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+
+> prebuild
+> node ../scripts/bundle-resim.mjs
+
+
+  src/generated/reSimulate.js  427.8kb
+
+⚡ Done in 33ms
+
+> build
+> tsc
+
+▶ global-top aggregate merge
+  ✔ ranks campaign rows by cash with kills/recency tiebreaks (0.844198ms)
+  ✔ ranks freeplay rows by wave (0.115494ms)
+  ✔ a resubmission replaces its older self instead of duplicating (0.09767ms)
+  ✔ caps the list length (0.250718ms)
+✔ global-top aggregate merge (1.936106ms)
+▶ callable App Check options
+  ✔ callableOptions binds enforcement to the runtime rollout flag (0.56589ms)
+  ✔ every exported callable goes through callableOptions (0.622287ms)
+✔ callable App Check options (1.667879ms)
+▶ replay manifest integrity
+  ✔ accepts complete r3 action manifests and rejects manifest-less uploads (0.979825ms)
+  ✔ returns manifest-mismatch for missing, truncated, or tampered chunks (0.236182ms)
+  ✔ rejects v2 replay manifest and public root fields (0.135971ms)
+✔ replay manifest integrity (1.968306ms)
+▶ feedback receipt helpers
+  ✔ hashes tokens deterministically without exposing the token (0.472405ms)
+  ✔ hashes replay claim tokens with the same hex contract (0.09138ms)
+  ✔ generates base64url receipt tokens with enough entropy (0.171331ms)
+  ✔ sanitizes private reply receipts and drops malformed entries (0.425285ms)
+✔ feedback receipt helpers (1.642648ms)
+▶ leaderboard score helpers
+  ✔ applies replay-recorded score multipliers only to freeplay cash (0.083145ms)
+  ✔ clamps malformed or extreme freeplay multipliers (0.048393ms)
+✔ leaderboard score helpers (0.214393ms)
+▶ rateLimitOk
+  ✔ fails closed when the backing transaction is unavailable (0.361094ms)
+✔ rateLimitOk (0.435034ms)
+ℹ tests 16
+ℹ suites 6
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 115.397059
+
+> neon-vector-defense@1.0.0 test:callables
+> npm --prefix functions ci && npm --prefix functions run build && firebase emulators:exec --only firestore,functions,auth "tsx --test tests/callables/*.test.ts"
+
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: undefined,
+npm warn EBADENGINE   required: { node: '22' },
+npm warn EBADENGINE   current: { node: 'v24.18.0', npm: '11.16.0' }
+npm warn EBADENGINE }
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 298 packages, and audited 299 packages in 970ms
+
+49 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (4 moderate, 1 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+npm warn allow-scripts 2 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   @firebase/util@1.15.1 (postinstall: node ./postinstall.js)
+npm warn allow-scripts   protobufjs@7.6.4 (postinstall: node scripts/postinstall)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+
+> prebuild
+> node ../scripts/bundle-resim.mjs
+
+
+  src/generated/reSimulate.js  427.8kb
+
+⚡ Done in 30ms
+
+> build
+> tsc
+
+i  emulators: Starting emulators: functions, firestore
+⚠  auth: Not starting the auth emulator, make sure you have run firebase init.
+⚠  hub: emulator hub unable to start on port 4400, starting on 4401 instead.
+⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, database, hosting, pubsub, storage, dataconnect
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  functions: Watching "/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/functions" for Cloud Functions...
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Your requested "node" version "22" doesn't match your global version "24". Using node@24 from host.
+Serving at port 8816
+
+✔  functions: Loaded functions definitions from source: crownWeeklyGauntlet, deleteMyData, fetchFeedbackReplies, purchaseCosmeticEntitlement, submitDailyScore, submitFeedback, submitGauntletProtocolScore, submitGauntletScore, submitScore, submitWeeklyScore, verifyRun.
+✔  functions[us-central1-crownWeeklyGauntlet]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/crownWeeklyGauntlet).
+✔  functions[us-central1-deleteMyData]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/deleteMyData).
+✔  functions[us-central1-fetchFeedbackReplies]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/fetchFeedbackReplies).
+✔  functions[us-central1-purchaseCosmeticEntitlement]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/purchaseCosmeticEntitlement).
+✔  functions[us-central1-submitDailyScore]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/submitDailyScore).
+✔  functions[us-central1-submitFeedback]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/submitFeedback).
+✔  functions[us-central1-submitGauntletProtocolScore]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/submitGauntletProtocolScore).
+✔  functions[us-central1-submitGauntletScore]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/submitGauntletScore).
+✔  functions[us-central1-submitScore]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/submitScore).
+✔  functions[us-central1-submitWeeklyScore]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/submitWeeklyScore).
+✔  functions[us-central1-verifyRun]: http function initialized (http://127.0.0.1:5001/neon-vector-defense-7/us-central1/verifyRun).
+i  Running script: tsx --test tests/callables/*.test.ts
+i  functions: Beginning execution of "us-central1-submitScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitScore" in 127.807707ms
+▶ callable score submission
+  ✔ submitScore accepts a manifest-backed replay and stores canonical score values (2764.985426ms)
+i  functions: Beginning execution of "us-central1-submitDailyScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitDailyScore" in 88.151084ms
+  ✔ submitDailyScore accepts a daily challenge replay and writes the daily board (723.6924ms)
+i  functions: Beginning execution of "us-central1-submitWeeklyScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitWeeklyScore" in 86.902504ms
+  ✔ submitWeeklyScore accepts a weekly mutation replay and writes the weekly board (661.800116ms)
+i  functions: Beginning execution of "us-central1-submitGauntletScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitGauntletScore" in 94.413972ms
+  ✔ submitGauntletScore accepts a crowned gauntlet replay and writes the gauntlet board (692.841006ms)
+i  functions: Beginning execution of "us-central1-submitGauntletProtocolScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitGauntletProtocolScore" in 5197.251905ms
+  ✔ submitGauntletProtocolScore accepts a verified three-leg chain and stores aggregate totals (13038.406727ms)
+i  functions: Beginning execution of "us-central1-submitGauntletProtocolScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitGauntletProtocolScore" in 1567.220112ms
+  ✔ submitGauntletProtocolScore rejects a tampered leg bank (9238.148646ms)
+i  functions: Beginning execution of "us-central1-submitScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitScore" in 37.844703ms
+  ✔ submitScore rejects tampered replay manifests without writing a board row (97.966445ms)
+i  functions: Beginning execution of "us-central1-submitScore"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitScore" in 3.551737ms
+  ✔ submitScore requires Firebase Auth (20.294226ms)
+✔ callable score submission (27251.153472ms)
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 83.987616ms
+i  functions: Beginning execution of "us-central1-fetchFeedbackReplies"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-fetchFeedbackReplies" in 62.706658ms
+i  functions: Beginning execution of "us-central1-fetchFeedbackReplies"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-fetchFeedbackReplies" in 7.92218ms
+▶ feedback callables
+  ✔ submitFeedback returns a receipt token and fetchFeedbackReplies returns only matching replies (1542.836422ms)
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 15.389855ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 18.695528ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 19.554322ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 18.012064ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 14.551304ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 14.153902ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 15.744611ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 14.74571ms
+i  functions: Beginning execution of "us-central1-submitFeedback"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitFeedback" in 9.215311ms
+  ✔ submitFeedback returns rate-limited after the per-user window is exhausted (273.025992ms)
+✔ feedback callables (1816.242919ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 292.462996ms
+▶ verifyRun callable
+  ✔ admin can verify a real Game-generated replay and annotate board rows (1067.914712ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 44.51235ms
+  ✔ admin verifyRun records unverifiable reason docs for tampered action data (325.665046ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 190.787002ms
+  ✔ admin verifyRun records divergent reason docs for tampered summaries (447.132631ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 22.472114ms
+  ✔ admin verifyRun records divergent for a re-signed impossible player action (249.175077ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 20.758611ms
+  ✔ verifyRun rejects forged balance snapshots before re-simulation (213.924819ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 21.945993ms
+  ✔ verifyRun rejects forged daily snapshots before re-simulation (206.834982ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 19.776017ms
+  ✔ verifyRun rejects a daily snapshot smuggled onto a non-daily run (321.887397ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 21.180775ms
+  ✔ verifyRun requires snapshot presence to mirror the live balance doc (194.613902ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 180.106083ms
+  ✔ verifyRun verifies identity-balance runs when no live balance doc exists (395.897134ms)
+i  functions: Beginning execution of "us-central1-submitScore"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-submitScore" in 286.202599ms
+  ✔ post-accept verification marks an honest authenticated score as verified (506.828276ms)
+i  functions: Beginning execution of "us-central1-verifyRun"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-verifyRun" in 2.525215ms
+  ✔ verifyRun is admin-only (10.812072ms)
+✔ verifyRun callable (3941.353965ms)
+i  functions: Beginning execution of "us-central1-deleteMyData"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+i  functions: Finished "us-central1-deleteMyData" in 161.233449ms
+▶ deleteMyData callable
+  ✔ deletes corroborated user data and reports uncorroborated owner rows as skippedRuns (823.544129ms)
+✔ deleteMyData callable (823.727582ms)
+ℹ tests 22
+ℹ suites 4
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34224.030507
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  functions: Stopping Functions Emulator
+i  firestore: Stopping Firestore Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

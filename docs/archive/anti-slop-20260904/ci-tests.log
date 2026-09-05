@@ -1,0 +1,9 @@
+
+> neon-vector-defense@1.0.0 test:jest
+> jest --runInBand --runTestsByPath tests/jest/ci-config.test.cjs
+
+Test Suites: 1 passed, 1 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        0.56 s
+Ran all test suites within paths "tests/jest/ci-config.test.cjs".

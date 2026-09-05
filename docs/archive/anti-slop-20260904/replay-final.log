@@ -1,0 +1,9 @@
+
+> neon-vector-defense@1.0.0 test:replay-e2e
+> tsx scripts/replay-e2e.ts
+
+seed=123 run=r_mtnoofaw_1b9b16c48ce846f58e kills=78 wave=5 chunks=0 verified=verified tampered=divergent bounded=unverifiable
+seed=223 run=r_mtnoofhb_cce97e2eca3d4dcbb3 kills=78 wave=5 chunks=0 verified=verified tampered=divergent bounded=unverifiable
+seed=987 run=r_mtnoofmm_0c9d9e4d7ff24d058c kills=78 wave=5 chunks=0 verified=verified tampered=divergent bounded=unverifiable
+replay-e2e: 3/3 seeds proved verified+divergent+bounded under jittered pacing
+replay-e2e: PASS

@@ -1,0 +1,19 @@
+
+> neon-vector-defense@1.0.0 test:e2e
+> node ./tests/e2e/run-playwright.mjs --grep pill sits|weekly ops are --update-snapshots --trace on
+
+[vite:react-swc] We recommend switching to `@vitejs/plugin-react` for improved performance as no swc plugins are used. More information at https://vite.dev/rolldown
+
+Running 4 tests using 1 worker
+
+(node:2309) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium-desktop] › tests/e2e/menu-recommended-pill.spec.ts:42:3 › first-time RECOMMENDED protocol pill › pill sits on its own row and never collides with the protocol name (2.0s)
+  ✓  2 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1426:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable (2.3s)
+(node:4428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/menu-recommended-pill.spec.ts-snapshots/recommended-pill-card-chromium-mobile-linux.png is re-generated, writing actual.
+  ✓  3 [chromium-mobile] › tests/e2e/menu-recommended-pill.spec.ts:42:3 › first-time RECOMMENDED protocol pill › pill sits on its own row and never collides with the protocol name (2.5s)
+  ✓  4 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1426:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable (3.1s)
+
+  4 passed (11.4s)

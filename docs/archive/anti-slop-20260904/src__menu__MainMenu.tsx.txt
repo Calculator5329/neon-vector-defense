@@ -128,7 +128,7 @@ function ReplayOfTheDayCard() {
   );
 }
 
-function CommanderDossierRail({ onOpenOps, onUnlockYakkob }: { onOpenOps: () => void; onUnlockYakkob?: () => void }) {
+function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
   const rank = meta.rank;
   const streak = meta.streak;
   return (
@@ -151,7 +151,6 @@ function CommanderDossierRail({ onOpenOps, onUnlockYakkob }: { onOpenOps: () => 
         <div><b>{meta.bestDailyWave || '-'}</b><span>best daily wave</span></div>
       </div>
       <ReplayOfTheDayCard />
-      {onUnlockYakkob && <YakkobDwarf onUnlock={onUnlockYakkob} />}
     </aside>
   );
 }
@@ -333,14 +332,14 @@ function SectorAtlas(props: {
   };
 
   const openWeeklyOps = () => {
-    // Select the challenge currently occupying the dock's weekly slot.
+    // the beacon SELECTS the weekly mutation, it doesn't just point at it —
+    // clicking a glowing map node and having nothing change reads as broken
     setDockTab('challenges');
-    props.setDeployMode(props.yakkobUnlocked ? 'yakkob' : 'weekly');
+    props.setDeployMode('weekly');
     sfx.click();
     requestAnimationFrame(() => {
       weeklyRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      const target = props.yakkobUnlocked ? 'yakkob-card' : 'weekly-mutation-card';
-      weeklyRef.current?.querySelector<HTMLButtonElement>(`[data-testid="${target}"]`)?.focus();
+      weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="weekly-mutation-card"]')?.focus();
     });
   };
 
@@ -562,6 +561,10 @@ export function MainMenu(props: {
     <div className="menu-root">
       <div className="menu-stars" />
 
+      {tab === 'deploy' && !props.yakkobUnlocked && (
+        <YakkobDwarf onUnlock={() => { props.onUnlockYakkob(); setDeployMode('yakkob'); }} />
+      )}
+
       <header className="menu-topbar">
         <div className="menu-brand">
           <span className="menu-eyebrow">SECTOR DEFENSE PROTOCOL</span>
@@ -638,12 +641,7 @@ export function MainMenu(props: {
       )))}
 
       <div className={`menu-layout menu-tab-${tab}`}>
-        <CommanderDossierRail
-          onOpenOps={() => { setTab('ops'); sfx.click(); }}
-          onUnlockYakkob={tab === 'deploy' && !props.yakkobUnlocked
-            ? () => { props.onUnlockYakkob(); setDeployMode('yakkob'); }
-            : undefined}
-        />
+        <CommanderDossierRail onOpenOps={() => { setTab('ops'); sfx.click(); }} />
         <main className="menu-main">
           <div className="menu-content">
         {tab === 'deploy' ? (

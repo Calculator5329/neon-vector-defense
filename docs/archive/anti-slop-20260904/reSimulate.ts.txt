@@ -307,10 +307,11 @@ function advanceToEvent(game: Game, event: RunEvent, deadline: number): ReSimRes
 
 function advanceToTick(game: Game, targetTick: number, deadline: number): ReSimResult | null {
   if (!Number.isFinite(targetTick) || targetTick < 0) return { verdict: 'unverifiable', reason: 'invalid event simTick' };
-  // Events carry integer ticks. Comparing float seconds can replay an extra tick.
+  const targetT = targetTick * Game.SIM_STEP;
+  const limit = Math.max(0, targetT) + Game.SIM_STEP / 2;
   let guard = 0;
   let stepped = 0;
-  while (Math.round(game.time / Game.SIM_STEP) < targetTick && guard++ < 1_200_000 && game.phase !== 'gameover') {
+  while (game.time + Game.SIM_STEP / 2 < limit && guard++ < 1_200_000 && game.phase !== 'gameover') {
     game.update(Game.SIM_STEP / replaySpeed(game.speed));
     // Wall-clock deadline check on the first tick of each advance and every 64 after
     // (cheap, and the only reliable bound given ~40x per-tick cost variance across
@@ -688,9 +689,10 @@ export function createReplayPlaybackDiagnostic(
   // churn thousands of never-rendered particles/beams through the GC; muting is
   // sim-safe because FX are render-only (the meta:sim invariant).
   const stepToward = (tick: number, finalTick: number, budget: { left: number; deadline: number }): boolean => {
+    const limit = Math.max(0, tick * Game.SIM_STEP) + Game.SIM_STEP / 2;
     const unmuteTick = finalTick - 60;
     let stepped = 0;
-    while (currentTick() < tick && game.phase !== 'gameover' && budget.left > 0) {
+    while (game.time + Game.SIM_STEP / 2 < limit && game.phase !== 'gameover' && budget.left > 0) {
       game.fxMuted = currentTick() < unmuteTick;
       game.update(Game.SIM_STEP / replaySpeed(game.speed));
       budget.left--;
@@ -699,7 +701,7 @@ export function createReplayPlaybackDiagnostic(
       if ((++stepped & 63) === 0 && performance.now() > budget.deadline) budget.left = 0;
     }
     game.fxMuted = false;
-    return currentTick() >= tick || game.phase === 'gameover';
+    return game.time + Game.SIM_STEP / 2 >= limit || game.phase === 'gameover';
   };
 
   const seekTo = (

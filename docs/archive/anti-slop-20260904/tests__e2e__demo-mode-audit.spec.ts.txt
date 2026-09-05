@@ -44,17 +44,17 @@ async function installAuditGuards(page: Page): Promise<AuditGuards> {
   page.on('pageerror', (error) => guards.pageErrors.push(error.message));
   page.on('request', (request) => {
     const url = request.url();
-    if (/identitytoolkit|securetoken|purchaseCosmeticEntitlement|submit(?:RunReplay|Score|DailyScore|WeeklyScore|GauntletScore|GauntletProtocolScore|RunAnalytics|RunCheckpoint)|logTelemetry/i.test(url)) {
+    if (/identitytoolkit|submit(?:RunReplay|Score|DailyScore|WeeklyScore|GauntletScore|GauntletProtocolScore|RunAnalytics|RunCheckpoint)|logTelemetry/i.test(url)) {
       guards.blockedWriteUrls.push(url);
     }
   });
-  await page.route((url) => url.pathname === '/src/game/replaySpotlight.ts', (route) => fulfillPatched(
+  await page.route('**/src/game/replaySpotlight.ts', (route) => fulfillPatched(
     route,
     replacementFor('fetchReplayOfTheDay', `{
   return null;
 }`),
   ));
-  await page.route((url) => url.pathname === '/src/game/leaderboard.ts', (route) => fulfillPatched(
+  await page.route('**/src/game/leaderboard.ts', (route) => fulfillPatched(
     route,
     replacementFor('fetchRunReplay', `{
   return null;
@@ -162,11 +162,9 @@ async function assertUnlockedProtocolsAndChallenges(page: Page) {
   await page.getByTestId('diff-card-daily').click();
   await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
 
-  await expect(page.getByTestId('yakkob-card')).toBeVisible();
-  await expect(page.getByTestId('weekly-mutation-card')).toHaveCount(0);
-  await page.getByTestId('weekly-ops-beacon').click();
-  await expect(page.getByTestId('yakkob-card')).toBeFocused();
-  await expect(page.locator('.deploy-bar-sel')).toContainText('THE YAKKOB');
+  await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
+  await page.getByTestId('weekly-mutation-card').click();
+  await expect(page.locator('.deploy-bar-sel')).toContainText('WEEKLY MUTATION');
 
   const champion = page.getByTestId('weekly-gauntlet-card');
   await expect(champion).toBeVisible();
@@ -288,7 +286,7 @@ async function openAndCloseMenuSurfaces(page: Page) {
   await page.getByRole('button', { name: /^DEPLOY/ }).click();
   await page.getByTestId('menu-utility-bestiary').click();
   await expect(page.getByTestId('bestiary')).toBeVisible();
-  await page.getByTestId('bestiary').getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('bestiary')).toBeHidden();
 
   await page.getByTestId('menu-utility-help').click();
@@ -307,7 +305,7 @@ async function exerciseReplayPath(page: Page) {
   if (await replayOfDay.isVisible().catch(() => false)) {
     await replayOfDay.locator('.replay-of-day-watch').click();
     await expect(page.getByTestId('replay-root')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('replay-root').getByRole('button', { name: '← GRID', exact: true }).click();
+    await page.getByRole('button', { name: 'RETURN TO THE GRID' }).click();
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
   } else {
     await page.goto('/?run=r_demoaudit0001');
@@ -333,22 +331,6 @@ test.describe('recruiter demo-mode audit', () => {
     await expect(page.getByRole('dialog', { name: 'BEFORE YOU DEPLOY' })).toHaveCount(0);
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('RECRUITER DEMO')).toBeVisible();
-    const demoEntitlements = await page.evaluate(async () => {
-      const modulePath = '/src/game/entitlements.ts';
-      const entitlements = await import(/* @vite-ignore */ modulePath);
-      const before = entitlements.entitlementSnapshot();
-      const loaded = await entitlements.loadEntitlements();
-      let purchaseError = '';
-      try {
-        await entitlements.purchaseEntitlement('palette-void');
-      } catch (error) {
-        purchaseError = error instanceof Error ? error.message : String(error);
-      }
-      return { before, loaded, after: entitlements.entitlementSnapshot(), purchaseError };
-    });
-    expect(demoEntitlements.loaded).toEqual(demoEntitlements.before);
-    expect(demoEntitlements.after).toEqual(demoEntitlements.before);
-    expect(demoEntitlements.purchaseError).toBe('demo-mode');
     await expectNoAuditFailures(page, guards);
 
     await assertDeployBarOnlyOnDeployTab(page);

@@ -256,8 +256,7 @@ describe('phantom cloak telemetry and preview flags', () => {
 
   test('watchfire sweep marks cloaked hulls as revealed', () => {
     const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { lifetimeKills: 900000 });
-    game.credits = game.cost(TOWER_MAP.watchfire);
-    const watchfire = game.placeTower(TOWER_MAP.watchfire, findPlaceable(game));
+    const watchfire = game.placeTower(TOWERS.find((tower) => tower.id === 'watchfire')!, findPlaceable(game));
     assert.ok(watchfire);
     const phantom = internals(game).makeEnemy('phantom', false);
     phantom.pos = { x: watchfire.pos.x, y: Math.max(8, watchfire.pos.y - 70) };

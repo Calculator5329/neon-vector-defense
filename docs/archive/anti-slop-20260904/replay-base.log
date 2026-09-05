@@ -1,0 +1,81 @@
+▶ reSimulate
+  ✔ verifies a seeded public campaign run (233.529814ms)
+  ✔ verifies a seeded daily challenge run (202.888359ms)
+  ✔ verifies a seeded weekly mutation run (46.464127ms)
+  ✔ verifies replayed veteran-deploy-style place and upgrade actions (34.661228ms)
+  ✔ verifies a seeded run with target_filter actions and shred usage (97.723183ms)
+  ✖ verifies a deep freeplay run with relic and risk choices (2490.623481ms)
+  ✔ verifies a run containing elite wave metadata and the Umbra boss (6684.646916ms)
+  ✔ flags a tampered summary as divergent (297.950891ms)
+  ✔ flags a ghost-run summary (impossible wave/kills/leaks/duration) as divergent (284.835539ms)
+  ✔ flags a tampered player action as divergent (106.783834ms)
+  ✔ flags a tampered target_filter action as divergent (44.616535ms)
+  ✔ flags tampered encoded actions with a stale manifest as unverifiable (98.24156ms)
+  ✔ re-verifies from its embedded balance snapshot after live balance changes (462.999943ms)
+  ✔ marks runs recorded under a different engine behavior as unverifiable (112.519021ms)
+  ✖ verifies r3 ability_cast actions for Recalibrate (474.015018ms)
+  ✔ treats identity-balance runs as verifiable only under identity balance (226.038562ms)
+✖ reSimulate (11900.284929ms)
+▶ mid-run unlock availability
+  ✔ re-sim verifies a run that places a tower unlocked mid-run (273.08907ms)
+  ✔ playback driver re-applies the mid-run-unlocked placement without desync (342.567923ms)
+  ✔ sub-tick backward jitter never rebuilds from the seed (167.22226ms)
+✔ mid-run unlock availability (783.126293ms)
+▶ playback driver budgeted seeks
+  ✔ budget-sliced seeks converge to the same state as a synchronous seek (291.595996ms)
+  ✔ rewind re-simulates deterministically (352.217308ms)
+✔ playback driver budgeted seeks (643.936579ms)
+ℹ tests 21
+ℹ suites 3
+ℹ pass 19
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13943.953646
+
+✖ failing tests:
+
+test at tests/unit/reSimulate.test.ts:1:9460
+✖ verifies a deep freeplay run with relic and risk choices (2490.623481ms)
+  AssertionError [ERR_ASSERTION]: summary.kills
+  + actual - expected
+  
+  + 'divergent'
+  - 'verified'
+  
+      at TestContext.<anonymous> (/home/ethan/projects/games/neon-vector-defense/tests/unit/reSimulate.test.ts:287:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'divergent',
+    expected: 'verified',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/unit/reSimulate.test.ts:1:13050
+✖ verifies r3 ability_cast actions for Recalibrate (474.015018ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(events.some((event) => event.type === 'ability_cast' && event.abilityId === 'recalibrate'))
+  
+      at TestContext.<anonymous> (/home/ethan/projects/games/neon-vector-defense/tests/unit/reSimulate.test.ts:391:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

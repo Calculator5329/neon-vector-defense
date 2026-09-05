@@ -29,7 +29,7 @@ function isOffscreen(p: Vec): boolean {
 }
 
 describe('map data', () => {
-  test('campaign atlas contains sixteen unique sector ids in progression order', () => {
+  test('campaign atlas contains twelve unique sector ids in progression order', () => {
     assert.deepEqual(ALL_MAPS.map((map) => map.id), [
       'orbital',
       'carousel',
@@ -43,12 +43,8 @@ describe('map data', () => {
       'foundry',
       'umbral',
       'cinder',
-      'crossfeed',
-      'needleglass',
-      'bastion',
-      'eventide',
     ]);
-    assert.equal(new Set(ALL_MAPS.map((map) => map.id)).size, ALL_MAPS.length);
+    assert.equal(new Set(ALL_MAPS.map((map) => map.id)).size, 12);
   });
 
   test('all sectors keep path geometry inside the playfield after spawn and before exit', () => {

@@ -4,8 +4,6 @@ import { ensureServerUid } from './anonAuth';
 import { app } from './firebaseClient';
 import { firestore } from './firestoreLazy';
 
-import { DEMO_MODE } from '../appShared';
-
 const CACHE_PREFIX = 'nvd-entitlements-v1:';
 
 export interface EntitlementSnapshot {
@@ -81,7 +79,6 @@ export function ownsEntitlement(cosmeticId: string, anonymousOfflineFallback = f
 }
 
 export function loadEntitlements(): Promise<EntitlementSnapshot> {
-  if (DEMO_MODE) return Promise.resolve(snapshot);
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
     const uid = await ensureServerUid();
@@ -108,7 +105,6 @@ function requestId(): string {
 }
 
 export async function purchaseEntitlement(cosmeticId: string): Promise<EntitlementSnapshot> {
-  if (DEMO_MODE) throw new Error('demo-mode');
   const uid = await ensureServerUid();
   if (!uid) throw new Error('auth-unavailable');
   const { getFunctions, httpsCallable } = await import('firebase/functions');

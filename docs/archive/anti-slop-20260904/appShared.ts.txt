@@ -5,7 +5,7 @@ export const WIDGET_OPEN_EVENT = 'nvd-widget-open-change';
 export const PERF_PARAMS = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 export const PERF_MAP = PERF_PARAMS.get('perf');
 export const DEMO_MODE = PERF_PARAMS.get('demo') === '1';
-export const AI_HELP_ENABLED = Boolean(import.meta.env?.VITE_AI_HELP_URL);
+export const AI_HELP_ENABLED = Boolean(import.meta.env.VITE_AI_HELP_URL);
 
 const RUN_ID_RE = /^r_[A-Za-z0-9_-]{8,80}$/;
 export function isRunId(id: string | null | undefined): id is string {
