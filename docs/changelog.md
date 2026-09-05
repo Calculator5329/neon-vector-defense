@@ -2,6 +2,11 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-04 — Remove cleanup scaffolding
+
+Removed two investigation-only screenshots and review prose duplicated by
+regression checks. Assertions remain; originals and rationale are archived.
+
 ## 2026-09-04 — Anti-slop cleanup and verification repairs
 
 Removed three unused protocol-drill aliases and two duplicated CI assertions;

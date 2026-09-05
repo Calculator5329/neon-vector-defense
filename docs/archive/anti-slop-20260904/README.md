@@ -1,7 +1,7 @@
 # Anti-slop cleanup and repairs — 2026-09-04
 
 Ethan authorized cleanup and subsequent repairs in this named project for this
-work block; `docs/intent.md` records scope and review corrections. The retained
+work block; `docs/intent.md` records scope. The retained
 lane is `anti-slop-nvd-20260904`. Verification below covers the reviewed lane;
 Git history records canonical integration.
 
@@ -59,3 +59,7 @@ owner-only deployment and broader fence decisions remain outside this cleanup.
 `engine-after-fixture-repairs.log`, and `replay-base.log` preserve the original
 red baseline and diagnosis. They describe earlier states, not the final result.
 Source/test `.txt` files and nested source archives preserve original bytes.
+
+First-principles follow-up (2026-09-04): removed two diagnostic captures and
+review instructions already enforced by tests. Review, originals, and verification:
+`/home/ethan/projects/_archive/2026-anti-slop/first-principles-20260904/`.

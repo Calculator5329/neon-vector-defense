@@ -509,7 +509,6 @@ test.describe('QA regression real-flow audit', () => {
     test.setTimeout(45_000);
     await page.goto('/');
     await page.getByTestId('dock-tab-challenges').click();
-    await test.info().attach('weekly-dock', { body: await page.screenshot(), contentType: 'image/png' });
     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible({ timeout: 15_000 });
     await page.getByTestId('weekly-mutation-card').click();
     await page.getByTestId('deploy-button').click();
