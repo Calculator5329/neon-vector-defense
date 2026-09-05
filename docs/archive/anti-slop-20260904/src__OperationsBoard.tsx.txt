@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from './game/meta';
 import { PALETTES, applyAccent } from './game/palette';
-import { purchaseEntitlement } from './game/entitlements';
 import { sfx } from './game/sound';
 import SignalSkinPicker from './ui/SignalSkinPicker';
 import MapThemePicker from './ui/MapThemePicker';
@@ -11,7 +10,6 @@ import MapThemePicker from './ui/MapThemePicker';
 // completed quest grants XP/salvage. Cosmetic/QoL only — never touches run balance.
 export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void } = {}) {
   const [, force] = useState(0);
-  const [purchasing, setPurchasing] = useState<string | null>(null);
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [flash, setFlash] = useState<{ xp: number; salvage: number; n: number } | null>(null);
   const statusTimer = useRef<number | undefined>(undefined);
@@ -104,32 +102,26 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
                 ? `Buy ${p.name} palette for ${p.cost} salvage`
                 : `${p.name} palette needs ${short} more salvage`;
             return (
-              <button key={p.id} className={`palette-chip ${equipped ? 'equipped' : ''}`} disabled={purchasing !== null || (!owned && !afford)}
+              <button key={p.id} className={`palette-chip ${equipped ? 'equipped' : ''}`} disabled={!owned && !afford}
                 title={paletteLabel}
                 aria-label={paletteLabel}
-                onClick={async () => {
+                onClick={() => {
                   if (owned) {
                     meta.equip('accent', p.id);
                     applyAccent();
                     sfx.click();
                     rerender();
                   }
+                  else if (meta.buyCosmetic(`palette-${p.id}`, p.cost)) {
+                    meta.equip('accent', p.id);
+                    applyAccent();
+                    pushStatus({ kind: 'ok', text: `${p.name} palette purchased and equipped.` });
+                    sfx.upgrade();
+                    rerender();
+                  }
                   else {
-                    setPurchasing(p.id);
-                    try {
-                      const granted = await purchaseEntitlement(`palette-${p.id}`);
-                      meta.recordServerEntitlement(`palette-${p.id}`, granted.salvageBalance);
-                      meta.equip('accent', p.id);
-                      applyAccent();
-                      pushStatus({ kind: 'ok', text: `${p.name} palette purchased and equipped.` });
-                      sfx.upgrade();
-                      rerender();
-                    } catch {
-                      pushStatus({ kind: 'err', text: `${p.name} purchase could not be completed. Please try again.` });
-                      sfx.error();
-                    } finally {
-                      setPurchasing(null);
-                    }
+                    pushStatus({ kind: 'err', text: `${p.name} needs ${short} more salvage.` });
+                    sfx.error();
                   }
                 }}>
                 <span className="palette-swatch" style={{ background: p.color }} />

@@ -1,0 +1,345 @@
+
+> neon-vector-defense@1.0.0 test:engine
+> tsx --test tests/unit/*.test.ts
+
+▶ admin balance editor helpers
+  ✔ clamps malformed multipliers and sanitizes version text (2.921139ms)
+  ✔ prunes identity values into a sparse publish doc (0.419656ms)
+  ✔ reports active override paths in stable order (0.276273ms)
+  ✔ previews tower overrides without mutating static definitions (1.096112ms)
+✔ admin balance editor helpers (5.636549ms)
+▶ admin live-ops insights
+  ✔ computes per-protocol survival curves and cliffs (1.804135ms)
+  ✔ groups abandonment spikes by wave, cohort, and cash float (2.098213ms)
+  ✔ flags dead and dominant towers from real-player usage (5.979362ms)
+  ✔ compares active and baseline builds independently (1.127039ms)
+✔ admin live-ops insights (11.76704ms)
+▶ analytics schema defaults
+  ✔ normalizes sparse and mistyped private analytics rows to the v2 shape (7.785323ms)
+✔ analytics schema defaults (20.469376ms)
+▶ audio asset coverage
+  ✔ music packs, sector ambience, stingers, briefing, and voice lines exist (67.377767ms)
+✔ audio asset coverage (68.978822ms)
+▶ daily challenge overrides
+  ✔ applies an override to the same deterministic daily shell (0.729867ms)
+  ✔ ignores overrides for a different date (0.100816ms)
+  ✔ sanitizes override documents and rejects malformed IDs (0.456743ms)
+  ✔ exports concrete modifier catalogs for admin selectors (0.189104ms)
+✔ daily challenge overrides (2.037686ms)
+▶ retired target-practice interstitial
+  ✔ never offers a bonus round in a live game (7.757757ms)
+  ✔ keeps the retired mechanic available for historical replay actions (7.770374ms)
+✔ retired target-practice interstitial (16.284176ms)
+▶ damage resistance rules
+  ✔ cryo-resistant hull takes reduced cryo damage unless shred is active (1.310785ms)
+  ✔ explosive-resistant and armored hulls take reduced damage, partial under first Exposed stack (0.787219ms)
+  ✔ energy resistance from resist map reduces energy damage and is stripped by shred (0.50512ms)
+  ✔ Mirror Hull snapshots the leading damage type deterministically (0.736401ms)
+  ✔ each Mirror Hull spawn re-reads the run damage ledger (1.936916ms)
+  ✔ Recalibrate clears adaptation and weakens live Mirror Hulls temporarily (1.300072ms)
+  ✔ Exposed stacks cap, refresh, and decay deterministically on fixed steps (0.724069ms)
+  ✔ shred setup makes follow-up kinetic damage exceed either tower alone (0.434859ms)
+✔ damage resistance rules (8.249367ms)
+▶ phantom cloak telemetry and preview flags
+  ✔ phantom hulls are tagged cloaked at spawn even when the wave entry is not cloaked (0.331065ms)
+  ✔ phantom leaks increment cloaked leak telemetry counters (3.302197ms)
+  ✔ preview grouping flags waves with inherently cloaked enemy types (0.233793ms)
+  ✔ wave preview warning is triggered by inherently cloaked wave types (0.099314ms)
+  ✔ telemetry infers cloaked leaks for inherently cloaked IDs when leak traits are absent (0.373472ms)
+  ✖ watchfire sweep marks cloaked hulls as revealed (8.351615ms)
+✖ phantom cloak telemetry and preview flags (13.019328ms)
+▶ elite affixes and Umbra encounter rules
+  ✔ elite affix planning is deterministic and skips boss groups (2.647786ms)
+  ✔ shielded elites absorb damage before hp and return only hp damage (0.892002ms)
+  ✔ splitting elites add bounded non-elite children on death (0.64092ms)
+  ✔ bulwark elites reduce nearby non-boss hull damage without protecting themselves (0.256819ms)
+  ✔ Umbra transitions through phase-shift and enrage with replay events (1.61244ms)
+✔ elite affixes and Umbra encounter rules (6.517116ms)
+▶ storage normalization
+  ✔ repairs malformed persisted shapes without dropping extension fields (0.602485ms)
+  ✔ drops retired protocol records from old saves (0.259123ms)
+✔ storage normalization (1.151394ms)
+▶ freeplay correctness guards
+  ✔ Firestore sanitizer removes nested undefined from replay upload docs (0.305309ms)
+  ✔ public replay bundles never contain undefined Firestore fields (1.328344ms)
+  ✔ replay manifest hashes encoded r3 action packs in stable chunk order (0.316415ms)
+  ✔ risk packets cannot be accepted unless they were actually offered (0.850585ms)
+  ✔ checkpoint banking only succeeds once per new freeplay build wave (0.438777ms)
+  ✔ daily challenge is deterministic by UTC date and rotates modifiers (0.722866ms)
+  ✔ daily challenge starts as a normal wave-1 run with no freeplay multiplier (0.962367ms)
+  ✔ daily challenge arsenal, twist, and boon knobs affect the Game (0.5001ms)
+✔ freeplay correctness guards (5.648752ms)
+▶ engine correctness fixes
+  ✔ spire-revealed cloaked hulls are hit by non-detector projectiles (0.825723ms)
+  ✔ burn damage credits the applying tower and weaker burns never override stronger ones (0.331546ms)
+  ✔ multiple same-tick leaks at zero cores end the run exactly once (0.649068ms)
+  ✔ placeTower rejects locked towers even when the shop UI is bypassed (0.310802ms)
+  ✔ targeted strike needs a target and cannot fire after the run ends (0.234137ms)
+✔ engine correctness fixes (2.488087ms)
+▶ arsenal balance additions
+  ✔ tower unlock curve leaves most arsenal locked after a first Recruit clear (0.238225ms)
+  ✔ remote balance knobs cover projectile, splash, slow, burn, enemy speed, and ability cooldown (1.028746ms)
+  ✔ new tower upgrade tracks make monotonic stat progress (0.647377ms)
+  ✔ Tesla chain lightning does not bounce onto already chained hulls (0.63028ms)
+  ✔ Harmonic Siphon consumes and spreads resonance stacks (0.758462ms)
+  ✔ Vector Lure focus marks drive target selection (0.81458ms)
+  ✔ target filters prefer matching archetypes and fall back to normal target mode (0.507577ms)
+✔ arsenal balance additions (4.927666ms)
+▶ deterministic simulation hooks
+  ✔ same seed reproduces gameplay randomness and per-instance entity uids (0.540233ms)
+  ✔ unlock gating honors the lifetimeKills snapshot, not the live save (0.234852ms)
+  ✔ simulation advances in exact fixed steps with a carried remainder (0.184192ms)
+✔ deterministic simulation hooks (1.069798ms)
+▶ consent privacy invariants (CCPA/GPC)
+  ✔ sale opt-out forces the restricted tier but never blocks adult scores (0.313187ms)
+  ✔ under-13 is a permanent restricted path: may play, never post (0.084773ms)
+✔ consent privacy invariants (CCPA/GPC) (0.463135ms)
+▶ build freshness
+  ✔ stale only when a real differing tag arrives, never in dev (0.094483ms)
+✔ build freshness (0.125771ms)
+▶ server deletion helpers
+  ✔ keeps unique valid run ids from leaderboard score rows (0.216448ms)
+  ✔ public run deletion requires corroboration beyond the owner index (0.146226ms)
+  ✔ corroborated-only run ids are deletable even without an owner row (0.076588ms)
+✔ server deletion helpers (0.510489ms)
+▶ bot rival profile helpers
+  ✔ returns current-sector bot profiles in difficulty order (0.315743ms)
+  ✔ wave zero uses a true pre-wave starting point (0.155855ms)
+✔ bot rival profile helpers (0.529401ms)
+▶ bot fairness and live run context
+  ✔ effective starting lives reflect remote balance overrides (0.824885ms)
+  ✔ bot falls back instead of building locked planned towers (20.284755ms)
+✔ bot fairness and live run context (21.210201ms)
+▶ extinction bounty multipliers
+  ✔ applies early-extinction wave bounty bonus from balance config only for waves 1-15 (15.857068ms)
+✔ extinction bounty multipliers (15.920524ms)
+▶ gauntlet protocol
+  ✔ weekly route is deterministic and has three distinct shipped sectors (0.82938ms)
+  ✔ shortened wave tables have the approved leg counts (0.275707ms)
+  ✔ bank math carries all cores and floors sixty percent credits (0.083598ms)
+  ✔ draft offers are seeded and exclude owned relics (0.277614ms)
+  ✔ leg metadata is recorded into replay setup and summary (2.263306ms)
+✔ gauntlet protocol (4.611976ms)
+▶ late-game scaling curve
+  ✔ late growth starts at wave 35 across all difficulty tiers (1.037196ms)
+  ✔ late-game multipliers are pinned per tier at wave 40 (0.220547ms)
+  ✔ late-game multipliers remain pinned across tiers in wave 50 (0.096631ms)
+  ✔ late-game multiplier curve is data-driven via difficulty curve config (0.070272ms)
+  ✔ late-game ramp is stricter after wave 40 to pressure endgame (0.076418ms)
+✔ late-game scaling curve (5.130543ms)
+▶ local data cleanup
+  ✔ prunes stale replay tokens and feedback receipts without blocking fresh local data (5.721236ms)
+✔ local data cleanup (6.539149ms)
+▶ map version registry
+  ✔ every current map resolves to itself by its own hash (0.829881ms)
+  ✔ legacy geometry hashes are frozen (append-only registry) (0.164421ms)
+  ✔ legacy hashes resolve to the historical geometry, cosmetics from the live map (0.824769ms)
+  ✔ unknown hash resolves to null, missing hash falls back to the live map (0.203715ms)
+✔ map version registry (2.586851ms)
+▶ replays recorded on re-tuned maps
+  ✔ contested spot is NOT buildable on the current foundry (test premise) (1.375341ms)
+  ✔ re-simulation verifies a run recorded on the legacy geometry (148.078159ms)
+  ✔ frame-accurate playback keeps every tower and reports no divergence (92.861506ms)
+  ✔ a run pinned to the WRONG geometry diverges loudly instead of silently dropping towers (89.772494ms)
+✔ replays recorded on re-tuned maps (332.39249ms)
+▶ snapshot-less reconstruction tower roster
+  ✔ all placed towers survive the fallback reconstruction (final.towers is capped) (13.548072ms)
+✔ snapshot-less reconstruction tower roster (13.681032ms)
+▶ map data
+  ✖ campaign atlas contains twelve unique sector ids in progression order (5.021472ms)
+  ✔ all sectors keep path geometry inside the playfield after spawn and before exit (6.073215ms)
+  ✔ blocker discs clear the full lane width on every segment (0.838955ms)
+  ✔ new sectors preserve their intended geometry roles (0.781434ms)
+✖ map data (15.494082ms)
+▶ reSimulate
+  ✔ verifies a seeded public campaign run (382.643348ms)
+  ✔ verifies a seeded daily challenge run (366.751414ms)
+  ✔ verifies a seeded weekly mutation run (59.337608ms)
+  ✔ verifies replayed veteran-deploy-style place and upgrade actions (45.031662ms)
+  ✔ verifies a seeded run with target_filter actions and shred usage (122.767906ms)
+  ✖ verifies a deep freeplay run with relic and risk choices (3193.550591ms)
+  ✔ verifies a run containing elite wave metadata and the Umbra boss (8960.116346ms)
+  ✔ flags a tampered summary as divergent (341.588919ms)
+  ✔ flags a ghost-run summary (impossible wave/kills/leaks/duration) as divergent (399.531516ms)
+  ✔ flags a tampered player action as divergent (182.359466ms)
+  ✔ flags a tampered target_filter action as divergent (82.05257ms)
+  ✔ flags tampered encoded actions with a stale manifest as unverifiable (203.719127ms)
+  ✔ re-verifies from its embedded balance snapshot after live balance changes (674.27994ms)
+  ✔ marks runs recorded under a different engine behavior as unverifiable (161.410528ms)
+  ✖ verifies r3 ability_cast actions for Recalibrate (955.008704ms)
+  ✔ treats identity-balance runs as verifiable only under identity balance (364.68853ms)
+✖ reSimulate (16497.324995ms)
+▶ mid-run unlock availability
+  ✔ re-sim verifies a run that places a tower unlocked mid-run (363.665095ms)
+  ✔ playback driver re-applies the mid-run-unlocked placement without desync (380.094769ms)
+  ✔ sub-tick backward jitter never rebuilds from the seed (191.463355ms)
+✔ mid-run unlock availability (935.454743ms)
+▶ playback driver budgeted seeks
+  ✔ budget-sliced seeks converge to the same state as a synchronous seek (374.125763ms)
+  ✔ rewind re-simulates deterministically (424.830244ms)
+✔ playback driver budgeted seeks (799.095419ms)
+▶ replay determinism under variable frame pacing
+  ✔ jittered dt yields byte-identical kill frames and summary as uniform dt (367.660757ms)
+  ✔ a second independent jitter seed converges to the same run (261.882073ms)
+✔ replay determinism under variable frame pacing (631.082322ms)
+▶ replay v3 fidelity
+  ✔ public replay payload is compact schema v3 action data (606.789299ms)
+  ✔ server re-simulation verifies the decoded v3 action stream (472.220709ms)
+  ✔ client playback driver reproduces final run state and deterministic seeks (1087.932129ms)
+  ✔ budgeted seeks converge to the identical state as synchronous seeks (711.713704ms)
+  ✔ playback gate keeps campaign-scale runs frame-accurate, drops marathons on duration (286.84622ms)
+✔ replay v3 fidelity (3168.438072ms)
+▶ r3 replay action codec
+  ✔ round-trips every re-simulation action shape (4.627963ms)
+  ✔ decodes root plus chunks with the shared tower table (0.57822ms)
+  ✔ rejects non-monotonic simTick streams (0.363915ms)
+  ✔ filters unsupported telemetry events before encoding (0.276261ms)
+  ✔ canonicalizes target_filter payloads through the r3 bitmask (0.2142ms)
+✔ r3 replay action codec (6.916868ms)
+▶ hosting security headers
+  ✔ ships a CSP with the app runtime dependencies allowlisted (16.436543ms)
+  ✔ keeps baseline browser hardening headers (0.313229ms)
+✔ hosting security headers (17.438205ms)
+▶ firestore security rules
+  ✔ validate nested replay and private analytics summaries (3.365983ms)
+✔ firestore security rules (3.539907ms)
+▶ weekly challenge
+  ✔ uses UTC ISO week ids and stacks three twists (1.173104ms)
+  ✔ applies a weekly override without changing the deterministic shell (1.00824ms)
+  ✔ sanitizes weekly override and gauntlet docs (0.376048ms)
+✔ weekly challenge (3.510013ms)
+▶ THE YAKKOB special edition
+  ✔ is flagged special and locked to exactly Prism Array + Watchfire Beacon (1.626583ms)
+  ✔ the buildable pool is ONLY those two towers — no pulse, no anything else (0.259322ms)
+  ✔ costs are discounted so the opening is playable (0.098898ms)
+  ✔ helpers identify the challenge and its squished towers (0.096888ms)
+  ✔ the id is not a date-keyed board, so it never reaches the online daily leaderboards (0.132974ms)
+✔ THE YAKKOB special edition (3.367831ms)
+ℹ tests 139
+ℹ suites 37
+ℹ pass 135
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20248.408696
+
+✖ failing tests:
+
+test at tests/unit/game-correctness.test.ts:1:9378
+✖ watchfire sweep marks cloaked hulls as revealed (8.351615ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(watchfire)
+  
+      at TestContext.<anonymous> (/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/unit/game-correctness.test.ts:260:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/unit/maps.test.ts:1:914
+✖ campaign atlas contains twelve unique sector ids in progression order (5.021472ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'orbital',
+      'carousel',
+      'reactor',
+      'splice',
+  ...
+      'cinder',
+  +   'crossfeed',
+  +   'needleglass',
+  +   'bastion',
+  +   'eventide'
+    ]
+  
+      at TestContext.<anonymous> (/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/unit/maps.test.ts:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at node:internal/test_runner/test:1792:71
+      at node:internal/per_context/primordials:466:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:435:3)
+      at node:internal/per_context/primordials:466:9
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'orbital',   'carousel',
+      'reactor',   'splice',
+      'mobius',    'mirror',
+      'hyperlane', 'blackout',
+      'throat',    'foundry',
+      'umbral',    'cinder',
+      'crossfeed', 'needleglass',
+      'bastion',   'eventide'
+    ],
+    expected: [
+      'orbital',   'carousel',
+      'reactor',   'splice',
+      'mobius',    'mirror',
+      'hyperlane', 'blackout',
+      'throat',    'foundry',
+      'umbral',    'cinder'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/unit/reSimulate.test.ts:1:9460
+✖ verifies a deep freeplay run with relic and risk choices (3193.550591ms)
+  AssertionError [ERR_ASSERTION]: summary.kills
+  + actual - expected
+  
+  + 'divergent'
+  - 'verified'
+  
+      at TestContext.<anonymous> (/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/unit/reSimulate.test.ts:287:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'divergent',
+    expected: 'verified',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/unit/reSimulate.test.ts:1:13050
+✖ verifies r3 ability_cast actions for Recalibrate (955.008704ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(events.some((event) => event.type === 'ability_cast' && event.abilityId === 'recalibrate'))
+  
+      at TestContext.<anonymous> (/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/unit/reSimulate.test.ts:391:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

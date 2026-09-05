@@ -1,0 +1,32 @@
+✔ tests/unit/admin-balance-edit.test.ts (327.610967ms)
+✔ tests/unit/admin-insights.test.ts (301.143048ms)
+✔ tests/unit/analytics-schema.test.ts (365.02954ms)
+✔ tests/unit/audio-assets.test.ts (429.486988ms)
+✔ tests/unit/daily-challenge.test.ts (318.82918ms)
+✔ tests/unit/game-correctness.test.ts (887.064102ms)
+✔ tests/unit/gauntlet-protocol.test.ts (453.145154ms)
+✔ tests/unit/late-game-scaling.test.ts (286.743143ms)
+✔ tests/unit/local-data-cleanup.test.ts (169.604421ms)
+✔ tests/unit/mapVersions.test.ts (1311.852922ms)
+✔ tests/unit/maps.test.ts (283.399096ms)
+✖ tests/unit/reSimulate.test.ts (21506.53486ms)
+✔ tests/unit/replay-determinism.test.ts (1795.934043ms)
+✔ tests/unit/replay-fidelity.test.ts (4567.355622ms)
+✔ tests/unit/replayCodec.test.ts (256.471951ms)
+✔ tests/unit/security-config.test.ts (154.213266ms)
+✔ tests/unit/weekly-challenge.test.ts (233.937479ms)
+✔ tests/unit/yakkob.test.ts (376.932278ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 17
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21544.240861
+
+✖ failing tests:
+
+test at tests/unit/reSimulate.test.ts:1:1
+✖ tests/unit/reSimulate.test.ts (21506.53486ms)
+  'test failed'

@@ -1,0 +1,654 @@
+
+> neon-vector-defense@1.0.0 test
+> npm run test:e2e --workers=4
+
+npm warn Unknown cli config "--workers". This will stop working in the next major version of npm.
+
+> neon-vector-defense@1.0.0 test:e2e
+> node ./tests/e2e/run-playwright.mjs
+
+[vite:react-swc] We recommend switching to `@vitejs/plugin-react` for improved performance as no swc plugins are used. More information at https://vite.dev/rolldown
+
+Running 106 tests using 1 worker
+
+(node:1967993) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘    1 [chromium-desktop] › tests/e2e/demo-mode-audit.spec.ts:326:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI (14.2s)
+(node:1974727) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    2 [chromium-desktop] › tests/e2e/menu-recommended-pill.spec.ts:42:3 › first-time RECOMMENDED protocol pill › pill sits on its own row and never collides with the protocol name (2.7s)
+  -    3 [chromium-desktop] › tests/e2e/production-build.spec.ts:19:3 › production bundle › emits a build tag and shows no stale toast on a fresh bundle
+  -    4 [chromium-desktop] › tests/e2e/production-build.spec.ts:41:3 › production bundle › boots the built app and registers the service worker
+  -    5 [chromium-desktop] › tests/e2e/production-build.spec.ts:52:3 › production bundle › ?run= deep links navigate through the service worker without network errors
+  ✓    6 [chromium-desktop] › tests/e2e/qa-regression.spec.ts:347:3 › QA regression real-flow audit › submits a real v7 run bundle and opens the frame-accurate replay viewer (5.3s)
+  ✓    7 [chromium-desktop] › tests/e2e/qa-regression.spec.ts:444:3 › QA regression real-flow audit › debrief retry and menu actions recover from terminal runs (2.0s)
+  ✓    8 [chromium-desktop] › tests/e2e/qa-regression.spec.ts:479:3 › QA regression real-flow audit › Replay-of-the-Day handles a dead pinned replay without blanking the menu (2.8s)
+  ✓    9 [chromium-desktop] › tests/e2e/qa-regression.spec.ts:508:3 › QA regression real-flow audit › submits a weekly mutation run through mocked callables (1.7s)
+7:07:14 PM [vite] (client) [console.warn] [2026-09-05T00:07:14.275Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x71713d93 transport errored. Name: undefined Message: undefined
+7:07:14 PM [vite] (client) [console.error] [2026-09-05T00:07:14.276Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:14 PM [vite] (client) [console.warn] [2026-09-05T00:07:14.842Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x7cdef6c0 transport errored. Name: undefined Message: undefined
+7:07:14 PM [vite] (client) [console.error] [2026-09-05T00:07:14.842Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:14 PM [vite] (client) [console.warn] [2026-09-05T00:07:14.878Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x7cdef6c1 transport errored. Name: undefined Message: undefined
+7:07:15 PM [vite] (client) [console.warn] [2026-09-05T00:07:15.709Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x7cdef6c2 transport errored. Name: undefined Message: undefined
+7:07:16 PM [vite] (client) [console.warn] Anonymous sign-in failed FirebaseError: Firebase: Error (auth/network-request-failed).
+    at createErrorInternal (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:434:35)
+    at _fail (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:408:8)
+    at _performFetchWithErrorHandling (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:762:3)
+    at async _performSignInRequest (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:766:25)
+    at async signInAnonymously (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:4544:19)
+    at async http://127.0.0.1:44527/src/game/anonAuth.ts:76:43
+    at async http://127.0.0.1:44527/src/game/entitlements.ts:69:21
+7:07:16 PM [vite] (client) [console.warn] [2026-09-05T00:07:16.538Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x723b06ba transport errored. Name: undefined Message: undefined
+7:07:16 PM [vite] (client) [console.error] [2026-09-05T00:07:16.539Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:16 PM [vite] (client) [console.warn] [2026-09-05T00:07:16.610Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x723b06bb transport errored. Name: undefined Message: undefined
+7:07:17 PM [vite] (client) [console.warn] [2026-09-05T00:07:17.420Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x7769b6d6 transport errored. Name: undefined Message: undefined
+7:07:17 PM [vite] (client) [console.error] [2026-09-05T00:07:17.421Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:17 PM [vite] (client) [console.warn] [2026-09-05T00:07:17.455Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x7769b6d7 transport errored. Name: undefined Message: undefined
+7:07:18 PM [vite] (client) [console.warn] [2026-09-05T00:07:18.484Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x2e829d04 transport errored. Name: undefined Message: undefined
+7:07:18 PM [vite] (client) [console.error] [2026-09-05T00:07:18.485Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:18 PM [vite] (client) [console.warn] [2026-09-05T00:07:18.530Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x2e829d05 transport errored. Name: undefined Message: undefined
+7:07:19 PM [vite] (client) [console.warn] [2026-09-05T00:07:19.744Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x65fda74d transport errored. Name: undefined Message: undefined
+7:07:19 PM [vite] (client) [console.error] [2026-09-05T00:07:19.745Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:19 PM [vite] (client) [console.warn] [2026-09-05T00:07:19.777Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x65fda74e transport errored. Name: undefined Message: undefined
+7:07:21 PM [vite] (client) [console.warn] [2026-09-05T00:07:21.773Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x593094ed transport errored. Name: undefined Message: undefined
+7:07:21 PM [vite] (client) [console.error] [2026-09-05T00:07:21.774Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:22 PM [vite] (client) [console.warn] [2026-09-05T00:07:22.540Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x24cefc3b transport errored. Name: undefined Message: undefined
+7:07:22 PM [vite] (client) [console.error] [2026-09-05T00:07:22.540Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:24 PM [vite] (client) [console.warn] [2026-09-05T00:07:24.077Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x74611626 transport errored. Name: undefined Message: undefined
+7:07:24 PM [vite] (client) [console.error] [2026-09-05T00:07:24.077Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:24 PM [vite] (client) [console.warn] [2026-09-05T00:07:24.115Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x74611627 transport errored. Name: undefined Message: undefined
+7:07:26 PM [vite] (client) [console.warn] [2026-09-05T00:07:26.412Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x739ef18f transport errored. Name: undefined Message: undefined
+7:07:26 PM [vite] (client) [console.error] [2026-09-05T00:07:26.412Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:26 PM [vite] (client) [console.warn] [2026-09-05T00:07:26.565Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x739ef190 transport errored. Name: undefined Message: undefined
+7:07:27 PM [vite] (client) [console.warn] [2026-09-05T00:07:27.920Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x2a32dca9 transport errored. Name: undefined Message: undefined
+7:07:27 PM [vite] (client) [console.error] [2026-09-05T00:07:27.921Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:28 PM [vite] (client) [console.warn] [2026-09-05T00:07:28.147Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x2a32dcaa transport errored. Name: undefined Message: undefined
+7:07:28 PM [vite] (client) [console.warn] Run replay fetch failed FirebaseError: Failed to get document because the client is offline.
+7:07:28 PM [vite] (client) [console.warn] Run replay fetch failed FirebaseError: Failed to get document because the client is offline.
+  ✓   10 [chromium-desktop] › tests/e2e/qa-screens.spec.ts:206:3 › QA audit screen screenshots › captures the automated screen inventory into test-results/qa (15.4s)
+7:07:29 PM [vite] (client) [console.warn] [2026-09-05T00:07:29.747Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x8f2182cd transport errored. Name: undefined Message: undefined
+7:07:29 PM [vite] (client) [console.error] [2026-09-05T00:07:29.748Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:29 PM [vite] (client) [console.warn] [2026-09-05T00:07:29.795Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x8f2182ce transport errored. Name: undefined Message: undefined
+  ✓   11 [chromium-desktop] › tests/e2e/qa-screens.spec.ts:345:3 › QA audit screen screenshots › captures the required short-landscape game layout into test-results/qa (1.3s)
+7:07:31 PM [vite] (client) [console.warn] [2026-09-05T00:07:31.165Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x5ee6cf47 transport errored. Name: undefined Message: undefined
+7:07:31 PM [vite] (client) [console.error] [2026-09-05T00:07:31.167Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:31 PM [vite] (client) [console.warn] [2026-09-05T00:07:31.221Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x5ee6cf48 transport errored. Name: undefined Message: undefined
+7:07:33 PM [vite] (client) [console.warn] [2026-09-05T00:07:33.148Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x3c7527ad transport errored. Name: undefined Message: undefined
+7:07:33 PM [vite] (client) [console.error] [2026-09-05T00:07:33.150Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:33 PM [vite] (client) [console.warn] [2026-09-05T00:07:33.201Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x3c7527ae transport errored. Name: undefined Message: undefined
+7:07:34 PM [vite] (client) [console.warn] [2026-09-05T00:07:34.782Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x8c7fbbc8 transport errored. Name: undefined Message: undefined
+7:07:34 PM [vite] (client) [console.error] [2026-09-05T00:07:34.782Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:34 PM [vite] (client) [console.warn] [2026-09-05T00:07:34.809Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x8c7fbbc9 transport errored. Name: undefined Message: undefined
+  ✓   12 [chromium-desktop] › tests/e2e/qa-screens.spec.ts:363:3 › QA audit screen screenshots › captures menu polish viewports into test-results/qa (5.1s)
+7:07:36 PM [vite] (client) [console.warn] [2026-09-05T00:07:36.194Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x53f28b29 transport errored. Name: undefined Message: undefined
+7:07:36 PM [vite] (client) [console.error] [2026-09-05T00:07:36.201Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:36 PM [vite] (client) [console.warn] [2026-09-05T00:07:36.259Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x53f28b2a transport errored. Name: undefined Message: undefined
+7:07:41 PM [vite] (client) [console.warn] [2026-09-05T00:07:41.479Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x53f28b2b transport errored. Name: undefined Message: undefined
+7:07:42 PM [vite] (client) [console.warn] [2026-09-05T00:07:42.143Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x53f28b2c transport errored. Name: undefined Message: undefined
+  ✓   13 [chromium-desktop] › tests/e2e/ui-stability.spec.ts:174:3 › UI stability guardrails › keeps menu, claim, equip, feedback, and leaderboard transitions stable (8.1s)
+7:07:44 PM [vite] (client) [console.warn] [2026-09-05T00:07:44.483Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x61fb9d46 transport errored. Name: undefined Message: undefined
+7:07:44 PM [vite] (client) [console.error] [2026-09-05T00:07:44.485Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:44 PM [vite] (client) [console.warn] [2026-09-05T00:07:44.517Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x61fb9d47 transport errored. Name: undefined Message: undefined
+  ✓   14 [chromium-desktop] › tests/e2e/ui-stability.spec.ts:267:3 › UI stability guardrails › keeps in-run advisory and build overlays from moving the command layout (2.3s)
+  ✓   15 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:507:3 › admin analytics model › catalog covers every private analytics domain (3ms)
+  ✓   16 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:514:3 › admin analytics model › filters, aggregates, records, insights, and csv exports are stable (6ms)
+7:07:46 PM [vite] (client) [console.warn] [2026-09-05T00:07:46.733Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x827a1137 transport errored. Name: undefined Message: undefined
+7:07:46 PM [vite] (client) [console.error] [2026-09-05T00:07:46.736Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:07:46 PM [vite] (client) [console.warn] [2026-09-05T00:07:46.978Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x35355541 transport errored. Name: undefined Message: undefined
+7:07:46 PM [vite] (client) [console.error] [2026-09-05T00:07:46.978Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+  ✓   17 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:561:3 › desktop UX layout › menu header wraps without scrollbars and keeps utility icons readable at desktop widths (1.1s)
+  ✘   18 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:576:3 › desktop UX layout › sector atlas keeps reachable nodes, dock, and utility buttons stable (554ms)
+(node:1996868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   19 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:610:3 › desktop UX layout › sector atlas selection, keyboard path, weekly beacon, locks, and deploy launch work (6.1s)
+(node:2000373) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   20 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:644:3 › desktop UX layout › locked atlas node shows unlock copy and does not select (876ms)
+  ✓   21 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:655:3 › desktop UX layout › arsenal panel renders a complete 21-tower grid on desktop (1.1s)
+  ✓   22 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:665:3 › desktop UX layout › keyboard can place a tower and reach its upgrade action (1.2s)
+  ✓   23 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:693:3 › desktop UX layout › Veteran Deploy toggle is gated by a campaign victory (1.9s)
+  ✓   24 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:710:3 › desktop UX layout › Veteran Deploy spends exact projected credits and replays the upgrades (2.0s)
+  ✓   25 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:818:3 › desktop UX layout › arsenal panel stays complete in short-landscape layout (956ms)
+  ✓   26 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:830:3 › desktop UX layout › owned signal palette equip is silent (822ms)
+  ✘   27 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:847:3 › desktop UX layout › signal palette purchase still confirms (5.8s)
+(node:2007207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   28 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:861:3 › desktop UX layout › unaffordable signal palette keeps its salvage guidance (1.5s)
+  ✓   29 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:876:3 › desktop UX layout › briefing overlays hide in-game utility widgets, then restore a clean sidebar dock (1.5s)
+  ✓   30 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:907:3 › desktop UX layout › space inside Warden AI input types text instead of toggling game shortcuts (1.3s)
+  ✓   31 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:925:3 › adaptation package UX › Bestiary shows Mirror Hull intel and counterplay (1.6s)
+  ✓   32 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:945:3 › adaptation package UX › ability bar shows Recalibrate locked and unlocked states (1.7s)
+  ✓   33 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:967:3 › feedback privacy flow › stores private receipts and renders callable replies without public feedback reads (1.4s)
+  ✓   34 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1039:3 › run telemetry model › serializes a public replay bundle separately from private analytics (1.8s)
+  ✓   35 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1147:3 › run telemetry model › firestore rules allow schema migration and append-only checkpoints (8ms)
+  ✓   36 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1161:3 › run telemetry model › records representative friction, assistance, and leaderboard counters (1.2s)
+  ✓   37 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1219:3 › run telemetry model › forced elite renders on canvas and dies through engine damage (1.5s)
+  ✓   38 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1269:3 › run telemetry model › records freeplay contracts, relics, risk offers, and checkpoint gates (1.9s)
+  ✓   39 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1336:3 › run telemetry model › daily challenge starts as a wave-one daily protocol (2.5s)
+  ✘   40 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1398:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable (6.4s)
+(node:2016987) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   41 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1413:3 › run telemetry model › weekly mutation starts as a wave-one weekly protocol (30.7s)
+(node:2043615) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+7:09:13 PM [vite] (client) [console.warn] [2026-09-05T00:09:13.808Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Write' stream 0x34cc360d transport errored. Name: undefined Message: undefined
+  ✓   42 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1442:3 › run telemetry model › gauntlet protocol card deploys and advances from leg one draft to leg two at desktop and mobile widths (13.1s)
+  ✓   43 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1488:3 › run telemetry model › daily challenge does not mutate campaign progress (9.0s)
+  ✓   44 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1529:3 › run telemetry model › campaign victory records final wave and continued freeplay stats separately (4.8s)
+  ✓   45 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1559:3 › replay re-simulation › replays a recorded action stream to the exact final summary (5.3s)
+  ✓   46 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1624:3 › browser perf harness › keeps stress counters readable on desktop and mobile perf routes (9.8s)
+  ✓   47 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1677:3 › first-run coach › action-gated funnel: place, launch, upgrade, done (7.4s)
+  ✓   48 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1721:3 › first-run coach › skip guide dismisses the coach and persists (9.7s)
+  -   49 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1736:3 › mobile UX layout › menu header wraps without scrollbars and keeps utility icons readable on Pixel portrait
+  -   50 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1747:3 › mobile UX layout › sector atlas pans internally on portrait mobile without page overflow
+  -   51 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1785:3 › mobile UX layout › arsenal panel renders a complete 21-tower grid on mobile
+  -   52 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1795:3 › mobile UX layout › game utility dock remains aligned on small screens
+  -   53 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1806:3 › mobile UX layout › portrait game view shows rotate guidance without blocking touch placement preview
+(node:2068177) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   54 [chromium-mobile] › tests/e2e/demo-mode-audit.spec.ts:326:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI (22.7s)
+(node:2077005) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   55 [chromium-mobile] › tests/e2e/menu-recommended-pill.spec.ts:42:3 › first-time RECOMMENDED protocol pill › pill sits on its own row and never collides with the protocol name (7.1s)
+  -   56 [chromium-mobile] › tests/e2e/production-build.spec.ts:19:3 › production bundle › emits a build tag and shows no stale toast on a fresh bundle
+  -   57 [chromium-mobile] › tests/e2e/production-build.spec.ts:41:3 › production bundle › boots the built app and registers the service worker
+  -   58 [chromium-mobile] › tests/e2e/production-build.spec.ts:52:3 › production bundle › ?run= deep links navigate through the service worker without network errors
+  ✓   59 [chromium-mobile] › tests/e2e/qa-regression.spec.ts:347:3 › QA regression real-flow audit › submits a real v7 run bundle and opens the frame-accurate replay viewer (18.6s)
+  ✓   60 [chromium-mobile] › tests/e2e/qa-regression.spec.ts:444:3 › QA regression real-flow audit › debrief retry and menu actions recover from terminal runs (14.8s)
+  ✓   61 [chromium-mobile] › tests/e2e/qa-regression.spec.ts:479:3 › QA regression real-flow audit › Replay-of-the-Day handles a dead pinned replay without blanking the menu (14.9s)
+  ✘   62 [chromium-mobile] › tests/e2e/qa-regression.spec.ts:508:3 › QA regression real-flow audit › submits a weekly mutation run through mocked callables (46.6s)
+(node:2113576) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+7:12:21 PM [vite] (client) [console.warn] [2026-09-05T00:12:21.380Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x4dc24e0a transport errored. Name: undefined Message: undefined
+7:12:21 PM [vite] (client) [console.error] [2026-09-05T00:12:21.398Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:26 PM [vite] (client) [console.warn] [2026-09-05T00:12:26.975Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x4c8912f9 transport errored. Name: undefined Message: undefined
+7:12:26 PM [vite] (client) [console.error] [2026-09-05T00:12:26.979Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:27 PM [vite] (client) [console.warn] [2026-09-05T00:12:27.263Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x4c8912fa transport errored. Name: undefined Message: undefined
+7:12:28 PM [vite] (client) [console.warn] [2026-09-05T00:12:28.940Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x4c8912fb transport errored. Name: undefined Message: undefined
+7:12:31 PM [vite] (client) [console.warn] Anonymous sign-in failed FirebaseError: Firebase: Error (auth/network-request-failed).
+    at createErrorInternal (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:434:35)
+    at _fail (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:408:8)
+    at _performFetchWithErrorHandling (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:762:3)
+    at async _performSignInRequest (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:766:25)
+    at async signInAnonymously (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:4544:19)
+    at async http://127.0.0.1:44527/src/game/anonAuth.ts:76:43
+    at async http://127.0.0.1:44527/src/game/entitlements.ts:69:21
+7:12:33 PM [vite] (client) [console.warn] [2026-09-05T00:12:33.684Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x8823ed60 transport errored. Name: undefined Message: undefined
+7:12:33 PM [vite] (client) [console.error] [2026-09-05T00:12:33.687Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:33 PM [vite] (client) [console.warn] [2026-09-05T00:12:33.993Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x8823ed61 transport errored. Name: undefined Message: undefined
+7:12:40 PM [vite] (client) [console.warn] [2026-09-05T00:12:40.099Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x6dab169b transport errored. Name: undefined Message: undefined
+7:12:40 PM [vite] (client) [console.error] [2026-09-05T00:12:40.101Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:40 PM [vite] (client) [console.warn] [2026-09-05T00:12:40.310Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x6dab169c transport errored. Name: undefined Message: undefined
+7:12:43 PM [vite] (client) [console.warn] [2026-09-05T00:12:43.445Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x59dd1fa4 transport errored. Name: undefined Message: undefined
+7:12:43 PM [vite] (client) [console.error] [2026-09-05T00:12:43.446Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:43 PM [vite] (client) [console.warn] [2026-09-05T00:12:43.613Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x59dd1fa5 transport errored. Name: undefined Message: undefined
+7:12:49 PM [vite] (client) [console.warn] [2026-09-05T00:12:49.506Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x30ce0a37 transport errored. Name: undefined Message: undefined
+7:12:49 PM [vite] (client) [console.error] [2026-09-05T00:12:49.507Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:49 PM [vite] (client) [console.warn] [2026-09-05T00:12:49.683Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x30ce0a38 transport errored. Name: undefined Message: undefined
+7:12:56 PM [vite] (client) [console.warn] [2026-09-05T00:12:56.795Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x27199824 transport errored. Name: undefined Message: undefined
+7:12:56 PM [vite] (client) [console.error] [2026-09-05T00:12:56.796Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:12:58 PM [vite] (client) [console.warn] [2026-09-05T00:12:58.878Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x80f40227 transport errored. Name: undefined Message: undefined
+7:12:58 PM [vite] (client) [console.error] [2026-09-05T00:12:58.879Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:02 PM [vite] (client) [console.warn] [2026-09-05T00:13:02.727Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x75f36037 transport errored. Name: undefined Message: undefined
+7:13:02 PM [vite] (client) [console.error] [2026-09-05T00:13:02.730Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:03 PM [vite] (client) [console.warn] [2026-09-05T00:13:03.152Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x75f36038 transport errored. Name: undefined Message: undefined
+7:13:13 PM [vite] (client) [console.warn] [2026-09-05T00:13:13.370Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x436a5381 transport errored. Name: undefined Message: undefined
+7:13:13 PM [vite] (client) [console.error] [2026-09-05T00:13:13.371Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:13 PM [vite] (client) [console.warn] [2026-09-05T00:13:13.638Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x436a5382 transport errored. Name: undefined Message: undefined
+7:13:19 PM [vite] (client) [console.warn] [2026-09-05T00:13:19.094Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x1d81fe20 transport errored. Name: undefined Message: undefined
+7:13:19 PM [vite] (client) [console.error] [2026-09-05T00:13:19.098Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:19 PM [vite] (client) [console.warn] Run replay fetch failed FirebaseError: Failed to get document because the client is offline.
+7:13:19 PM [vite] (client) [console.warn] Run replay fetch failed FirebaseError: Failed to get document because the client is offline.
+  ✓   63 [chromium-mobile] › tests/e2e/qa-screens.spec.ts:206:3 › QA audit screen screenshots › captures the automated screen inventory into test-results/qa (1.0m)
+  -   64 [chromium-mobile] › tests/e2e/qa-screens.spec.ts:345:3 › QA audit screen screenshots › captures the required short-landscape game layout into test-results/qa
+7:13:21 PM [vite] (client) [console.warn] [2026-09-05T00:13:21.889Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x768bc8c0 transport errored. Name: undefined Message: undefined
+7:13:21 PM [vite] (client) [console.error] [2026-09-05T00:13:21.892Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:22 PM [vite] (client) [console.warn] [2026-09-05T00:13:22.055Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x768bc8c1 transport errored. Name: undefined Message: undefined
+  ✓   65 [chromium-mobile] › tests/e2e/qa-screens.spec.ts:363:3 › QA audit screen screenshots › captures menu polish viewports into test-results/qa (6.3s)
+7:13:28 PM [vite] (client) [console.warn] [2026-09-05T00:13:28.714Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x1539613e transport errored. Name: undefined Message: undefined
+7:13:28 PM [vite] (client) [console.error] [2026-09-05T00:13:28.718Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:28 PM [vite] (client) [console.warn] [2026-09-05T00:13:28.858Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x1539613f transport errored. Name: undefined Message: undefined
+7:13:33 PM [vite] (client) [console.warn] [2026-09-05T00:13:33.959Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x15396140 transport errored. Name: undefined Message: undefined
+7:13:35 PM [vite] (client) [console.warn] [2026-09-05T00:13:35.402Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x15396141 transport errored. Name: undefined Message: undefined
+  ✓   66 [chromium-mobile] › tests/e2e/ui-stability.spec.ts:174:3 › UI stability guardrails › keeps menu, claim, equip, feedback, and leaderboard transitions stable (10.6s)
+7:13:38 PM [vite] (client) [console.warn] [2026-09-05T00:13:38.905Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x67d74fee transport errored. Name: undefined Message: undefined
+7:13:38 PM [vite] (client) [console.error] [2026-09-05T00:13:38.907Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+7:13:39 PM [vite] (client) [console.warn] [2026-09-05T00:13:39.035Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x67d74fef transport errored. Name: undefined Message: undefined
+  ✓   67 [chromium-mobile] › tests/e2e/ui-stability.spec.ts:267:3 › UI stability guardrails › keeps in-run advisory and build overlays from moving the command layout (6.5s)
+  ✓   68 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:507:3 › admin analytics model › catalog covers every private analytics domain (12ms)
+  ✓   69 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:514:3 › admin analytics model › filters, aggregates, records, insights, and csv exports are stable (15ms)
+  -   70 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:561:3 › desktop UX layout › menu header wraps without scrollbars and keeps utility icons readable at desktop widths
+  -   71 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:576:3 › desktop UX layout › sector atlas keeps reachable nodes, dock, and utility buttons stable
+  -   72 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:610:3 › desktop UX layout › sector atlas selection, keyboard path, weekly beacon, locks, and deploy launch work
+  -   73 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:644:3 › desktop UX layout › locked atlas node shows unlock copy and does not select
+  -   74 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:655:3 › desktop UX layout › arsenal panel renders a complete 21-tower grid on desktop
+  -   75 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:665:3 › desktop UX layout › keyboard can place a tower and reach its upgrade action
+  -   76 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:693:3 › desktop UX layout › Veteran Deploy toggle is gated by a campaign victory
+  -   77 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:710:3 › desktop UX layout › Veteran Deploy spends exact projected credits and replays the upgrades
+  -   78 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:818:3 › desktop UX layout › arsenal panel stays complete in short-landscape layout
+  -   79 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:830:3 › desktop UX layout › owned signal palette equip is silent
+  -   80 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:847:3 › desktop UX layout › signal palette purchase still confirms
+  -   81 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:861:3 › desktop UX layout › unaffordable signal palette keeps its salvage guidance
+  -   82 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:876:3 › desktop UX layout › briefing overlays hide in-game utility widgets, then restore a clean sidebar dock
+  -   83 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:907:3 › desktop UX layout › space inside Warden AI input types text instead of toggling game shortcuts
+  ✓   84 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:925:3 › adaptation package UX › Bestiary shows Mirror Hull intel and counterplay (7.5s)
+  ✓   85 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:945:3 › adaptation package UX › ability bar shows Recalibrate locked and unlocked states (3.7s)
+  ✓   86 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:967:3 › feedback privacy flow › stores private receipts and renders callable replies without public feedback reads (9.3s)
+  ✓   87 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1039:3 › run telemetry model › serializes a public replay bundle separately from private analytics (9.6s)
+  ✓   88 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1147:3 › run telemetry model › firestore rules allow schema migration and append-only checkpoints (18ms)
+  ✓   89 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1161:3 › run telemetry model › records representative friction, assistance, and leaderboard counters (7.9s)
+  ✓   90 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1219:3 › run telemetry model › forced elite renders on canvas and dies through engine damage (13.6s)
+  ✓   91 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1269:3 › run telemetry model › records freeplay contracts, relics, risk offers, and checkpoint gates (10.9s)
+  ✓   92 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1336:3 › run telemetry model › daily challenge starts as a wave-one daily protocol (9.9s)
+  ✘   93 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1398:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable (14.7s)
+(node:2178034) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   94 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1413:3 › run telemetry model › weekly mutation starts as a wave-one weekly protocol (31.8s)
+(node:2189532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+7:15:54 PM [vite] (client) [console.warn] Anonymous sign-in failed FirebaseError: Firebase: Error (auth/network-request-failed).
+    at createErrorInternal (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:434:35)
+    at _fail (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:408:8)
+    at _performFetchWithErrorHandling (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:762:3)
+    at async _performSignInRequest (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:766:25)
+    at async signInAnonymously (http://127.0.0.1:44527/node_modules/.vite/deps/firebase_auth.js?v=833c773f:4544:19)
+    at async http://127.0.0.1:44527/src/game/anonAuth.ts:76:43
+  ✓   95 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1442:3 › run telemetry model › gauntlet protocol card deploys and advances from leg one draft to leg two at desktop and mobile widths (16.2s)
+  ✓   96 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1488:3 › run telemetry model › daily challenge does not mutate campaign progress (7.7s)
+  ✓   97 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1529:3 › run telemetry model › campaign victory records final wave and continued freeplay stats separately (10.0s)
+  ✓   98 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1559:3 › replay re-simulation › replays a recorded action stream to the exact final summary (4.3s)
+  ✓   99 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1624:3 › browser perf harness › keeps stress counters readable on desktop and mobile perf routes (9.0s)
+  ✓  100 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1677:3 › first-run coach › action-gated funnel: place, launch, upgrade, done (6.6s)
+  ✓  101 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1721:3 › first-run coach › skip guide dismisses the coach and persists (6.1s)
+  ✓  102 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1736:3 › mobile UX layout › menu header wraps without scrollbars and keeps utility icons readable on Pixel portrait (3.7s)
+  ✓  103 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1747:3 › mobile UX layout › sector atlas pans internally on portrait mobile without page overflow (4.6s)
+  ✓  104 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1785:3 › mobile UX layout › arsenal panel renders a complete 21-tower grid on mobile (6.0s)
+  ✓  105 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1795:3 › mobile UX layout › game utility dock remains aligned on small screens (7.2s)
+  ✓  106 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1806:3 › mobile UX layout › portrait game view shows rotate guidance without blocking touch placement preview (5.8s)
+
+
+  1) [chromium-desktop] › tests/e2e/demo-mode-audit.spec.ts:326:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('weekly-mutation-card')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      163 |   await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
+      164 |
+    > 165 |   await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
+          |                                                          ^
+      166 |   await page.getByTestId('weekly-mutation-card').click();
+      167 |   await expect(page.locator('.deploy-bar-sel')).toContainText('WEEKLY MUTATION');
+      168 |
+        at assertUnlockedProtocolsAndChallenges (/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/demo-mode-audit.spec.ts:165:58)
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/demo-mode-audit.spec.ts:338:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/demo-mode-audit-recruiter--70d80--no-demo-gates-or-broken-UI-chromium-desktop/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/demo-mode-audit-recruiter--70d80--no-demo-gates-or-broken-UI-chromium-desktop/error-context.md
+
+  2) [chromium-desktop] › tests/e2e/ux-ui.spec.ts:576:3 › desktop UX layout › sector atlas keeps reachable nodes, dock, and utility buttons stable 
+
+    Error: expect(received).toHaveLength(expected)
+
+    Expected length: 12
+    Received length: 16
+    Received array:  [{"height": 115, "width": 104, "x": 379, "y": 259}, {"height": 115, "width": 104, "x": 436, "y": 404}, {"height": 115, "width": 104, "x": 499, "y": 237}, {"height": 115, "width": 104, "x": 562, "y": 382}, {"height": 115, "width": 104, "x": 626, "y": 259}, {"height": 115, "width": 104, "x": 689, "y": 415}, {"height": 115, "width": 104, "x": 752, "y": 237}, {"height": 115, "width": 104, "x": 809, "y": 382}, {"height": 115, "width": 104, "x": 865, "y": 482}, {"height": 115, "width": 104, "x": 851, "y": 281}, …]
+
+      597 |     });
+      598 |
+    > 599 |     expect(layout.nodes).toHaveLength(12);
+          |                          ^
+      600 |     expect(Math.min(...layout.nodes.map((node) => node.width))).toBeGreaterThanOrEqual(44);
+      601 |     expect(Math.min(...layout.nodes.map((node) => node.height))).toBeGreaterThanOrEqual(44);
+      602 |     expect(layout.fieldWidth).toBeGreaterThan(layout.dockWidth);
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:599:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-desktop-UX-layout-se-e76c5--and-utility-buttons-stable-chromium-desktop/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-desktop-UX-layout-se-e76c5--and-utility-buttons-stable-chromium-desktop/error-context.md
+
+  3) [chromium-desktop] › tests/e2e/ux-ui.spec.ts:610:3 › desktop UX layout › sector atlas selection, keyboard path, weekly beacon, locks, and deploy launch work 
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByTestId('weekly-mutation-card')
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      624 |
+      625 |       await page.getByTestId('weekly-ops-beacon').click();
+    > 626 |       await expect(page.getByTestId('weekly-mutation-card')).toBeFocused();
+          |                                                              ^
+      627 |       await page.getByTestId('map-node-orbital').focus();
+      628 |       await page.keyboard.press('ArrowRight');
+      629 |       await page.keyboard.press('Enter');
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:626:62
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-desktop-UX-layout-se-75d48-ocks-and-deploy-launch-work-chromium-desktop/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-desktop-UX-layout-se-75d48-ocks-and-deploy-launch-work-chromium-desktop/error-context.md
+
+  4) [chromium-desktop] › tests/e2e/ux-ui.spec.ts:847:3 › desktop UX layout › signal palette purchase still confirms 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.ops-status.ok')
+    Expected substring: "Void Violet palette purchased and equipped."
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('.ops-status.ok')
+
+
+      856 |
+      857 |     await page.getByRole('button', { name: 'Buy Void Violet palette for 400 salvage' }).click();
+    > 858 |     await expect(page.locator('.ops-status.ok')).toContainText('Void Violet palette purchased and equipped.');
+          |                                                  ^
+      859 |   });
+      860 |
+      861 |   test('unaffordable signal palette keeps its salvage guidance', async ({ page }) => {
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:858:50
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-desktop-UX-layout-si-60ec4-tte-purchase-still-confirms-chromium-desktop/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-desktop-UX-layout-si-60ec4-tte-purchase-still-confirms-chromium-desktop/error-context.md
+
+  5) [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1398:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('weekly-mutation-card')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      1400 |     await page.getByTestId('dock-tab-challenges').click();
+      1401 |     await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
+    > 1402 |     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
+           |                                                            ^
+      1403 |     await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
+      1404 |     await page.getByTestId('weekly-mutation-card').click();
+      1405 |     await expect(page.getByTestId('weekly-mutation-card')).toHaveClass(/active/);
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:1402:60
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-run-telemetry-model--b4402--gauntlet-absence-is-stable-chromium-desktop/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-run-telemetry-model--b4402--gauntlet-absence-is-stable-chromium-desktop/error-context.md
+
+  6) [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1413:3 › run telemetry model › weekly mutation starts as a wave-one weekly protocol 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      1414 |     await openDemoMenu(page);
+      1415 |     await page.getByTestId('dock-tab-challenges').click();
+    > 1416 |     await page.getByTestId('weekly-mutation-card').click();
+           |                                                    ^
+      1417 |     await page.getByTestId('deploy-button').click();
+      1418 |     await expect(page.getByTestId('game-root')).toBeVisible();
+      1419 |     await expect(page.locator('.daily-strip')).toContainText('WEEKLY');
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:1416:52
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-run-telemetry-model--45342--a-wave-one-weekly-protocol-chromium-desktop/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-run-telemetry-model--45342--a-wave-one-weekly-protocol-chromium-desktop/error-context.md
+
+  7) [chromium-mobile] › tests/e2e/demo-mode-audit.spec.ts:326:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('weekly-mutation-card')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      163 |   await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
+      164 |
+    > 165 |   await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
+          |                                                          ^
+      166 |   await page.getByTestId('weekly-mutation-card').click();
+      167 |   await expect(page.locator('.deploy-bar-sel')).toContainText('WEEKLY MUTATION');
+      168 |
+        at assertUnlockedProtocolsAndChallenges (/home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/demo-mode-audit.spec.ts:165:58)
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/demo-mode-audit.spec.ts:338:5
+
+    Error Context: test-results/demo-mode-audit-recruiter--70d80--no-demo-gates-or-broken-UI-chromium-mobile/error-context.md
+
+  8) [chromium-mobile] › tests/e2e/qa-regression.spec.ts:508:3 › QA regression real-flow audit › submits a weekly mutation run through mocked callables 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.click: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByTestId('dock-tab-challenges')
+        - locator resolved to <button class="" role="tab" aria-selected="false" data-testid="dock-tab-challenges">CHALLENGES</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <button data-testid="deploy-button" class="start-btn deploy-bar-btn ">▶ DEPLOY</button> from <div class="deploy-bar">…</div> subtree intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <span class="yakkob-dwarf-label">dig here?</span> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+      2 × retrying click action
+          - waiting 100ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <canvas width="132" height="116" class="yakkob-dwarf-canvas"></canvas> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+      17 × retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <button data-testid="deploy-button" class="start-btn deploy-bar-btn ">▶ DEPLOY</button> from <div class="deploy-bar">…</div> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <span class="yakkob-dwarf-label">dig here?</span> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <canvas width="132" height="116" class="yakkob-dwarf-canvas"></canvas> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <canvas width="132" height="116" class="yakkob-dwarf-canvas"></canvas> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <button data-testid="deploy-button" class="start-btn deploy-bar-btn ">▶ DEPLOY</button> from <div class="deploy-bar">…</div> subtree intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <span class="yakkob-dwarf-label">dig here?</span> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <canvas width="132" height="116" class="yakkob-dwarf-canvas"></canvas> from <button type="button" class="yakkob-dwarf" data-testid="yakkob-dwarf" title="…something's digging down there." aria-label="Something is digging near the challenge dock. Click to investigate.">…</button> subtree intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+
+
+      509 |     test.setTimeout(45_000);
+      510 |     await page.goto('/');
+    > 511 |     await page.getByTestId('dock-tab-challenges').click();
+          |                                                   ^
+      512 |     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible({ timeout: 15_000 });
+      513 |     await page.getByTestId('weekly-mutation-card').click();
+      514 |     await page.getByTestId('deploy-button').click();
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/qa-regression.spec.ts:511:51
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/qa-regression-QA-regressio-7d796-un-through-mocked-callables-chromium-mobile/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/qa-regression-QA-regressio-7d796-un-through-mocked-callables-chromium-mobile/error-context.md
+
+  9) [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1398:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('weekly-mutation-card')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      1400 |     await page.getByTestId('dock-tab-challenges').click();
+      1401 |     await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
+    > 1402 |     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
+           |                                                            ^
+      1403 |     await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
+      1404 |     await page.getByTestId('weekly-mutation-card').click();
+      1405 |     await expect(page.getByTestId('weekly-mutation-card')).toHaveClass(/active/);
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:1402:60
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-run-telemetry-model--b4402--gauntlet-absence-is-stable-chromium-mobile/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-run-telemetry-model--b4402--gauntlet-absence-is-stable-chromium-mobile/error-context.md
+
+  10) [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1413:3 › run telemetry model › weekly mutation starts as a wave-one weekly protocol 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByTestId('weekly-mutation-card')
+
+
+      1414 |     await openDemoMenu(page);
+      1415 |     await page.getByTestId('dock-tab-challenges').click();
+    > 1416 |     await page.getByTestId('weekly-mutation-card').click();
+           |                                                    ^
+      1417 |     await page.getByTestId('deploy-button').click();
+      1418 |     await expect(page.getByTestId('game-root')).toBeVisible();
+      1419 |     await expect(page.locator('.daily-strip')).toContainText('WEEKLY');
+        at /home/ethan/projects/games/.agent-worktrees/neon-vector-defense/lanes/anti-slop-nvd-20260904/tests/e2e/ux-ui.spec.ts:1416:52
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ux-ui-run-telemetry-model--45342--a-wave-one-weekly-protocol-chromium-mobile/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ux-ui-run-telemetry-model--45342--a-wave-one-weekly-protocol-chromium-mobile/error-context.md
+
+  10 failed
+    [chromium-desktop] › tests/e2e/demo-mode-audit.spec.ts:326:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI 
+    [chromium-desktop] › tests/e2e/ux-ui.spec.ts:576:3 › desktop UX layout › sector atlas keeps reachable nodes, dock, and utility buttons stable 
+    [chromium-desktop] › tests/e2e/ux-ui.spec.ts:610:3 › desktop UX layout › sector atlas selection, keyboard path, weekly beacon, locks, and deploy launch work 
+    [chromium-desktop] › tests/e2e/ux-ui.spec.ts:847:3 › desktop UX layout › signal palette purchase still confirms 
+    [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1398:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable 
+    [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1413:3 › run telemetry model › weekly mutation starts as a wave-one weekly protocol 
+    [chromium-mobile] › tests/e2e/demo-mode-audit.spec.ts:326:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI 
+    [chromium-mobile] › tests/e2e/qa-regression.spec.ts:508:3 › QA regression real-flow audit › submits a weekly mutation run through mocked callables 
+    [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1398:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable 
+    [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1413:3 › run telemetry model › weekly mutation starts as a wave-one weekly protocol 
+  26 skipped
+  70 passed (10.6m)

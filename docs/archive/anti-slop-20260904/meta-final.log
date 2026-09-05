@@ -1,0 +1,24 @@
+
+> neon-vector-defense@1.0.0 meta:sim
+> tsx scripts/meta-sim.ts
+
+✔ operationsBoard is deterministic for a fixed date
+✔ operationsBoard changes across days
+✔ board has 3 daily + 2 weekly quests
+✔ all quest ids are unique
+✔ xpForRank thresholds are monotonically increasing (ranks 1..30)
+✔ rankFromXp pct ∈ [0,1) and rank ≥ 1 across the XP range
+✔ rank grows with XP
+✔ rewards are non-negative
+✔ abandoned runs grant nothing (anti-farm)
+✔ a win out-rewards a loss at the same wave
+✔ higher difficulty multiplies XP
+✔ today-only → streak 1
+✔ 3-in-a-row → streak 3
+✔ gap-today → brokenYesterday, comeback eligible
+✔ no sessions → streak 0
+✔ engine.ts does NOT import ./meta (ladder isolation)
+✔ towers.ts does NOT import ./meta (ladder isolation)
+✔ bot.ts does NOT import ./meta (ladder isolation)
+
+ALL META CHECKS PASSED

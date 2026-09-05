@@ -2,6 +2,52 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-04 — Anti-slop cleanup and verification repairs
+
+Removed three unused protocol-drill aliases and two duplicated CI assertions;
+retained the actual leaderboard implementations, dedicated balance assertions,
+and original bytes under `docs/archive/anti-slop-20260904/`.
+
+Fixed replay verification and playback advancing an extra tick when comparing
+floating-point seconds. Both now compare the integer ticks already recorded in
+the action stream. The original freeplay seed 337 ended at 73,265 live kills
+versus 73,255 replay kills; the repaired deep-run test verifies exact kills,
+credits, and final tick in client playback as well as server verification.
+Combat math, actions, codec, and replay version remain unchanged. Repaired useful
+fixtures to fund Watchfire, record enough starting lives for Recalibrate, and
+check the actual 16-map roster without weakening their behavioral assertions.
+
+The weekly beacon now selects and focuses the actual dock occupant, including
+unlocked YAKKOB. The dwarf unlock sits in normal rail flow without covering dock
+controls and remains available in narrow portrait mode. Scrollable menu layouts
+retain their content height; narrow protocol cards stack names and descriptions
+instead of splitting names mid-word. The recommendation screenshot now captures
+the Recruit card and retains geometric assertions at real screen sizes; older
+clipped full-dock images are archived. These preserve the review rules recorded
+in `docs/intent.md`.
+
+Palette purchases now await the shared server entitlement transaction before
+equipping or announcing success. Rejected grants preserve ownership. Demo
+entitlement loading and purchase attempts stop before authentication using the
+canonical demo predicate; the recruiter journey explicitly checks both paths
+and retains its no-write assertion. The shared predicate's optional Vite env
+access also supports existing Node verification. Browser module fixtures match
+URL pathnames so Vite timestamp parameters cannot bypass mocked callables;
+weekly fixtures explicitly exercise the locked state, while demo assertions keep
+the intended unlocked YAKKOB state.
+
+Verification: engine 139/139; headless replay three seeds, each proving honest
+verification, tamper rejection, and bounded execution; meta isolation checks;
+security 82/82 with no skips; focused layout/unlock 4/4; final full browser
+81 passed with 27 platform/preview skips; final application build passed.
+Durable logs and reviewed
+portrait/landscape images are indexed in `docs/archive/anti-slop-20260904/README.md`.
+
+Stream check: earlier replay incidents already concern timestamp drift. The
+recorded integer tick is the authority; converting it to a float comparison
+introduced a second timing interpretation. Both replay consumers now carry that
+integer boundary through directly, without another tolerance or side channel.
+
 ## 2026-08-13 - Recorded: the Sectors 13-16 server allowlist never deployed
 
 No code changed. Owner ruling `q-deploy-drift=record_and_stage`

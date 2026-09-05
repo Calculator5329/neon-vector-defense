@@ -1,0 +1,28 @@
+# Anti-slop cleanup: prepared, not landed
+
+Ethan requested behavior-preserving cleanup of this named project on 2026-09-04.
+The worktree retains original bytes, the cleanup, and verification output.
+
+Changed: three unused leaderboard aliases, two duplicated CI assertions, and
+three stale engine fixtures (16-map roster, Watchfire affordability, Recalibrate
+survival resources recorded in replay). No production gameplay or replay code
+was changed. The fixtures keep their original behavioral assertions.
+
+Build passed; focused CI tests passed 16/16. Three corrected fixture checks
+passed. After those repairs, the engine runner passed 17 of 18 test files,
+with only reSimulate.test.ts failing. The original engine run passed 135/139; the remaining freeplay mismatch
+is also reproducible against unchanged source. See replay-base.log.
+
+Full browser verification: 70 passed, 26 skipped, 10 failed. Failures concern the
+weekly card, recruiter flow, atlas layout/selection, and palette purchase. Their
+root causes have not all been established; do not label them all pre-existing.
+See e2e.log; screenshots remain in the retained worktree's test-results/.
+
+The source changes are uncommitted because required verification remains red.
+Next: repair the live/replay disagreement and diagnose the browser failures,
+then run the unchanged required checks and land this cleanup.
+
+Future retirement candidates (not removed): the unused consent subscription
+mechanism, and client source-string policing tests where real caller behavior
+coverage can replace them. Server emulator checks alone do not prove correct
+client append-only calls, so those source tests were retained in this pass.

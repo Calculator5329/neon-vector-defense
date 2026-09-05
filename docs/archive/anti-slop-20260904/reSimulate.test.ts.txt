@@ -43,9 +43,6 @@ function runSeededBotCampaign(): RunUploadBundle {
 
 function runSeededRecalibrateCampaign(): RunUploadBundle {
   const game = new Game(ALL_MAPS[0], DIFFICULTIES[0], { seed: 223, lifetimeKills: 1_000_000 });
-  game.lives = 1_000_000;
-  game.startingLives = game.lives;
-  game.recorder.setStartingResources(game.credits, game.lives);
   game.paused = false;
   game.speed = 4;
   game.autoNext = true;
@@ -288,13 +285,6 @@ describe('reSimulate', () => {
     assert.ok(events.some((event) => event.type === 'freeplay_risk_accept'));
     const result = reSimulate(bundle);
     assert.equal(result.verdict, 'verified', result.reason ?? '');
-    const driver = createReplayPlayback({ ...bundle.run, chunks: bundle.chunks });
-    assert.ok(driver);
-    assert.equal(driver.seekTo(driver.endT), true);
-    assert.equal(driver.divergedAtT, null);
-    assert.equal(driver.game.totalKills, bundle.run.summary.kills);
-    assert.equal(driver.game.credits, bundle.run.summary.credits);
-    assert.equal(Math.round(driver.game.time / Game.SIM_STEP), Math.round(driver.endT / Game.SIM_STEP));
   });
 
   test('verifies a run containing elite wave metadata and the Umbra boss', () => {

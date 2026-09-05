@@ -1,0 +1,28 @@
+
+> neon-vector-defense@1.0.0 build
+> tsc && vite build
+
+vite v8.1.3 building client environment for production...
+[2Ktransforming...✓ 124 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/build-tag.json                        0.01 kB │ gzip:   0.03 kB
+dist/index.html                            2.94 kB │ gzip:   0.96 kB
+dist/assets/AdminDashboard-BAfKrLGd.css   27.80 kB │ gzip:   5.46 kB
+dist/assets/index-C297UzxZ.css           119.57 kB │ gzip:  24.15 kB
+dist/assets/PrivacyView-uoBJBFTn.js        6.52 kB │ gzip:   2.50 kB
+dist/assets/consent-Bbux704t.js            7.96 kB │ gzip:   2.88 kB
+dist/assets/ReplayViewer-J0mZ26QC.js      37.38 kB │ gzip:  13.18 kB
+dist/assets/index.esm-CqyUdbYJ.js         86.16 kB │ gzip:  25.40 kB
+dist/assets/firebase-BS1gpcI1.js         101.01 kB │ gzip:  34.65 kB
+dist/assets/react-DaE0JZwD.js            189.62 kB │ gzip:  59.64 kB
+dist/assets/AdminDashboard-BwvxNeem.js   195.90 kB │ gzip:  46.41 kB
+dist/assets/index.esm-Cm3YeISZ.js        516.89 kB │ gzip: 147.29 kB
+dist/assets/index-Dtu1MLli.js            636.47 kB │ gzip: 156.17 kB
+
+✓ built in 1.67s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

@@ -3420,7 +3420,6 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .menu-root { padding-bottom: 92px; overflow-y: auto; }
   .menu-layout {
     width: 100%;
-    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -3683,24 +3682,13 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 }
 
 @media (max-width: 560px) {
-  .diff-card.atlas-protocol-row { grid-template-columns: 1fr; }
-  .atlas-protocol-row .diff-desc { text-align: left; }
   /* narrow cards can't hold the nowrap daily title — let it wrap again */
   .diff-card.daily-protocol .diff-name { white-space: normal; font-size: 11px; }
   .commander-rail {
     grid-template-columns: 1fr;
     padding: 10px;
   }
-  .menu-tab-deploy .commander-rail:not(:has(.yakkob-dwarf)) {
-    display: none;
-  }
-  .menu-tab-deploy .commander-rail:has(.yakkob-dwarf) {
-    display: flex;
-    padding: 0;
-    border: 0;
-    background: none;
-  }
-  .menu-tab-deploy .commander-rail > :not(.yakkob-dwarf) {
+  .menu-tab-deploy .commander-rail {
     display: none;
   }
   .rail-stats { grid-template-columns: 1fr 1fr; }
@@ -4647,8 +4635,9 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
 
 /* ---- the digging dwarf: the unlock ritual ---- */
 .yakkob-dwarf {
-  position: relative;
-  align-self: flex-end;
+  position: absolute;
+  right: 22px;
+  bottom: 96px;
   z-index: 40;
   display: flex;
   flex-direction: column;

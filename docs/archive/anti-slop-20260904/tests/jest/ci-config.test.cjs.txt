@@ -41,6 +41,8 @@ describe('CI/CD guardrails', () => {
     expect(ciWorkflow).not.toContain('npm run sim:quick');
     expect(ciWorkflow).not.toContain('Quick Simulation');
     expect(ciWorkflow).toContain('npm run perf:quick');
+    expect(ciWorkflow).toContain('npm run balance:gate');
+    expect(ciWorkflow).toContain('[balance-intended]');
     expect(playwrightConfig).toContain('retries: process.env.CI ? 1 : 0');
     expect(playwrightConfig).toContain("['html', { open: 'never' }]");
     expect(ciWorkflow).toContain('pull-requests: read');

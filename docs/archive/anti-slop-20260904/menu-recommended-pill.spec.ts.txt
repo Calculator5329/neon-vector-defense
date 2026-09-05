@@ -65,8 +65,6 @@ test.describe('first-time RECOMMENDED protocol pill', () => {
       return {
         pillBottom: p.bottom,
         nameTop: n.top,
-        nameBottom: n.bottom,
-        descTop: d.top,
         pillOverlapsName: overlaps(p, n),
         pillOverlapsDesc: overlaps(p, d),
         nameDescSameRow: Math.abs(n.top - d.top) < 6,
@@ -88,23 +86,18 @@ test.describe('first-time RECOMMENDED protocol pill', () => {
     const isWide = (page.viewportSize()?.width ?? 0) >= 700;
     if (isWide) {
       expect(geom.nameDescSameRow, 'name + description should share one row beneath the pill').toBe(true);
-    } else {
-      expect(geom.nameBottom, 'narrow cards must stack the description below the intact protocol name').toBeLessThanOrEqual(geom.descTop + 1);
     }
 
-    // Visual guard: freeze animation and pixel-snapshot the Recruit card so
+    // Visual guard: freeze animation and pixel-snapshot the protocol dock so
     // future spacing/placement regressions are also caught by image diff. The
-    // card screenshot excludes other protocol rows and their incidental overlap
-    // with fixed navigation, while retaining the pill/name/description regression.
-    // Baseline regenerates with `--update-snapshots`.
+    // element screenshot excludes the animated starfield background, so it is
+    // stable. (Baseline regenerates with `--update-snapshots`.)
     //
     // Only the linux baseline is committed; the geometric assertions above are
     // the cross-platform guard, so skip the pixel diff where no baseline exists
     // rather than fail a Windows/mac run on a missing snapshot.
     if (process.platform === 'linux') {
-      const recruit = page.getByTestId('diff-card-easy');
-      await recruit.evaluate((card) => card.scrollIntoView({ block: 'center' }));
-      await expect(recruit).toHaveScreenshot('recommended-pill-card.png', {
+      await expect(page.getByTestId('diff-row')).toHaveScreenshot('recommended-pill-dock.png', {
         animations: 'disabled',
         maxDiffPixelRatio: 0.02,
       });

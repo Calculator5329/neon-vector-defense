@@ -1,0 +1,28 @@
+
+> neon-vector-defense@1.0.0 test:e2e
+> node ./tests/e2e/run-playwright.mjs --grep walks the full recruiter|submits a weekly|weekly ops are|signal palette purchase --trace on
+
+[vite:react-swc] We recommend switching to `@vitejs/plugin-react` for improved performance as no swc plugins are used. More information at https://vite.dev/rolldown
+
+Running 10 tests using 1 worker
+
+(node:3960173) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium-desktop] › tests/e2e/demo-mode-audit.spec.ts:328:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI (10.4s)
+  ✓   2 [chromium-desktop] › tests/e2e/qa-regression.spec.ts:508:3 › QA regression real-flow audit › submits a weekly mutation run through mocked callables (1.6s)
+  ✓   3 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:850:5 › desktop UX layout › signal palette purchase confirms a server grant (1.4s)
+  ✓   4 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:850:5 › desktop UX layout › signal palette purchase preserves ownership after server rejection (1.3s)
+  ✓   5 [chromium-desktop] › tests/e2e/ux-ui.spec.ts:1426:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable (2.1s)
+(node:3966570) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+8:24:46 PM [vite] (client) [console.warn] [2026-09-05T01:24:46.858Z]  @firebase/firestore: Firestore (12.15.0): WebChannelConnection RPC 'Listen' stream 0x6020f3d6 transport errored. Name: undefined Message: undefined
+8:24:46 PM [vite] (client) [console.error] [2026-09-05T01:24:46.859Z]  @firebase/firestore: Firestore (12.15.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+  ✓   6 [chromium-mobile] › tests/e2e/demo-mode-audit.spec.ts:328:3 › recruiter demo-mode audit › walks the full recruiter journey with no demo gates or broken UI (9.8s)
+  ✓   7 [chromium-mobile] › tests/e2e/qa-regression.spec.ts:508:3 › QA regression real-flow audit › submits a weekly mutation run through mocked callables (2.2s)
+  -   8 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:850:5 › desktop UX layout › signal palette purchase confirms a server grant
+  -   9 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:850:5 › desktop UX layout › signal palette purchase preserves ownership after server rejection
+  ✓  10 [chromium-mobile] › tests/e2e/ux-ui.spec.ts:1426:3 › run telemetry model › weekly ops are discoverable and gauntlet absence is stable (2.8s)
+
+  2 skipped
+  8 passed (34.2s)

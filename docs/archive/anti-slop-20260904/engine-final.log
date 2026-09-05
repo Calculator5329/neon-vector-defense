@@ -1,0 +1,225 @@
+
+> neon-vector-defense@1.0.0 test:engine
+> tsx --test tests/unit/*.test.ts
+
+▶ admin balance editor helpers
+  ✔ clamps malformed multipliers and sanitizes version text (1.108983ms)
+  ✔ prunes identity values into a sparse publish doc (0.45147ms)
+  ✔ reports active override paths in stable order (0.352088ms)
+  ✔ previews tower overrides without mutating static definitions (0.502934ms)
+✔ admin balance editor helpers (3.199822ms)
+▶ admin live-ops insights
+  ✔ computes per-protocol survival curves and cliffs (3.30638ms)
+  ✔ groups abandonment spikes by wave, cohort, and cash float (0.649429ms)
+  ✔ flags dead and dominant towers from real-player usage (6.761343ms)
+  ✔ compares active and baseline builds independently (2.130494ms)
+✔ admin live-ops insights (14.267795ms)
+▶ analytics schema defaults
+  ✔ normalizes sparse and mistyped private analytics rows to the v2 shape (1.405624ms)
+✔ analytics schema defaults (2.148909ms)
+▶ audio asset coverage
+  ✔ music packs, sector ambience, stingers, briefing, and voice lines exist (1.241522ms)
+✔ audio asset coverage (1.874066ms)
+▶ daily challenge overrides
+  ✔ applies an override to the same deterministic daily shell (0.97205ms)
+  ✔ ignores overrides for a different date (0.358761ms)
+  ✔ sanitizes override documents and rejects malformed IDs (2.408606ms)
+  ✔ exports concrete modifier catalogs for admin selectors (0.397267ms)
+✔ daily challenge overrides (7.67396ms)
+▶ retired target-practice interstitial
+  ✔ never offers a bonus round in a live game (2.085109ms)
+  ✔ keeps the retired mechanic available for historical replay actions (0.353414ms)
+✔ retired target-practice interstitial (2.938118ms)
+▶ damage resistance rules
+  ✔ cryo-resistant hull takes reduced cryo damage unless shred is active (0.597648ms)
+  ✔ explosive-resistant and armored hulls take reduced damage, partial under first Exposed stack (0.276788ms)
+  ✔ energy resistance from resist map reduces energy damage and is stripped by shred (0.321686ms)
+  ✔ Mirror Hull snapshots the leading damage type deterministically (0.579932ms)
+  ✔ each Mirror Hull spawn re-reads the run damage ledger (0.208392ms)
+  ✔ Recalibrate clears adaptation and weakens live Mirror Hulls temporarily (1.00581ms)
+  ✔ Exposed stacks cap, refresh, and decay deterministically on fixed steps (0.292314ms)
+  ✔ shred setup makes follow-up kinetic damage exceed either tower alone (0.227038ms)
+✔ damage resistance rules (3.901597ms)
+▶ phantom cloak telemetry and preview flags
+  ✔ phantom hulls are tagged cloaked at spawn even when the wave entry is not cloaked (0.166175ms)
+  ✔ phantom leaks increment cloaked leak telemetry counters (1.410659ms)
+  ✔ preview grouping flags waves with inherently cloaked enemy types (0.118467ms)
+  ✔ wave preview warning is triggered by inherently cloaked wave types (0.070206ms)
+  ✔ telemetry infers cloaked leaks for inherently cloaked IDs when leak traits are absent (0.194744ms)
+  ✔ watchfire sweep marks cloaked hulls as revealed (1.013001ms)
+✔ phantom cloak telemetry and preview flags (3.223514ms)
+▶ elite affixes and Umbra encounter rules
+  ✔ elite affix planning is deterministic and skips boss groups (2.731223ms)
+  ✔ shielded elites absorb damage before hp and return only hp damage (0.299124ms)
+  ✔ splitting elites add bounded non-elite children on death (0.41311ms)
+  ✔ bulwark elites reduce nearby non-boss hull damage without protecting themselves (0.132055ms)
+  ✔ Umbra transitions through phase-shift and enrage with replay events (4.059579ms)
+✔ elite affixes and Umbra encounter rules (7.870299ms)
+▶ storage normalization
+  ✔ repairs malformed persisted shapes without dropping extension fields (0.574134ms)
+  ✔ drops retired protocol records from old saves (0.160849ms)
+✔ storage normalization (0.810123ms)
+▶ freeplay correctness guards
+  ✔ Firestore sanitizer removes nested undefined from replay upload docs (0.184885ms)
+  ✔ public replay bundles never contain undefined Firestore fields (0.583863ms)
+  ✔ replay manifest hashes encoded r3 action packs in stable chunk order (0.159822ms)
+  ✔ risk packets cannot be accepted unless they were actually offered (0.492528ms)
+  ✔ checkpoint banking only succeeds once per new freeplay build wave (0.252198ms)
+  ✔ daily challenge is deterministic by UTC date and rotates modifiers (0.505161ms)
+  ✔ daily challenge starts as a normal wave-1 run with no freeplay multiplier (0.5901ms)
+  ✔ daily challenge arsenal, twist, and boon knobs affect the Game (0.359532ms)
+✔ freeplay correctness guards (3.263272ms)
+▶ engine correctness fixes
+  ✔ spire-revealed cloaked hulls are hit by non-detector projectiles (0.35648ms)
+  ✔ burn damage credits the applying tower and weaker burns never override stronger ones (0.212786ms)
+  ✔ multiple same-tick leaks at zero cores end the run exactly once (0.474234ms)
+  ✔ placeTower rejects locked towers even when the shop UI is bypassed (0.254427ms)
+  ✔ targeted strike needs a target and cannot fire after the run ends (0.11403ms)
+✔ engine correctness fixes (1.493011ms)
+▶ arsenal balance additions
+  ✔ tower unlock curve leaves most arsenal locked after a first Recruit clear (0.143717ms)
+  ✔ remote balance knobs cover projectile, splash, slow, burn, enemy speed, and ability cooldown (0.412444ms)
+  ✔ new tower upgrade tracks make monotonic stat progress (0.299269ms)
+  ✔ Tesla chain lightning does not bounce onto already chained hulls (0.393256ms)
+  ✔ Harmonic Siphon consumes and spreads resonance stacks (0.366644ms)
+  ✔ Vector Lure focus marks drive target selection (0.43727ms)
+  ✔ target filters prefer matching archetypes and fall back to normal target mode (0.413714ms)
+✔ arsenal balance additions (2.589113ms)
+▶ deterministic simulation hooks
+  ✔ same seed reproduces gameplay randomness and per-instance entity uids (0.259061ms)
+  ✔ unlock gating honors the lifetimeKills snapshot, not the live save (0.143973ms)
+  ✔ simulation advances in exact fixed steps with a carried remainder (0.125147ms)
+✔ deterministic simulation hooks (0.588897ms)
+▶ consent privacy invariants (CCPA/GPC)
+  ✔ sale opt-out forces the restricted tier but never blocks adult scores (0.216649ms)
+  ✔ under-13 is a permanent restricted path: may play, never post (0.056371ms)
+✔ consent privacy invariants (CCPA/GPC) (0.317641ms)
+▶ build freshness
+  ✔ stale only when a real differing tag arrives, never in dev (0.068112ms)
+✔ build freshness (0.093491ms)
+▶ server deletion helpers
+  ✔ keeps unique valid run ids from leaderboard score rows (0.134093ms)
+  ✔ public run deletion requires corroboration beyond the owner index (0.074215ms)
+  ✔ corroborated-only run ids are deletable even without an owner row (0.049936ms)
+✔ server deletion helpers (0.301032ms)
+▶ bot rival profile helpers
+  ✔ returns current-sector bot profiles in difficulty order (0.215507ms)
+  ✔ wave zero uses a true pre-wave starting point (0.098341ms)
+✔ bot rival profile helpers (0.353293ms)
+▶ bot fairness and live run context
+  ✔ effective starting lives reflect remote balance overrides (0.18617ms)
+  ✔ bot falls back instead of building locked planned towers (9.022577ms)
+✔ bot fairness and live run context (9.275485ms)
+▶ extinction bounty multipliers
+  ✔ applies early-extinction wave bounty bonus from balance config only for waves 1-15 (0.7383ms)
+✔ extinction bounty multipliers (0.771864ms)
+▶ gauntlet protocol
+  ✔ weekly route is deterministic and has three distinct shipped sectors (0.819051ms)
+  ✔ shortened wave tables have the approved leg counts (0.281244ms)
+  ✔ bank math carries all cores and floors sixty percent credits (0.075335ms)
+  ✔ draft offers are seeded and exclude owned relics (0.12187ms)
+  ✔ leg metadata is recorded into replay setup and summary (1.84905ms)
+✔ gauntlet protocol (3.69579ms)
+▶ late-game scaling curve
+  ✔ late growth starts at wave 35 across all difficulty tiers (0.641861ms)
+  ✔ late-game multipliers are pinned per tier at wave 40 (0.193197ms)
+  ✔ late-game multipliers remain pinned across tiers in wave 50 (0.129395ms)
+  ✔ late-game multiplier curve is data-driven via difficulty curve config (0.098809ms)
+  ✔ late-game ramp is stricter after wave 40 to pressure endgame (0.110764ms)
+✔ late-game scaling curve (2.146847ms)
+▶ local data cleanup
+  ✔ prunes stale replay tokens and feedback receipts without blocking fresh local data (1.350131ms)
+✔ local data cleanup (2.656622ms)
+▶ map version registry
+  ✔ every current map resolves to itself by its own hash (0.82978ms)
+  ✔ legacy geometry hashes are frozen (append-only registry) (0.155989ms)
+  ✔ legacy hashes resolve to the historical geometry, cosmetics from the live map (0.830982ms)
+  ✔ unknown hash resolves to null, missing hash falls back to the live map (0.22701ms)
+✔ map version registry (2.629941ms)
+▶ replays recorded on re-tuned maps
+  ✔ contested spot is NOT buildable on the current foundry (test premise) (1.19655ms)
+  ✔ re-simulation verifies a run recorded on the legacy geometry (83.381495ms)
+  ✔ frame-accurate playback keeps every tower and reports no divergence (60.225729ms)
+  ✔ a run pinned to the WRONG geometry diverges loudly instead of silently dropping towers (51.316268ms)
+✔ replays recorded on re-tuned maps (196.344341ms)
+▶ snapshot-less reconstruction tower roster
+  ✔ all placed towers survive the fallback reconstruction (final.towers is capped) (8.390947ms)
+✔ snapshot-less reconstruction tower roster (8.475666ms)
+▶ map data
+  ✔ campaign atlas contains sixteen unique sector ids in progression order (0.717329ms)
+  ✔ all sectors keep path geometry inside the playfield after spawn and before exit (0.350146ms)
+  ✔ blocker discs clear the full lane width on every segment (0.501495ms)
+  ✔ new sectors preserve their intended geometry roles (0.18733ms)
+✔ map data (2.402537ms)
+▶ reSimulate
+  ✔ verifies a seeded public campaign run (211.734576ms)
+  ✔ verifies a seeded daily challenge run (214.455743ms)
+  ✔ verifies a seeded weekly mutation run (40.341558ms)
+  ✔ verifies replayed veteran-deploy-style place and upgrade actions (36.100007ms)
+  ✔ verifies a seeded run with target_filter actions and shred usage (90.97403ms)
+  ✔ verifies a deep freeplay run with relic and risk choices (2344.339155ms)
+  ✔ verifies a run containing elite wave metadata and the Umbra boss (4854.52382ms)
+  ✔ flags a tampered summary as divergent (178.164394ms)
+  ✔ flags a ghost-run summary (impossible wave/kills/leaks/duration) as divergent (197.828997ms)
+  ✔ flags a tampered player action as divergent (84.683142ms)
+  ✔ flags a tampered target_filter action as divergent (40.875927ms)
+  ✔ flags tampered encoded actions with a stale manifest as unverifiable (88.064322ms)
+  ✔ re-verifies from its embedded balance snapshot after live balance changes (380.770425ms)
+  ✔ marks runs recorded under a different engine behavior as unverifiable (91.101394ms)
+  ✔ verifies r3 ability_cast actions for Recalibrate (1191.902068ms)
+  ✔ treats identity-balance runs as verifiable only under identity balance (197.339369ms)
+✔ reSimulate (10244.412ms)
+▶ mid-run unlock availability
+  ✔ re-sim verifies a run that places a tower unlocked mid-run (191.733484ms)
+  ✔ playback driver re-applies the mid-run-unlocked placement without desync (193.599639ms)
+  ✔ sub-tick backward jitter never rebuilds from the seed (125.31612ms)
+✔ mid-run unlock availability (510.787359ms)
+▶ playback driver budgeted seeks
+  ✔ budget-sliced seeks converge to the same state as a synchronous seek (251.665991ms)
+  ✔ rewind re-simulates deterministically (283.246753ms)
+✔ playback driver budgeted seeks (535.002905ms)
+▶ replay determinism under variable frame pacing
+  ✔ jittered dt yields byte-identical kill frames and summary as uniform dt (176.549717ms)
+  ✔ a second independent jitter seed converges to the same run (125.594635ms)
+✔ replay determinism under variable frame pacing (302.696863ms)
+▶ replay v3 fidelity
+  ✔ public replay payload is compact schema v3 action data (269.348482ms)
+  ✔ server re-simulation verifies the decoded v3 action stream (288.926807ms)
+  ✔ client playback driver reproduces final run state and deterministic seeks (655.437955ms)
+  ✔ budgeted seeks converge to the identical state as synchronous seeks (384.778834ms)
+  ✔ playback gate keeps campaign-scale runs frame-accurate, drops marathons on duration (112.180066ms)
+✔ replay v3 fidelity (1711.384293ms)
+▶ r3 replay action codec
+  ✔ round-trips every re-simulation action shape (2.026776ms)
+  ✔ decodes root plus chunks with the shared tower table (0.517736ms)
+  ✔ rejects non-monotonic simTick streams (0.389027ms)
+  ✔ filters unsupported telemetry events before encoding (0.137363ms)
+  ✔ canonicalizes target_filter payloads through the r3 bitmask (0.199814ms)
+✔ r3 replay action codec (4.233877ms)
+▶ hosting security headers
+  ✔ ships a CSP with the app runtime dependencies allowlisted (0.973332ms)
+  ✔ keeps baseline browser hardening headers (0.233715ms)
+✔ hosting security headers (1.8915ms)
+▶ firestore security rules
+  ✔ validate nested replay and private analytics summaries (0.528872ms)
+✔ firestore security rules (1.833369ms)
+▶ weekly challenge
+  ✔ uses UTC ISO week ids and stacks three twists (0.75023ms)
+  ✔ applies a weekly override without changing the deterministic shell (0.578044ms)
+  ✔ sanitizes weekly override and gauntlet docs (0.237088ms)
+✔ weekly challenge (2.104138ms)
+▶ THE YAKKOB special edition
+  ✔ is flagged special and locked to exactly Prism Array + Watchfire Beacon (0.974964ms)
+  ✔ the buildable pool is ONLY those two towers — no pulse, no anything else (0.260923ms)
+  ✔ costs are discounted so the opening is playable (0.104647ms)
+  ✔ helpers identify the challenge and its squished towers (0.098709ms)
+  ✔ the id is not a date-keyed board, so it never reaches the online daily leaderboards (0.130061ms)
+✔ THE YAKKOB special edition (2.479984ms)
+ℹ tests 139
+ℹ suites 37
+ℹ pass 139
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11662.420222
