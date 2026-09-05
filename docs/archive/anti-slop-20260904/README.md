@@ -2,8 +2,8 @@
 
 Ethan authorized cleanup and subsequent repairs in this named project for this
 work block; `docs/intent.md` records scope and review corrections. The retained
-lane is `anti-slop-nvd-20260904`. Canonical integration is the root session's next
-step after completed lane verification.
+lane is `anti-slop-nvd-20260904`. Verification below covers the reviewed lane;
+Git history records canonical integration.
 
 ## Repaired and verified
 
