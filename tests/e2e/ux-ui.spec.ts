@@ -1444,7 +1444,6 @@ test.describe('run telemetry model', () => {
     await expect(page.getByTestId('weekly-mutation-card')).toHaveCount(0);
     await page.getByTestId('weekly-ops-beacon').click();
     await expect(page.getByTestId('yakkob-card')).toBeFocused();
-    await test.info().attach('portrait-unlocked-dock', { body: await page.screenshot(), contentType: 'image/png' });
   });
 
   test('weekly mutation starts as a wave-one weekly protocol', async ({ page }) => {
