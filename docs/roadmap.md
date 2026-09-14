@@ -25,6 +25,26 @@ Last updated: 2026-07-26 (agent-guide hygiene)
   need a `submitYakkobScore`-style Cloud Function + Firestore rules + collection — an
   **Ethan-only deploy**. Left as a follow-up.
 
+## Now — owner request and site sweep (Ethan, 2026-09-13)
+
+Ethan's ask, verbatim: "remove salvage signal feature from NVD in its
+entirety, it is glitchy. as well as the next wave stuff." Both items are
+`src/` work and this repo is fenced `docs-only`, so nothing below is started
+until Ethan promotes the fence (see the open promotion request further down)
+or lands it himself. The scope is filed here so the promotion can be a
+one-word answer.
+
+- [ ] [ETHAN] **Fence promotion or a go for the two removals below.** Options: (A) promote `games/neon-vector-defense` to `agents: full` in `workspace.json` for this pass; (B) keep docs-only and Ethan removes them by hand from the file list here; (C) leave both in and close this item. Recommendation: A, the removals touch a dozen files and the tests need re-running.
+- [ ] **Remove the Signal Skins cosmetic bought with Salvage** ("salvage signal feature"). Sites: `src/ui/SignalSkinPicker.tsx`, the "SIGNAL SKINS" section of `src/OperationsBoard.tsx`, `equippedSignalSkin` in `src/game/meta.ts`, `src/game/cosmeticSets.ts`, and the entitlement grant path in `src/game/entitlements.ts`. Scope question for Ethan: (1) Signal Skins only, Salvage wallet stays for daily challenge and free-play unlocks, or (2) the whole Salvage economy (`dailyChallenge.ts`, `freeplay.ts`, `GameScreen.tsx` wallet HUD, Cloud Function grants). Recommendation: (1) first; (2) is a separate pass because entitlements and the seasonal cosmetic track plan depend on the wallet.
+- [ ] **Remove the build-phase wave preview** ("next wave stuff"). Sites: `src/game-ui/GameScreen.tsx` (15 references), `src/game/runTelemetry.ts` (7), `src/game/engine.ts`, `src/game/analyticsSchema.ts`, `src/admin/adminAnalytics.ts`, `src/App.css`, and the README line 46 and roadmap descriptions of the preview. Telemetry fields for the preview should be tombstoned in the schema, not deleted, so old replays still parse.
+
+Site sweep 2026-09-13 (Playwright, 1280×900 and 390×844) against the live
+site, majors only; the full report lists 14 more minor items:
+
+- [ ] **Replay viewer never plays from a `?run=` link**: the page loads, the run resolves, playback never starts. Reachable from every leaderboard row.
+- [ ] **Leaderboard credits and WATCH are unreachable at 390px**: `.menu-root` scrollWidth 536 on a 390 viewport with `overflow-x: hidden`, so the right-hand controls are cut off with no way to scroll to them.
+- [ ] **Portrait HUD pills overlap the ABORT control** at 390×844, so ABORT can be mis-tapped mid-run.
+
 ## Now — owner bug report (Ethan, 2026-07-16 audit review)
 
 - [x] <!-- workspace:id=work:d51dcfb3-b60b-506c-8b1b-14e7f8930d48 --> **BUG: replay playback is inaccurate — enemies don't die accurately.**
