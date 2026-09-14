@@ -1,4 +1,4 @@
-# CLAUDE.md — Lantern 7 (`neon-vector-defense`)
+# CLAUDE.md: Lantern 7 (`neon-vector-defense`)
 
 Workspace conventions apply (`~/projects/CLAUDE.md`, `~/projects/WORKSPACE.md`).
 

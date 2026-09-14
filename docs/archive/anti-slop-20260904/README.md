@@ -1,4 +1,4 @@
-# Anti-slop cleanup and repairs — 2026-09-04
+# Anti-slop cleanup and repairs: 2026-09-04
 
 Ethan authorized cleanup and subsequent repairs in this named project for this
 work block; `docs/intent.md` records scope. The retained
