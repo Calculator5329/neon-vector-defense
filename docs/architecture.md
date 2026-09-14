@@ -54,8 +54,8 @@ The codebase follows a practical three-layer split. UI components observe game s
 
 ### Boot (`main.tsx`)
 
-1. `applyAccessibility()` — reduced-motion and colorblind body classes before first paint
-2. `loadRemoteBalance()` — fire-and-forget fetch of `config/balance` from Firestore
+1. `applyAccessibility()`: reduced-motion and colorblind body classes before first paint
+2. `loadRemoteBalance()`: fire-and-forget fetch of `config/balance` from Firestore
 3. Service worker registration in production (`public/sw.js`)
 4. Top-level React error boundary (portal iframe safety)
 
@@ -113,7 +113,7 @@ Private analytics and live checkpoint data are separate from Battle Plan replays
 | Path / query | Behavior |
 | --- | --- |
 | `/` | Main game (menu + play) |
-| `/?demo=1` | Recruiter demo — all unlocks, no persistence, no score submit |
+| `/?demo=1` | Recruiter demo: all unlocks, no persistence, no score submit |
 | `/?run=<runId>` | Battle Plan replay viewer (lazy-loaded) |
 | `/?perf=<map>&diff=<diff>` | Browser perf harness with expert bot at 4× |
 | `/admin` | Owner console (lazy-loaded; Google Auth + allowlist) |
@@ -129,9 +129,9 @@ unchanged.
 
 Heavy surfaces are lazy-loaded off the player path:
 
-- `AdminDashboard` — `/admin` only
-- `PrivacyView` — `/privacy` only
-- `ReplayViewer` — `?run=` deep links only
+- `AdminDashboard`: `/admin` only
+- `PrivacyView`: `/privacy` only
+- `ReplayViewer`: `?run=` deep links only
 
 ## UI stability rules
 
@@ -180,7 +180,7 @@ Use these rules for all new React chrome:
 
 ## Related docs
 
-- [tech_spec.md](./tech_spec.md) — Firestore schema, Cloud Function contracts, env vars
-- [roadmap.md](./roadmap.md) — shipped features and next priorities
-- [idea_backlog.md](./idea_backlog.md) — full 80-idea audit backlog
+- [tech_spec.md](./tech_spec.md): Firestore schema, Cloud Function contracts, env vars
+- [roadmap.md](./roadmap.md): shipped features and next priorities
+- [idea_backlog.md](./idea_backlog.md): full 80-idea audit backlog
 - [decision_log.md](./decision_log.md) - source-of-truth design decisions

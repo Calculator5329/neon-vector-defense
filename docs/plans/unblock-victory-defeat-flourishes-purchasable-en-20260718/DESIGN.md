@@ -1,14 +1,14 @@
-# DESIGN — Victory/Defeat Flourishes (Run-End Flourish v1)
+# DESIGN: Victory/Defeat Flourishes (Run-End Flourish v1)
 
 **Roadmap item:** *Victory/defeat flourishes. Purchasable end-of-run effects
-(particle bursts, banner styles) — pure UI layer.* (`docs/roadmap.md:209`)
+(particle bursts, banner styles): pure UI layer.* (`docs/roadmap.md:209`)
 **Decision:** APPROVED (Ethan). **Layer:** cosmetic / paid-features backlog.
 
 ---
 
 ## Verb served
 
-*"When my run ends, make the win feel earned and the loss feel cinematic —
+*"When my run ends, make the win feel earned and the loss feel cinematic,
 with an effect I chose and paid for."* A **Run-End Flourish** is a purchasable
 cosmetic that decorates the victory/defeat result overlay with a particle burst
 and a banner-entrance style. Pure viewer-side paint: it changes **nothing** the
@@ -16,16 +16,16 @@ simulation, score, bot, or replay can observe.
 
 ## Consumes (read-only)
 
-- `game.phase` — `'victory' | 'gameover'` (the terminal outcome). Already the
+- `game.phase`: `'victory' | 'gameover'` (the terminal outcome). Already the
   gate for the result `Overlay` in `src/game-ui/GameScreen.tsx:1459,1507`.
 - The overlay accent `color` already passed to `Overlay` (`#2ed573` victory /
-  `#ff4757` defeat, `GameScreen.tsx:1460,1508`) — reused as the flourish tint so
+  `#ff4757` defeat, `GameScreen.tsx:1460,1508`), reused as the flourish tint so
   one flourish reads celebratory on a win and somber on a loss.
-- `meta.equippedFlourish` — the equipped flourish id (viewer-local, from
+- `meta.equippedFlourish`, the equipped flourish id (viewer-local, from
   `nvd-meta-v2` `cosmeticEquipped['flourish']`).
-- `ownsEntitlement('flourish-<id>')` / `meta.salvage` — ownership + affordability
+- `ownsEntitlement('flourish-<id>')` / `meta.salvage`: ownership + affordability
   for the picker (same path as Signal Skins).
-- `window.matchMedia('(prefers-reduced-motion: reduce)')` — accessibility gate.
+- `window.matchMedia('(prefers-reduced-motion: reduce)')`, accessibility gate.
 
 ## Emits (writes)
 
@@ -42,7 +42,7 @@ simulation, score, bot, or replay can observe.
 ### Where it renders
 
 The result screen is the `Overlay` component (`GameScreen.tsx:1994`). It already
-receives `title`, `color`, `art`, and a `report`. Add **one** optional child —
+receives `title`, `color`, `art`, and a `report`. Add **one** optional child,
 a self-contained `<RunEndFlourish outcome color />` mounted inside
 `.result-hero` (behind the title/art, above the backdrop). It:
 
@@ -53,7 +53,7 @@ a self-contained `<RunEndFlourish outcome color />` mounted inside
    for the animated reveal;
 4. tints every particle/keyframe from the passed `color` (outcome-aware);
 5. under `prefers-reduced-motion: reduce`, renders **one static frame** (a
-   still burst) and the plain title — no animation loop, no motion. Same visual
+   still burst) and the plain title, no animation loop, no motion. Same visual
    identity, zero vestibular risk.
 
 The effect fires once per overlay mount (keyed on `game.runId`), never loops, and
@@ -61,7 +61,7 @@ tears down its RAF + canvas on unmount. It is strictly additive: with the
 `standard` (free) flourish and/or reduced-motion, the screen looks essentially as
 it does today.
 
-### The cosmetic registry — `src/game/flourishes.ts` (new)
+### The cosmetic registry: `src/game/flourishes.ts` (new)
 
 Mirror `src/game/cosmeticSets.ts` exactly, including its guardrail header banner
 ("viewer-side paint only; never read by simulation, replay, score, or towers").
@@ -93,12 +93,12 @@ export function displayedFlourish(id = meta.equippedFlourish): Flourish { /* flo
 
 Four tiers reuse the Signal-Skins price ladder shape (0 / 400 / 550 / 800) so the
 store reads consistently. Each `burst` maps to a small pure particle-emitter
-function (spawn N particles with seeded-by-index velocities — **no** `Math.random`
+function (spawn N particles with seeded-by-index velocities, **no** `Math.random`
 in a way that matters; a fixed pseudo-spread keyed on particle index keeps it
 deterministic-looking and lint-clean). Each `banner` maps to a CSS keyframe class
 added to `App.css`.
 
-### Ownership, purchase, equip — reuse the shipped path
+### Ownership, purchase, equip, reuse the shipped path
 
 Identical to `src/ui/SignalSkinPicker.tsx`:
 
@@ -129,20 +129,20 @@ generalize over slot/id.
 
 ## Guardrails honored (roadmap "Guardrails" + repo isolation invariant)
 
-- **Cosmetic / QoL only** — no tower/enemy stats, score math, bot plans, or
+- **Cosmetic / QoL only**, no tower/enemy stats, score math, bot plans, or
   unlock thresholds touched.
-- **Off the engine/score/bot path** — `flourishes.ts` is imported only by UI
+- **Off the engine/score/bot path**: `flourishes.ts` is imported only by UI
   (`FlourishPicker`, the overlay `RunEndFlourish`). The `meta-sim.ts` isolation
   check is extended to assert `engine.ts`/`towers.ts`/`bot.ts` never import
   `./flourishes`.
-- **Replay-identical** — nothing enters the run/replay action stream, the
+- **Replay-identical**: nothing enters the run/replay action stream, the
   manifest, `actionHash`, or schema. Replay playback shows the **viewer's** own
   equipped flourish (same rule as Signal Skins), never the runner's, so
   verification is byte-identical.
-- **No new persistence surface** — equip lives in the already-exported
+- **No new persistence surface**: equip lives in the already-exported
   `nvd-meta-v2` blob, so **no** `PrivacyView` `LOCAL_KEYS` change is needed
   (unlike the season pass). Entitlements persist server-side as today.
-- **Accessibility** — `prefers-reduced-motion` fully honored; overlay remains a
+- **Accessibility**: `prefers-reduced-motion` fully honored; overlay remains a
   keyboard-navigable decision screen (flourish canvas is `aria-hidden`, no focus
   trap, no dismissal behavior change).
 - **Deploys / `firebase` / `npm publish` stay Ethan-only.**
@@ -152,7 +152,7 @@ generalize over slot/id.
 - Four flourishes (1 free + 3 Salvage-priced) selectable in the Operations Board;
   buying charges Salvage through the existing entitlement callable and equips.
 - Winning a run plays the equipped burst + banner in green; losing plays the same
-  flourish in red — both once, ≤1.5 s, self-tearing-down.
+  flourish in red: both once, ≤1.5 s, self-tearing-down.
 - Reduced-motion users get a static, non-animated variant.
 - `npm run meta:sim` proves `flourishes.ts` is off the engine/score/bot path;
   engine/score/replay/bot diffs are empty; `npm test` (e2e gate) green.
@@ -161,7 +161,7 @@ generalize over slot/id.
 
 - Separate victory-vs-defeat flourish slots (v1 uses one outcome-tinted set).
 - Sound-design flourishes / audio stingers.
-- Real-money (Stripe) entitlement — funnels through the same
+- Real-money (Stripe) entitlement: funnels through the same
   `entitlements/{uid}` model when the Monetization MVP lands; no design change
   needed here.
 

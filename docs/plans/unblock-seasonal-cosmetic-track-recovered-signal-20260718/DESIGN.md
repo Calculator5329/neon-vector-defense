@@ -1,4 +1,4 @@
-# Recovered-Signal Pass v1 — Design & Execution Plan
+# Recovered-Signal Pass v1: Design & Execution Plan
 
 **Roadmap item:** "Seasonal cosmetic track (\"Recovered-Signal Pass\" v1). Time-boxed."
 (`docs/roadmap.md`, *Customization & paid-features backlog → Monetization scaffolding*)
@@ -14,14 +14,14 @@ This doc is the plan; DISPATCH.md is the exact follow-up implementation task.
 
 A **time-boxed seasonal cosmetic unlock ladder** with two tracks:
 
-- **Free track** — every player earns these tiers by playing.
-- **Premium track** — the same tiers also drop premium-exclusive cosmetics,
+- **Free track**: every player earns these tiers by playing.
+- **Premium track**, the same tiers also drop premium-exclusive cosmetics,
   gated behind one **entitlement** (`pass-recovered-signal-s1`).
 
 Progress is **fed by the XP the player already earns** (runs, quest claims,
-streak) — no new grind loop. Rewards are **cosmetics + lore fragments only**:
+streak), no new grind loop. Rewards are **cosmetics + lore fragments only**:
 zero combat, score, unlock-threshold, or bot-plan deltas. This is the
-"lore, not power" pass described in `docs/idea_backlog.md:192` — *"needs only a
+"lore, not power" pass described in `docs/idea_backlog.md:192`, *"needs only a
 season window + `tierFromXP()` + the first entitlement field. Zero
 balance/ladder impact."*
 
@@ -46,12 +46,12 @@ Every dependency already exists and is guardrail-clean:
 ### 2.1 Season definition (static, code-defined)
 
 v1 defines seasons in code (deterministic, auditable, testable, no admin
-round-trip). An admin-authored `config/seasonPass` doc — mirroring the existing
+round-trip). An admin-authored `config/seasonPass` doc: mirroring the existing
 `config/weeklyOverride` precedent (`src/game/weeklyChallenge.ts:174`,
-`firestore.rules`) — is a **later** enhancement, explicitly out of scope for v1.
+`firestore.rules`): is a **later** enhancement, explicitly out of scope for v1.
 
 ```ts
-// src/game/seasonPass.ts  (NEW — client-side, cosmetic-only)
+// src/game/seasonPass.ts  (NEW: client-side, cosmetic-only)
 export type PassTrack = 'free' | 'premium';
 
 export interface SeasonReward {
@@ -95,7 +95,7 @@ follow-up task sets; the requirement is a *fixed, code-defined* window.
 
 ### 2.2 Season progress (local, per-device)
 
-New localStorage key **`nvd-season-v1`** — cosmetic progress only:
+New localStorage key **`nvd-season-v1`**: cosmetic progress only:
 
 ```ts
 interface SeasonProgressState {
@@ -106,7 +106,7 @@ interface SeasonProgressState {
 ```
 
 **Season XP** derives from the monotonic `meta.xp`, so *every* XP the player
-already earns feeds the pass — no separate accrual, no double-count risk:
+already earns feeds the pass, no separate accrual, no double-count risk:
 
 ```
 seasonXp(now) = max(0, meta.xp - state.xpBaseline)
@@ -123,10 +123,10 @@ seasonXp` (0 if none). This is the `tierFromXP()` the backlog names.
 
 ### 2.3 Claiming
 
-- `claimableTiers(now)` — tiers with `tier <= tierFromXp(...)`, not in
+- `claimableTiers(now)`: tiers with `tier <= tierFromXp(...)`, not in
   `claimedTiers`, filtered by track access. Premium rewards are only claimable
   when `ownsEntitlement(season.premiumEntitlementId)` is true.
-- `claimTier(track, tier, now)` — validates (reached ∧ track-access ∧
+- `claimTier(track, tier, now)`: validates (reached ∧ track-access ∧
   unclaimed ∧ season not `closed`); on success:
   - **cosmetic reward** → grant into local ownership via a thin new
     `meta.grantLocalCosmetic(id)` (pushes into `cache.cosmetics`, mirroring the
@@ -143,7 +143,7 @@ seasonXp` (0 if none). This is the `tierFromXP()` the backlog names.
 The **only server surface** v1 adds is one catalog entry:
 
 ```ts
-// functions/src/entitlementHelpers.ts — COSMETIC_PRICES
+// functions/src/entitlementHelpers.ts: COSMETIC_PRICES
 'pass-recovered-signal-s1': <salvageCost>,   // e.g. 1200
 ```
 
@@ -154,23 +154,23 @@ change, no new Firestore collection. The pass key lands in
 `entitlements/{uid}.cosmeticIds`; the client reads it via
 `ownsEntitlement('pass-recovered-signal-s1')`.
 
-**Design decision — premium cosmetics are unlocked *locally* once the pass key
+**Design decision: premium cosmetics are unlocked *locally* once the pass key
 is owned.** Rather than a server write per claimed tier, owning the pass key
 lets `claimTier` grant premium-track cosmetics into local ownership (same
 `grantLocalCosmetic` path), gated behind the entitlement check. Rationale:
 
 - The entitlement (the paywall) is server-authoritative and cross-device.
 - Premium cosmetics are **display-only viewer paint** (never in sim/score/
-  replay), so a local grant is guardrail-safe — the same trust model the whole
+  replay), so a local grant is guardrail-safe, the same trust model the whole
   cosmetic layer already uses.
 - Keeps the server delta to a single frozen-catalog line.
 
 **Cross-device caveat (documented, acceptable for v1):** season *progress*
 (`xpBaseline`, `claimedTiers`) and `meta.xp` are already device-local across the
 whole meta layer. A player who owns the pass key re-derives premium unlocks
-from local play on each device. A later upgrade — server-persisted pass
+from local play on each device. A later upgrade: server-persisted pass
 progress under `entitlements/{uid}` or a `passProgress/{uid}` doc with a
-`deleteMyData` phase — is noted as future work, not v1.
+`deleteMyData` phase: is noted as future work, not v1.
 
 **Real-money later:** `grantSalvageEntitlement` already documents the webhook
 seam (a payment source can grant the same entitlement id). When the
@@ -179,21 +179,21 @@ webhook with no client change. v1 uses Salvage only.
 
 ---
 
-## 4. Content (v1 — lore-not-power)
+## 4. Content (v1: lore-not-power)
 
 To ship v1 with **zero new-art dependency and zero balance risk**, rewards use:
 
-1. **New `unlockOnly` accent palettes** (`src/game/palette.ts`) — a palette is
+1. **New `unlockOnly` accent palettes** (`src/game/palette.ts`), a palette is
    just `{ id, name, color, cost: 0, unlockOnly: true }`. `unlockOnly` palettes
    are **earned-only, never in the Salvage store** (`ownsPalette` requires
    `meta.owns('palette-<id>')`), so they don't undercut priced cosmetics. A few
    free-track palettes + one or two premium-exclusive palettes.
-2. **Lore fragments** — new display-only text data (the genuinely new content;
+2. **Lore fragments**, new display-only text data (the genuinely new content;
    the ARCHIVE-style arc the backlog describes). A small `SeasonLore[]` table
    (id, title, body); voiced/illustrated production via genvox/genart is a
    separate content run, not code.
 3. *(optional, if desired)* one premium-exclusive signal skin
-   (`src/game/cosmeticSets.ts`) — a new `COSMETIC_SETS` entry is cheap (colors
+   (`src/game/cosmeticSets.ts`), a new `COSMETIC_SETS` entry is cheap (colors
    only). Kept minimal; palettes + lore satisfy v1.
 
 No new tower/enemy/map/score/bot code. Cosmetics render through the **existing**

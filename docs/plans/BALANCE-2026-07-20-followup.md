@@ -1,4 +1,4 @@
-# Balance follow-up — 2026-07-20
+# Balance follow-up: 2026-07-20
 
 > **UPDATE (2026-07-20, post-review + implementation).** Two of the four
 > recommendations below were **corrected by data** once verified against the
@@ -18,10 +18,10 @@
 >   bot dying at ~wave 16 on cloak-free Recruit is bot weakness. **Closed.**
 > - **(3) Mastery routing** shipped: a "you've outgrown Recruit → Veteran" nudge on
 >   a dominant Recruit clear (kept ≥70% cores, no Veteran progress yet).
-> - **(2) Validate late-game scaling** — still open. The sim bot is too weak to
+> - **(2) Validate late-game scaling**, still open. The sim bot is too weak to
 >   validate the "2-tower minimal clear" exploit; needs fresh real-player runs or a
 >   hand-authored 2-tower scenario test. **Ethan constraint recorded: Apex and
->   Extinction must not get any easier** — all shipped changes are Veteran-only /
+>   Extinction must not get any easier**, all shipped changes are Veteran-only /
 >   informational and touch no enemy HP.
 >
 > Original analysis preserved below for the record.
@@ -48,7 +48,7 @@ against fresh runs**.
 
 ### The sim bot is not a difficulty oracle
 Fresh quick-sim (2 seeds/cell, current master): rookie/standard/**expert** bots
-all die around wave 13–16 on Recruit — the *easiest* setting, no cloaks — winning
+all die around wave 13–16 on Recruit, the *easiest* setting, no cloaks, winning
 0/2 everywhere. Meanwhile the 07-18 real-player data shows humans clearing Recruit
 with **2 towers and 54k credits unspent**. The bot is dramatically weaker than a
 real player, so its absolute win-rates measure bot competence, not human
@@ -72,7 +72,7 @@ Difficulty knobs (`src/game/maps.ts` `DIFFICULTIES`):
 
 Stepping Recruit → Veteran hits a new player with **all at once**: enemy HP
 +56% (0.9→1.4), lives −40%, starting cash −22%, phase-cloaks introduced, and
-+10 waves. That is the "punishing to learn, then trivial to master" shape — the
++10 waves. That is the "punishing to learn, then trivial to master" shape, the
 classic un-fun curve. Recruit is a cakewalk; the very next rung is a wall.
 
 ## Recommendations (ranked by fun-per-risk)
@@ -80,7 +80,7 @@ classic un-fun curve. Recruit is a cakewalk; the very next rung is a wall.
 1. **Smooth the Recruit→Veteran opening (highest leverage).** Ramp Veteran's
    early difficulty instead of front-loading it: hold enemy HP near ~1.25× for
    waves 1–15, ramp to the full 1.4× by ~wave 20. Tunable live via
-   `balanceConfig.ts` `earlyWave*` knobs — no redeploy, reversible, no-op when
+   `balanceConfig.ts` `earlyWave*` knobs, no redeploy, reversible, no-op when
    empty. Keeps the mid/late Veteran curve intact.
 2. **Validate the landed late-game scaling before touching it again.** The
    "2-tower clear" fix is unproven. Collect a fresh batch of trustworthy runs

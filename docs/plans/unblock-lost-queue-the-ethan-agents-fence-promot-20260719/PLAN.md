@@ -20,7 +20,7 @@ has partially overtaken it:
   2026-07-16 replay bugs remained open and the roadmap recorded the
   `agents: docs-only` blocker.
 - Ethan then approved the NVD promotion in the 2026-07-17 fable-alt handoff:
-  “Q3: NVD fence promotion approved — record the fence change and fix the replay
+  “Q3: NVD fence promotion approved, record the fence change and fix the replay
   bugs” (`planning/handoffs/HANDOFF-2026-07-17-fable-alt-account.md:177-182`).
   The task packet independently carries the authoritative decision
   `UNBLOCKED`; this plan does not infer approval from workflow state.

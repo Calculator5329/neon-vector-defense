@@ -1,4 +1,4 @@
-# DESIGN — Quiet, deterministic Firestore reads in QA screenshots
+# DESIGN: Quiet, deterministic Firestore reads in QA screenshots
 
 **Item:** `[refactor] Module-stub Firestore reads in the qa-screens scaffold`  
 **Decision:** APPROVED (Ethan)  

@@ -126,7 +126,7 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
   mechanic was structural: every overlapping burn zone damaged every hull
   independently, so a multi-shell mortar carpeting one choke multiplied zone
   COUNT (~15+ concurrent zones) into hundreds of dps that no per-zone stat
-  could balance. Fire no longer stacks — a hull burns under the single
+  could balance. Fire no longer stacks: a hull burns under the single
   strongest zone covering it. Deep-dive after: Cinder 4.21 opScore / 17% solo
   win rate, second in the pack behind Flak (4.48/15%) instead of double it.
 - Replays are exact re-simulations, so sim-affecting engine changes invalidate
@@ -203,7 +203,7 @@ is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanic
 - Verification runs under the same live-ops math the player saw: `verifyRun`
   injects the current `config/balance` and `config/dailyOverride` docs into the
   bundled engine, and a run recorded under a balance version we no longer have
-  is `unverifiable` — never falsely `divergent`.
+  is `unverifiable` and never falsely `divergent`.
 
 ## 2026-07-02 - UI chrome reserves space instead of shifting
 

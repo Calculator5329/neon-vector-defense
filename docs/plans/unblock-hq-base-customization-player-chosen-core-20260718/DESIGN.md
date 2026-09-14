@@ -1,4 +1,4 @@
-# HQ / Base Customization — Player-Chosen Core Visual
+# HQ / Base Customization: Player-Chosen Core Visual
 
 **Roadmap item** (`docs/roadmap.md`, Cosmetics section):
 
@@ -16,7 +16,7 @@ follow-up task in [`DISPATCH.md`](./DISPATCH.md) (this lease is docs-only).
 
 ## 1. What the "core" is
 
-The player's HQ is the path **exit** — `map.path[map.path.length - 1]` — the
+The player's HQ is the path **exit**, `map.path[map.path.length - 1]`, the
 point enemies breach when they leak. Lives are literally called **cores**
 (`summary.coresLeft`, `engine.startingLives`, `vox('low-cores')`). Today it is
 drawn as a static red `OUT` ring:
@@ -53,17 +53,17 @@ signals defeat. The death effect is a pure render read of existing state.
   geometry as `marker()` does today.
 - Verification identity: `actionHash` (`replayCodec.ts:304`) hashes only the
   action packs (`stablePackLine`). The runner's core id is display metadata and
-  is **excluded from `actionHash` by construction** — nothing in the hash path
+  is **excluded from `actionHash` by construction**: nothing in the hash path
   ever reads it.
 
 ## 3. Follows the established cosmetic pattern
 
 Three shipped cosmetics already define the pattern this reuses verbatim:
 
-- **Signal Skins** — `src/game/cosmeticSets.ts` + `src/ui/SignalSkinPicker.tsx`
+- **Signal Skins**: `src/game/cosmeticSets.ts` + `src/ui/SignalSkinPicker.tsx`
   (registry `COSMETIC_SETS`, `ownsCosmeticSet`, `displayedCosmeticSet`).
-- **Map themes** — `src/game/mapThemes.ts` + `src/ui/MapThemePicker.tsx`.
-- **Accent palettes** — `src/game/palette.ts`.
+- **Map themes**: `src/game/mapThemes.ts` + `src/ui/MapThemePicker.tsx`.
+- **Accent palettes**: `src/game/palette.ts`.
 
 Shared plumbing this feature plugs into unchanged:
 
@@ -74,7 +74,7 @@ Shared plumbing this feature plugs into unchanged:
   anonymous-offline fallback (`src/game/entitlements.ts:76`).
 - Purchase: `purchaseEntitlement('core-<id>')` → the server
   `purchaseCosmeticEntitlement` Cloud Function → `meta.recordServerEntitlement`.
-  **No Cloud Function change is needed** — the callable takes an opaque
+  **No Cloud Function change is needed**, the callable takes an opaque
   `cosmeticId` string and the entitlement doc stores a generic `cosmeticIds[]`.
 
 ## 4. Registry shape (`src/game/coreCosmetics.ts`)
@@ -110,7 +110,7 @@ export function displayedCoreStyle(id = meta.equippedCore): CoreStyle { return c
 ```
 
 Registry sizing (4 styles) and Salvage pricing sit between Signal Skins
-(0/450/700/1000) and map themes — no new pricing policy.
+(0/450/700/1000) and map themes, no new pricing policy.
 
 ## 5. Render integration
 
@@ -130,32 +130,32 @@ export function drawMarkers(ctx, map, time, game?) {
   idiom as `drawTowerBody`'s per-style `switch` at render.ts:1099+). Reuse
   helpers `circle`, `poly`, `path`, `withAlpha`, `shade`.
 - **idle animation**: `switch (style.idle)` off `time` (rotate ring, breathe
-  scale via `sin`, orbit satellites) — respect `reducedMotion`
+  scale via `sin`, orbit satellites): respect `reducedMotion`
   (render.ts:26) exactly like the animated lane does.
 - **death effect**: read `game.hurtFlash` (spikes on leak) to scale a burst,
   and `game.phase === 'gameover'` for the one-shot implosion. Additive draw,
   no `shadowBlur` in the hot path (matches the perf note at render.ts:2107).
 - Keep the `OUT` label legibility (or fold it into the shape) so the exit is
-  still readable — accessibility parity with today.
+  still readable: accessibility parity with today.
 
 `runnerCoreId(game)` resolves the id to draw (see §6).
 
-## 6. Replay visibility — the "manifest-carried cosmetic id"
+## 6. Replay visibility, the "manifest-carried cosmetic id"
 
 The roadmap explicitly wants replays to show the **runner's** chosen core (this
 differs from Signal Skins, which deliberately render the *viewer's* skin). This
 splits cleanly into two slices by risk:
 
-### Slice A — feature core (no schema/rules change) — **the DISPATCH**
+### Slice A, feature core (no schema/rules change), **the DISPATCH**
 
 Registry + `core` equip slot + `CoreStylePicker` + `drawCore` (shape + idle +
 death FX). During a live run, `runnerCoreId(game)` returns
-`meta.equippedCore` — the local player's choice, shown while they play. In the
+`meta.equippedCore`, the local player's choice, shown while they play. In the
 replay viewer with no runner id available, it falls back to the viewer's
 equipped core (Signal-Skins semantics). **Fully replay-verification-safe and
 ships with zero server/schema/rules change.** This is the executable follow-up.
 
-### Slice B — runner id in replays (card-gated schema slice) — deferred
+### Slice B, runner id in replays (card-gated schema slice), deferred
 
 To show the *runner's* core in someone else's replay, carry the id as
 display-only run metadata:
@@ -170,18 +170,18 @@ display-only run metadata:
 - **Requires** extending the `firestore.rules` `isRunSummary` allowlist
   (`firestore.rules:245-246` `hasAll`/`hasOnly`) to permit `coreStyle`. That is
   a public-surface schema/rules change and is **card-gated** under the trust
-  contract ("master.db schema changes … card-gated — ask first").
+  contract ("master.db schema changes … card-gated: ask first").
 
 Because Slice B needs an Ethan card, the DISPATCH covers **Slice A only** (the
 whole visible feature). Slice B is captured in [`DISPATCH.md`](./DISPATCH.md)
 §"Deferred / gated follow-on" with the exact card content so the harvesting
-session can queue it — nothing is lost.
+session can queue it: nothing is lost.
 
 ## 7. Where the picker surfaces
 
 `CoreStylePicker.tsx` (clone of `SignalSkinPicker.tsx`, slot `'core'`,
 entitlement id `core-<id>`, `data-testid="core-style-picker"`). Mount it on the
-same cosmetics surface as the existing pickers — grep the render site of
+same cosmetics surface as the existing pickers: grep the render site of
 `SignalSkinPicker` / `MapThemePicker` (currently `src/OperationsBoard.tsx`) and
 add the Core picker beside them under a "Core" heading. A tiny inline
 swatch/preview (or a mini `drawCore` on a small canvas) mirrors the swatch other
@@ -189,27 +189,27 @@ pickers show.
 
 ## 8. Test plan (see DISPATCH for exact asserts)
 
-New `tests/unit/core-cosmetics.test.ts` (jest — `npm run test:jest`):
+New `tests/unit/core-cosmetics.test.ts` (jest: `npm run test:jest`):
 
-1. **Registry integrity** — unique ids; exactly one `cost === 0` default
+1. **Registry integrity**: unique ids; exactly one `cost === 0` default
    (`standard`); every `shape/idle/death` is a legal union member; valid hex
    colors.
-2. **Ownership/equip** — `ownsCoreStyle(standard)` true without entitlement;
+2. **Ownership/equip**: `ownsCoreStyle(standard)` true without entitlement;
    paid style false until `meta.owns('core-<id>')`; `meta.equip('core', id)`
    round-trips via `meta.equippedCore`; `displayedCoreStyle()` returns it and
    falls back to `standard` for unknown ids.
-3. **Guardrail (grep test, extend existing pattern)** — assert
+3. **Guardrail (grep test, extend existing pattern)**: assert
    `coreCosmetics.ts` / `CoreStylePicker.tsx` are **not** imported by
    `engine.ts`, `towers.ts`, `bot.ts`, `waves.ts`, or the score/replay-hash
    modules. (Model on any existing "cosmetic never touches sim" guard; if none,
    a source-scan test in the new file.)
-4. **actionHash invariance** — `actionHash(pack, chunks)` is byte-identical
+4. **actionHash invariance**: `actionHash(pack, chunks)` is byte-identical
    regardless of any core id (Slice A adds nothing to the pack; this locks the
    invariant before Slice B).
 
 E2E (`npm test` / Playwright, optional but cheap): the cosmetics screen renders
 `core-style-picker`, equipping toggles `aria-pressed`, unaffordable styles are
-disabled — mirror the Signal-Skins assertions in `tests/e2e/qa-screens.spec.ts`.
+disabled: mirror the Signal-Skins assertions in `tests/e2e/qa-screens.spec.ts`.
 
 ## 9. Acceptance criteria
 
@@ -227,6 +227,6 @@ disabled — mirror the Signal-Skins assertions in `tests/e2e/qa-screens.spec.ts
 
 ## 10. Out of scope / explicitly deferred
 
-- Slice B runner-id-in-replay (card-gated schema change) — spec ready, queued.
+- Slice B runner-id-in-replay (card-gated schema change): spec ready, queued.
 - Victory/defeat flourishes (separate roadmap item).
 - Any change to lives/cores counts or `startingCores`.

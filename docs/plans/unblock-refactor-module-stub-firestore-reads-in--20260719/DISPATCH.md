@@ -1,4 +1,4 @@
-# DISPATCH — Module-stub qa-screens Firestore reads
+# DISPATCH: Module-stub qa-screens Firestore reads
 
 Follow-up implementation task derived from [`DESIGN.md`](./DESIGN.md).
 

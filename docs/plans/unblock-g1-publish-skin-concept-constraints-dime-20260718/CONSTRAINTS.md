@@ -3,12 +3,12 @@
 **Status:** PUBLISHED (canonical). Ethan decision: **APPROVED**.
 **Audience:** the local-ai-lab prompt matrices that generate Signal-Skin
 concept batches for Neon Vector Defense (NVD).
-**Companion file:** [`constraints.json`](./constraints.json) — the same rules in
+**Companion file:** [`constraints.json`](./constraints.json), the same rules in
 machine-readable form; the lab's prompt matrices and the `assets/incoming/`
 intake validator should both read the JSON so there is one source of truth.
 
 This document is the contract a concept batch must satisfy to be *accepted for
-review*. It does not — and cannot — auto-ship anything to the live game.
+review*. It does not, and cannot, auto-ship anything to the live game.
 
 ---
 
@@ -58,7 +58,7 @@ A single batch may mix kinds. Every concept declares exactly one `kind`.
 
 All in-game geometry lives in a **1280×720 logical board** (`src/game/engine.ts`
 `W=1280 H=720`; `src/game/maps.ts`). Concepts are reference art, so they are
-authored larger and downsampled by eye — but they must **frame the subject the
+authored larger and downsampled by eye, but they must **frame the subject the
 way the engine draws it** so the color mapping is faithful.
 
 ### 2.1 Signal-skin / HQ-core concepts (a single hull)
@@ -66,7 +66,7 @@ way the engine draws it** so the color mapping is faithful.
 - **Subject:** one **top-down** hull, **centered**, occupying **~60–75%** of the
   canvas with clear margin (the engine blits a tight sprite of size
   `radius*4 + 24`; leave breathing room so the glow isn't clipped).
-- **Orientation:** nose/forward axis points **right (+x / east)** — this is the
+- **Orientation:** nose/forward axis points **right (+x / east)**, this is the
   engine's 0-radian facing (`drawTowerBody` prows are built along `+x`, e.g. the
   `ship`/`capital` hulls). Concepts drawn facing up/left force the reviewer to
   mentally rotate and misread the silhouette.
@@ -93,7 +93,7 @@ way the engine draws it** so the color mapping is faithful.
 - No EXIF/GPS or personal metadata (guardrail: no personal data in assets).
 - Optional `webp` companion permitted (runtime art ships as `.webp`), but the
   **PNG is the source of record**; the manifest lists the PNG.
-- **Max 12 concepts per batch, max 6 MB per file** — keeps a batch reviewable in
+- **Max 12 concepts per batch, max 6 MB per file**: keeps a batch reviewable in
   one sitting and cheap to store under review.
 
 ---
@@ -110,7 +110,7 @@ luminance range (`mapThemes.ts` `bg1` values: `#070b1a`, `#0c071a`, `#160707`,
 …). **Assume a `~#0a0f1e` backdrop when judging contrast**, regardless of the
 concept's own background.
 
-### 3.2 The two-tone rule (base + glow) — mandatory for hulls
+### 3.2 The two-tone rule (base + glow): mandatory for hulls
 Every shipped skin is a **base color plus a brighter, same-family glow tint**.
 Examples from `cosmeticSets.ts` / `towers.ts`:
 
@@ -127,10 +127,10 @@ relationship obvious. Flat single-color hulls read as unfinished.
 
 ### 3.3 Saturation, luminance, contrast (hulls, accents, projectiles)
 For the **dominant** color of any hull/accent/projectile concept:
-- **Saturation ≥ 0.60** (HSL) — the neon floor. *Exception:* an intentionally
+- **Saturation ≥ 0.60** (HSL), the neon floor. *Exception:* an intentionally
   **metallic** skin (cf. `chrome`: body `#b9c7d9`, glow `#e8f4ff`) may drop
   saturation but must compensate with a **very bright, cool glow** (L ≥ 0.90).
-- **Dominant-color luminance L in ~0.45–0.80** — bright enough to pop on
+- **Dominant-color luminance L in ~0.45–0.80**: bright enough to pop on
   near-black, not so blown-out it's indistinguishable from the glow.
 - **Contrast vs `#0a0f1e` ≥ 4.5:1** (WCAG-style ratio) for the silhouette edge or
   glow, so the hull is legible on a packed dark board.
@@ -143,12 +143,12 @@ For `kind: "map-theme"`:
 - `bg1` and `bg2` luminance **L ≤ 0.12** (stay near-black; the shipped values sit
   ~0.03–0.09). `bg2` slightly lighter than `bg1` for a vertical gradient.
 - `path` a muted mid-dark (`L ≈ 0.10–0.20`), **desaturated**.
-- `pathEdge` is the **one neon accent** — saturated, `L ≈ 0.55–0.80`, high
+- `pathEdge` is the **one neon accent**: saturated, `L ≈ 0.55–0.80`, high
   contrast against `path` and `bg`.
 - The whole theme is a **single-hue mood** (Ember/Glacier/Void pattern); do not
   ship a rainbow board.
 
-### 3.5 Hue families — pick ONE dominant family per concept
+### 3.5 Hue families: pick ONE dominant family per concept
 Concepts should commit to one dominant hue family and name it in `hueFamily`.
 Recognized families (aligned to existing ids so the catalog stays coherent):
 
@@ -156,20 +156,20 @@ Recognized families (aligned to existing ids so the catalog stays coherent):
 `auric-gold` · `magma-pink` · `tidal-teal` · `spectral-magenta` ·
 `prestige-gold` · `chrome-metallic`
 
-Muddy multi-hue blends (e.g. brown, olive, beige mixes) are rejects — they don't
+Muddy multi-hue blends (e.g. brown, olive, beige mixes) are rejects, they don't
 read as neon and collide with nothing in the catalog.
 
 ### 3.6 Reserved & prohibited colors (hard constraints)
 These carry **gameplay/UI meaning**; a cosmetic must never adopt them as a
 *dominant* color or it will misread as a game signal:
-- **`#ff4757`** — invalid-placement / danger red (`render.ts:562`, `:655`;
+- **`#ff4757`**: invalid-placement / danger red (`render.ts:562`, `:655`;
   `dossier.ts` "GRID OFFLINE"). Do not use as a hull's dominant body/glow.
-  (A saturated *magenta*-red like the shipped `magma` `#ff4d6d` is fine — it is
+  (A saturated *magenta*-red like the shipped `magma` `#ff4d6d` is fine, it is
   visibly distinct from the danger red.)
-- **`#4bcffa`** — the **default free** Lantern-Cyan accent and the base energy
+- **`#4bcffa`**, the **default free** Lantern-Cyan accent and the base energy
   color (`palette.ts`, `render.ts:58`). A *paid* skin must not just restate the
   default; differentiate the hue or push saturation/luminance.
-- **Range/aura ring reds and the reduced-quality gray states** — don't build a
+- **Range/aura ring reds and the reduced-quality gray states**: don't build a
   skin whose dominant reads as "disabled/dead" desaturated gray.
 - No real-world logos, brand marks, or recognizable IP.
 
@@ -214,7 +214,7 @@ Every batch is a folder with a top-level **`manifest.json`** validated by the
 Field rules:
 - `kind` ∈ `{signal-skin, accent, map-theme, hq-core, flourish}` (§1).
 - `hueFamily` ∈ the §3.5 list.
-- `projectileTrail` ∈ **`{standard, flare, ribbon, echo}`** — these are the only
+- `projectileTrail` ∈ **`{standard, flare, ribbon, echo}`**, these are the only
   styles the renderer knows (`render.ts` `projectileTrailPath`); anything else is
   a reject.
 - The `proposed*` block must be present and its hex values must satisfy §3.

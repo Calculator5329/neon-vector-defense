@@ -1,6 +1,6 @@
 # Product intent
 
-## Anti-slop cleanup — Ethan, 2026-09-04
+## Anti-slop cleanup (Ethan, 2026-09-04)
 
 The current explicit request authorizes behavior-preserving code cleanup in this
 named project for this work block, despite the older standing docs-only fence.

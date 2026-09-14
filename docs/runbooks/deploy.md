@@ -9,13 +9,13 @@ npm run build
 npx firebase deploy --only hosting,firestore:rules,functions --project neon-vector-defense-7
 ```
 
-**The build step is NOT optional.** Hosting uploads `dist/` as-is — there is no
+**The build step is NOT optional.** Hosting uploads `dist/` as-is and there is no
 hosting predeploy hook (only functions has one). Deploying without a fresh
 build ships a stale client against new rules/functions; with a schema-coupled
 change that breaks score submission until hosting is redeployed. Confirm the
 served `/build-tag.json` CHANGED after every deploy.
 
-Always ship hosting + rules + functions together — the replay schema couples
+Always ship hosting + rules + functions together, because the replay schema couples
 them (rules validate shapes the client writes and functions verify). Post-deploy
 smoke: fetch `/build-tag.json` for the new tag, probe a callable (an
 unauthenticated `verifyRun` call must return `PERMISSION_DENIED: admin-only`).

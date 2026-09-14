@@ -1,4 +1,4 @@
-# DISPATCH — Recovered-Signal Pass v1 (implementation)
+# DISPATCH: Recovered-Signal Pass v1 (implementation)
 
 Follow-up task spec for the design in [`DESIGN.md`](./DESIGN.md). This item
 requires source changes; the design lane's lease covered docs only, so the
@@ -14,7 +14,7 @@ implementation is dispatched separately here.
 
 ## title
 
-`feat(cosmetics): Recovered-Signal Pass v1 — seasonal cosmetic track`
+`feat(cosmetics): Recovered-Signal Pass v1, seasonal cosmetic track`
 
 ## goal
 
@@ -42,18 +42,18 @@ Deliver:
      `passClaimableCount(now?)`, and a read accessor for the ladder + progress
      for the UI. Persist `SeasonProgressState` to localStorage key
      **`nvd-season-v1`**; rollover is pure/idempotent on read.
-2. **`src/game/meta.ts`** — add `grantLocalCosmetic(id: string)` (thin push into
+2. **`src/game/meta.ts`**: add `grantLocalCosmetic(id: string)` (thin push into
    `cache.cosmetics` + `save()`, mirroring the Extinction-capstone grant at
    `meta.ts:272`). No other meta change; `meta.xp` stays read-only to the pass.
-3. **`src/game/palette.ts`** — add the season's `unlockOnly` accent palettes
+3. **`src/game/palette.ts`**: add the season's `unlockOnly` accent palettes
    (free-track + premium-exclusive), `cost: 0, unlockOnly: true`, ids
    `palette-<slug>`.
-4. **Lore data** — a small `SeasonLore[]` table (id, title, body) in
+4. **Lore data**, a small `SeasonLore[]` table (id, title, body) in
    `seasonPass.ts` or a sibling `src/game/seasonLore.ts` (display-only text).
-5. **`functions/src/entitlementHelpers.ts`** — add
+5. **`functions/src/entitlementHelpers.ts`**: add
    `'pass-recovered-signal-s1': <salvageCost>` to `COSMETIC_PRICES` (e.g. 1200).
    No new callable, rules, or collection.
-6. **UI** — a Recovered-Signal Pass panel in `src/OperationsBoard.tsx`: season
+6. **UI**, a Recovered-Signal Pass panel in `src/OperationsBoard.tsx`: season
    name, time remaining (from `endsAt`), season-XP bar, free/premium tier ladder
    with claim buttons, an "Unlock Premium" CTA wired to
    `purchaseEntitlement('pass-recovered-signal-s1')` →
@@ -61,11 +61,11 @@ Deliver:
    `src/ui/SignalSkinPicker.tsx`), and a lore reader. Surface claimable tiers in
    the Operations nav badge (extend `meta.claimableCount` usage or add a sibling
    `passClaimableCount`). Equip via existing `meta.equip(slot, id)` / pickers.
-7. **`src/PrivacyView.tsx`** — add `'nvd-season-v1'` to `LOCAL_KEYS` (export +
+7. **`src/PrivacyView.tsx`**: add `'nvd-season-v1'` to `LOCAL_KEYS` (export +
    delete parity).
-8. **`scripts/meta-sim.ts`** — extend the structural "not imported by
+8. **`scripts/meta-sim.ts`**: extend the structural "not imported by
    engine/score/bot" assertion to also cover `src/game/seasonPass.ts`.
-9. **Tests** — `tests/unit/season-pass.test.ts` (`node:test` via `tsx --test`,
+9. **Tests**: `tests/unit/season-pass.test.ts` (`node:test` via `tsx --test`,
    modeled on `tests/unit/weekly-challenge.test.ts`) covering: season window
    phase selection (preview/active/closed on fixed UTC dates); rollover resets
    baseline+claims and `seasonXp === meta.xp - baseline` (never negative);
@@ -89,7 +89,7 @@ Deliver:
   free track fully playable. No gameplay advantage on the paid tier.
 - `unlockOnly` pass palettes must **not** appear in the Salvage store /
   `COSMETIC_PRICES` (earned-only).
-- Deploys / `firebase` / `npm publish` remain Ethan-only — do not run them.
+- Deploys / `firebase` / `npm publish` remain Ethan-only: do not run them.
 
 ## owns
 
@@ -114,9 +114,9 @@ npm run test:engine
 ```
 
 Also run before hand-off:
-- `npm run test:functions` — if `COSMETIC_PRICES` was changed.
-- `npm run meta:sim` — the guardrail structural check.
-- `npm test` — the Playwright e2e gate (full verify).
+- `npm run test:functions`, if `COSMETIC_PRICES` was changed.
+- `npm run meta:sim`, the guardrail structural check.
+- `npm test`, the Playwright e2e gate (full verify).
 
 ## acceptance
 

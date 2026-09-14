@@ -10,7 +10,7 @@
 **Ethan's decision:** APPROVED.
 
 **Status:** design complete. Source implementation is dispatched as a follow-up
-task — see [`DISPATCH.md`](./DISPATCH.md). This lane owns only the plan folder;
+task, see [`DISPATCH.md`](./DISPATCH.md). This lane owns only the plan folder;
 it writes no source.
 
 ---
@@ -22,25 +22,25 @@ and *play it locally against the real engine*, using the exact same `GameMap`
 shape the built-in sectors use.
 
 **In scope (v1 foundation):**
-1. A **custom-map file format** — a versioned JSON envelope wrapping the
+1. A **custom-map file format**, a versioned JSON envelope wrapping the
    sim-relevant `GameMap` fields plus a geometry hash, byte-identical to the
    replay hash so a future shared-map path can reuse it verbatim.
 2. A **pure validator** (`validateCustomMap`) enforcing every invariant the
    engine and the existing `maps.test.ts` already assume, returning typed
-   errors — no throwing, no engine coupling.
+   errors, no throwing, no engine coupling.
 3. A **dev-mode editor screen** (canvas painting of path waypoints + blocker
    discs) that imports/exports the format and reuses existing render helpers.
 4. **Local-only play**: load a validated custom map into `GameScreen`/engine as
    an ordinary `GameMap`; runs are flagged local and **never** upload telemetry,
    touch a leaderboard, or count toward campaign progress.
 
-**Explicitly out of scope (LATER, gated — do NOT build here):**
+**Explicitly out of scope (LATER, gated: do NOT build here):**
 - Any upload, share link, cloud persistence, or moderation.
 - Any custom-map leaderboard or replay verification of custom maps.
 - Joining the custom-map hash to the replay manifest / `resolveReplayMap`
   registry. This is the exact integrity precondition the roadmap names; it is a
   separate design once a sharing surface exists.
-- Custom **waves / difficulty / enemy** authoring — v1 reuses the built-in
+- Custom **waves / difficulty / enemy** authoring: v1 reuses the built-in
   `DIFFICULTIES` and standard wave generation. Only *geometry* is authored.
 
 This ordering is deliberate: everything in scope is a local, offline,
@@ -58,13 +58,13 @@ placement legality purely from `path`, `pathWidth`, and `blockers`
 geometry (`render.ts buildBackground/drawBlockers/drawMarkers`). So a custom map
 that satisfies `GameMap` needs **zero engine changes** to be playable.
 
-The replay layer hashes only the **sim-affecting** subset — `id`, `path`,
-`blockers`, `pathWidth` — via `hashReplayMapGeometry` (`mapVersions.ts:34`,
+The replay layer hashes only the **sim-affecting** subset: `id`, `path`,
+`blockers`, `pathWidth`, via `hashReplayMapGeometry` (`mapVersions.ts:34`,
 FNV-1a → 8-char lowercase hex, matching the Firestore `^[a-f0-9]{8}$` bound).
 `zones` is sim-relevant but currently unhashed; `theme/name/desc/music` are
 cosmetic and never hashed. The custom-map envelope stores that **same** hash so
 that when sharing is designed later, the custom-map hash is already the value a
-replay manifest would carry — no reformatting, no second hash function.
+replay manifest would carry, no reformatting, no second hash function.
 
 **Reuse, do not fork:** the validator and format MUST call the existing
 `hashReplayMapGeometry` from `mapVersions.ts`. Do not copy the FNV loop.
@@ -80,7 +80,7 @@ A single JSON object. Extension convention: `.nvdmap.json`. MIME on download:
 {
   "format": "nvd-custom-map",   // literal discriminator
   "formatVersion": 1,           // integer; bump only on breaking shape change
-  "hash": "1a2b3c4d",           // hashReplayMapGeometry(map) — 8-char lowercase hex
+  "hash": "1a2b3c4d",           // hashReplayMapGeometry(map), 8-char lowercase hex
   "map": {
     "id": "custom-abcd12",      // "custom-" + 6 lowercase base36 chars
     "name": "My Test Lane",     // 1..40 chars after trim
@@ -107,7 +107,7 @@ Notes:
   standard palette. This keeps the file portable and small and avoids baking a
   theme a future recipient may not own.
 - `music` is omitted in v1 (defaults to map id inside the engine already).
-- `hash` is **advisory/integrity** in v1 — the validator recomputes it and
+- `hash` is **advisory/integrity** in v1, the validator recomputes it and
   rejects a mismatch (guards against hand-edited or truncated files). It is the
   seed value for §7.
 - All coordinates are in the fixed **1280×720** logical space (`W`/`H`), same as
@@ -118,7 +118,7 @@ Notes:
 Built-in ids are short words (`orbital`, `foundry`, …). Custom ids are forced to
 the `custom-<6 base36>` shape and the validator rejects any `map.id` that
 `ALL_MAPS` already contains. This guarantees a custom map can never masquerade
-as a built-in sector — important because `resolveReplayMap` keys off `id`, so a
+as a built-in sector: important because `resolveReplayMap` keys off `id`, so a
 future shared map with a colliding id would otherwise be indistinguishable from
 a built-in in a replay.
 
@@ -190,13 +190,13 @@ Structural / type:
 8. `zones` (if present) same shape/limits as blockers.
 
 Geometry (match `maps.test.ts`):
-9. First and last waypoint are **off-screen** (`x<0||x>W||y<0||y>H`) — spawn+exit.
+9. First and last waypoint are **off-screen** (`x<0||x>W||y<0||y>H`): spawn+exit.
 10. Every **interior** waypoint is in-bounds with pathWidth margin
     (`pathWidth/2 ≤ x ≤ W-pathWidth/2`, same for y).
-11. Every segment length ≥ `MIN_SEGMENT` (80px) — no degenerate hops.
+11. Every segment length ≥ `MIN_SEGMENT` (80px), no degenerate hops.
 12. Every blocker with `r>0` clears the lane: `minPathDistance(b) - b.r -
     pathWidth/2 ≥ 4`. (Reuse the `distToSeg` already exported/used in engine;
-    the test file has a local copy — extract a shared `distToSeg` helper OR
+    the test file has a local copy: extract a shared `distToSeg` helper OR
     replicate the exact formula. Prefer extracting to avoid drift.)
 
 Integrity:
@@ -204,7 +204,7 @@ Integrity:
 
 Playability (cheap reachability guard so an unplayable map can't be saved):
 14. `path` produces a non-zero `pathLength`; there exists **at least one** legal
-    build cell — sample a coarse grid (e.g. 32px) and require ≥ 1 point where a
+    build cell: sample a coarse grid (e.g. 32px) and require ≥ 1 point where a
     tower could be placed (same clearance math as `placementBlockReason`,
     ignoring the tower-vs-tower check). Prevents a map with no buildable space.
 
@@ -268,7 +268,7 @@ preview looks like the game.
   convenience only; the file is the portable artifact. Cap stored drafts (e.g.
   20) to bound storage.
 
-### 6.5 Play path — local-only, no telemetry
+### 6.5 Play path: local-only, no telemetry
 
 `GameScreen`/`engine` already take a `GameMap`; a custom map flows in unchanged.
 The one hard requirement: a custom run must **never** upload telemetry, write a
@@ -279,7 +279,7 @@ App → `GameScreen` → the telemetry recorder / submit path. Where the existin
 code decides to persist/submit a run, add `if (isLocalCustomRun) return;` **at
 the earliest submit boundary** (the recorder's finalize/submit entry, not deep
 in the network layer). Custom runs still play, show HUD, and reach victory/
-defeat locally — they just produce no durable artifact. This must be covered by
+defeat locally, they just produce no durable artifact. This must be covered by
 a test (see §8, test 5) because it is the integrity-relevant guarantee of v1.
 
 Because `resolveReplayMap` only knows `ALL_MAPS`, a custom run is intrinsically
@@ -291,14 +291,14 @@ unverifiable-but-uploaded doc from ever being written.
 ## 7. The LATER gate (documented, not built)
 
 Before any custom map can be shared or leaderboarded, this sequence is required
-(this section is the "replay-integrity design" the roadmap points at — capture
+(this section is the "replay-integrity design" the roadmap points at: capture
 it so the follow-up sharing task starts from it):
 
 1. **Manifest carriage:** `resolveReplayMap(mapId, mapHash)` must resolve a
    shared map's geometry from its carried hash, not from `ALL_MAPS`. Options:
    embed the full custom geometry in the run doc's `setup`, or resolve from a
    moderated custom-map store keyed by hash. Either way the run's
-   `setup.mapHash` must equal `hashReplayMapGeometry(customGeom)` — already true
+   `setup.mapHash` must equal `hashReplayMapGeometry(customGeom)`: already true
    by construction because §3 stores that exact hash.
 2. **Hash coverage of `zones`:** `zones` is sim-relevant but unhashed today.
    Sharing a map with zones requires folding `zones` into the hash (a
@@ -325,14 +325,14 @@ New file `tests/unit/custom-map.test.ts`:
    re-serialized file is byte-identical.
 2. **Hash reuse:** the file `hash` equals `hashReplayMapGeometry(map)` and
    equals what the replay layer would compute for the same geometry (import both
-   and assert equality — guards against a forked hash).
+   and assert equality: guards against a forked hash).
 3. **Each invariant rejects:** a table of malformed inputs (bad `format`,
    colliding built-in id, off-screen interior point, on-screen spawn, short
    segment, blocker intruding the lane, hash mismatch, no buildable cell) each
    yields `ok:false` with the expected `field`. Assert `errors` collects
    **multiple** failures at once for a doubly-broken map.
 4. **Built-in parity:** for each `ALL_MAPS` entry, converting it to a
-   `CustomMapGeometry` (drop theme, add `custom-` id) and validating passes —
+   `CustomMapGeometry` (drop theme, add `custom-` id) and validating passes,
    proves the invariant set is not stricter than shipped maps (except the id
    rule). This ties the validator to reality and will catch drift if a built-in
    map ever violates a rule the validator invented.
@@ -351,15 +351,15 @@ the parts that carry correctness/integrity weight.
 
 | File | Change |
 |------|--------|
-| `src/game/customMap.ts` | **new** — format types, `validateCustomMap`, `serializeCustomMap`, `blankCustomMap`, `makeCustomMapId`. |
-| `src/game/mapVersions.ts` | (maybe) export `distToSeg` if extracted for shared use — otherwise untouched. |
+| `src/game/customMap.ts` | **new**: format types, `validateCustomMap`, `serializeCustomMap`, `blankCustomMap`, `makeCustomMapId`. |
+| `src/game/mapVersions.ts` | (maybe) export `distToSeg` if extracted for shared use, otherwise untouched. |
 | `src/appShared.ts` | add `MAP_EDITOR_ENABLED`. |
 | `src/App.tsx` | extend `Screen` union with `'editor'`; `customMap` state; wire editor→game; pass `local`/`runMode='custom'`. |
 | `src/menu/MainMenu.tsx` | dev-gated "MAP LAB" entry (only when `MAP_EDITOR_ENABLED`). |
-| `src/game-ui/MapEditor.tsx` | **new** — canvas editor, import/export, live validation, local drafts. |
+| `src/game-ui/MapEditor.tsx` | **new**: canvas editor, import/export, live validation, local drafts. |
 | `src/game-ui/GameScreen.tsx` | accept/propagate the local-run flag to suppress telemetry submit. |
 | `src/game/runTelemetry.ts` (or the submit boundary) | early-return / skip submit when the run is a local custom run. |
-| `tests/unit/custom-map.test.ts` | **new** — §8 tests. |
+| `tests/unit/custom-map.test.ts` | **new**: §8 tests. |
 | `docs/changelog.md` | entry. |
 | `docs/roadmap.md` | tick the item (done by harvesting session, not the impl task). |
 

@@ -1,4 +1,4 @@
-# Lantern 7 — Business Plan & Execution Order (v3)
+# Lantern 7: Business Plan & Execution Order (v3)
 
 *Consolidates the v1 business plan and v2 web-launch plan, reconciled against the actual
 codebase as of 2026-07-03. Strategy is unchanged; current shipped status and
@@ -16,13 +16,13 @@ app-store tax), then carry proven retention into mobile.
 
 The moat is **sim-in-the-loop velocity**: an owned headless engine + bot harness + balance
 simulator that closes the observe→tune→ship loop in days. The product is not "a game that
-collects data" — it is "a game that out-iterates everyone in its niche because it can
+collects data". It is "a game that out-iterates everyone in its niche because it can
 simulate its own balance."
 
 Two user tiers remain the compliance architecture:
 
-- **Adult tier** — full consent-gated first-party gameplay telemetry, full monetization.
-- **Kids/unknown tier** — fail-safe defaults: minimal data, no persistent PII, no targeted
+- **Adult tier**: full consent-gated first-party gameplay telemetry, full monetization.
+- **Kids/unknown tier**: fail-safe defaults of minimal data, no persistent PII, no targeted
   monetization. COPPA addressed by tiering, not geo-blocking.
 
 **Launch market: US-first.** GDPR/EU consent UX, mobile age-signal APIs, and parental-consent
@@ -94,11 +94,11 @@ THEN    Portal submissions, growth loop, mobile/international expansion
 
 ## 6. Launch gate checklist
 
-- [x] Tier 0 complete (auth, deletion fix, quota keying, allowlist, TTL) — App Check enforcement still staged
+- [x] Tier 0 complete (auth, deletion fix, quota keying, allowlist, TTL); App Check enforcement still staged
 - [x] Tier 2 complete (4 correctness bugs fixed; deterministic sim behind a seed)
 - [x] CI gates real: perf fails on regression; e2e runs the production build + SW
 - [x] Landscape-phone layout (short-landscape tier verified at 844×390)
-- [x] Action-gated onboarding live — drop-off re-measure pending live traffic
+- [x] Action-gated onboarding live, with drop-off re-measure pending live traffic
 - [x] `public/` ≤ ~25 MB (art 63.7→3.2 MB); first-paint JS ~204 KB gzip
 - [x] Leaderboard read aggregation live
 - [x] CCPA/GPC verified: opt-out + GPC force restricted tier (unit-tested invariants)

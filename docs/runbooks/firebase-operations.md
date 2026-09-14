@@ -12,7 +12,7 @@ public identifiers, not server secrets, so the protection layer is
 
 The intended rules model is:
 
-- Every player write requires Firebase **Anonymous Auth** — enable the Anonymous
+- Every player write requires Firebase **Anonymous Auth**: enable the Anonymous
   sign-in provider (Authentication -> Sign-in method -> Anonymous) before
   deploying, or all score/replay/telemetry writes will fail. Sign-in happens
   lazily right before the first server write; `firebase/auth` stays out of the

@@ -17,15 +17,15 @@ Last updated: 2026-07-26 (agent-guide hygiene)
 
 ## Special editions
 
-- [x] <!-- workspace:id=work:a836fee9-5271-5a49-ab12-cd878af381ca --> **THE YAKKOB** — dwarf-unlock special challenge (Prism Array + Watchfire Beacon only,
+- [x] <!-- workspace:id=work:a836fee9-5271-5a49-ab12-cd878af381ca --> **THE YAKKOB**, dwarf-unlock special challenge (Prism Array + Watchfire Beacon only,
   squished icons, local-ranked). *(done 2026-07-20; see changelog. Built on branch
   `agent/claude/yakkob-special-edition-20260720`.)*
-- [ ] <!-- workspace:id=work:2a095de4-8e17-54f8-a163-5bbb76144378 --> **THE YAKKOB — optional online leaderboard.** Currently local-only because a fixed
+- [ ] <!-- workspace:id=work:2a095de4-8e17-54f8-a163-5bbb76144378 --> **THE YAKKOB, optional online leaderboard.** Currently local-only because a fixed
   challenge id is rejected by the date-keyed daily boards. A persistent online board would
-  need a `submitYakkobScore`-style Cloud Function + Firestore rules + collection — an
+  need a `submitYakkobScore`-style Cloud Function + Firestore rules + collection, an
   **Ethan-only deploy**. Left as a follow-up.
 
-## Now — owner request and site sweep (Ethan, 2026-09-13)
+## Now: owner request and site sweep (Ethan, 2026-09-13)
 
 Ethan's ask, verbatim: "remove salvage signal feature from NVD in its
 entirety, it is glitchy. as well as the next wave stuff." Both items are
@@ -45,15 +45,15 @@ site, majors only; the full report lists 14 more minor items:
 - [ ] **Leaderboard credits and WATCH are unreachable at 390px**: `.menu-root` scrollWidth 536 on a 390 viewport with `overflow-x: hidden`, so the right-hand controls are cut off with no way to scroll to them.
 - [ ] **Portrait HUD pills overlap the ABORT control** at 390×844, so ABORT can be mis-tapped mid-run.
 
-## Now — owner bug report (Ethan, 2026-07-16 audit review)
+## Now: owner bug report (Ethan, 2026-07-16 audit review)
 
-- [x] <!-- workspace:id=work:d51dcfb3-b60b-506c-8b1b-14e7f8930d48 --> **BUG: replay playback is inaccurate — enemies don't die accurately.**
+- [x] <!-- workspace:id=work:d51dcfb3-b60b-506c-8b1b-14e7f8930d48 --> **BUG: replay playback is inaccurate, enemies don't die accurately.**
   *(done 2026-07-18, bal-replay-sweep-0718)* Root cause was NOT determinism
-  drift — the fixed-timestep accumulator makes the tick sequence pacing-
+  drift, the fixed-timestep accumulator makes the tick sequence pacing-
   independent (locked by `tests/unit/replay-determinism.test.ts`, byte-identical
   kill frames under jittered vs uniform dt across seeds). The owner symptom was
   the viewer *silently* falling back to a cosmetic reconstruction; the viewer now
-  labels "COSMETIC PREVIEW — not a frame-accurate replay" and logs the reason
+  labels "COSMETIC PREVIEW, not a frame-accurate replay" and logs the reason
   (`createReplayPlaybackDiagnostic`). Frame parity on ≥3 seeds is asserted by
   `npm run test:replay-e2e` (driver reproduces identical kills/leaks/wave).
 - [x] <!-- workspace:id=work:3432ffc8-1216-5648-a5d5-0fec633edd74 --> **BUG: replay verification gets stuck in simulating loops.**
@@ -64,7 +64,7 @@ site, majors only; the full report lists 14 more minor items:
   `verifyRunCore` caps it at 30s. The bounded/anti-hang case is asserted in
   `npm run test:replay-e2e`.
 
-## Now — feedback pass (Ethan, 2026-07-20)
+## Now: feedback pass (Ethan, 2026-07-20)
 
 - [x] <!-- workspace:id=work:b906f7ab-c877-5774-b562-1de4354aeb5e --> **Replays: "he shoots but enemies don't die / starts at end / shows victory".**
   *(done 2026-07-20)* Marathon/Extinction runs exceeded the 3,600s playback duration
@@ -74,7 +74,7 @@ site, majors only; the full report lists 14 more minor items:
   See `docs/changelog.md`.
 - [ ] <!-- workspace:id=work:604904ef-f1f9-5bea-a460-50af21eb2f2e --> **Replay re-sim determinism (pre-existing, filed as a task).** `reSimulate`
   returns `divergent` for deep-freeplay-with-relic and Recalibrate ability_cast runs
-  (tests/unit/reSimulate.test.ts, 19 of 21 passing as of 2026-08-12). Core to "get replays right" — a divergent run
+  (tests/unit/reSimulate.test.ts, 19 of 21 passing as of 2026-08-12). Core to "get replays right", a divergent run
   plays back wrong even when the driver runs.
 - [ ] <!-- workspace:id=work:b5ae06ba-3ae3-59aa-ae9c-5e57c364ebd2 --> **Old runs are orphaned by engine/balance version drift.** Any run recorded
   before an engine bump can never be re-simulated frame-accurately (correct by design,
@@ -93,16 +93,16 @@ site, majors only; the full report lists 14 more minor items:
   utility. Track structure stays a 2-tuple (`tracks[0|1]` is load-bearing). *(done
   2026-07-20)*
 - [x] <!-- workspace:id=work:3e521911-fc41-57f9-918f-39f338f0023c --> **Intro to Veteran mode on first deploy.** *(done 2026-07-20)* One-time
-  "THE ARMADA ADAPTS" briefing on first Veteran (normal) campaign deploy —
+  "THE ARMADA ADAPTS" briefing on first Veteran (normal) campaign deploy:
   phase-cloaks (~wave 14), adaptive armada, leaner economy. `veteranIntroSeen`
   flag in `storage.ts`. This is the actual fix for the Recruit→Veteran onboarding
-  gap (the "HP cliff" premise was corrected — see below).
+  gap (the "HP cliff" premise was corrected, see below).
 - [x] <!-- workspace:id=work:73f75cf2-80f2-5832-8200-9985f86a550f --> **Mastery-routing nudge.** *(done 2026-07-20)* Dominant Recruit clear →
   "you've outgrown Recruit, try Veteran" debrief callout.
-- [x] <!-- workspace:id=work:1d9e31c4-3c9c-5f39-a162-b675577200e7 --> **Recruit→Veteran HP cliff — corrected, no change made.** Difficulty HP
+- [x] <!-- workspace:id=work:1d9e31c4-3c9c-5f39-a162-b675577200e7 --> **Recruit→Veteran HP cliff, corrected, no change made.** Difficulty HP
   already ramps over 25 waves; early Veteran ≈ early Recruit. The "+56%" was the
   wave-25+ asymptote misapplied. No HP nerf (would undercut "not too easy").
-- [x] <!-- workspace:id=work:72493635-f851-591b-95b3-a8394e3c443f --> **Wave 13–16 "wall" — sim-bot artifact, closed.** No real difficulty spike
+- [x] <!-- workspace:id=work:72493635-f851-591b-95b3-a8394e3c443f --> **Wave 13–16 "wall", sim-bot artifact, closed.** No real difficulty spike
   in the per-wave model; the bot is just weak there.
 - [ ] <!-- workspace:id=work:f61e5c48-4730-5142-9fdb-181c874543cb --> **Validate late-game scaling (still open).** The sim bot is too weak to
   reproduce the "2-tower minimal clear" exploit; needs fresh real-player runs or a
@@ -110,17 +110,17 @@ site, majors only; the full report lists 14 more minor items:
   untouched (Ethan constraint).
 - [ ] <!-- workspace:id=work:10279839-e5ce-5757-a044-8de084b38e53 --> **Mass-unlock dump smell.** One 60-wave Veteran clear (66k kills) crosses
   ~7 unlock thresholds at once, dumping every early instrument in a single
-  debrief — anticlimactic vs. the BTD-style progressive reveal. Consider staging
+  debrief: anticlimactic vs. the BTD-style progressive reveal. Consider staging
   the reveal or rebalancing early `unlockAt` thresholds. (Layout no longer hides
   them; this is the pacing question.)
 - [ ] <!-- workspace:id=work:ef205c7b-c63d-542c-b3c0-7395680452e4 --> **Pre-existing test failure (not from this pass):** `tests/unit/
   game-correctness.test.ts` › "watchfire sweep marks cloaked hulls as revealed"
-  fails on clean master (`placeTower` returns null in headless node —
+  fails on clean master (`placeTower` returns null in headless node,
   `assert.ok(watchfire)` at :260 (re-measured 2026-08-12)). Triage separately.
 
 ## Next up (owner-triaged, 2026-07-04)
 
-- **Wave 1 — DONE:** Weekly Champion's Gauntlet + Weekly Mutation (weekly seed
+- **Wave 1: DONE:** Weekly Champion's Gauntlet + Weekly Mutation (weekly seed
   + boards); Exposed stacking debuff + target-priority filters through replay
   v4 with bestiary/help copy and regenerated balance-gate artifacts.
 - **Wave 2 - DONE:** Mirror Hull adaptive flagship + Recalibrate ability
@@ -215,9 +215,9 @@ site, majors only; the full report lists 14 more minor items:
   with real Timestamp fields; allowlist single-sourced.
 - **Gameplay correctness audit fixes** (was #2): cloaked-reveal collision,
   burn attribution/stacking, same-tick terminal leaks, engine-enforced
-  campaign unlocks — all fixed with regression tests.
+  campaign unlocks, all fixed with regression tests.
 - **Deterministic simulation**: seeded RNG recorded in replay setup, true
-  fixed timestep, per-Game uids, save-file decoupling — unblocks server
+  fixed timestep, per-Game uids, save-file decoupling: unblocks server
   re-simulation.
 - **Touch-first game surface** (was #3): short-landscape command layout,
   pause-behind-rotate-overlay, pinch-zoom allowed.
@@ -276,7 +276,7 @@ site, majors only; the full report lists 14 more minor items:
 - [x] <!-- workspace:id=work:d989eb44-648c-58c2-a0df-be7ebd16ad31 --> CrazyGames/Poki SDK adapter and portal build flavors
 - [ ] <!-- workspace:id=work:8b1ea672-f61f-57b9-975e-4d1fc5a2a490 --> [ETHAN] Portal account setup, store copy, thumbnails, screenshots, and external-request approvals
   *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
-  2426f25f — agents may draft the store copy, thumbnails and screenshots now
+  2426f25f: agents may draft the store copy, thumbnails and screenshots now
   so they are waiting; the portal ACCOUNT and the upload stay owner-only, and
   per his same-day inbox answer 4a630a05 the launch itself is parked, so the
   drafts queue as low-priority agent work and nothing gets listed until he
@@ -294,13 +294,13 @@ site, majors only; the full report lists 14 more minor items:
 ## Customization & paid-features backlog (added 2026-07-10)
 
 Owner direction: build out skins, maps, mini-games, and customization as the
-future paid surface. Everything here obeys the Guardrails below — **cosmetic /
+future paid surface. Everything here obeys the Guardrails below: **cosmetic /
 content / QoL only, never touching combat stats, score math, bot plans, or
-unlock thresholds** — and is sequenced so items sell through Salvage today and
+unlock thresholds**, and is sequenced so items sell through Salvage today and
 flip to real entitlements when the Monetization MVP (priority #2) lands.
 
 ### Cosmetics (extend the existing `palette.ts` pattern)
-- [x] <!-- workspace:id=work:a7bf5e3f-50da-5790-b78b-2485d8ec1715 --> **Signal Skins — towers & projectiles.** *(done 2026-07-10)* Generalize `AccentPalette` into
+- [x] <!-- workspace:id=work:a7bf5e3f-50da-5790-b78b-2485d8ec1715 --> **Signal Skins, towers & projectiles.** *(done 2026-07-10)* Generalize `AccentPalette` into
   a `CosmeticSet` (tower body/glow, projectile trail, impact particles) with a
   registry like `PALETTES[]`, Salvage-priced tiers, applied purely in
   `render.ts` lookups; replay playback renders the *viewer's* skin, never the
@@ -313,7 +313,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   via manifest-carried cosmetic ids (display-only metadata, excluded from
   `actionHash`).
 - [ ] <!-- workspace:id=work:07b0dcca-21ac-5fcd-bc7d-93d06464682d --> **Victory/defeat flourishes.** Purchasable end-of-run effects (particle
-  bursts, banner styles) — pure UI layer.
+  bursts, banner styles): pure UI layer.
   *Plan landed 2026-07-18: `docs/plans/unblock-victory-defeat-flourishes-purchasable-en-20260718/` (lane `victory-defeat-flourishes`); implementation dispatch pending.*
 
 ### Maps & content
@@ -356,26 +356,26 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 ### Monetization scaffolding (sequence-gated)
 - [ ] <!-- workspace:id=work:d83cda8f-c8ad-5786-bb16-542a0447ec2c --> **Account upgrade path.** Anonymous Auth → linked account
   (email/Google) preserving uid + Salvage + cosmetics; required before any
-  real-money purchase (entitlements must key to an authenticated uid —
+  real-money purchase (entitlements must key to an authenticated uid,
   priority #2's own rule).
   *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
-  2426f25f — build it now, regardless of Stripe; losing progress on a device
+  2426f25f: build it now, regardless of Stripe; losing progress on a device
   change is a bug whether or not money is involved. [ETHAN] gate cleared;
   this is now ordinary agent work.)*
 - [x] <!-- workspace:id=work:54edc4fc-d147-58c3-8655-980a901eea28 --> **Entitlement model (server-side).** *(done 2026-07-11)* Firestore `entitlements/{uid}`
   written only by Cloud Functions, read by the client cosmetic registry;
-  Salvage purchases and (later) Stripe purchases both funnel through it —
+  Salvage purchases and (later) Stripe purchases both funnel through it:
   one grant path, auditable.
 - [x] <!-- workspace:id=work:496916b9-ab22-5ca3-8396-cc95692c912f --> [ETHAN] **Stripe MVP** (already a launch-gate item in the business
   plan): web checkout for cosmetic bundles + supporter pack; webhooks →
   entitlement grants; no gameplay advantage, ever.
   *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
-  2426f25f — PARKED until the game has players worth charging; matches his
+  2426f25f: PARKED until the game has players worth charging; matches his
   same-day inbox answer 4a630a05 "Park the Neon launch until you have time
   for Stripe; agents stop surfacing it". Wake condition: Ethan unparks
   explicitly. Do not build or re-surface before then.)*
 - [ ] <!-- workspace:id=work:48399282-9e9d-5d41-b995-cb7540e7ff2e --> **Seasonal cosmetic track ("Recovered-Signal Pass" v1).** Time-boxed
-  cosmetic unlock ladder fed by existing quest/streak meta — free tier +
+  cosmetic unlock ladder fed by existing quest/streak meta: free tier +
   premium tier (entitlement-gated); zero gameplay deltas, per Guardrails.
   *Plan landed 2026-07-18: `docs/plans/unblock-seasonal-cosmetic-track-recovered-signal-20260718/` (lane `seasonal-cosmetic-track`); implementation dispatch pending.*
 
@@ -396,7 +396,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 
 ## Cross-project: AI asset intake (G1, added 2026-07-10)
 
-- [ ] <!-- workspace:id=work:c35bfb36-8b60-52eb-86f2-04ba20a74cbb --> (G1) `assets/incoming/` intake for Signal Skin concept batches from local-ai-lab — manifest-validated and review-gated; concepts only, nothing auto-ships to the live game (guardrails above apply)
+- [ ] <!-- workspace:id=work:c35bfb36-8b60-52eb-86f2-04ba20a74cbb --> (G1) `assets/incoming/` intake for Signal Skin concept batches from local-ai-lab, manifest-validated and review-gated; concepts only, nothing auto-ships to the live game (guardrails above apply)
   *Plan landed 2026-07-18: `docs/plans/unblock-g1-assets-incoming-intake-for-signal-ski-20260718/` (lane `g1-assets-incoming-intake`); implementation dispatch pending.*
 - [x] <!-- workspace:id=work:e278b4e6-eef9-53f6-a7f0-697f6ebaf5c4 --> (G1) Publish skin-concept constraints (dimensions, format, neon palette rules) for the lab's NVD prompt matrices. *(done 2026-07-18, g1-publish-skin-concept-constraints)*
 
@@ -404,7 +404,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 
 - [ ] <!-- workspace:id=work:46c75774-4594-59f2-8c39-22a5b50de35d --> [lost] Queue the [ETHAN] agents-fence promotion so the P0 replay fixes can dispatch (added via Visions, 2026-07-19)
   *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
-  2426f25f — raise the fence to `agents: full`. DECIDED but NOT yet executed:
+  2426f25f: raise the fence to `agents: full`. DECIDED but NOT yet executed:
   the agent edit to ~/projects/workspace.json was blocked by the permission
   guard, so the one-line flip `"agents": "docs-only"` → `"agents": "full"` on
   the games/neon-vector-defense entry needs Ethan's hands or an allowed

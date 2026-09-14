@@ -22,14 +22,14 @@ Firebase project: `neon-vector-defense-7`
 | `VITE_FIREBASE_APPCHECK_SITE_KEY` | Build-time (Vite) | Optional reCAPTCHA Enterprise site key. When present, the browser sends Firebase App Check tokens. |
 | `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` | Local dev only | Optional App Check debug token; honored only by Vite dev builds. |
 | `ENFORCE_APP_CHECK` | Cloud Functions runtime | Set to `true` after App Check tokens are confirmed in production to make callable Functions reject missing/invalid tokens. |
-| `OPENROUTER_API_KEY` | `.env.local` / Worker secret | Image, audio, voice generation scripts only — never in `VITE_*` |
+| `OPENROUTER_API_KEY` | `.env.local` / Worker secret | Image, audio, voice generation scripts only, never in `VITE_*` |
 | `VITE_*` | Build-time | All exposed to the browser; no secrets |
 
 ## Firestore collections
 
 ### `boards/{board}/scores/{id}`
 
-Public leaderboard entries. **Client writes are denied** — only the `submitScore` Cloud Function writes here.
+Public leaderboard entries. **Client writes are denied**: only the `submitScore` Cloud Function writes here.
 
 Board ID pattern: `{map}_{diff}` or `{map}_{diff}_fp` for freeplay.
 
@@ -403,7 +403,7 @@ plain-number fields like `ts`):
 | `telemetry/{id}` | `expiresAt` | 180 days (compact outcome rows) |
 | `rateLimits/{key}` | `expiresAt` | 24 hours (server-written) |
 
-Public replays (`runs` + chunks) are NOT expired — they back leaderboard
+Public replays (`runs` + chunks) are NOT expired, because they back leaderboard
 verification and WATCH links. TTL policies are configured once per
 collection group (the `chunks` policy only affects docs that carry the
 field, so public replay chunks are untouched):
