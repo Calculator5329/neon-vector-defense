@@ -1819,6 +1819,37 @@ test.describe('mobile UX layout', () => {
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
   });
 
+  test('leaderboard board column fits a portrait phone so the right-hand cells stay reachable', async ({ page }) => {
+    await openDemoMenu(page);
+    await page.getByRole('button', { name: /^LEADERBOARD/ }).click();
+    await expect(page.locator('.board-tab')).toBeVisible();
+
+    const layout = await page.evaluate(() => {
+      const root = document.querySelector<HTMLElement>('.menu-root')!;
+      const rootRect = root.getBoundingClientRect();
+      const widest = [...root.querySelectorAll<HTMLElement>('.board-tab, .board-tab *')]
+        .map((el) => el.getBoundingClientRect().right)
+        .reduce((a, b) => Math.max(a, b), 0);
+      const modes = document.querySelector<HTMLElement>('.board-modes')!;
+      return {
+        rootOverflow: root.scrollWidth - root.clientWidth,
+        overflowX: getComputedStyle(root).overflowX,
+        widestOverhang: Math.round(widest - rootRect.right),
+        modesWrap: getComputedStyle(modes).flexWrap,
+        modeButtons: modes.querySelectorAll('button').length,
+      };
+    });
+
+    // `.menu-root` clips overflow-x, so anything past its right edge is unreachable:
+    // the sweep measured scrollWidth 536 on a 390 viewport, hiding the credits cell
+    // and the WATCH deep link on every board row.
+    expect(layout.overflowX).toBe('hidden');
+    expect(layout.rootOverflow).toBeLessThanOrEqual(1);
+    expect(layout.widestOverhang).toBeLessThanOrEqual(1);
+    expect(layout.modesWrap).toBe('wrap');
+    expect(layout.modeButtons).toBeGreaterThanOrEqual(4);
+  });
+
   test('arsenal panel renders a complete 21-tower grid on mobile', async ({ page }) => {
     await openDemoMenu(page);
     await deployFromMenu(page);
