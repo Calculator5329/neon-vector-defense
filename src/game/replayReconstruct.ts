@@ -23,12 +23,20 @@ export interface ReconTower {
   name: string;
 }
 
+/** HUD totals a reconstructed frame cannot know. A schema-v3 doc records the action
+ *  stream and the final summary and nothing in between, so mid-run credits, cores,
+ *  kills and leaks exist nowhere in the document. Naming them here lets the viewer
+ *  show "unknown" instead of the run-END totals. */
+export type ReconUnknown = 'cash' | 'lives' | 'kills' | 'leaks';
+
 export interface ReconFrame {
   idx: number;
   snap: RunWaveSnapshot;
   towers: ReconTower[];
   maxDamage: number;
   terminal: boolean;
+  /** Fields of `snap` that are placeholders at this scrub position, never real readings. */
+  unknown: ReconUnknown[];
 }
 
 export interface PathGeom { pts: { x: number; y: number }[]; cum: number[]; len: number; }
@@ -155,11 +163,13 @@ function towersFromEvents(run: PublicRunDoc): RunTowerSnapshot[] {
   return roster;
 }
 
+const UNKNOWN_MID_RUN: ReconUnknown[] = ['cash', 'lives', 'kills', 'leaks'];
+const NOTHING_UNKNOWN: ReconUnknown[] = [];
+
 export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
   const sourceSnapshots = replaySnapshots(run);
-  const snaps = sourceSnapshots.length
-    ? sourceSnapshots
-    : [synthSnapshot(run)];
+  const derived = sourceSnapshots.length ? null : derivedSnapshots(run);
+  const snaps = sourceSnapshots.length ? sourceSnapshots : derived as RunWaveSnapshot[];
   let idx = 0;
   for (let i = 0; i < snaps.length; i++) {
     if (snaps[i].t <= t) idx = i;
@@ -182,7 +192,55 @@ export function reconstructAt(run: PublicRunDoc, t: number): ReconFrame {
     });
   }
   const terminal = idx === snaps.length - 1;
-  return { idx, snap, towers, maxDamage, terminal };
+  return {
+    idx, snap, towers, maxDamage, terminal,
+    unknown: derived && !terminal ? UNKNOWN_MID_RUN : NOTHING_UNKNOWN,
+  };
+}
+
+const derivedSnapshotCache = new WeakMap<PublicRunDoc, RunWaveSnapshot[]>();
+
+/** Keyframes for a doc that carries none of its own (every schema-v3 run).
+ *
+ *  Falling through to the lone synthetic run-end keyframe made `reconstructAt`
+ *  return the END of the run at EVERY scrub position: the viewer opened on the
+ *  final wave, the final kill count and `terminal: true`, and nothing in the HUD
+ *  ever changed as the playhead moved, which is why a `?run=` link read as
+ *  "resolved but never played". The recorded action stream does carry the wave
+ *  boundaries and the full tower roster, so derive a keyframe per wave from those
+ *  and let the viewer mark the totals it genuinely cannot know. */
+function derivedSnapshots(run: PublicRunDoc): RunWaveSnapshot[] {
+  const cached = derivedSnapshotCache.get(run);
+  if (cached) return cached;
+  const synth = synthSnapshot(run);
+  // The viewer scrubs over the RECORDED stream, whose last event lands a fraction of a
+  // second before the rounded summary.durationS. A run-end keyframe pinned to durationS
+  // is past the end of the timeline and can never be selected, so the replay would never
+  // reach its own outcome. Anchor it to whichever the playhead can actually arrive at.
+  const events = replayEvents(run);
+  const lastEventT = events.length ? events[events.length - 1].t : 0;
+  const end: RunWaveSnapshot = lastEventT > 0 && lastEventT < synth.t ? { ...synth, t: lastEventT } : synth;
+  const towers = end.towers ?? [];
+  const aliveAt = (t: number) => towers.filter((tw) => tw.placedAtS <= t && (tw.soldAtS == null || tw.soldAtS > t)).length;
+  const frames: RunWaveSnapshot[] = [];
+  const seen = new Set<number>();
+  const push = (rawT: number, wave: number, label: string) => {
+    const t = Math.max(0, roundReplayT(rawT));
+    if (t >= end.t || seen.has(t)) return;
+    seen.add(t);
+    frames.push({
+      ...end,
+      label, t, wave,
+      towerCount: aliveAt(t),
+      enemyCount: 0,
+    });
+  };
+  push(0, 0, 'run_start');
+  for (const win of waveStarts(run)) push(win.startT, win.wave, 'wave_start');
+  frames.sort((a, b) => a.t - b.t);
+  frames.push(end);
+  derivedSnapshotCache.set(run, frames);
+  return frames;
 }
 
 function synthSnapshot(run: PublicRunDoc): RunWaveSnapshot {
@@ -237,7 +295,13 @@ export function waveWindow(run: PublicRunDoc, t: number): { wave: number; startT
   }
   if (best) return best;
   const f = snapshots[0];
-  return { wave: f?.wave ?? run.summary.wave, startT: f?.t ?? 0 };
+  if (f) return { wave: f.wave, startT: f.t };
+  // No keyframe and no wave launched yet at this scrub position. Falling back to
+  // summary.wave here announced the run's FINAL wave over the opening seconds
+  // ("CAPITAL HULL · WAVE 60" at t=0) on every v3 replay.
+  return replayEvents(run).some((e) => e.type === 'wave_start')
+    ? { wave: 0, startT: 0 }
+    : { wave: run.summary.wave, startT: 0 };
 }
 
 function eventNum(e: RunEvent, key: string, fallback = 0): number {
