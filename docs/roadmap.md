@@ -143,7 +143,7 @@ site, majors only; the full report lists 14 more minor items:
 | Freeplay | Campaign continuation, contracts, relics, risk packets, rivals, checkpoint banking | `freeplay.ts`, `engine.ts`, `App.tsx` |
 | Daily Challenge | UTC daily protocol with fixed modifiers, normal wave-1 start, daily leaderboard | `dailyChallenge.ts`, `engine.ts`, `MainMenu.tsx`, `functions/src/index.ts` |
 | Meta loop | Warden Rank, Salvage, Operations Board, Watch Streak; cosmetic/QoL only | `meta.ts`, `OperationsBoard.tsx`, `tests/e2e/ux-ui.spec.ts` |
-| In-run QoL | Engine-backed wave preview, keyboard placement/cycling, Veteran Deploy batch upgrades | `GameScreen.tsx`, `engine.ts`, `runTelemetry.ts`, `storage.ts` |
+| In-run QoL | Keyboard placement/cycling, Veteran Deploy batch upgrades | `GameScreen.tsx`, `engine.ts`, `runTelemetry.ts`, `storage.ts` |
 | AI rival ghosts | In-run HUD and modal comparing current run to bundled bot profiles | `BotGhostHud.tsx`, `ghostCurve.ts`, `ghostCurveData.ts` |
 | Privacy and admin | Age/consent gate, private feedback receipts, admin replies, admin-only deletion tooling | `consent.ts`, `leaderboard.ts`, `functions/src/index.ts`, `PrivacyView.tsx` |
 | Accessibility baseline | Reduced motion, colorblind palette, global focus-visible ring, stronger contrast tokens | `settings.ts`, `src/index.css`, `App.css` |

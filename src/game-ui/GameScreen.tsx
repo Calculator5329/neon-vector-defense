@@ -65,8 +65,7 @@ import { meta, type RunMetaReward } from '../game/meta';
 import { buildGhostCurves, ghostCurvesForMap, type GhostCurve } from '../game/ghostCurve';
 import { GHOST_CURVES_RAW } from '../game/ghostCurveData';
 import { buildDossierInputFromGame, type DossierInput } from '../game/dossier';
-import type { GameMap, DifficultyDef, TowerDef, Tower, TargetFilter, TargetMode, Vec, EnemyDef, WaveGroup } from '../game/types';
-import { hasCloakedWave, isWaveGroupCloaked } from '../game/waves';
+import type { GameMap, DifficultyDef, TowerDef, Tower, TargetFilter, TargetMode, Vec, EnemyDef } from '../game/types';
 import { AIHelpWidget } from '../widgets/AIHelpWidget';
 import { FeedbackWidget } from '../widgets/FeedbackWidget';
 import { PERF_MAP, DEMO_MODE, AI_HELP_ENABLED, WIDGET_OPEN_EVENT } from '../appShared';
@@ -216,20 +215,6 @@ function applyVeteranDeploy(game: Game, tower: Tower): number {
   return bought;
 }
 
-function summarizeWave(groups: WaveGroup[]) {
-  const byType = new Map<string, { def: EnemyDef; count: number; cloaked: boolean; boss: boolean }>();
-  for (const group of groups) {
-    const def = ENEMIES[group.type];
-    if (!def) continue;
-    const row = byType.get(group.type) ?? { def, count: 0, cloaked: false, boss: !!def.boss };
-    row.count += group.count;
-    row.cloaked = row.cloaked || isWaveGroupCloaked(group);
-    row.boss = row.boss || !!def.boss;
-    byType.set(group.type, row);
-  }
-  return [...byType.entries()].map(([id, row]) => ({ id, ...row }));
-}
-
 function liveUnlockKills(game: Game): number {
   if (game.isDailyChallenge) return DEMO_UNLOCK_KILLS;
   return DEMO_MODE ? DEMO_UNLOCK_KILLS : progress.record.kills + game.totalKills;
@@ -346,8 +331,6 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   const keyboardPlacementRef = useRef(false);
   const keyboardCursorRef = useRef<Vec | null>(null);
   const keyboardTowerIndexRef = useRef(-1);
-  const previewViewRef = useRef('');
-  const previewHoverRef = useRef('');
   const selectedRef = useRef<Tower | null>(null);
   const aimingRef = useRef(false);
   const overlayRef = useRef(false);
@@ -390,13 +373,6 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   useEffect(() => {
     if (!briefed) game.recorder.recordControl(METRIC_EVENTS.BRIEFING_VIEW);
   }, [briefed, game]);
-  useEffect(() => {
-    if (!sideOpen || game.phase !== 'build') return;
-    const key = `${game.runId}:${game.wave + 1}`;
-    if (previewViewRef.current === key) return;
-    previewViewRef.current = key;
-    game.recorder.recordWavePreview('view');
-  }, [game, game.phase, game.wave, sideOpen]);
   // Coach advancement — checked on the normal ~8Hz UI tick; each gate is the
   // real action, not a "next" click.
   useEffect(() => {
@@ -1255,20 +1231,9 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
     setTick((t) => t + 1);
   };
 
-  const nextWaveNumber = game.wave + 1;
-  const nextWaveGroups = game.phase === 'build' ? game.previewWave(nextWaveNumber) : [];
-  const nextWavePreview = summarizeWave(nextWaveGroups);
-  const hasNextWaveCloak = nextWaveGroups ? hasCloakedWave(nextWaveGroups) : false;
   const displayedWaveLimit = activeGauntletRoute ? gauntletProtocolWaveCount(gauntletLeg) : activeDiff.waves;
   const adaptationType = game.adaptation.type;
   const adaptationResist = Math.round(game.adaptation.resist * 100);
-  const recordWavePreviewHover = () => {
-    const key = `${game.runId}:${nextWaveNumber}`;
-    if (previewHoverRef.current === key) return;
-    previewHoverRef.current = key;
-    game.recorder.recordWavePreview('hover');
-  };
-
   return (
     <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} data-testid="game-root">
       <div className="rotate-device" data-testid="rotate-device">
@@ -1526,9 +1491,6 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
                   veteranDeployUnlocked={veteranDeployUnlocked}
                   onVeteranDeployChange={(next) => { setVeteranDeploy(next); progress.veteranDeploy = next; sfx.click(); }}
                   setPlacing={(d) => setPlacementMode(d)} onCollapse={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_COLLAPSE); setSideOpen(false); sfx.click(); }} />
-              )}
-              {game.phase === 'build' && (
-                <WavePreviewPanel wave={nextWaveNumber} items={nextWavePreview} onHover={recordWavePreviewHover} hasCloakedIncoming={hasNextWaveCloak} />
               )}
             </div>
           ) : (
@@ -2070,45 +2032,6 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
         ))}
       </div>
     </Modal>
-  );
-}
-
-function WavePreviewPanel({
-  wave,
-  items,
-  onHover,
-  hasCloakedIncoming,
-}: {
-  wave: number;
-  items: ReturnType<typeof summarizeWave>;
-  onHover: () => void;
-  hasCloakedIncoming: boolean;
-}) {
-  const hasBoss = items.some((item) => item.boss);
-  return (
-    <div className="wave-preview-panel" data-testid="wave-preview" onMouseEnter={onHover} onFocus={onHover}>
-      <div className="wave-preview-head">
-        <span>NEXT WAVE {wave}</span>
-        <div className="wave-preview-flags">
-          {hasCloakedIncoming && <b className="cloak">CLOAKED WAVE INCOMING</b>}
-          {hasBoss && <b className="boss">BOSS</b>}
-        </div>
-      </div>
-      <div className="wave-preview-list" aria-label={`Next wave ${wave} composition`}>
-        {items.map((item) => {
-          const seen = progress.enemiesSeen.includes(item.id);
-          const label = seen ? item.def.name : 'Unidentified hostile';
-          return (
-            <div key={item.id} className={`wave-preview-enemy ${item.cloaked ? 'cloaked' : ''} ${item.boss ? 'boss' : ''}`}
-              title={`${label} x${item.count}${item.cloaked ? ' cloaked' : ''}${item.boss ? ' boss' : ''}`}>
-              <EnemyPortrait def={item.def} unknown={!seen} className="wave-preview-portrait" />
-              <span className="wave-preview-count">x{item.count}</span>
-              {!seen && <span className="wave-preview-unknown">?</span>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

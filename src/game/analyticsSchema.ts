@@ -132,6 +132,8 @@ export const analyticsTowerInterestDefaults: PrivateRunAnalyticsDoc['towerIntere
   failedUpgrades: 0,
   quickSellbacks: 0,
   targetModeChanges: 0,
+  // Tombstones: the build-phase wave preview was removed 2026-09-19. The keys stay
+  // so stored analytics docs written before then still normalize.
   wavePreviewViews: 0,
   wavePreviewHovers: 0,
   abilityUses: {},

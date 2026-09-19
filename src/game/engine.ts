@@ -1022,10 +1022,6 @@ export class Game {
     return { groups, mutators, rival };
   }
 
-  previewWave(wave = this.wave + 1): Wave {
-    return this.prepareWave(Math.max(1, Math.floor(wave))).groups.map((group) => ({ ...group }));
-  }
-
   startWave() {
     if (this.phase !== 'build') return;
     if (this.bonusRound) return;

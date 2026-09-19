@@ -383,8 +383,10 @@ export interface PrivateRunAnalyticsDoc {
     failedUpgrades: number;
     quickSellbacks: number;
     targetModeChanges: number;
-    wavePreviewViews: number;
-    wavePreviewHovers: number;
+    /** @deprecated Tombstone: the build-phase wave preview was removed 2026-09-19. Kept so stored analytics docs still parse. */
+    wavePreviewViews?: number;
+    /** @deprecated Tombstone: see wavePreviewViews. */
+    wavePreviewHovers?: number;
     abilityUses: Record<string, number>;
     pickupCollects: Record<string, number>;
   };
@@ -538,8 +540,6 @@ export class RunRecorder {
     upgradePanelByTower: {} as Record<string, number>,
     quickSellbacks: 0,
     targetModeChanges: 0,
-    wavePreviewViews: 0,
-    wavePreviewHovers: 0,
     abilityUses: {} as Record<string, number>,
     pickupCollects: {} as Record<string, number>,
   };
@@ -987,11 +987,6 @@ export class RunRecorder {
   recordUpgradePanelOpen(tower: Tower): void {
     this.towerInterest.upgradePanelOpens++;
     bump(this.towerInterest.upgradePanelByTower, tower.def.id);
-  }
-
-  recordWavePreview(kind: 'view' | 'hover'): void {
-    if (kind === 'hover') this.towerInterest.wavePreviewHovers++;
-    else this.towerInterest.wavePreviewViews++;
   }
 
   recordUnlockEarned(towerId: string): void {
