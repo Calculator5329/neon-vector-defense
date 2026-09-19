@@ -59,10 +59,29 @@ function fresh(): MetaState {
     yakkobUnlocked: false, bestYakkobWave: 0,
   };
 }
+/**
+ * Signal Skins were removed in 2026-09. A save written before that still carries
+ * the equipped slot and any purchased skin ids, so drop them on read instead of
+ * letting dead cosmetics linger in the wallet state.
+ */
+function dropRetiredCosmetics(state: MetaState): MetaState {
+  if (state.cosmeticEquipped && typeof state.cosmeticEquipped === 'object') {
+    delete state.cosmeticEquipped['signal-skin'];
+  } else {
+    state.cosmeticEquipped = {};
+  }
+  if (Array.isArray(state.cosmetics)) {
+    state.cosmetics = state.cosmetics.filter((id) => !String(id).startsWith('signal-skin-'));
+  } else {
+    state.cosmetics = [];
+  }
+  return state;
+}
+
 function load(): MetaState {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(META_KEY) : null;
-    if (raw) return { ...fresh(), ...JSON.parse(raw) };
+    if (raw) return dropRetiredCosmetics({ ...fresh(), ...JSON.parse(raw) });
   } catch { /* corrupted/unavailable — start fresh */ }
   return fresh();
 }
@@ -357,8 +376,6 @@ export const meta = {
   equip(slot: string, id: string) { cache.cosmeticEquipped[slot] = id; save(); },
   get equippedPalette(): string { return cache.cosmeticEquipped['accent'] ?? 'standard'; },
   get equippedMapTheme(): string { return cache.cosmeticEquipped['map-theme'] ?? 'standard'; },
-  /** Local viewer paint; deliberately absent from run/replay state. */
-  get equippedSignalSkin(): string { return cache.cosmeticEquipped['signal-skin'] ?? 'standard'; },
 
   reset() { cache = fresh(); save(); },
 };

@@ -13,9 +13,6 @@ export const COSMETIC_PRICES = Object.freeze({
   'map-theme-ember': 350,
   'map-theme-glacier': 400,
   'map-theme-void': 500,
-  'signal-skin-chrome': 450,
-  'signal-skin-inferno': 700,
-  'signal-skin-spectral': 1000,
 } as const);
 
 export type PurchasableCosmeticId = keyof typeof COSMETIC_PRICES;

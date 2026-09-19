@@ -3,7 +3,6 @@ import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from '.
 import { PALETTES, applyAccent } from './game/palette';
 import { purchaseEntitlement } from './game/entitlements';
 import { sfx } from './game/sound';
-import SignalSkinPicker from './ui/SignalSkinPicker';
 import MapThemePicker from './ui/MapThemePicker';
 
 // Third menu tab: Warden Rank + Salvage wallet + Watch Streak + the daily/weekly
@@ -141,11 +140,6 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
             );
           })}
         </div>
-      </div>
-
-      <div className="ops-shop" data-testid="ops-shop-signal-skins">
-        <div className="menu-section-label">SIGNAL SKINS</div>
-        <SignalSkinPicker onChange={(skin) => { pushStatus({ kind: 'ok', text: `${skin.name} signal skin equipped.` }); sfx.click(); rerender(); }} />
       </div>
 
       <div className="ops-shop" data-testid="ops-shop-map-themes">
