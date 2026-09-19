@@ -1819,6 +1819,108 @@ test.describe('mobile UX layout', () => {
     expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
   });
 
+  test('leaderboard board column fits a portrait phone so the right-hand cells stay reachable', async ({ page }) => {
+    await openDemoMenu(page);
+    await page.getByRole('button', { name: /^LEADERBOARD/ }).click();
+    await expect(page.locator('.board-tab')).toBeVisible();
+
+    const layout = await page.evaluate(() => {
+      const root = document.querySelector<HTMLElement>('.menu-root')!;
+      const rootRect = root.getBoundingClientRect();
+      const widest = [...root.querySelectorAll<HTMLElement>('.board-tab, .board-tab *')]
+        .map((el) => el.getBoundingClientRect().right)
+        .reduce((a, b) => Math.max(a, b), 0);
+      const modes = document.querySelector<HTMLElement>('.board-modes')!;
+      return {
+        rootOverflow: root.scrollWidth - root.clientWidth,
+        overflowX: getComputedStyle(root).overflowX,
+        widestOverhang: Math.round(widest - rootRect.right),
+        modesWrap: getComputedStyle(modes).flexWrap,
+        modeButtons: modes.querySelectorAll('button').length,
+      };
+    });
+
+    // `.menu-root` clips overflow-x, so anything past its right edge is unreachable:
+    // the sweep measured scrollWidth 536 on a 390 viewport, hiding the credits cell
+    // and the WATCH deep link on every board row.
+    expect(layout.overflowX).toBe('hidden');
+    expect(layout.rootOverflow).toBeLessThanOrEqual(1);
+    expect(layout.widestOverhang).toBeLessThanOrEqual(1);
+    expect(layout.modesWrap).toBe('wrap');
+    expect(layout.modeButtons).toBeGreaterThanOrEqual(4);
+  });
+
+  test('in-run HUD pills never cover the ABORT control on a portrait phone', async ({ page }) => {
+    await openDemoMenu(page);
+    await deployFromMenu(page);
+    await acknowledgeBriefing(page);
+    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    // Widest plausible readouts, so the pills are at their real maximum size.
+    await page.evaluate(() => {
+      const game = (window as unknown as { game?: Record<string, unknown> }).game;
+      if (!game) throw new Error('game dev handle missing');
+      game.credits = 999999;
+      game.totalKills = 888888;
+      game.wave = 49;
+      game.lives = 120;
+      game.adaptation = { type: 'energy', resist: 0.35 };
+    });
+    await expect(page.locator('.tb-adapt-slot')).toBeVisible();
+
+    const hud = await page.evaluate(() => {
+      const bar = document.querySelector<HTMLElement>('.topbar')!;
+      const abort = bar.querySelector<HTMLElement>('.tb-btn.exit')!;
+      const abortRect = abort.getBoundingClientRect();
+      const overlap = (a: DOMRect, b: DOMRect) =>
+        Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+        Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      const items = [...bar.children].filter(
+        (el): el is HTMLElement => el instanceof HTMLElement && getComputedStyle(el).display !== 'none',
+      );
+      let pairOverlap = 0;
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          pairOverlap += overlap(items[i].getBoundingClientRect(), items[j].getBoundingClientRect());
+        }
+      }
+      let onAbort = 0;
+      let probes = 0;
+      for (let fx = 0.1; fx <= 0.9; fx += 0.2) {
+        for (let fy = 0.15; fy <= 0.85; fy += 0.35) {
+          probes++;
+          const hit = document.elementFromPoint(
+            Math.round(abortRect.x + abortRect.width * fx),
+            Math.round(abortRect.y + abortRect.height * fy),
+          );
+          if (hit === abort || abort.contains(hit)) onAbort++;
+        }
+      }
+      return {
+        pairOverlap: Math.round(pairOverlap),
+        probes,
+        onAbort,
+        barOverflow: bar.scrollWidth - bar.clientWidth,
+        clipped: items
+          .filter((el) => el.scrollWidth > el.clientWidth + 1)
+          .map((el) => el.className.trim()),
+        smallestControl: Math.min(
+          ...items
+            .filter((el) => el.classList.contains('tb-btn'))
+            .map((el) => Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height)),
+        ),
+      };
+    });
+
+    // The pills kept their desktop min-widths inside 58px grid tracks, so they spilled
+    // over each other: CORES covered 1,051 square px of ABORT and only 9 of 15 probe
+    // points inside ABORT still hit ABORT, which is how a readout tap aborts a live run.
+    expect(hud.pairOverlap).toBe(0);
+    expect(hud.onAbort).toBe(hud.probes);
+    expect(hud.barOverflow).toBeLessThanOrEqual(1);
+    expect(hud.clipped).toEqual([]);
+    expect(hud.smallestControl).toBeGreaterThanOrEqual(44);
+  });
+
   test('arsenal panel renders a complete 21-tower grid on mobile', async ({ page }) => {
     await openDemoMenu(page);
     await deployFromMenu(page);

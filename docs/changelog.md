@@ -24,6 +24,29 @@ written earlier still normalize. Replay determinism is unchanged: the action
 stream, score path, and verifier were not touched, and the replay end-to-end
 suite still proves verified, divergent, and bounded on all three seeds.
 
+## 2026-09-19: Site sweep majors
+
+Replay links play. A `?run=` link resolved the run and then sat still: every
+live run doc is schema v3 and carries no snapshots, so the cosmetic
+reconstruction fell back to a single synthetic run-end keyframe and returned
+it at every scrub position, opening on the final wave with the final totals.
+Keyframes are now derived from the recorded action stream, the totals a v3
+document does not record read as unknown instead of the run-end numbers, and
+a run whose scrub domain is hours of game seconds opens at a speed that makes
+the playhead visibly move.
+
+Leaderboard credits and WATCH are reachable on a portrait phone. The
+five-button mode row did not wrap, so it set the menu column's min-content
+width at 518px inside a 390px viewport, and `.menu-root` clips overflow-x.
+The right-hand cells of every board row were cut off with no way to scroll to
+them. Measured scrollWidth is now 390 with nothing past the right edge.
+
+Portrait HUD pills no longer cover the ABORT control. The pills kept their
+desktop min-widths inside 58px grid tracks, so the CORES pill covered 1,051
+square px of ABORT and 6 of 15 probe points inside ABORT hit something else.
+The mobile topbar now uses 14 narrow tracks, which fit a row of seven
+controls or a row of readouts without spilling.
+
 ## 2026-09-04: Remove cleanup scaffolding
 
 Removed two investigation-only screenshots and review prose duplicated by

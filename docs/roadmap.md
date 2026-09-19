@@ -40,9 +40,9 @@ polishing stages"; both removals landed that day.
 Site sweep 2026-09-13 (Playwright, 1280×900 and 390×844) against the live
 site, majors only; the full report lists 14 more minor items:
 
-- [ ] <!-- workspace:id=work:8f1c859d-450b-551e-b81f-abb2490b5527 --> **Replay viewer never plays from a `?run=` link**: the page loads, the run resolves, playback never starts. Reachable from every leaderboard row.
-- [ ] <!-- workspace:id=work:dd1abede-deb2-5047-8f31-ba2e294f5ca2 --> **Leaderboard credits and WATCH are unreachable at 390px**: `.menu-root` scrollWidth 536 on a 390 viewport with `overflow-x: hidden`, so the right-hand controls are cut off with no way to scroll to them.
-- [ ] <!-- workspace:id=work:8cbb39f2-3f7f-5599-acf8-e9c544c34a68 --> **Portrait HUD pills overlap the ABORT control** at 390×844, so ABORT can be mis-tapped mid-run.
+- [x] <!-- workspace:id=work:8f1c859d-450b-551e-b81f-abb2490b5527 --> **Replay viewer never plays from a `?run=` link**: the page loads, the run resolves, playback never starts. Reachable from every leaderboard row. (2026-09-19: schema-v3 docs carry no snapshots, so the cosmetic reconstruction returned one synthetic run-end keyframe at every scrub position. Derive keyframes from the recorded action stream, flag the totals the document cannot know, and open at a speed that makes an hours-long game-second timeline visibly move. Covered by `tests/unit/replay-reconstruct.test.ts`.)
+- [x] <!-- workspace:id=work:dd1abede-deb2-5047-8f31-ba2e294f5ca2 --> **Leaderboard credits and WATCH are unreachable at 390px**: `.menu-root` scrollWidth 536 on a 390 viewport with `overflow-x: hidden`, so the right-hand controls are cut off with no way to scroll to them. (2026-09-19: the unwrapped five-button mode row set the menu column min-content width and `.menu-content` had no `min-width: 0`. Wrapped the row and allowed the column to shrink; scrollWidth is now 390 with nothing past the right edge.)
+- [x] <!-- workspace:id=work:8cbb39f2-3f7f-5599-acf8-e9c544c34a68 --> **Portrait HUD pills overlap the ABORT control** at 390×844, so ABORT can be mis-tapped mid-run. (2026-09-19: the pills kept their desktop min-widths inside 58px grid tracks and spilled over each other. Retracked the mobile topbar to 14 narrow columns so readouts and controls get spans that fit; zero overlapping area and all 15 ABORT probe points now land on ABORT.)
 
 ## Now: owner bug report (Ethan, 2026-07-16 audit review)
 

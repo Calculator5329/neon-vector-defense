@@ -25,6 +25,7 @@ import {
   type Ghost,
   type PathGeom,
   type ReconFrame,
+  type ReconUnknown,
   type ReplayCombatTimeline,
   type ReplayEnemyRecord,
 } from './game/replayReconstruct';
@@ -40,6 +41,16 @@ import type { AbilityId, Enemy, TowerDef } from './game/types';
 
 const FADE_S = 0.45;     // tower fade-in duration (game-seconds) after placedAtS
 const REPLAY_SPEEDS = [0.5, 1, 2, 4, 5, 10] as const;
+// A run's scrub domain is measured in GAME seconds, and the game runs up to 4x, so a
+// long campaign or freeplay marathon records hours of them (19,101s was live). Opening
+// every one of those at 1x moved the playhead 0.005% per second: the replay was running
+// and looked frozen. Open at the slowest offered speed (never below 1x) that gets the
+// whole run under WATCHABLE_S, so playback is visibly moving from the first frame.
+const WATCHABLE_S = 360;
+function openingSpeed(span: number): number {
+  const offered = REPLAY_SPEEDS.filter((sp) => sp >= 1);
+  return offered.find((sp) => span / sp <= WATCHABLE_S) ?? offered[offered.length - 1];
+}
 // Per-frame bounds for driver seeks. A long backward scrub re-simulates from t=0
 // (up to ~90k ticks for a 25-minute run); slicing keeps every frame under
 // SEEK_SLICE_MS so the UI stays at 60fps and a SIMULATING overlay shows
@@ -440,6 +451,7 @@ function drawReplayAbilityEffects(ctx: CanvasRenderingContext2D, events: RunEven
 function drawCallout(ctx: CanvasRenderingContext2D, win: { wave: number; startT: number }, time: number, span: number) {
   const age = time - win.startT;
   void span;
+  if (win.wave < 1) return; // pre-launch: no wave has started yet, so announce nothing
   const showGame = CALLOUT_S;
   if (age < 0 || age > showGame) return;
   const k = 1 - age / showGame;
@@ -564,17 +576,18 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     return { t0: a, tEnd: b, span: sp, fade: FADE_S };
   }, [run]);
 
+  const openSpeed = useMemo(() => openingSpeed(span), [span]);
   const tRef = useRef(t0);
   const seekPendingRef = useRef(false); // a budgeted driver seek is still converging
   const playingRef = useRef(true);
-  const speedRef = useRef(1);
+  const speedRef = useRef(openSpeed);
   const lastTsRef = useRef(0);
   const rafRef = useRef(0);
   const lastIdxRef = useRef(-1);
   const needsDrawRef = useRef(true);
 
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(openSpeed);
   const [hud, setHud] = useState(() => reconstructAt(run, t0));
   const [desync, setDesync] = useState(false);
   const desyncRef = useRef(false);
@@ -646,6 +659,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     })),
     maxDamage: 1,
     terminal: g.phase === 'gameover' || g.phase === 'victory',
+    unknown: [], // the live engine knows every total exactly
   });
 
   // ── draw one frame at the current scrub time ──
@@ -897,6 +911,11 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
 
   const s = run.summary;
   const snap = hud.snap;
+  // A v3 doc records the action stream and the final summary and nothing between, so
+  // mid-run cores/credits/hulls/leaks are not in the document at any scrub position.
+  // They used to render as the run-END totals from the first frame, which made a
+  // replay that was in fact playing read as one that had already finished.
+  const known = (field: ReconUnknown) => !hud.unknown.includes(field);
   const outcome = s.outcome;
   // Only stamp the outcome once the playhead has actually reached the end. In the
   // cosmetic path reconstructAt() reports terminal=true from t=0 (its lone synthetic
@@ -947,11 +966,11 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       </div>
 
       <div className="replay-hud">
-        <div className="replay-stat"><label>WAVE</label><b>{snap.wave}</b></div>
-        <div className="replay-stat"><label>CORES</label><b>{snap.lives}</b></div>
-        <div className="replay-stat"><label>CREDITS</label><b>{`⌬${Math.round(snap.cash).toLocaleString()}`}</b></div>
-        <div className="replay-stat"><label>HULLS</label><b>{snap.kills.toLocaleString()}</b></div>
-        <div className="replay-stat"><label>LEAKS</label><b>{snap.leaks}</b></div>
+        <div className="replay-stat"><label>WAVE</label><b>{snap.wave || '—'}</b></div>
+        <div className="replay-stat"><label>CORES</label><b>{known('lives') ? snap.lives : '—'}</b></div>
+        <div className="replay-stat"><label>CREDITS</label><b>{known('cash') ? `⌬${Math.round(snap.cash).toLocaleString()}` : '—'}</b></div>
+        <div className="replay-stat"><label>HULLS</label><b>{known('kills') ? snap.kills.toLocaleString() : '—'}</b></div>
+        <div className="replay-stat"><label>LEAKS</label><b>{known('leaks') ? snap.leaks : '—'}</b></div>
         <div className="replay-stat"><label>TOWERS</label><b>{hud.towers.length}</b></div>
       </div>
 
