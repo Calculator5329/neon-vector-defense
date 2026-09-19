@@ -3343,7 +3343,11 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .fb-root.on-game { bottom: 16px; }
   .topbar {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    /* 14 narrow tracks, not 6 wide ones. The readouts and the controls want
+       different widths, and a 6-track grid could only give every item the same
+       58px. Fourteen tracks divide cleanly into a row of 7 controls (span 2) or
+       a row of readouts (span 4 or 5), so nothing has to spill to stay legible. */
+    grid-template-columns: repeat(14, minmax(0, 1fr));
     gap: 5px;
     padding: 6px 8px;
   }
@@ -3358,7 +3362,21 @@ button, canvas, .tb-stat, .side-tabs, .ability-btn {
   .tb-stat.kills .tb-stat-num { --nvd-counter-width: 5ch; }
   .tb-adapt-slot { min-width: 0; }
   .tb-adapt-type { min-width: 5ch; }
-  .tb-stat.wave { grid-column: span 2; }
+  /* Every pill kept its desktop min-width inside a 58px track (ABORT 96px, CORES
+     104px, CREDITS 148px), so each one painted over its neighbour: the CORES pill
+     covered 1,051 square px of the ABORT button and 6 of 15 probe points inside
+     ABORT hit a different element. A thumb reaching for a readout could abort a
+     live run. Drop the min-widths and give each item a span that fits it. */
+  .tb-btn.exit,
+  .tb-stat.lives,
+  .tb-stat.credits,
+  .tb-stat.wave { min-width: 0; }
+  .tb-btn { grid-column: span 2; }
+  .tb-btn.exit,
+  .tb-stat { grid-column: span 4; }
+  .tb-stat.credits,
+  .tb-stat.wave,
+  .tb-adapt-slot { grid-column: span 5; }
   .tb-stat.daily-strip { grid-column: 1 / -1; max-width: none; }
   .ability-bar { bottom: max(10px, env(safe-area-inset-bottom)); left: 8px; gap: 5px; }
   .ability-btn { width: 50px; height: 50px; }
