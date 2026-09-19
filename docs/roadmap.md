@@ -28,15 +28,14 @@ Last updated: 2026-07-26 (agent-guide hygiene)
 ## Now: owner request and site sweep (Ethan, 2026-09-13)
 
 Ethan's ask, verbatim: "remove salvage signal feature from NVD in its
-entirety, it is glitchy. as well as the next wave stuff." Both items are
-`src/` work and this repo is fenced `docs-only`, so nothing below is started
-until Ethan promotes the fence (see the open promotion request further down)
-or lands it himself. The scope is filed here so the promotion can be a
-one-word answer.
+entirety, it is glitchy. as well as the next wave stuff." Both items were
+`src/` work behind a `docs-only` fence. Ethan promoted the repo to
+`agents: full` on 2026-09-19 and said "go ahead with cleanup its in the
+polishing stages"; both removals landed that day.
 
-- [ ] <!-- workspace:id=work:5342b8e7-a16a-5c18-9eb7-25c3d454d99c --> [ETHAN] **Fence promotion or a go for the two removals below.** Options: (A) promote `games/neon-vector-defense` to `agents: full` in `workspace.json` for this pass; (B) keep docs-only and Ethan removes them by hand from the file list here; (C) leave both in and close this item. Recommendation: A, the removals touch a dozen files and the tests need re-running.
-- [ ] <!-- workspace:id=work:6181aba6-c515-50cf-91b4-e02141b4e415 --> **Remove the Signal Skins cosmetic bought with Salvage** ("salvage signal feature"). Sites: `src/ui/SignalSkinPicker.tsx`, the "SIGNAL SKINS" section of `src/OperationsBoard.tsx`, `equippedSignalSkin` in `src/game/meta.ts`, `src/game/cosmeticSets.ts`, and the entitlement grant path in `src/game/entitlements.ts`. Scope question for Ethan: (1) Signal Skins only, Salvage wallet stays for daily challenge and free-play unlocks, or (2) the whole Salvage economy (`dailyChallenge.ts`, `freeplay.ts`, `GameScreen.tsx` wallet HUD, Cloud Function grants). Recommendation: (1) first; (2) is a separate pass because entitlements and the seasonal cosmetic track plan depend on the wallet.
-- [ ] <!-- workspace:id=work:66b4063d-5390-5921-92c0-bcfe2caec7f8 --> **Remove the build-phase wave preview** ("next wave stuff"). Sites: `src/game-ui/GameScreen.tsx` (15 references), `src/game/runTelemetry.ts` (7), `src/game/engine.ts`, `src/game/analyticsSchema.ts`, `src/admin/adminAnalytics.ts`, `src/App.css`, and the README line 46 and roadmap descriptions of the preview. Telemetry fields for the preview should be tombstoned in the schema, not deleted, so old replays still parse.
+- [x] <!-- workspace:id=work:5342b8e7-a16a-5c18-9eb7-25c3d454d99c --> [ETHAN] **Fence promotion or a go for the two removals below.** Options: (A) promote `games/neon-vector-defense` to `agents: full` in `workspace.json` for this pass; (B) keep docs-only and Ethan removes them by hand from the file list here; (C) leave both in and close this item. Recommendation: A, the removals touch a dozen files and the tests need re-running. *(Ethan answered A on 2026-09-19: `games/neon-vector-defense` promoted to `agents: full` in `workspace.json`, and "go ahead with cleanup its in the polishing stages.")*
+- [x] <!-- workspace:id=work:6181aba6-c515-50cf-91b4-e02141b4e415 --> **Remove the Signal Skins cosmetic bought with Salvage** ("salvage signal feature"). Sites: `src/ui/SignalSkinPicker.tsx`, the "SIGNAL SKINS" section of `src/OperationsBoard.tsx`, `equippedSignalSkin` in `src/game/meta.ts`, `src/game/cosmeticSets.ts`, and the entitlement grant path in `src/game/entitlements.ts`. Scope question for Ethan: (1) Signal Skins only, Salvage wallet stays for daily challenge and free-play unlocks, or (2) the whole Salvage economy (`dailyChallenge.ts`, `freeplay.ts`, `GameScreen.tsx` wallet HUD, Cloud Function grants). Recommendation: (1) first; (2) is a separate pass because entitlements and the seasonal cosmetic track plan depend on the wallet. *(done 2026-09-19, scope (1): picker, board section, cosmetic set catalog, equipped accessor, render paint paths, and the three server prices removed. The Salvage wallet, daily challenge, free-play unlocks, palettes, map themes, and entitlement plumbing stay. Old saves drop a stored signal-skin slot on load.)*
+- [x] <!-- workspace:id=work:66b4063d-5390-5921-92c0-bcfe2caec7f8 --> **Remove the build-phase wave preview** ("next wave stuff"). Sites: `src/game-ui/GameScreen.tsx` (15 references), `src/game/runTelemetry.ts` (7), `src/game/engine.ts`, `src/game/analyticsSchema.ts`, `src/admin/adminAnalytics.ts`, `src/App.css`, and the README line 46 and roadmap descriptions of the preview. Telemetry fields for the preview should be tombstoned in the schema, not deleted, so old replays still parse. *(done 2026-09-19: panel, `previewWave`, telemetry hooks, admin metric rows, and panel styles removed; `wavePreviewViews` and `wavePreviewHovers` kept as deprecated optional schema fields. README carried no preview line by this date.)*
 
 Site sweep 2026-09-13 (Playwright, 1280×900 and 390×844) against the live
 site, majors only; the full report lists 14 more minor items:
@@ -402,13 +401,15 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 
 - [ ] <!-- workspace:id=work:8e0fc7ca-cfcb-5307-81e9-613be760745a --> [refactor] Module-stub Firestore reads in the qa-screens scaffold (added via Visions, 2026-07-19)
 
-- [ ] <!-- workspace:id=work:46c75774-4594-59f2-8c39-22a5b50de35d --> [lost] Queue the [ETHAN] agents-fence promotion so the P0 replay fixes can dispatch (added via Visions, 2026-07-19)
+- [x] <!-- workspace:id=work:46c75774-4594-59f2-8c39-22a5b50de35d --> [lost] Queue the [ETHAN] agents-fence promotion so the P0 replay fixes can dispatch (added via Visions, 2026-07-19)
   *(Ethan 2026-08-16: took recommendation via waiting-on-you packet, ask
   2426f25f: raise the fence to `agents: full`. DECIDED but NOT yet executed:
   the agent edit to ~/projects/workspace.json was blocked by the permission
   guard, so the one-line flip `"agents": "docs-only"` → `"agents": "full"` on
   the games/neon-vector-defense entry needs Ethan's hands or an allowed
   session. Once flipped, the P0 replay fixes can dispatch.)*
+  *(done 2026-09-19: the fence is `agents: full` in `workspace.json`, so the
+  P0 replay fixes can dispatch. Same answer as work:5342b8e7.)*
 
 - [ ] <!-- workspace:id=work:a5e09a61-4443-5ae8-8749-c3b4d642b4a9 --> Investigate freeplay replay drift: unchanged seed-337 fixture disagrees on live versus replay kills/cash. Preserve the exact replay-equality assertion; see `archive/anti-slop-20260904/replay-base.log`.
 

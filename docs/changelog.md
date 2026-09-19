@@ -2,6 +2,28 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-19: Signal Skins and the build-phase wave preview removed
+
+Ethan asked for both features out: "remove salvage signal feature from NVD in
+its entirety, it is glitchy. as well as the next wave stuff."
+
+Signal Skins are gone at scope option 1: the picker, its Operations Board
+section, the cosmetic set catalog, the equipped-skin accessor, the render
+paths that repainted towers, projectiles, trails and impact particles, and the
+three signal-skin prices in the server cosmetic catalog. The Salvage wallet,
+daily challenge, free-play unlocks, signal palettes, map themes, and the
+entitlement plumbing for other cosmetics all stay. A save written before today
+loads normally: the stored signal-skin slot and any purchased signal-skin ids
+are dropped on read.
+
+The build-phase wave preview is gone with its engine `previewWave` accessor,
+wave summary helper, view and hover telemetry hooks, admin metric rows, and
+panel styles. Its two analytics counters are tombstoned rather than deleted,
+kept as deprecated optional fields with schema defaults so analytics documents
+written earlier still normalize. Replay determinism is unchanged: the action
+stream, score path, and verifier were not touched, and the replay end-to-end
+suite still proves verified, divergent, and bounded on all three seeds.
+
 ## 2026-09-04: Remove cleanup scaffolding
 
 Removed two investigation-only screenshots and review prose duplicated by
