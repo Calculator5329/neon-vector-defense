@@ -60,3 +60,6 @@ functions/src/generated/
 
 # AI-session handoff notes are local working files, never published
 docs/*-HANDOFF.md
+
+# Internal working notes (plans, archive, AI-session handoffs). Kept on disk, not published.
+internal/

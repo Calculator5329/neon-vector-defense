@@ -1,8 +1,28 @@
 # Neon Vector Defense
 
-The game ships under the in-world title **Lantern 7**; this repo is its home.
+![Lantern 7 gameplay, wave 10 at real speed](docs/hero.gif)
 
-![neon-vector-defense screenshot](docs/screenshots/app.png)
+<sub>Twelve seconds of wave 10 in demo mode, played by a Playwright script at real
+speed and captured headless on a GPU. [MP4 version](docs/hero.mp4).</sub>
+
+Every leaderboard score goes through a Cloud Function, and that function
+re-simulates the run with the same engine code the browser ran. A client never
+writes a board row. On submit, `processSubmit` in
+[`functions/src/index.ts`](functions/src/index.ts) checks the replay token and the
+chunk manifest hash, rejects a claim above what the replay summary shows, and
+writes the row with the canonical values. `verifyRunCore` then replays the whole action stream through
+[`src/game/reSimulate.ts`](src/game/reSimulate.ts), which
+`scripts/bundle-resim.mjs` bundles into the Functions build, and stamps the row
+`verified`, `divergent` or `unverifiable`. The three-leg Gauntlet Protocol board
+goes further: every leg has to come back `verified` before its row is written.
+On the other boards a `divergent` row is flagged, not removed yet. I staged
+enforcement on purpose until I know the false-positive rate
+([decision log](docs/decision_log.md)). The tests are
+`tests/unit/reSimulate.test.ts` (honest runs verify, tampered summaries and
+actions do not) and the emulator suite in `tests/callables/callables-emulator.test.ts`,
+which covers post-accept verification and forged setup snapshots.
+
+The game is titled Lantern 7 in the UI; the repo keeps its working name.
 
 [![Live game](https://img.shields.io/badge/live-Lantern%207-22c55e?style=flat-square)](https://neon-vector-defense-7.web.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -35,11 +55,11 @@ lock the tab. Old or partial records fall back to a cosmetic reconstruction
 instead of failing.
 
 **Anti-cheat that does not trust the client.** Submitted scores go through Cloud
-Functions that replay the action stream server-side against canonical balance
-and challenge snapshots, then write the board row with a server timestamp. A
-score with no matching public replay does not land. Firestore rules make
-leaderboards public-read and write-locked; nothing but a validating function
-writes them.
+Functions. A score with no matching public replay does not land. The row is
+written with canonical values and a server timestamp, then the function replays
+the action stream server-side against authenticated balance and challenge
+snapshots and records the verdict on the row. Firestore rules make leaderboards
+public-read and write-locked; nothing but a validating function writes them.
 
 **Balance you can measure instead of argue about.** `npm run sim` runs rookie,
 standard, and expert bots through the public game API across the map and
@@ -63,6 +83,53 @@ Progression, unlocks, and the cosmetic meta loop (Warden Rank, a Salvage wallet,
 Operations Board quests) live in `localStorage`. `meta.ts` is fenced off from
 combat math, unlocks, bot plans, and score on purpose, and `npm run meta:sim` is
 the guard that keeps it there.
+
+## How the pieces fit
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    E[Deterministic engine<br/>src/game]
+    UI[React UI + canvas renderer]
+    UI --> E
+  end
+  subgraph Firestore
+    R[(runs/runId<br/>action chunks + manifest)]
+    B[(boards/*/scores<br/>public read, no client writes)]
+    V[(runVerificationReasons)]
+    C[(config/balance<br/>daily and weekly overrides)]
+  end
+  subgraph Functions[Cloud Functions]
+    S[submitScore<br/>token, manifest hash, score caps]
+    RS[verifyRunCore<br/>bundled reSimulate]
+  end
+  E -- upload replay --> R
+  UI -- callable --> S
+  S -- reads --> R
+  S -- writes row --> B
+  S -- then --> RS
+  RS -- reads --> R
+  RS -- reads --> C
+  RS -- stamps verdict --> B
+  RS -- divergence detail --> V
+```
+
+## How it was built
+
+Agents wrote most of the code under my direction. The git history shows it: 178
+of the 385 commits carry a Claude or Codex co-author trailer. I set the
+direction and made the product calls. Those live in
+[docs/decision_log.md](docs/decision_log.md), and the cuts live in
+[docs/changelog.md](docs/changelog.md), like pulling Signal Skins and the wave
+preview in September because they were glitchy.
+
+The agents did not get to grade their own work. The repo contract makes them run
+the checks for whatever they touched before a commit. `npm run ci` chains all
+of them: a type check and build, the Playwright suite, the engine unit tests,
+record-and-replay matching (`test:replay-e2e`), the `meta.ts` fence, a perf
+smoke test, the balance drift gate, and the Firestore rules, Worker and
+Functions suites against the emulators. `.github/workflows/ci.yml` runs the same
+list except the replay matching step. Deploys stay with me.
 
 ## The game world
 

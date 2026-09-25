@@ -2,6 +2,19 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-24: README lead, hero capture, internal notes out of the public tree
+
+The README now opens with a real-speed gameplay capture (`docs/hero.gif`,
+`docs/hero.mp4`) and a paragraph on server-side replay verification that
+matches the code: the score row is written after the token, manifest and
+summary checks, then re-simulated and stamped. Only Gauntlet Protocol legs are
+re-simulated before the write. Added an architecture diagram and a "How it was
+built" section.
+
+Plans, the archive and AI-session handoff notes moved from `docs/` to a
+gitignored top-level `internal/`. The files stay on disk; links to them from
+this changelog and the roadmap now resolve only locally.
+
 ## 2026-09-19: Signal Skins and the build-phase wave preview removed
 
 Ethan asked for both features out: "remove salvage signal feature from NVD in
