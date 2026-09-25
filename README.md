@@ -204,7 +204,6 @@ it is harness output that feeds the admin dashboard, not production telemetry.
 | [docs/idea_backlog.md](docs/idea_backlog.md) | The full 80-idea audit backlog |
 | [docs/changelog.md](docs/changelog.md) | Session-by-session change log |
 | [docs/performance_audit.md](docs/performance_audit.md) | Engine perf baselines (2026-06-17) |
-| [docs/business_plan.md](docs/business_plan.md) | Strategy, execution order, KPIs, launch gate |
 | [docs/asset_provenance.md](docs/asset_provenance.md) | Media licensing versus MIT source |
 
 Operator procedures, meaning the security rules model, admin console setup, AI

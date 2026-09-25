@@ -243,7 +243,7 @@ site, majors only; the full report lists 14 more minor items:
 ## Near-term priorities
 
 1. **Execute App Check enforcement** - use the staged rollout runbook's metrics window, then flip `ENFORCE_APP_CHECK` and Firebase console enforcement after production token flow is clean.
-2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid (see business_plan.md).
+2. **Monetization MVP** - web checkout (cosmetics + premium unlock), server-side entitlements keyed to the authenticated uid.
 3. **Replay re-simulation enforcement** - collect admin `verifyRun` samples, soft-flag divergent leaderboard rows, then flip rejection only after high-volume freeplay and balance-version false positives are understood.
 
 ## Deferred / bigger bets
