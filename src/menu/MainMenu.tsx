@@ -759,6 +759,35 @@ export function MainMenu(props: {
           </button>
         </div>
       </div>}
+      <footer
+        className="more-by-ethan"
+        aria-label="More by Ethan"
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          flex: '0 0 auto',
+          padding: '10px 0 0',
+          color: 'var(--dim)',
+          fontFamily: 'Orbitron, sans-serif',
+          fontSize: '10px',
+          letterSpacing: '1px',
+          lineHeight: 1.6,
+          textAlign: 'center',
+        }}
+      >
+        <span style={{ marginRight: '8px' }}>MORE BY ETHAN:</span>
+        <a href="https://calculator5329.github.io" style={{ color: 'var(--accent)' }}>Projects</a>{' '}
+        ·{' '}
+        <a href="https://gatesai.web.app/" title="A local-first AI chat desktop app that runs on cloud models or fully local Ollama." style={{ color: 'var(--accent)' }}>GatesAI Chat</a>{' '}
+        ·{' '}
+        <a href="https://ethan-488900.web.app" title="Portfolio backtesting, asset allocation and retirement Monte Carlo over 150+ years of market history." style={{ color: 'var(--accent)' }}>Fathom</a>{' '}
+        ·{' '}
+        <a href="https://agent-handles.web.app" title="Makes a web app's interface addressable by AI agents, with a receipt for each action." style={{ color: 'var(--accent)' }}>Agent Handles</a>{' '}
+        ·{' '}
+        <a href="https://n2k-almanac-v3.web.app" title="An equation almanac and solver for the N2K dice game, served from a compact binary file in a Web Worker." style={{ color: 'var(--accent)' }}>N2K Almanac</a>{' '}
+        ·{' '}
+        <a href="https://github.com/Calculator5329" style={{ color: 'var(--accent)' }}>GitHub</a>
+      </footer>
     </div>
   );
 }
