@@ -2,6 +2,14 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-25: lockfile audit fix for nanoid (CI High Severity Audit)
+
+With the functions build green, CI reached the High Severity Audit step and
+stopped on nanoid 3.3.16 (transitive via vite, postcss). `npm audit fix
+--package-lock-only` moved it to 3.3.19 and cleared the seven moderate
+advisories in the same pass (body-parser, csv-parse, protobufjs, qs,
+stream-json, express). Lockfile only; no package.json change.
+
 ## 2026-09-25: CI verify job on Node 22 so the functions build sees Firestore types
 
 CI had been red since the 2026-09-19 dependency bumps. The Security Tests step
