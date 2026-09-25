@@ -2,6 +2,21 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-25: CI verify job on Node 22 so the functions build sees Firestore types
+
+CI had been red since the 2026-09-19 dependency bumps. The Security Tests step
+failed inside `npm --prefix functions run build` with implicit-any errors on
+every Firestore callback. The rules suites themselves passed. Cause: the
+verify job installed functions/ under Node 20, firebase-admin 14 lists
+`@google-cloud/firestore` as an optional dependency with a higher Node floor,
+npm ci skipped it without failing, and with `skipLibCheck` the Firestore types
+degraded to `any`. Reproduced locally by running the lockfile install under
+Node 20 (118 packages, no @google-cloud) against Node 24 (201 packages).
+
+The verify job now uses Node 22, matching `functions/package.json` and the
+worker job. A guardrail test in `tests/jest/ci-config.test.cjs` reads the
+functions engine and fails if the verify job's Node ever drops below it.
+
 ## 2026-09-24: README lead, hero capture, internal notes out of the public tree
 
 The README now opens with a real-speed gameplay capture (`docs/hero.gif`,

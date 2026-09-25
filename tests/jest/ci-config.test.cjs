@@ -22,6 +22,17 @@ describe('CI/CD guardrails', () => {
   const firestoreRules = fs.readFileSync('firestore.rules', 'utf8');
   const quotedEmails = (text) => [...text.matchAll(/'([^']+@[^']+)'/g)].map((m) => m[1]).sort();
 
+  test('every CI job that installs functions/ runs the Node the functions package declares', () => {
+    // firebase-admin pulls @google-cloud/firestore as an optional dependency with a Node
+    // engine floor; npm ci on an older Node skips it silently, firebase-admin's Firestore
+    // types degrade to any under skipLibCheck, and tsc fails with implicit-any errors (2026-09-25).
+    const functionsPackage = JSON.parse(fs.readFileSync('functions/package.json', 'utf8'));
+    const functionsNode = Number.parseInt(functionsPackage.engines.node.replace(/[^\d]/g, ''), 10);
+    const verifyJob = ciWorkflow.slice(ciWorkflow.indexOf('  verify:'), ciWorkflow.indexOf('  worker:'));
+    const verifyNode = Number.parseInt(/node-version:\s*(\d+)/.exec(verifyJob)[1], 10);
+    expect(verifyNode).toBeGreaterThanOrEqual(functionsNode);
+  });
+
   test('CI runs quick perf and Jest smoke checks', () => {
     expect(packageJson.scripts['test:jest']).toBe('jest --runInBand');
     expect(packageJson.scripts['test:functions']).toContain('npm --prefix functions run build');
