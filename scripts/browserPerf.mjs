@@ -1,6 +1,7 @@
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import net from 'node:net';
+import { existsSync } from 'node:fs';
 
 function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -14,6 +15,11 @@ function getFreePort() {
     });
   });
 }
+
+// Real GPU unless SOFT_GL=1 or there is no render node; see playwright.config.ts.
+const glArgs = process.env.SOFT_GL === '1' || !existsSync('/dev/dri/renderD128')
+  ? []
+  : ['--use-gl=angle', '--use-angle=gl-egl', '--ignore-gpu-blocklist'];
 
 const port = Number(process.env.BROWSER_PERF_PORT) || await getFreePort();
 const baseURL = `http://127.0.0.1:${port}`;
@@ -34,7 +40,7 @@ const viewports = [
 
 try {
   await vite.listen();
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: glArgs });
   const rows = [];
   for (const viewport of viewports) {
     const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } });

@@ -2,6 +2,10 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-26: headless Chromium renders on the GPU
+
+- Playwright e2e and `perf:browser` rendered on the CPU through SwiftShader. `playwright.config.ts` and `scripts/browserPerf.mjs` now pass ANGLE on EGL flags, so WebGL reports the RTX 5070 Ti; `SOFT_GL=1`, or no render node (Windows, macOS, CI), keeps Playwright's default. The screenshot-comparison test `menu-recommended-pill` passes 2/2 on both paths.
+
 ## 2026-09-25: mismatched replays show hulls dying where they really died
 
 Any run recorded before an engine or balance bump falls back to the cosmetic
