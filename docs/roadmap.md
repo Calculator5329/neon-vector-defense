@@ -71,10 +71,18 @@ site, majors only; the full report lists 14 more minor items:
   raised to 10,800s. Fixed cosmetic-path start-at-end (lone synthetic keyframe now
   starts at 0) and the persistent VICTORY stamp (gated on playhead reaching the end).
   See `docs/changelog.md`.
-- [ ] <!-- workspace:id=work:604904ef-f1f9-5bea-a460-50af21eb2f2e --> **Replay re-sim determinism (pre-existing, filed as a task).** `reSimulate`
+- [x] <!-- workspace:id=work:604904ef-f1f9-5bea-a460-50af21eb2f2e --> **Replay re-sim determinism (pre-existing, filed as a task).** `reSimulate`
   returns `divergent` for deep-freeplay-with-relic and Recalibrate ability_cast runs
   (tests/unit/reSimulate.test.ts, 19 of 21 passing as of 2026-08-12). Core to "get replays right", a divergent run
   plays back wrong even when the driver runs.
+  *(done 2026-09-25: fixed by 7b0655c on 2026-09-04, box left open until now. Deep
+  freeplay: `advanceToTick` compared accumulated float seconds with zero tolerance,
+  so downward drift in `game.time += 1/60` (about 38% of tick boundaries from tick 6
+  on) stepped one tick past recorded actions; it now compares integer ticks, the
+  same rounding the recorder uses. Reverting that line alone makes the deep-freeplay
+  test divergent again. Recalibrate was never a divergence: the seed-223 bot died
+  before wave 28 and never cast, so the fixture now records a 1,000,000-life start.
+  Engine suite 144/144.)*
 - [ ] <!-- workspace:id=work:b5ae06ba-3ae3-59aa-ae9c-5e57c364ebd2 --> **Old runs are orphaned by engine/balance version drift.** Any run recorded
   before an engine bump can never be re-simulated frame-accurately (correct by design,
   but it means historical replays are cosmetic-only). Consider recording a compact
@@ -112,10 +120,14 @@ site, majors only; the full report lists 14 more minor items:
   debrief: anticlimactic vs. the BTD-style progressive reveal. Consider staging
   the reveal or rebalancing early `unlockAt` thresholds. (Layout no longer hides
   them; this is the pacing question.)
-- [ ] <!-- workspace:id=work:ef205c7b-c63d-542c-b3c0-7395680452e4 --> **Pre-existing test failure (not from this pass):** `tests/unit/
+- [x] <!-- workspace:id=work:ef205c7b-c63d-542c-b3c0-7395680452e4 --> **Pre-existing test failure (not from this pass):** `tests/unit/
   game-correctness.test.ts` › "watchfire sweep marks cloaked hulls as revealed"
   fails on clean master (`placeTower` returns null in headless node,
   `assert.ok(watchfire)` at :260 (re-measured 2026-08-12)). Triage separately.
+  *(done 2026-09-25: fixed by 7b0655c on 2026-09-04. Not a headless issue: a fresh
+  easy game starts with 900 credits and Watchfire costs 2,125 there, so `placeTower`
+  refused on credits. The test now funds exactly one Watchfire; removing that line
+  brings back the null.)*
 
 ## Next up (owner-triaged, 2026-07-04)
 
@@ -411,6 +423,6 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
   *(done 2026-09-19: the fence is `agents: full` in `workspace.json`, so the
   P0 replay fixes can dispatch. Same answer as work:5342b8e7.)*
 
-- [ ] <!-- workspace:id=work:a5e09a61-4443-5ae8-8749-c3b4d642b4a9 --> Investigate freeplay replay drift: unchanged seed-337 fixture disagrees on live versus replay kills/cash. Preserve the exact replay-equality assertion; see `archive/anti-slop-20260904/replay-base.log`.
+- [x] <!-- workspace:id=work:a5e09a61-4443-5ae8-8749-c3b4d642b4a9 --> Investigate freeplay replay drift: unchanged seed-337 fixture disagrees on live versus replay kills/cash. Preserve the exact replay-equality assertion; see `archive/anti-slop-20260904/replay-base.log`. *(done 2026-09-25: same float-seconds extra-tick bug as "Replay re-sim determinism", fixed in 7b0655c; the deep-run test asserts exact kills, credits and final tick.)*
 
 - [ ] <!-- workspace:id=work:b63d410e-4bd0-58f4-b04d-afe983db0b47 --> Diagnose the 10 browser failures measured during anti-slop verification (weekly card, atlas/recruiter flow, palette purchase); preserve assertions and classify against original behavior. See `archive/anti-slop-20260904/e2e.log`.

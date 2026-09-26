@@ -2,6 +2,21 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-25: close the replay determinism and Watchfire test items
+
+The roadmap still listed replay re-sim divergence and the Watchfire test
+failure as open, three weeks after 7b0655c fixed both. Re-measured on this
+tree: engine suite 144/144. Each cause was confirmed by reverting only its fix
+in a scratch copy. Restoring the float-seconds comparison in `advanceToTick`
+makes the deep-freeplay run divergent again. `game.time` accumulates `1/60`
+per tick and drifts below the exact tick at about 38% of boundaries, and the
+old check had zero tolerance, so re-sim stepped one tick past recorded
+actions. The Recalibrate failure was never a divergence: without its
+1,000,000-life fixture the bot dies before wave 28 and never casts. The
+Watchfire test failed on credits (900 starting, 2,125 cost), not because of
+headless node. No code change; the seed-337 drift item closes with the same
+evidence.
+
 ## 2026-09-25: lockfile audit fix for nanoid (CI High Severity Audit)
 
 With the functions build green, CI reached the High Severity Audit step and
