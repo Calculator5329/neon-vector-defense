@@ -3,6 +3,24 @@
 Source-of-truth decisions for the current app. This file summarizes why the code
 is shaped the way it is; `architecture.md` and `tech_spec.md` cover the mechanics.
 
+## 2026-09-25 - Runs carry a cosmetic kill/leak timeline again
+
+- Partly reverses "Replay v3 stores player actions only" (2026-07-02): runs
+  recorded before an engine or balance bump cannot re-simulate, and without a
+  death record their cosmetic replay showed nothing dying. Each run now stores
+  `final.timeline` (`t1`, `src/game/runTimeline.ts`): one record per kill or
+  leak with tick, enemy kind, lane distance and killer tower.
+- It sits under `final`, which the rules type only as a map, so no rules change
+  or coordinated deploy is needed. The v2 top-level `events`/`deathRecords`
+  rejections stay.
+- Display data only: not in `actionHash`, never verified, never read by scoring
+  or re-simulation, and frame-accurate playback does not build it.
+- Size is the cost. Measured on a forced 60-wave Veteran run: 363,427 chars,
+  run doc 370 KB against 6.8 KB without it. A 480,000-char cap marks it
+  truncated so a freeplay marathon stays under the 1 MB doc limit; the viewer's
+  cosmetic banner names the wave where the record stops. Size kept as built
+  (coordinator ruling on the lane, 2026-09-25).
+
 ## 2026-08-06 - Target practice is retired from live play
 
 - The 15-second target-practice interstitial no longer appears between waves.

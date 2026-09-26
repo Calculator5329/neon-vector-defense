@@ -1388,7 +1388,7 @@ export class Game {
     if (dmg <= 0) return 0;
     e.hp -= dmg;
     if (e.hp <= 0) {
-      this.killEnemy(e);
+      this.killEnemy(e, src);
       if (src) src.kills++;
     } else {
       this.maybeAdvanceUmbraPhase(e);
@@ -1444,8 +1444,9 @@ export class Game {
     }
   }
 
-  /** Ability damage — bypasses all immunities. */
-  trueDamage(e: Enemy, dmg: number) {
+  /** Ability damage — bypasses all immunities. `killer` only attributes a resulting
+   *  kill in the replay timeline (Rail execute); it never scales damage. */
+  trueDamage(e: Enemy, dmg: number, killer?: Tower) {
     if (e.dead || e.finished) return;
     dmg *= this.exposedDamageTakenMultiplier(e);
     dmg = this.capUmbraDamage(e, dmg);
@@ -1461,7 +1462,7 @@ export class Game {
     }
     if (dmg <= 0) return;
     e.hp -= dmg;
-    if (e.hp <= 0) this.killEnemy(e);
+    if (e.hp <= 0) this.killEnemy(e, killer);
     else this.maybeAdvanceUmbraPhase(e);
   }
 
@@ -1474,7 +1475,7 @@ export class Game {
     }
   }
 
-  private killEnemy(e: Enemy) {
+  private killEnemy(e: Enemy, killer?: Tower) {
     if (e.dead) return;
     e.dead = true;
     const dailyIncome = this.dailyChallenge?.twist.killRewardMultiplier ?? 1;
@@ -1483,7 +1484,7 @@ export class Game {
     this.earn(reward);
     this.totalKills++;
     this.runStats.kills[e.def.id] = (this.runStats.kills[e.def.id] ?? 0) + 1;
-    this.recorder.recordEnemyKill(this.telemetryState(), e);
+    this.recorder.recordEnemyKill(this.telemetryState(), e, killer);
     this.spawnChildren(e);
     if (e.elite?.id === 'splitting') this.spawnEliteSplitChildren(e);
     if (e.def.boss) {
@@ -2470,7 +2471,7 @@ export class Game {
       for (const { enemy: e } of onLine) {
         if (st.execute > 0 && !e.def.boss && e.hp / e.maxHp <= st.execute) {
           this.burstFx(e.pos, '#ffffff', 10);
-          this.trueDamage(e, e.hp);
+          this.trueDamage(e, e.hp, t);
           t.kills++;
         } else {
           this.damageEnemy(e, st.damage, st.damageType, st.shred, t);

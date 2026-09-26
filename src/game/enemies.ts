@@ -117,6 +117,13 @@ const defs: EnemyDef[] = [
 
 export const ENEMIES: Record<string, EnemyDef> = Object.fromEntries(defs.map((d) => [d.id, d]));
 
+/** Looks up an enemy by an id that came from outside the build (a run doc, a shared
+ *  link). ENEMIES is a plain object, so `ENEMIES['constructor']` is truthy; this
+ *  only returns real roster entries. */
+export function enemyDef(id: string): EnemyDef | undefined {
+  return Object.hasOwn(ENEMIES, id) ? ENEMIES[id] : undefined;
+}
+
 /** Ordered roster (encounter order) for the Bestiary codex. */
 export const ENEMY_LIST: EnemyDef[] = defs;
 

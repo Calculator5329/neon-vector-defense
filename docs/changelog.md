@@ -2,6 +2,36 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-09-25: mismatched replays show hulls dying where they really died
+
+Any run recorded before an engine or balance bump falls back to the cosmetic
+reconstruction, and since v3 dropped the public death ledgers that fallback
+only had planned spawns: hulls streamed down the lane and nothing ever died.
+Runs now record a compact kill/leak timeline in `final.timeline` (`t1` codec,
+`src/game/runTimeline.ts`): tick delta, enemy kind, lane distance to 4 px, and
+the killing tower uid or cores lost, packed as base-32 varints in the r3
+alphabet. The reconstruction binds each record to the oldest unended planned
+hull of that kind that could have reached the spot (or synthesizes one) and
+ends it at the exact recorded tick and spot, and the viewer draws a short beam
+from the recorded tower. Matching by nearest predicted position was tried
+first and stranded slowed hulls on the lane (44 of 53 unended hulls on the
+test run had finished their traversal); oldest-reachable leaves 7, all
+phantoms the real run still had alive at gameover. It lives
+under `final`, so the Firestore rules and the deploy need no change. It is
+display data only: not hashed, not verified, and frame-accurate replays never
+build it. Runs without it load on the old stream. Measured on a forced
+60-wave Veteran run (lives raised so it finishes): 51,742 records, 363,427
+chars (7.0 per record), run doc 370 KB against 6.8 KB without it; a real
+wave-15 gameover adds 3.2 KB. A 480k-char cap marks the timeline truncated
+before a freeplay marathon can approach the 1 MB doc limit, and the cosmetic
+banner then says which wave the kill record ends at. Enemy ids from the doc
+go through `enemyDef` (own keys only), so a crafted id like `constructor`
+cannot reach the renderer. The engine now
+passes the killing tower through `trueDamage` (rail execute), which only
+attributes the kill. New `tests/unit/run-timeline.test.ts` shows recording
+does not change the run (summary, action hash, final tick, credits and the
+per-tower damage ledgers all match with the recorder silenced).
+
 ## 2026-09-25: close the replay determinism and Watchfire test items
 
 The roadmap still listed replay re-sim divergence and the Watchfire test

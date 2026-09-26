@@ -18,6 +18,7 @@ import type { GauntletProtocolLeg } from './gauntletProtocol';
 import { isEnemyInherentlyCloaked } from './waves';
 import { actionHash, encodeReplayActions, isReplayActionEvent, normalizeReplayActionEvents, type ReplayActionPack } from './replayCodec';
 import { hashReplayMapGeometry } from './mapVersions';
+import { RunTimelineWriter, type RunTimelinePack } from './runTimeline';
 
 export const RUN_TELEMETRY_SCHEMA = 3;
 /** Bump whenever a simulation-affecting engine change lands (not cosmetic/FX).
@@ -213,6 +214,9 @@ export interface PublicRunDoc {
     abilitiesCast: number;
     cashEarned: number;
     leaks: number;
+    /** Cosmetic kill/leak timeline for engine-mismatched replays (runTimeline.ts).
+     *  Absent on runs recorded before 2026-09-25. Display-only, never verified. */
+    timeline?: RunTimelinePack;
   };
 }
 
@@ -495,6 +499,7 @@ export class RunRecorder {
   private outcome: RunOutcome | null = null;
   private events: RunEvent[] = [];
   private eventCount = 0;
+  private timeline = new RunTimelineWriter();
   private recentEvents: RunEvent[] = [];
   private latestSnapshot: RunWaveSnapshot | null = null;
   private snapshotCount = 0;
@@ -858,13 +863,15 @@ export class RunRecorder {
     });
   }
 
-  recordEnemyKill(state: RunTelemetryState, enemy: Enemy): void {
-    void state;
-    void enemy;
+  /** Appends one kill to the cosmetic timeline. `killer` is the tower credited with
+   *  the kill when the engine knows it (ability and splash-less kills have none). */
+  recordEnemyKill(state: RunTelemetryState, enemy: Enemy, killer?: Tower): void {
+    this.timeline.kill(simTick(state.time), enemy.def.id, enemy.dist, killer?.uid ?? null);
   }
 
-  // Per-enemy spawn/kill public events are intentionally NOT recorded. Replay v3
-  // replays the deterministic engine from seed + player actions instead.
+  // Per-enemy spawn/kill public EVENTS are intentionally NOT recorded. Replay v3
+  // replays the deterministic engine from seed + player actions; the compact
+  // timeline above only serves the cosmetic fallback for version-mismatched runs.
 
   recordPickupCollect(state: RunTelemetryState, kind: PickupKind, pos: Vec, value: number): void {
     bump(this.towerInterest.pickupCollects, kind);
@@ -915,6 +922,7 @@ export class RunRecorder {
     if (traits.revealed) this.combat.revealedLeakCores += coresLost;
     if (traits.armored) this.combat.armoredLeakCores += coresLost;
     if (traits.boss) this.combat.bossLeakCores += coresLost;
+    this.timeline.leak(simTick(state.time), enemyId, enemy?.dist ?? 0, coresLost);
     this.record('leak', state, {
       enemyId,
       coresLost,
@@ -1175,6 +1183,7 @@ export class RunRecorder {
         abilitiesCast: Math.round(state.runStats.abilitiesCast),
         cashEarned: Math.round(state.runStats.cashEarned),
         leaks: Math.round(state.runStats.leaks),
+        timeline: this.timeline.pack(),
       },
     });
     return { run, chunks };
@@ -1489,7 +1498,7 @@ export class RunRecorder {
     const event: RunEvent = {
       type,
       t: roundS(state.time),
-      simTick: Math.max(0, Math.round(state.time * 60)),
+      simTick: simTick(state.time),
       wave: state.wave,
       cash: Math.floor(state.credits),
       lives: state.lives,
@@ -1608,7 +1617,7 @@ export class RunRecorder {
       {
         type: 'run_end',
         t: roundS(state.time),
-        simTick: Math.max(0, Math.round(state.time * 60)),
+        simTick: simTick(state.time),
         wave: state.wave,
         cash: Math.floor(state.credits),
         lives: state.lives,
@@ -1670,6 +1679,11 @@ function makeRunId(): string {
     ? crypto.randomUUID().replace(/-/g, '').slice(0, 18)
     : Math.random().toString(36).slice(2, 14) + Math.random().toString(36).slice(2, 8);
   return `r_${Date.now().toString(36)}_${random}`;
+}
+
+/** Fixed 1/60 simulation tick for a sim time, matching RunEvent.simTick. */
+function simTick(time: number): number {
+  return Math.max(0, Math.round(time * 60));
 }
 
 function roundS(n: number): number {

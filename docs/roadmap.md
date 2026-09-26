@@ -83,10 +83,15 @@ site, majors only; the full report lists 14 more minor items:
   test divergent again. Recalibrate was never a divergence: the seed-223 bot died
   before wave 28 and never cast, so the fixture now records a 1,000,000-life start.
   Engine suite 144/144.)*
-- [ ] <!-- workspace:id=work:b5ae06ba-3ae3-59aa-ae9c-5e57c364ebd2 --> **Old runs are orphaned by engine/balance version drift.** Any run recorded
+- [x] <!-- workspace:id=work:b5ae06ba-3ae3-59aa-ae9c-5e57c364ebd2 --> **Old runs are orphaned by engine/balance version drift.** Any run recorded
   before an engine bump can never be re-simulated frame-accurately (correct by design,
   but it means historical replays are cosmetic-only). Consider recording a compact
   death/kill timeline so the cosmetic reconstruction can at least show enemies dying.
+  *(done 2026-09-25: runs now carry `final.timeline`, one record per kill or leak with
+  tick, lane distance and killer tower. Mismatched replays play deaths back at the
+  recorded tick and spot; runs without it load on the old stream. Measured: 7 chars per
+  record, 363 KB for a forced 60-wave Veteran run, 3.2 KB for a wave-15 gameover. See
+  changelog.)*
 
 
 - [x] <!-- workspace:id=work:f869e439-bd76-5605-b6b3-e0fbc5edb538 --> **Debrief "NEW INSTRUMENTS UNLOCKED" overflowed off-screen.** A full clear

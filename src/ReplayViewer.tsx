@@ -25,6 +25,7 @@ import {
   type Ghost,
   type PathGeom,
   type ReconFrame,
+  type ReconTower,
   type ReconUnknown,
   type ReplayCombatTimeline,
   type ReplayEnemyRecord,
@@ -336,7 +337,9 @@ function effectPosition(geom: PathGeom, rec: ReplayEnemyRecord): { x: number; y:
   return { x: p.x, y: p.y };
 }
 
-function drawReplayCombatEffects(ctx: CanvasRenderingContext2D, geom: PathGeom | null, timeline: ReplayCombatTimeline, time: number) {
+/** Death rings, leak flashes and reward pops for the cosmetic path. A kill whose
+ *  recorded timeline names its tower also gets a short killing-shot beam from it. */
+function drawReplayCombatEffects(ctx: CanvasRenderingContext2D, geom: PathGeom | null, timeline: ReplayCombatTimeline, time: number, towers: ReconTower[]) {
   if (!geom) return;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -359,6 +362,12 @@ function drawReplayCombatEffects(ctx: CanvasRenderingContext2D, geom: PathGeom |
       continue;
     }
     const color = rec.def.glow;
+    const killer = rec.sourceTowerUid == null || age > 0.35 ? undefined : towers.find((tw) => tw.uid === rec.sourceTowerUid);
+    if (killer) {
+      ctx.strokeStyle = rgba(killer.def.glow, 0.9 * (1 - age / 0.35));
+      ctx.lineWidth = 2.6;
+      ctx.beginPath(); ctx.moveTo(killer.x, killer.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
     ctx.strokeStyle = rgba(color, 0.25 + k * 0.65);
     ctx.lineWidth = rec.def.boss ? 4 : 2.4;
     ctx.beginPath(); ctx.arc(p.x, p.y, rec.def.radius + 8 + age * (rec.def.boss ? 88 : 42), 0, Math.PI * 2); ctx.stroke();
@@ -625,7 +634,8 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   );
   const bg = useMemo(() => (gameMap ? buildBackground(gameMap) : null), [gameMap]);
   const geom = useMemo(() => (gameMap ? buildGeom(gameMap.path) : null), [gameMap]);
-  const combatTimeline = useMemo(() => buildReplayCombatTimeline(run), [run]);
+  // Only the cosmetic path draws this; a frame-accurate run never pays to build it.
+  const combatTimeline = useMemo(() => (driver ? null : buildReplayCombatTimeline(run)), [run, driver]);
   const dossierInput = useMemo(() => buildDossierInputFromRun(run), [run]);
 
   // Timeline waypoints: legacy docs use the captured snapshot keyframes; v3 docs derive
@@ -716,7 +726,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
     // re-enact the armada streaming down the lane for the active wave
     const win = waveWindow(run, time);
     const activeAbilities = activeAbilityIds(run.events, time);
-    const ghosts = geom ? activeReplayGhosts(geom, combatTimeline, time, activeAbilities.has('chrono')) : [];
+    const ghosts = geom && combatTimeline ? activeReplayGhosts(geom, combatTimeline, time, activeAbilities.has('chrono')) : [];
     const replayEnemies = ghosts.map((gh) => ghostToEnemy(gh));
 
     // coverage + heat per tower (lighter blend so overlaps glow)
@@ -776,7 +786,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
 
     // weapon fire (over towers, additive)
     drawReplayWeaponFire(ctx, shots, time);
-    drawReplayCombatEffects(ctx, geom, combatTimeline, time);
+    if (combatTimeline) drawReplayCombatEffects(ctx, geom, combatTimeline, time, frame.towers);
     drawReplayAbilityEffects(ctx, run.events, time);
 
     // wave / boss callout (events narration)
@@ -947,6 +957,9 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       {!driver && run.integrity !== 'partial' && (
         <div className="replay-integrity-banner" role="status">
           COSMETIC PREVIEW &mdash; not a frame-accurate replay of the recorded run
+          {combatTimeline?.timelineCutWave != null && (
+            <> &middot; kill record ends at wave {combatTimeline.timelineCutWave}</>
+          )}
         </div>
       )}
       {desync && (

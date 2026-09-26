@@ -1,6 +1,6 @@
 import { TOWER_MAP } from './towers';
 import { getWave } from './waves';
-import { ENEMIES } from './enemies';
+import { enemyDef } from './enemies';
 import {
   type PublicRunDoc,
   type RunEvent,
@@ -8,6 +8,7 @@ import {
   type RunWaveSnapshot,
 } from './runTelemetry';
 import { ELITE_AFFIX_IDS, ELITE_AFFIX_META } from './eliteAffixes';
+import { decodeRunTimeline, type RunTimelineEntry } from './runTimeline';
 import type { AbilityId, EliteAffixId, EnemyDef, TargetMode, TowerDef, UmbraPhase } from './types';
 
 export interface ReconTower {
@@ -96,6 +97,9 @@ export interface ReplayCombatTimeline {
   effects: ReplayEnemyRecord[];
   authoritativeDeaths: boolean;
   umbraPhases: ReplayUmbraPhasePoint[];
+  /** Set when the run's kill timeline hit its size cap: the wave of its last record.
+   *  Planned hulls after that point never die in the cosmetic replay. */
+  timelineCutWave?: number;
 }
 
 interface ReplayWaveElite { i: number; a: EliteAffixId; }
@@ -428,7 +432,7 @@ function legacySpawnRecords(run: PublicRunDoc): Map<number, ReplayEnemyRecord> {
   if (hasSpawnEvents) {
     for (const e of events) {
       if (e.type !== 'enemy_spawn') continue;
-      const def = ENEMIES[eventStr(e, 'enemyId')];
+      const def = enemyDef(eventStr(e, 'enemyId'));
       if (!def) continue;
       const uid = Math.floor(eventNum(e, 'enemyUid', syntheticUid--));
       records.set(uid, {
@@ -445,7 +449,7 @@ function legacySpawnRecords(run: PublicRunDoc): Map<number, ReplayEnemyRecord> {
   }
 
   for (const spawn of buildPlannedSpawns(run)) {
-    const def = ENEMIES[spawn.type];
+    const def = enemyDef(spawn.type);
     if (!def) continue;
     const uid = syntheticUid--;
     records.set(uid, {
@@ -486,8 +490,88 @@ function applyUmbraPhaseEvents(run: PublicRunDoc, records: Map<number, ReplayEne
   return phases;
 }
 
+/** A hull can run ahead of its current-balance unslowed prediction only by a speed
+ *  buff (Umbra phase 3 is 1.22x) or balance drift since the run, so a recorded death
+ *  farther than predicted * slack + margin cannot be that hull. Slows only ever put
+ *  a hull behind its prediction, so there is no bound on the other side. */
+const TIMELINE_REACH_SLACK = 1.3;
+const TIMELINE_REACH_MARGIN = 48;
+/** Planned hulls older than this are never matched to a recorded death. */
+const TIMELINE_MATCH_WINDOW_S = 150;
+/** How long an unmatched ghost (split children, drifted wave tables) walks in
+ *  before its recorded death. */
+const TIMELINE_GHOST_LEAD_S = 1.2;
+
+/** Ends planned-spawn records at the recorded kill/leak times and places.
+ *
+ *  Each record goes to the OLDEST unended planned hull of the same kind that could
+ *  have reached the recorded spot by then. Nearest-prediction matching is wrong:
+ *  slowed hulls trail their prediction, so the death of the oldest hull would land
+ *  on a younger one and strand the old one on the lane. Deaths no planned hull
+ *  could reach (children, or wave tables that drifted since the run) get a ghost
+ *  that walks in shortly before. `ghostFromRecord` then interpolates every matched
+ *  hull from its spawn to its recorded death point, so it dies exactly at the
+ *  recorded tick and lane position. */
+function applyRecordedTimeline(run: PublicRunDoc, records: Map<number, ReplayEnemyRecord>, entries: RunTimelineEntry[]): void {
+  const byKind = new Map<string, ReplayEnemyRecord[]>();
+  for (const rec of [...records.values()].sort((a, b) => a.spawnT - b.spawnT || b.uid - a.uid)) {
+    const list = byKind.get(rec.def.id);
+    if (list) list.push(rec);
+    else byKind.set(rec.def.id, [rec]);
+  }
+  const lo = new Map<string, number>();
+  const waves = waveStarts(run);
+  let waveIdx = 0;
+  let nextUid = -1;
+  for (const uid of records.keys()) if (uid <= nextUid) nextUid = uid - 1;
+  for (const entry of entries) {
+    const t = entry.tick / 60;
+    const list = byKind.get(entry.enemyId) ?? [];
+    let i = lo.get(entry.enemyId) ?? 0;
+    while (i < list.length && (list[i].endT != null || list[i].spawnT < t - TIMELINE_MATCH_WINDOW_S)) i++;
+    lo.set(entry.enemyId, i);
+    let best: ReplayEnemyRecord | undefined;
+    for (; i < list.length && list[i].spawnT <= t; i++) {
+      const rec = list[i];
+      if (rec.endT != null) continue;
+      const predicted = rec.spawnDist + rec.def.speed * eliteSpeedMult(rec.elite) * (t - rec.spawnT);
+      if (entry.dist <= predicted * TIMELINE_REACH_SLACK + TIMELINE_REACH_MARGIN) { best = rec; break; }
+    }
+    if (!best) {
+      const def = enemyDef(entry.enemyId);
+      if (!def) continue;
+      while (waveIdx + 1 < waves.length && waves[waveIdx + 1].startT <= t) waveIdx++;
+      const lead = Math.min(TIMELINE_GHOST_LEAD_S, t, entry.dist / Math.max(1, def.speed));
+      best = {
+        uid: nextUid--,
+        def,
+        wave: waves[waveIdx]?.wave ?? 0,
+        spawnT: t - lead,
+        spawnDist: Math.max(0, entry.dist - def.speed * lead),
+        cloaked: false,
+      };
+      records.set(best.uid, best);
+    }
+    // Exactly the recorded tick: ghostFromRecord already guards a zero-length life.
+    best.endT = t;
+    best.endKind = entry.kind;
+    best.endDist = entry.dist;
+    best.sourceTowerUid = entry.kind === 'kill' ? entry.towerUid ?? undefined : undefined;
+  }
+}
+
 function buildLegacyTimeline(run: PublicRunDoc): ReplayCombatTimeline {
   const records = legacySpawnRecords(run);
+  const recorded = decodeRunTimeline(run.final?.timeline);
+  if (recorded) {
+    applyRecordedTimeline(run, records, recorded.entries);
+    const timeline = finishTimeline(run, records, true);
+    if (recorded.truncated) {
+      const last = recorded.entries[recorded.entries.length - 1];
+      timeline.timelineCutWave = waveWindow(run, last ? last.tick / 60 : 0).wave;
+    }
+    return timeline;
+  }
 
   const assignEnd = (kind: 'kill' | 'leak', t: number, enemyId: string, uid?: number, e?: RunEvent) => {
     const exact = uid != null ? records.get(uid) : undefined;
@@ -530,14 +614,21 @@ function buildLegacyTimeline(run: PublicRunDoc): ReplayCombatTimeline {
     }
   }
 
+  return finishTimeline(run, records, false);
+}
+
+function finishTimeline(run: PublicRunDoc, records: Map<number, ReplayEnemyRecord>, authoritativeDeaths: boolean): ReplayCombatTimeline {
   const umbraPhases = applyUmbraPhaseEvents(run, records);
   const enemies = [...records.values()].sort((a, b) => a.spawnT - b.spawnT || a.uid - b.uid);
   const effects = enemies
     .filter((e) => e.endT != null)
     .sort((a, b) => (a.endT ?? 0) - (b.endT ?? 0) || a.uid - b.uid);
-  return { enemies, effects, authoritativeDeaths: false, umbraPhases };
+  return { enemies, effects, authoritativeDeaths, umbraPhases };
 }
 
+/** Enemy stream for the cosmetic (not frame-accurate) replay path. Deaths come from
+ *  the recorded `final.timeline` when the run has one, else from legacy kill events
+ *  or snapshot deltas; a v3 run with neither shows planned spawns that never die. */
 export function buildReplayCombatTimeline(run: PublicRunDoc): ReplayCombatTimeline {
   return buildLegacyTimeline(run);
 }

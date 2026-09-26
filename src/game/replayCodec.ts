@@ -396,6 +396,8 @@ function normalizeActionEvent(event: RunEvent): RunEvent {
   return out;
 }
 
+/** Unsigned base-32 varint in the URL-safe pack alphabet. Exported as `packUInt`
+ *  for the run kill timeline (runTimeline.ts) so both compact encodings share one format. */
 function enc(n: number): string {
   let value = Math.max(0, Math.floor(n));
   let out = '';
@@ -408,6 +410,7 @@ function enc(n: number): string {
   return out;
 }
 
+/** Inverse of `enc` (exported as `unpackUInt`): one varint at `start`, or null when malformed. */
 function dec(data: string, start: number): { value: number; next: number } | null {
   let value = 0;
   let shift = 1;
@@ -422,6 +425,8 @@ function dec(data: string, start: number): { value: number; next: number } | nul
   }
   return null;
 }
+
+export { enc as packUInt, dec as unpackUInt };
 
 function cleanTick(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
