@@ -2,6 +2,29 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-10-06: agents can find and drive every control by a stable name
+
+- An agent working on Lantern 7 had 58 flat test ids (`launch-wave`,
+  `game-canvas`) and no map of the rest, so it read TSX to find a button and
+  wrote fresh Playwright code to check a flow. Every control now carries an
+  `area.component.element` id (`game.hud.launch-wave`, `game.board.canvas`):
+  256 ids and 43 patterns in `testid-registry.json`, 252 of 252 interactive
+  controls named. The 55 renamed ids are listed in `agent-handles.json`
+  `identityRenames`, and the e2e specs that used them were moved onto the new
+  names. The Vite dev server keeps the registry current and serves the
+  agent-handles drive API; the plugin is an optional import, so a clone
+  without the sibling `ai/agent-handles` checkout still builds.
+- Four journeys stored as data in `journeys/manifest.json` and compiled to
+  `tests/e2e/journeys.generated.spec.ts`: the first-visit age gate, picking
+  The Carousel and starting then aborting a run, a tour of Operations,
+  the daily leaderboard, How to Play, the Bestiary and Settings, and two deep
+  links (a dead `?run=` replay link and `/privacy`). They run in `npm test`.
+  `npx agent-handles adopt verify` reported `adoption verified`: build and
+  emitted registry match, both journey passes green, 122 controls observed
+  with 0 unidentified, clean page/state reviews of the menu, age gate,
+  privacy page and dead replay link. The owner console (104 ids, 21 patterns)
+  has no journey; it sits behind Google sign-in.
+
 ## 2026-09-26: headless Chromium renders on the GPU
 
 - Playwright e2e and `perf:browser` rendered on the CPU through SwiftShader. `playwright.config.ts` and `scripts/browserPerf.mjs` now pass ANGLE on EGL flags, so WebGL reports the RTX 5070 Ti; `SOFT_GL=1`, or no render node (Windows, macOS, CI), keeps Playwright's default. The screenshot-comparison test `menu-recommended-pill` passes 2/2 on both paths.
