@@ -1,6 +1,6 @@
 {
   "schema": "agent-handles/runtime-observations/v1",
-  "measuredAt": "2026-10-07T03:20:11.561Z",
+  "measuredAt": "2026-10-07T04:13:52.614Z",
   "journeys": 4,
   "journeyNames": [
     "deploy-and-abort-run",
@@ -8,12 +8,13 @@
     "menu-tabs-and-guides",
     "shared-links"
   ],
-  "interactiveElementsObserved": 121,
+  "interactiveElementsObserved": 122,
   "observedTestIds": [
     "app.age-gate.birth-month",
     "app.age-gate.birth-year",
     "app.age-gate.confirm",
     "app.age-gate.privacy-link",
+    "app.ai-help.toggle",
     "app.feedback.toggle",
     "game.abilities.cast-cascade",
     "game.abilities.cast-chrono",
@@ -136,5 +137,5 @@
   "unidentified": [],
   "unknownTestIds": [],
   "duplicateTestIds": [],
-  "statement": "121 controls observed during 4 journey(s); 0 unidentified and 0 unknown to the registry. Unvisited states are uncovered, not green."
+  "statement": "122 controls observed during 4 journey(s); 0 unidentified and 0 unknown to the registry. Unvisited states are uncovered, not green."
 }

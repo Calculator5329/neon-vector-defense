@@ -143,7 +143,7 @@ async function recordFinalPageState(page: import("@playwright/test").Page, journ
 
 const observationRunText = process.env.AGENT_HANDLES_OBSERVATION_RUN;
 const observationRun = observationRunText ? JSON.parse(observationRunText) : null;
-const manifestDigest = "170bed3905a843cc762b1c8330f719be4c67bb5b37b155d20dc1d92a83946c68";
+const manifestDigest = "93119f1fbef20d107ecb3bf40fe8e4179101b7a635b89ad41a8a4afb3c793164";
 const sha256 = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 const artifactIdentity = (testInfo: import("@playwright/test").TestInfo) => ({
   testId: testInfo.testId, project: testInfo.project.name, retry: testInfo.retry, repeatEachIndex: testInfo.repeatEachIndex,
@@ -246,7 +246,7 @@ test("deploy-and-abort-run: Demo mode (no server writes). Choose The Carousel on
   await recordFinalPageState(page, "deploy-and-abort-run", testInfo);
 });
 
-test("menu-tabs-and-guides: Demo mode. Open the Operations tab, switch the leaderboard to the daily board, return to Deploy, read How to Play, filter the Bestiary to capital ships, and flip reduced motion on and back off in Settings so a replay starts from the same state.", async ({
+test("menu-tabs-and-guides: Demo mode, fresh profile. Open the Operations tab, switch the leaderboard to the daily board, return to Deploy, read How to Play, filter the Bestiary to discovered hulls (none yet, so the empty state shows) and then to capital ships, flip reduced motion on and back off in Settings so a replay starts from the same state, and close Settings by opening Operations again. A live replay needs a browser that has not identified any hulls.", async ({
   page,
 }, testInfo) => {
   await page.goto("/?demo=1");
@@ -272,37 +272,43 @@ test("menu-tabs-and-guides: Demo mode. Open the Operations tab, switch the leade
   await reconcileRuntime(page, "menu-tabs-and-guides", 10, testInfo);
   await page.getByTestId("menu.utility.bestiary").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 11, testInfo);
-  await page.getByTestId("menu.bestiary.filter-boss").click();
+  await page.getByTestId("menu.bestiary.filter-found").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 12, testInfo);
-  await expect(page.getByTestId("menu.bestiary.dialog")).toContainText("CAPITAL");
+  await expect(page.getByTestId("menu.bestiary.dialog")).toContainText("No hulls match this filter");
   await reconcileRuntime(page, "menu-tabs-and-guides", 13, testInfo);
-  await page.getByTestId("menu.bestiary.close").click();
+  await page.getByTestId("menu.bestiary.filter-boss").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 14, testInfo);
-  await page.getByTestId("menu.utility.settings").click();
+  await expect(page.getByTestId("menu.bestiary.dialog")).toContainText("CAPITAL-CLASS");
   await reconcileRuntime(page, "menu-tabs-and-guides", 15, testInfo);
-  await expect(page.getByTestId("menu.settings.reduced-motion")).toContainText("OFF");
+  await page.getByTestId("menu.bestiary.close").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 16, testInfo);
-  await page.getByTestId("menu.settings.reduced-motion").click();
+  await page.getByTestId("menu.utility.settings").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 17, testInfo);
-  await expect(page.getByTestId("menu.settings.reduced-motion")).toContainText("ON");
+  await expect(page.getByTestId("menu.settings.reduced-motion")).toContainText("OFF");
   await reconcileRuntime(page, "menu-tabs-and-guides", 18, testInfo);
   await page.getByTestId("menu.settings.reduced-motion").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 19, testInfo);
-  await expect(page.getByTestId("menu.settings.reduced-motion")).toContainText("OFF");
+  await expect(page.getByTestId("menu.settings.reduced-motion")).toContainText("ON");
   await reconcileRuntime(page, "menu-tabs-and-guides", 20, testInfo);
-  await page.getByTestId("menu.settings.done").click();
+  await page.getByTestId("menu.settings.reduced-motion").click();
   await reconcileRuntime(page, "menu-tabs-and-guides", 21, testInfo);
-  await expect(page.getByTestId("menu.deploy.launch")).toBeVisible();
+  await expect(page.getByTestId("menu.settings.reduced-motion")).toContainText("OFF");
   await reconcileRuntime(page, "menu-tabs-and-guides", 22, testInfo);
+  await page.getByTestId("menu.settings.done").click();
+  await reconcileRuntime(page, "menu-tabs-and-guides", 23, testInfo);
+  await page.getByTestId("menu.tabs.operations").click();
+  await reconcileRuntime(page, "menu-tabs-and-guides", 24, testInfo);
+  await expect(page.getByTestId("menu.ops.board")).toContainText("DAILY OPERATIONS");
+  await reconcileRuntime(page, "menu-tabs-and-guides", 25, testInfo);
   await recordFinalPageState(page, "menu-tabs-and-guides", testInfo);
 });
 
-test("shared-links: URL-path. A shared ?run= link for a run that does not exist shows the unavailable state with a way back to the grid; /privacy shows the analytics opt-out, data export and delete controls. Nothing is toggled, so no consent changes.", async ({
+test("shared-links: URL-path. A shared ?run= link for a run that does not exist shows the unavailable state with a way back to the grid; /privacy shows the analytics opt-out, data export and delete controls. Nothing is toggled, so no consent changes. The ?run= check reads production Firestore (runs/r_handlesreview01), and the app waits up to 8 s for that read, so it gets 15 s.", async ({
   page,
 }, testInfo) => {
   await page.goto("/?run=r_handlesreview01");
   await reconcileRuntime(page, "shared-links", 1, testInfo);
-  await expect(page.getByTestId("replay.viewer.unavailable")).toContainText("REPLAY UNAVAILABLE");
+  await expect(page.getByTestId("replay.viewer.unavailable")).toContainText("REPLAY UNAVAILABLE", { timeout: 15000 });
   await reconcileRuntime(page, "shared-links", 2, testInfo);
   await expect(page.getByTestId("replay.viewer.return")).toBeEnabled();
   await reconcileRuntime(page, "shared-links", 3, testInfo);

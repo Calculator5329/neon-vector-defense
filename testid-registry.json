@@ -293,6 +293,7 @@
     "menu.bestiary.close",
     "menu.bestiary.dialog",
     "menu.bestiary.filter-boss",
+    "menu.bestiary.filter-found",
     "menu.deploy.launch",
     "menu.dock.protocol-easy",
     "menu.dock.protocol-hard",

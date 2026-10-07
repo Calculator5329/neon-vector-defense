@@ -127,7 +127,7 @@
     {
       "name": "menu-tabs-and-guides",
       "title": "Tour the menu: operations, leaderboard, guides and settings",
-      "description": "Demo mode. Open the Operations tab, switch the leaderboard to the daily board, return to Deploy, read How to Play, filter the Bestiary to capital ships, and flip reduced motion on and back off in Settings so a replay starts from the same state.",
+      "description": "Demo mode, fresh profile. Open the Operations tab, switch the leaderboard to the daily board, return to Deploy, read How to Play, filter the Bestiary to discovered hulls (none yet, so the empty state shows) and then to capital ships, flip reduced motion on and back off in Settings so a replay starts from the same state, and close Settings by opening Operations again. A live replay needs a browser that has not identified any hulls.",
       "context": {
         "path": "/?demo=1"
       },
@@ -184,13 +184,23 @@
         },
         {
           "action": "click",
+          "testId": "menu.bestiary.filter-found"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.bestiary.dialog",
+          "predicate": "contains-text",
+          "value": "No hulls match this filter"
+        },
+        {
+          "action": "click",
           "testId": "menu.bestiary.filter-boss"
         },
         {
           "action": "expect",
           "testId": "menu.bestiary.dialog",
           "predicate": "contains-text",
-          "value": "CAPITAL"
+          "value": "CAPITAL-CLASS"
         },
         {
           "action": "click",
@@ -231,16 +241,21 @@
           "testId": "menu.settings.done"
         },
         {
+          "action": "click",
+          "testId": "menu.tabs.operations"
+        },
+        {
           "action": "expect",
-          "testId": "menu.deploy.launch",
-          "predicate": "visible"
+          "testId": "menu.ops.board",
+          "predicate": "contains-text",
+          "value": "DAILY OPERATIONS"
         }
       ]
     },
     {
       "name": "shared-links",
       "title": "Deep links: a dead replay link and the privacy page render from the URL alone",
-      "description": "URL-path. A shared ?run= link for a run that does not exist shows the unavailable state with a way back to the grid; /privacy shows the analytics opt-out, data export and delete controls. Nothing is toggled, so no consent changes.",
+      "description": "URL-path. A shared ?run= link for a run that does not exist shows the unavailable state with a way back to the grid; /privacy shows the analytics opt-out, data export and delete controls. Nothing is toggled, so no consent changes. The ?run= check reads production Firestore (runs/r_handlesreview01), and the app waits up to 8 s for that read, so it gets 15 s.",
       "steps": [
         {
           "action": "navigate",
@@ -250,7 +265,8 @@
           "action": "expect",
           "testId": "replay.viewer.unavailable",
           "predicate": "contains-text",
-          "value": "REPLAY UNAVAILABLE"
+          "value": "REPLAY UNAVAILABLE",
+          "timeoutMs": 15000
         },
         {
           "action": "expect",

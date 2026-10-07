@@ -92,6 +92,6 @@
         "label": "Replay link for a run that does not exist"
       }
     ],
-    "journeyVerifyCommand": "node ./tests/e2e/run-playwright.mjs tests/e2e/journeys.generated.spec.ts --project=chromium-desktop"
+    "journeyVerifyCommand": "node ./tests/e2e/run-playwright.mjs tests/e2e/journeys.generated.spec.ts"
   }
 }

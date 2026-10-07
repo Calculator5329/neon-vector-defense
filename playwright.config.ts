@@ -35,6 +35,8 @@ export default defineConfig({
     },
     {
       name: 'chromium-mobile',
+      // Portrait phones auto-pause a run behind the rotate notice (GameScreen.tsx), so this journey's pause click resumes it; it is landscape-only.
+      grepInvert: /deploy-and-abort-run:/,
       use: {
         ...devices['Pixel 5'],
         ...(channel ? { channel } : {}),
