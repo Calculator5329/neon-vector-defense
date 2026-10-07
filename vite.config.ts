@@ -1,5 +1,10 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+// Type-only, so erased when Vite bundles this config: a clone without the
+// sibling agent-handles checkout still loads it. It is also the static
+// `from 'agent-handles/vite'` that `agent-handles adopt verify` looks for to
+// count the plugin as wired. tsc never sees this file (tsconfig includes src/).
+import type { AgentHandlesVitePlugin } from 'agent-handles/vite';
 
 function isMissingAgentHandles(error: unknown): boolean {
   return error instanceof Error
@@ -14,7 +19,8 @@ function isMissingAgentHandles(error: unknown): boolean {
 async function optionalAgentHandles(): Promise<Plugin[]> {
   try {
     const { default: agentHandles } = await import('agent-handles/vite');
-    return [agentHandles()];
+    const plugin: AgentHandlesVitePlugin = agentHandles();
+    return [plugin];
   } catch (error) {
     if (!isMissingAgentHandles(error)) throw error;
     console.info('[lantern7] Optional agent-handles plugin unavailable; continuing without it.');
