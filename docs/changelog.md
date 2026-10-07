@@ -4,26 +4,42 @@ Running log of notable changes. Most recent first.
 
 ## 2026-10-06: agents can find and drive every control by a stable name
 
-- An agent working on Lantern 7 had 58 flat test ids (`launch-wave`,
+- An agent working on Lantern 7 had 55 flat test ids (`launch-wave`,
   `game-canvas`) and no map of the rest, so it read TSX to find a button and
   wrote fresh Playwright code to check a flow. Every control now carries an
   `area.component.element` id (`game.hud.launch-wave`, `game.board.canvas`):
   256 ids and 43 patterns in `testid-registry.json`, 252 of 252 interactive
-  controls named. The 55 renamed ids are listed in `agent-handles.json`
-  `identityRenames`, and the e2e specs that used them were moved onto the new
-  names. The Vite dev server keeps the registry current and serves the
-  agent-handles drive API; the plugin is an optional import, so a clone
-  without the sibling `ai/agent-handles` checkout still builds.
+  controls named. All 55 old ids were renamed; `agent-handles.json`
+  `identityRenames` maps each one, and the e2e specs that used them were moved
+  onto the new names. The Vite dev server keeps the registry current and
+  serves the agent-handles drive API. The plugin is an optional import: a copy
+  of the repo whose `node_modules` has every package except `agent-handles`
+  passed `npm run build` and served `/` from the dev server with the plugin
+  skipped. A checkout that is present but missing a file now stops the dev
+  server with the missing path instead of silently dropping the plugin.
 - Four journeys stored as data in `journeys/manifest.json` and compiled to
   `tests/e2e/journeys.generated.spec.ts`: the first-visit age gate, picking
   The Carousel and starting then aborting a run, a tour of Operations,
   the daily leaderboard, How to Play, the Bestiary and Settings, and two deep
-  links (a dead `?run=` replay link and `/privacy`). They run in `npm test`.
-  `npx agent-handles adopt verify` reported `adoption verified`: build and
-  emitted registry match, both journey passes green, 122 controls observed
-  with 0 unidentified, clean page/state reviews of the menu, age gate,
-  privacy page and dead replay link. The owner console (104 ids, 21 patterns)
-  has no journey; it sits behind Google sign-in.
+  links (a dead `?run=` replay link and `/privacy`). `npm test` runs them on
+  both Playwright projects. On `chromium-mobile` (Pixel 5 portrait) the
+  start-and-abort journey is excluded in `playwright.config.ts`: portrait
+  phones auto-pause a run behind the rotate notice, so its pause click
+  resumes the run there, and it had only been passing by reading the pause
+  button before the HUD re-rendered. The journey spec passed 7 of 7 (4
+  desktop, 3 mobile) on two runs. The Bestiary step now checks the empty
+  Discovered view and then the Capital-class cards, and the tour ends by
+  opening Operations, which an open Settings overlay blocks. Each check
+  failed on a build with that filter or the Done button deliberately broken.
+  The dead-link journey reads production Firestore (`runs/r_handlesreview01`
+  in neon-vector-defense-7, read only), and the app allows that read 8 s, so
+  the step waits up to 15 s.
+- `npx agent-handles adopt verify` now runs the journey spec on both projects
+  and reported `adoption verified`: the build emitted a registry identical to
+  the source scan, both repeat runs passed 7 of 7, 122 controls were observed
+  with 0 unidentified, and the page/state reviews of the menu, age gate,
+  privacy page and dead replay link were clean. The owner console (104 ids,
+  21 patterns) has no journey; it sits behind Google sign-in.
 
 ## 2026-09-26: headless Chromium renders on the GPU
 
