@@ -6,11 +6,14 @@ import react from '@vitejs/plugin-react-swc';
 // count the plugin as wired. tsc never sees this file (tsconfig includes src/).
 import type { AgentHandlesVitePlugin } from 'agent-handles/vite';
 
+// Only a missing sibling checkout ("Cannot find package 'agent-handles' ...").
+// A file missing inside a present checkout reports "Cannot find module
+// '<path>' ..." and must still fail the dev server loudly.
 function isMissingAgentHandles(error: unknown): boolean {
   return error instanceof Error
     && 'code' in error
     && error.code === 'ERR_MODULE_NOT_FOUND'
-    && error.message.includes('agent-handles');
+    && error.message.startsWith("Cannot find package 'agent-handles'");
 }
 
 // agent-handles (stable UI identities, registry check, dev-only drive API) is a
