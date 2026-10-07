@@ -40,6 +40,11 @@ Running log of notable changes. Most recent first.
   with 0 unidentified, and the page/state reviews of the menu, age gate,
   privacy page and dead replay link were clean. The owner console (104 ids,
   21 patterns) has no journey; it sits behind Google sign-in.
+- `.agent-handles/adoption-state.json` is now tracked. It holds the sealed
+  ratchet, and while it was gitignored a fresh clone accepted a raised floor:
+  raising `src/Bestiary.tsx` from 0 to 5 printed "coverage improved" and
+  exit 0. With it tracked, the same edit fails with "sealed ratchet
+  integrity failure" (both measured on fresh clones of the branch).
 
 ## 2026-09-26: headless Chromium renders on the GPU
 
