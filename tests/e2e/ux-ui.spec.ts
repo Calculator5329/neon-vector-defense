@@ -247,7 +247,7 @@ async function arsenalGridMetrics(page: Page) {
       .map((el) => {
         const r = el.getBoundingClientRect();
         return {
-          id: el.dataset.testid?.replace('tower-', '') ?? '',
+          id: el.dataset.testid?.replace('game.shop.tower-', '') ?? '',
           x: Math.round(r.x),
           y: Math.round(r.y),
         };
@@ -1535,7 +1535,7 @@ test.describe('run telemetry model', () => {
       const before = window.localStorage.getItem('nvd-progress-v1');
       const dailyIds = [...game.dailyTowerIds];
       const lockedShop = [...document.querySelectorAll<HTMLElement>('[data-testid^="game.shop.tower-"]')]
-        .find((el) => !dailyIds.includes(el.dataset.testid?.replace('tower-', '') ?? ''));
+        .find((el) => !dailyIds.includes(el.dataset.testid?.replace('game.shop.tower-', '') ?? ''));
       game.phase = 'wave';
       game.queue = [];
       game.enemies = [];
