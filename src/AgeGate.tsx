@@ -45,6 +45,7 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
       closeOnBackdrop={false}
       closeOnEsc={false}
       overlayClass="overlay age-gate"
+      testId="app.age-gate.dialog"
       boxClass="overlay-box age-gate-box"
       labelledBy={kid ? 'age-gate-safe-title' : 'age-gate-title'}
       describedBy={kid ? 'age-gate-safe-copy' : 'age-gate-copy'}
@@ -57,7 +58,7 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
             You're in <b>safe mode</b>: the game plays exactly the same, but we don't keep a
             public callsign for you or collect usage data. Have fun out there.
           </p>
-          <button ref={enterRef} className="start-btn" onClick={() => { sfx.click(); onDone(); }}>ENTER THE GRID ▸</button>
+          <button ref={enterRef} className="start-btn" data-testid="app.age-gate.enter" onClick={() => { sfx.click(); onDone(); }}>ENTER THE GRID ▸</button>
         </>
       ) : (
         <>
@@ -66,6 +67,7 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
           <div className="age-gate-row">
             <select
               ref={monthRef}
+              data-testid="app.age-gate.birth-month"
               className="age-gate-select"
               value={month}
               onChange={(e) => setMonth(e.target.value ? Number(e.target.value) : '')}
@@ -76,6 +78,7 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
             </select>
             <select
               className="age-gate-select"
+              data-testid="app.age-gate.birth-year"
               value={year}
               onChange={(e) => setYear(e.target.value ? Number(e.target.value) : '')}
               aria-label="Birth year"
@@ -83,11 +86,11 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
               <option value="">Select year…</option>
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
-            <button className="start-btn" disabled={year === '' || month === ''} onClick={confirm}>CONFIRM ▸</button>
+            <button className="start-btn" data-testid="app.age-gate.confirm" disabled={year === '' || month === ''} onClick={confirm}>CONFIRM ▸</button>
           </div>
           <p className="age-gate-fine">
             Players under {ADULT_MIN_AGE} get a safe mode with no data collection and no public
-            leaderboard.{IS_PORTAL_BUILD ? '' : <> See our <a href="/privacy">Privacy Policy</a>.</>}
+            leaderboard.{IS_PORTAL_BUILD ? '' : <> See our <a href="/privacy" data-testid="app.age-gate.privacy-link">Privacy Policy</a>.</>}
           </p>
         </>
       )}

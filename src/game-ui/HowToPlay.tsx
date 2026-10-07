@@ -10,7 +10,7 @@ export function HowToPlay({ onDone }: { onDone: () => void }) {
     ['HP', 'Hold the lane', 'Hostiles that reach the OUT gate cost reactor cores. Lose them all and the lighthouse falls. Press SPACE or LAUNCH to send each wave; 1x/2x/4x sets the pace.'],
   ];
   return (
-    <Modal onClose={onDone} boxClass="overlay-box howto" labelledBy="howto-title" testId="tutorial-overlay">
+    <Modal onClose={onDone} boxClass="overlay-box howto" labelledBy="howto-title" testId="menu.how-to-play.dialog">
       <h2 id="howto-title" style={{ color: 'var(--accent)' }}>HOW TO HOLD THE LANE</h2>
       <div className="howto-steps">
         {steps.map(([icon, title, body]) => (
@@ -24,7 +24,7 @@ export function HowToPlay({ onDone }: { onDone: () => void }) {
         ))}
       </div>
       <div className="overlay-btns">
-        <button className="start-btn small" onClick={onDone}>GOT IT &gt;</button>
+        <button className="start-btn small" data-testid="menu.how-to-play.done" onClick={onDone}>GOT IT &gt;</button>
       </div>
     </Modal>
   );

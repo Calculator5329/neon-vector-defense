@@ -522,18 +522,18 @@ export default function ReplayViewer({ runId, onExit }: { runId: string; onExit:
 
   if (phase === 'loading') {
     return (
-      <div className="replay-root" data-testid="replay-root">
+      <div className="replay-root" data-testid="replay.viewer.loading">
         <div className="replay-status">Reconstructing battle plan<span className="replay-dots" /></div>
       </div>
     );
   }
   if (phase === 'notfound' || !run) {
     return (
-      <div className="replay-root" data-testid="replay-root">
+      <div className="replay-root" data-testid="replay.viewer.unavailable">
         <div className="replay-status">
           <div className="replay-lost">REPLAY UNAVAILABLE</div>
           <p>This battle plan couldn't be loaded — shared replays are kept for a limited time, so the link may have expired, or it may be invalid.</p>
-          <button className="replay-btn primary" onClick={() => { sfx.click(); onExit(); }}>RETURN TO THE GRID</button>
+          <button className="replay-btn primary" data-testid="replay.viewer.return" onClick={() => { sfx.click(); onExit(); }}>RETURN TO THE GRID</button>
         </div>
       </div>
     );
@@ -936,15 +936,15 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
   const showStamp = hud.terminal && tRef.current >= tEnd - 0.05;
 
   return (
-    <div className="replay-root" data-testid="replay-root">
+    <div className="replay-root" data-testid="replay.viewer.root">
       <div className="replay-topbar">
-        <button className="replay-btn ghost" onClick={() => { sfx.click(); onExit(); }} data-testid="replay-exit">← GRID</button>
+        <button className="replay-btn ghost" onClick={() => { sfx.click(); onExit(); }} data-testid="replay.viewer.exit">← GRID</button>
         <div className="replay-title">
           <b>{s.callsign}</b>
           <span>{s.mapName} · {s.diffName}{s.freeplay ? ' · FREEPLAY' : ''}</span>
         </div>
         {s.gauntletNextRunId && (
-          <a className="replay-btn" href={`/?run=${s.gauntletNextRunId}`} onClick={() => sfx.click()}>NEXT LEG</a>
+          <a className="replay-btn" data-testid="replay.viewer.next-leg" href={`/?run=${s.gauntletNextRunId}`} onClick={() => sfx.click()}>NEXT LEG</a>
         )}
         <DossierShare input={dossierInput} runId={run.runId} compact />
       </div>
@@ -990,12 +990,13 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       {hintOpen && (
         <div className="replay-hint" role="note">
           <span>{driver ? 'Frame-accurate replay of the recorded run.' : 'Reconstructed from saved snapshots.'} <b>Space</b> play/pause · <b>←/→</b> jump wave · <b>Shift+←/→</b> nudge · drag the bar to scrub.</span>
-          <button className="replay-hint-x" aria-label="Dismiss tip" onClick={() => { setHintOpen(false); sfx.click(); }}>✕</button>
+          <button className="replay-hint-x" data-testid="replay.hint.dismiss" aria-label="Dismiss tip" onClick={() => { setHintOpen(false); sfx.click(); }}>✕</button>
         </div>
       )}
 
       <div className="replay-timeline">
         <div className="replay-bar" ref={barRef}
+          data-testid="replay.timeline.scrubber"
           role="slider" tabIndex={0}
           aria-label="Replay timeline — arrow keys to seek"
           aria-valuemin={0} aria-valuemax={Math.round(span)} aria-valuenow={0}
@@ -1018,13 +1019,13 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
       </div>
 
       <div className="replay-controls">
-        <button className="replay-btn" onClick={() => stepSnap(-1)} aria-label="Previous keyframe" title="Previous keyframe (←)">◀</button>
-        <button className="replay-btn primary" onClick={togglePlay} data-testid="replay-play">{playing ? '❚❚ PAUSE' : '▶ PLAY'}</button>
-        <button className="replay-btn" onClick={() => stepSnap(1)} aria-label="Next keyframe" title="Next keyframe (→)">▶</button>
-        <button className="replay-btn" onClick={restart} aria-label="Restart replay" title="Restart">↺</button>
+        <button className="replay-btn" data-testid="replay.controls.previous" onClick={() => stepSnap(-1)} aria-label="Previous keyframe" title="Previous keyframe (←)">◀</button>
+        <button className="replay-btn primary" onClick={togglePlay} data-testid="replay.controls.play">{playing ? '❚❚ PAUSE' : '▶ PLAY'}</button>
+        <button className="replay-btn" data-testid="replay.controls.next" onClick={() => stepSnap(1)} aria-label="Next keyframe" title="Next keyframe (→)">▶</button>
+        <button className="replay-btn" data-testid="replay.controls.restart" onClick={restart} aria-label="Restart replay" title="Restart">↺</button>
         <div className="replay-speeds">
           {REPLAY_SPEEDS.map((sp) => (
-            <button key={sp} className={`replay-btn spd ${speed === sp ? 'on' : ''}`} aria-pressed={speed === sp} aria-label={`${sp}x speed`} onClick={() => setSpd(sp)}>{sp}x</button>
+            <button key={sp} className={`replay-btn spd ${speed === sp ? 'on' : ''}`} aria-pressed={speed === sp} data-testid={`replay.controls.speed-${String(sp).replace('.', '-')}`} aria-label={`${sp}x speed`} onClick={() => setSpd(sp)}>{sp}x</button>
           ))}
         </div>
       </div>

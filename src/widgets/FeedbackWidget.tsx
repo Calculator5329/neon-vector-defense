@@ -147,24 +147,24 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
   return (
     <div
       className={`fb-root ${ctx === 'menu' ? 'on-menu' : 'on-game'} ${ctx === 'game' ? (sideOpen ? 'sidebar-open' : 'sidebar-collapsed') : ''} ${blocked ? 'widget-blocked' : ''}`}
-      data-testid="message-widget"
+      data-testid="app.feedback.root"
     >
       {open && (
         <div className="fb-panel">
           <div className="fb-head">
             <span>MESSAGES</span>
-            <button className="fb-x" aria-label="Close messages" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
+            <button className="fb-x" data-testid="app.feedback.close" aria-label="Close messages" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
           </div>
           <div className="fb-tabs">
-            <button className={tab === 'inbox' ? 'on' : ''} onClick={() => { setTab('inbox'); sfx.click(); }}>
+            <button className={tab === 'inbox' ? 'on' : ''} data-testid="app.feedback.tab-inbox" onClick={() => { setTab('inbox'); sfx.click(); }}>
               INBOX{unread > 0 ? ` ${unread}` : ''}
             </button>
-            <button className={tab === 'send' ? 'on' : ''} onClick={() => { setTab('send'); sfx.click(); }}>SEND</button>
+            <button className={tab === 'send' ? 'on' : ''} data-testid="app.feedback.tab-send" onClick={() => { setTab('send'); sfx.click(); }}>SEND</button>
           </div>
           {tab === 'inbox' && <div className="fb-replies">
             <div className="fb-section-row">
               <div className="fb-section-title">ADMIN REPLIES</div>
-              <button className="fb-check" aria-label="Check for admin replies" disabled={checkingReplies} onClick={() => { void refreshReplies(); sfx.click(); }}>
+              <button className="fb-check" data-testid="app.feedback.check-replies" aria-label="Check for admin replies" disabled={checkingReplies} onClick={() => { void refreshReplies(); sfx.click(); }}>
                 {checkingReplies ? 'CHECKING' : 'CHECK'}
               </button>
             </div>
@@ -173,7 +173,7 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
                 <div key={r.id} className="fb-reply">
                   <div className="fb-reply-meta">
                     <span>{new Date(r.replyTs).toLocaleString()} / {r.ctx}</span>
-                    <button className="fb-dismiss" title="Dismiss reply" aria-label="Dismiss admin reply" onClick={() => dismissReply(r.id)}>DISMISS</button>
+                    <button className="fb-dismiss" data-testid={`app.feedback.dismiss-${r.id.toLowerCase()}`} title="Dismiss reply" aria-label="Dismiss admin reply" onClick={() => dismissReply(r.id)}>DISMISS</button>
                   </div>
                   <div className="fb-reply-body">{r.reply}</div>
                   {r.text && <div className="fb-reply-quote">You: {r.text}</div>}
@@ -189,7 +189,7 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
               </div>
             )}
             {dismissedCount > 0 && (
-              <button className="fb-restore" onClick={restoreReplies}>RESTORE DISMISSED ({dismissedCount})</button>
+              <button className="fb-restore" data-testid="app.feedback.restore-dismissed" onClick={restoreReplies}>RESTORE DISMISSED ({dismissedCount})</button>
             )}
           </div>}
           {tab === 'send' && !canSendFeedback ? (
@@ -200,7 +200,7 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
             <div className="fb-thanks">Transmission received. Admin replies will appear in Inbox.</div>
           ) : (
             <div className="fb-compose">
-              <textarea className="fb-text" maxLength={MAX} value={text} autoFocus
+              <textarea className="fb-text" data-testid="app.feedback.message" maxLength={MAX} value={text} autoFocus
                 aria-label="Message to the developer"
                 placeholder="Bug, idea, or anything at all — it goes straight to the developer."
                 onChange={(e) => { setText(e.target.value); if (state === 'err') setState('idle'); }} />
@@ -209,7 +209,7 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
               </div>
               <div className="fb-foot">
                 <span className="fb-count">{text.length}/{MAX}</span>
-                <button className="fb-send no-shift-action" aria-label="Send message to developer" disabled={!text.trim() || state === 'busy'} onClick={send}>
+                <button className="fb-send no-shift-action" data-testid="app.feedback.send" aria-label="Send message to developer" disabled={!text.trim() || state === 'busy'} onClick={send}>
                   {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SEND ▸'}
                 </button>
               </div>
@@ -217,7 +217,7 @@ export function FeedbackWidget({ ctx, blocked = false, sideOpen = false }: { ctx
           ))}
         </div>
       )}
-      <button className={`fb-toggle ${unread ? 'has-reply' : ''}`} title={unread ? `${unread} admin reply` : 'Messages'} aria-label={unread ? `${unread} admin reply` : 'Messages'} aria-expanded={open} onClick={() => { setOpen((o) => { const next = !o; if (next && unread > 0) setTab('inbox'); return next; }); sfx.click(); }}>
+      <button className={`fb-toggle ${unread ? 'has-reply' : ''}`} data-testid="app.feedback.toggle" title={unread ? `${unread} admin reply` : 'Messages'} aria-label={unread ? `${unread} admin reply` : 'Messages'} aria-expanded={open} onClick={() => { setOpen((o) => { const next = !o; if (next && unread > 0) setTab('inbox'); return next; }); sfx.click(); }}>
         {open ? '✕' : '✉'}
       </button>
     </div>

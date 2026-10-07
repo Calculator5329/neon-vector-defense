@@ -65,7 +65,7 @@ async function seedMeta(page: Page, overrides: Record<string, unknown> = {}) {
 
 async function openDemoMenu(page: Page) {
   await page.goto('/?demo=1');
-  await expect(page.getByTestId('deploy-button')).toBeVisible();
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
 }
 
 /**
@@ -118,23 +118,23 @@ async function mockAnonAuth(page: Page, uid = E2E_ANON_UID) {
 async function openConsentedMenu(page: Page) {
   await seedProgress(page);
   await page.goto('/');
-  await expect(page.getByTestId('deploy-button')).toBeVisible();
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
 }
 
 async function openOperationsMenu(page: Page) {
   await page.goto('/');
-  await expect(page.getByTestId('deploy-button')).toBeVisible();
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
   await page.getByRole('button', { name: /^OPERATIONS/ }).click();
-  await expect(page.getByTestId('ops-tab')).toBeVisible();
+  await expect(page.getByTestId('menu.ops.root')).toBeVisible();
 }
 
 async function deployFromMenu(page: Page) {
-  await page.getByTestId('deploy-button').click();
-  await expect(page.getByTestId('game-root')).toBeVisible();
+  await page.getByTestId('menu.deploy.launch').click();
+  await expect(page.getByTestId('game.screen.root')).toBeVisible();
 }
 
 async function acknowledgeBriefing(page: Page) {
-  const briefing = page.getByTestId('briefing-overlay');
+  const briefing = page.getByTestId('game.briefing.dialog');
   if (await briefing.isVisible().catch(() => false)) {
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
   }
@@ -142,7 +142,7 @@ async function acknowledgeBriefing(page: Page) {
 
 async function validCanvasPoint(page: Page) {
   return page.evaluate(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game.board.canvas"]')!;
     const rect = canvas.getBoundingClientRect();
     const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
     const W = 1280;
@@ -179,15 +179,15 @@ async function widgetMetrics(page: Page) {
     };
     const ai = document.querySelector('.ai-toggle')?.getBoundingClientRect();
     const fb = document.querySelector('.fb-toggle')?.getBoundingClientRect();
-    const sidebar = document.querySelector('[data-testid="game-sidebar"]')?.getBoundingClientRect();
+    const sidebar = document.querySelector('[data-testid="game.sidebar.root"]')?.getBoundingClientRect();
     return {
       bodyClasses: document.body.className,
-      aiWidget: document.querySelector('[data-testid="ai-widget"]')?.className ?? '',
-      messageWidget: document.querySelector('[data-testid="message-widget"]')?.className ?? '',
+      aiWidget: document.querySelector('[data-testid="app.ai-help.root"]')?.className ?? '',
+      messageWidget: document.querySelector('[data-testid="app.feedback.root"]')?.className ?? '',
       viewport: { width: window.innerWidth, height: window.innerHeight },
       ai: rect('.ai-toggle'),
       message: rect('.fb-toggle'),
-      sidebar: rect('[data-testid="game-sidebar"]'),
+      sidebar: rect('[data-testid="game.sidebar.root"]'),
       rightEdgesAligned: ai && fb ? Math.abs(ai.right - fb.right) <= 2 : false,
       clearOfSidebar: ai && fb && sidebar ? ai.right <= sidebar.left - 8 && fb.right <= sidebar.left - 8 : true,
       horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -239,10 +239,10 @@ function expectPolishedMenuHeader(metrics: Awaited<ReturnType<typeof menuHeaderM
 
 async function arsenalGridMetrics(page: Page) {
   return page.evaluate(() => {
-    const grid = document.querySelector<HTMLElement>('[data-testid="shop-grid"]');
-    const sidebar = document.querySelector<HTMLElement>('[data-testid="game-sidebar"]');
+    const grid = document.querySelector<HTMLElement>('[data-testid="game.shop.grid"]');
+    const sidebar = document.querySelector<HTMLElement>('[data-testid="game.sidebar.root"]');
     if (!grid) throw new Error('shop grid missing');
-    const items = [...grid.querySelectorAll<HTMLElement>('[data-testid^="tower-"]')];
+    const items = [...grid.querySelectorAll<HTMLElement>('[data-testid^="game.shop.tower-"]')];
     const rects = items
       .map((el) => {
         const r = el.getBoundingClientRect();
@@ -568,9 +568,9 @@ test.describe('desktop UX layout', () => {
       await page.setViewportSize(viewport);
       await openDemoMenu(page);
       expectPolishedMenuHeader(await menuHeaderMetrics(page));
-      await expect(page.getByTestId('menu-utility-bestiary')).toBeVisible();
-      await expect(page.getByTestId('menu-utility-help')).toBeVisible();
-      await expect(page.getByTestId('menu-utility-settings')).toBeVisible();
+      await expect(page.getByTestId('menu.utility.bestiary')).toBeVisible();
+      await expect(page.getByTestId('menu.utility.help')).toBeVisible();
+      await expect(page.getByTestId('menu.utility.settings')).toBeVisible();
     }
   });
 
@@ -578,12 +578,12 @@ test.describe('desktop UX layout', () => {
     await openDemoMenu(page);
 
     const layout = await page.evaluate(() => {
-      const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="map-node-"]')].map((el) => {
+      const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="menu.atlas.map-node-"]')].map((el) => {
         const r = el.getBoundingClientRect();
         return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
       });
-      const field = document.querySelector<HTMLElement>('[data-testid="atlas-field"]')!;
-      const dock = document.querySelector<HTMLElement>('[data-testid="sector-dock"]')!;
+      const field = document.querySelector<HTMLElement>('[data-testid="menu.atlas.field"]')!;
+      const dock = document.querySelector<HTMLElement>('[data-testid="menu.dock.root"]')!;
       const ai = document.querySelector('.ai-toggle')?.getBoundingClientRect();
       const fb = document.querySelector('.fb-toggle')?.getBoundingClientRect();
       return {
@@ -591,7 +591,7 @@ test.describe('desktop UX layout', () => {
         fieldWidth: Math.round(field.getBoundingClientRect().width),
         dockWidth: Math.round(dock.getBoundingClientRect().width),
         fieldDisplay: getComputedStyle(field).position,
-        deployVisible: document.querySelector('[data-testid="deploy-button"]')!.getBoundingClientRect().bottom <= window.innerHeight,
+        deployVisible: document.querySelector('[data-testid="menu.deploy.launch"]')!.getBoundingClientRect().bottom <= window.innerHeight,
         rightEdgesAligned: ai && fb ? Math.abs(ai.right - fb.right) <= 2 : false,
         horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
       };
@@ -614,27 +614,27 @@ test.describe('desktop UX layout', () => {
       await openDemoMenu(page);
 
       for (const id of ['carousel', 'splice', 'mirror', 'foundry']) {
-        await expect(page.getByTestId(`map-node-${id}`)).toBeVisible();
+        await expect(page.getByTestId(`menu.atlas.map-node-${id}`)).toBeVisible();
       }
 
-      await page.getByTestId('map-node-foundry').click();
-      await expect(page.getByTestId('sector-dock')).toContainText('Foundry Floor');
-      await page.getByTestId('diff-card-normal').click();
+      await page.getByTestId('menu.atlas.map-node-foundry').click();
+      await expect(page.getByTestId('menu.dock.root')).toContainText('Foundry Floor');
+      await page.getByTestId('menu.dock.protocol-normal').click();
       await expect(page.locator('.deploy-bar-sel')).toContainText('Foundry Floor');
       await expect(page.locator('.deploy-bar-sel')).toContainText('Veteran');
 
-      await page.getByTestId('weekly-ops-beacon').click();
-      await expect(page.getByTestId('yakkob-card')).toBeFocused();
+      await page.getByTestId('menu.atlas.weekly-ops-beacon').click();
+      await expect(page.getByTestId('menu.weekly-ops.yakkob')).toBeFocused();
       await expect(page.locator('.deploy-bar-sel')).toContainText('THE YAKKOB');
-      await page.getByTestId('map-node-orbital').focus();
+      await page.getByTestId('menu.atlas.map-node-orbital').focus();
       await page.keyboard.press('ArrowRight');
       await page.keyboard.press('Enter');
-      await expect(page.getByTestId('sector-dock')).toContainText('The Carousel');
+      await expect(page.getByTestId('menu.dock.root')).toContainText('The Carousel');
 
-      await page.getByTestId('map-node-foundry').click();
-      await page.getByTestId('diff-card-normal').click();
-      await page.getByTestId('deploy-button').click();
-      await expect(page.getByTestId('game-root')).toBeVisible();
+      await page.getByTestId('menu.atlas.map-node-foundry').click();
+      await page.getByTestId('menu.dock.protocol-normal').click();
+      await page.getByTestId('menu.deploy.launch').click();
+      await expect(page.getByTestId('game.screen.root')).toBeVisible();
       await expect.poll(() => page.evaluate(() => {
         const game = (window as unknown as { game: any }).game;
         return { map: game.map.id, diff: game.diff.id };
@@ -646,18 +646,18 @@ test.describe('desktop UX layout', () => {
   test('locked atlas node shows unlock copy and does not select', async ({ page }) => {
     await seedProgress(page, { runs: 0, victories: 0, kills: 0, best: {}, clearedMaps: [] });
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible();
-    await expect(page.getByTestId('map-node-reactor')).toHaveAttribute('aria-disabled', 'true');
-    await expect(page.getByTestId('map-node-reactor')).toHaveAttribute('aria-label', /Clear The Carousel or reach wave 20/);
-    await page.getByTestId('map-node-reactor').click({ force: true });
-    await expect(page.getByTestId('sector-dock')).toContainText('Orbital Relay');
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
+    await expect(page.getByTestId('menu.atlas.map-node-reactor')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('menu.atlas.map-node-reactor')).toHaveAttribute('aria-label', /Clear The Carousel or reach wave 20/);
+    await page.getByTestId('menu.atlas.map-node-reactor').click({ force: true });
+    await expect(page.getByTestId('menu.dock.root')).toContainText('Orbital Relay');
     await expect(page.locator('.deploy-bar-sel')).toContainText('Orbital Relay');
   });
 
   test('arsenal panel renders a complete 21-tower grid on desktop', async ({ page }) => {
     await openDemoMenu(page);
     await deployFromMenu(page);
-    await expect(page.getByTestId('shop-grid')).toBeVisible();
+    await expect(page.getByTestId('game.shop.grid')).toBeVisible();
 
     const layout = await arsenalGridMetrics(page);
 
@@ -683,7 +683,7 @@ test.describe('desktop UX layout', () => {
     });
     await page.keyboard.press('Tab');
     await page.keyboard.press('Enter');
-    await expect(page.getByTestId('upgrade-pulse-a')).toBeFocused();
+    await expect(page.getByTestId('game.upgrade.buy-pulse-a')).toBeFocused();
     await page.keyboard.press('Enter');
 
     await expect.poll(() => page.evaluate(() => {
@@ -762,7 +762,7 @@ test.describe('desktop UX layout', () => {
       return { startingCredits, totalCost: baseCost + upgradeCost, tierA: fake.tierA, tierB: fake.tierB, upgrades };
     });
 
-    await page.getByTestId('tower-pulse').click();
+    await page.getByTestId('game.shop.tower-pulse').click();
     const point = await validCanvasPoint(page);
     await page.mouse.click(point.x, point.y);
 
@@ -821,7 +821,7 @@ test.describe('desktop UX layout', () => {
     await page.setViewportSize({ width: 920, height: 430 });
     await openDemoMenu(page);
     await deployFromMenu(page);
-    await expect(page.getByTestId('shop-grid')).toBeVisible();
+    await expect(page.getByTestId('game.shop.grid')).toBeVisible();
 
     const layout = await arsenalGridMetrics(page);
 
@@ -906,18 +906,18 @@ test.describe('desktop UX layout', () => {
     await page.goto('/');
     await deployFromMenu(page);
 
-    await expect(page.getByTestId('briefing-overlay')).toBeVisible();
-    await expect(page.getByTestId('ai-widget')).toBeHidden();
-    await expect(page.getByTestId('message-widget')).toBeHidden();
+    await expect(page.getByTestId('game.briefing.dialog')).toBeVisible();
+    await expect(page.getByTestId('app.ai-help.root')).toBeHidden();
+    await expect(page.getByTestId('app.feedback.root')).toBeHidden();
 
     const blocked = await widgetMetrics(page);
     expect(blocked.aiWidget).toContain('widget-blocked');
     expect(blocked.messageWidget).toContain('widget-blocked');
 
     await page.getByRole('button', { name: 'ACKNOWLEDGE' }).click();
-    await expect(page.getByTestId('briefing-overlay')).toBeHidden();
-    await expect(page.getByTestId('ai-widget')).toBeVisible();
-    await expect(page.getByTestId('message-widget')).toBeVisible();
+    await expect(page.getByTestId('game.briefing.dialog')).toBeHidden();
+    await expect(page.getByTestId('app.ai-help.root')).toBeVisible();
+    await expect(page.getByTestId('app.feedback.root')).toBeVisible();
 
     const openSidebarDock = await widgetMetrics(page);
     expect(openSidebarDock.rightEdgesAligned).toBe(true);
@@ -945,7 +945,7 @@ test.describe('desktop UX layout', () => {
     await expect(input).toHaveValue(' ');
     await expect(aiToggle).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByLabel('Resume game')).toBeVisible();
-    await expect(page.getByTestId('launch-wave')).toBeVisible();
+    await expect(page.getByTestId('game.hud.launch-wave')).toBeVisible();
   });
 });
 
@@ -962,8 +962,8 @@ test.describe('adaptation package UX', () => {
       ],
     });
     await openDemoMenu(page);
-    await page.getByTestId('menu-utility-bestiary').click();
-    await expect(page.getByTestId('bestiary')).toBeVisible();
+    await page.getByTestId('menu.utility.bestiary').click();
+    await expect(page.getByTestId('menu.bestiary.dialog')).toBeVisible();
     await expect(page.getByText('MIRROR HULL')).toBeVisible();
     await expect(page.getByText('ADAPTIVE MIRROR')).toBeVisible();
     await expect(page.getByText(/diversify, stack Exposed, or fire Recalibrate/i)).toBeVisible();
@@ -977,9 +977,9 @@ test.describe('adaptation package UX', () => {
     });
     await seedProgress(page, { kills: 1_000_000, victories: 1 });
     await openDemoMenu(page);
-    await page.getByTestId('deploy-button').click();
+    await page.getByTestId('menu.deploy.launch').click();
     await acknowledgeBriefing(page);
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
 
     await expect(page.getByRole('button', { name: /Recalibrate locked until wave 28/i })).toBeVisible();
     await page.evaluate(() => {
@@ -1189,7 +1189,7 @@ test.describe('run telemetry model', () => {
   test('records representative friction, assistance, and leaderboard counters', async ({ page }) => {
     await seedProgress(page, { runs: 0, victories: 0, kills: 0 });
     await page.goto('/');
-    await expect(page.getByTestId('diff-card-hard')).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('menu.dock.protocol-hard')).toHaveAttribute('aria-disabled', 'true');
     await deployFromMenu(page);
 
     const metrics = await page.evaluate(async () => {
@@ -1266,7 +1266,7 @@ test.describe('run telemetry model', () => {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game.board.canvas"]')!;
       const ctx = canvas.getContext('2d')!;
       const data = ctx.getImageData(210, 136, 70, 70).data;
       let cyanPixels = 0;
@@ -1364,19 +1364,19 @@ test.describe('run telemetry model', () => {
   test('daily challenge starts as a wave-one daily protocol', async ({ page }) => {
     await openDemoMenu(page);
     await expect(page.locator('[data-testid="daily-challenge-panel"]')).toHaveCount(0);
-    await page.getByTestId('dock-tab-challenges').click();
-    await page.getByTestId('diff-card-daily').click();
-    await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
-    await expect(page.getByTestId('diff-card-daily')).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('menu.dock.tab-challenges').click();
+    await page.getByTestId('menu.dock.daily-challenge').click();
+    await expect(page.getByTestId('menu.dock.daily-challenge')).toHaveClass(/active/);
+    await expect(page.getByTestId('menu.dock.daily-challenge')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
     await expect(page.locator('[data-testid="daily-challenge-panel"]')).toHaveCount(0);
 
     await page.getByRole('button', { name: /^LEADERBOARD/ }).click();
-    await expect(page.getByTestId('daily-leaderboard-mode')).toBeVisible();
+    await expect(page.getByTestId('menu.leaderboard.ritual-board')).toBeVisible();
     await page.getByRole('button', { name: /^DEPLOY$/ }).click();
-    await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('game-root')).toBeVisible();
+    await expect(page.getByTestId('menu.dock.daily-challenge')).toHaveClass(/active/);
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.screen.root')).toBeVisible();
     await expect(page.locator('.daily-strip')).toBeVisible();
 
     const daily = await page.evaluate(() => {
@@ -1426,33 +1426,33 @@ test.describe('run telemetry model', () => {
   test('weekly ops are discoverable and gauntlet absence is stable', async ({ page }) => {
     await seedMeta(page, { yakkobUnlocked: false });
     await openConsentedMenu(page);
-    await page.getByTestId('dock-tab-challenges').click();
-    await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
-    await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
-    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
-    await page.getByTestId('weekly-mutation-card').click();
-    await expect(page.getByTestId('weekly-mutation-card')).toHaveClass(/active/);
+    await page.getByTestId('menu.dock.tab-challenges').click();
+    await expect(page.getByTestId('menu.weekly-ops.strip')).toBeVisible();
+    await expect(page.getByTestId('menu.weekly-ops.weekly-mutation')).toBeVisible();
+    await expect(page.getByTestId('menu.weekly-ops.champion-gauntlet')).toContainText('Not crowned yet');
+    await page.getByTestId('menu.weekly-ops.weekly-mutation').click();
+    await expect(page.getByTestId('menu.weekly-ops.weekly-mutation')).toHaveClass(/active/);
     await expect(page.locator('.deploy-bar-sel')).toContainText('WEEKLY MUTATION');
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
-    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
-    await expect(page.getByTestId('yakkob-dwarf')).toBeVisible();
+    await expect(page.getByTestId('menu.weekly-ops.strip')).toBeVisible();
+    await expect(page.getByTestId('menu.weekly-ops.champion-gauntlet')).toContainText('Not crowned yet');
+    await expect(page.getByTestId('menu.commander.yakkob-dwarf')).toBeVisible();
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.getByTestId('yakkob-dwarf').click();
-    await expect(page.getByTestId('yakkob-card')).toBeVisible();
-    await expect(page.getByTestId('weekly-mutation-card')).toHaveCount(0);
-    await page.getByTestId('weekly-ops-beacon').click();
-    await expect(page.getByTestId('yakkob-card')).toBeFocused();
+    await page.getByTestId('menu.commander.yakkob-dwarf').click();
+    await expect(page.getByTestId('menu.weekly-ops.yakkob')).toBeVisible();
+    await expect(page.getByTestId('menu.weekly-ops.weekly-mutation')).toHaveCount(0);
+    await page.getByTestId('menu.atlas.weekly-ops-beacon').click();
+    await expect(page.getByTestId('menu.weekly-ops.yakkob')).toBeFocused();
   });
 
   test('weekly mutation starts as a wave-one weekly protocol', async ({ page }) => {
     await seedMeta(page, { yakkobUnlocked: false });
     await openConsentedMenu(page);
-    await page.getByTestId('dock-tab-challenges').click();
-    await page.getByTestId('weekly-mutation-card').click();
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('game-root')).toBeVisible();
+    await page.getByTestId('menu.dock.tab-challenges').click();
+    await page.getByTestId('menu.weekly-ops.weekly-mutation').click();
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.screen.root')).toBeVisible();
     await expect(page.locator('.daily-strip')).toContainText('WEEKLY');
 
     const weekly = await page.evaluate(() => {
@@ -1486,13 +1486,13 @@ test.describe('run telemetry model', () => {
       await page.evaluate(() => {
         localStorage.setItem('nvd-consent-v1', JSON.stringify({ ageBand: 'under13', sell: 'no', gpc: false, ts: 1 }));
       });
-      await page.getByTestId('dock-tab-challenges').click();
-      await expect(page.getByTestId('gauntlet-protocol-card')).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByTestId('gauntlet-protocol-card')).toHaveAttribute('aria-disabled', 'false');
-      await page.getByTestId('gauntlet-protocol-card').click();
+      await page.getByTestId('menu.dock.tab-challenges').click();
+      await expect(page.getByTestId('menu.weekly-ops.gauntlet-protocol')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('menu.weekly-ops.gauntlet-protocol')).toHaveAttribute('aria-disabled', 'false');
+      await page.getByTestId('menu.weekly-ops.gauntlet-protocol').click();
       await expect(page.locator('.deploy-bar-sel')).toContainText('GAUNTLET PROTOCOL');
-      await page.getByTestId('deploy-button').click();
-      await expect(page.getByTestId('game-root')).toBeVisible();
+      await page.getByTestId('menu.deploy.launch').click();
+      await expect(page.getByTestId('game.screen.root')).toBeVisible();
       await acknowledgeBriefing(page);
 
       await page.evaluate(() => {
@@ -1525,16 +1525,16 @@ test.describe('run telemetry model', () => {
   test('daily challenge does not mutate campaign progress', async ({ page }) => {
     await seedProgress(page, { runs: 2, kills: 12, totalWaves: 4, archive: [], best: {}, history: [] });
     await page.goto('/');
-    await page.getByTestId('dock-tab-challenges').click();
-    await page.getByTestId('diff-card-daily').click();
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('game-root')).toBeVisible();
+    await page.getByTestId('menu.dock.tab-challenges').click();
+    await page.getByTestId('menu.dock.daily-challenge').click();
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.screen.root')).toBeVisible();
 
     const daily = await page.evaluate(() => {
       const game = (window as unknown as { game: any }).game;
       const before = window.localStorage.getItem('nvd-progress-v1');
       const dailyIds = [...game.dailyTowerIds];
-      const lockedShop = [...document.querySelectorAll<HTMLElement>('[data-testid^="tower-"]')]
+      const lockedShop = [...document.querySelectorAll<HTMLElement>('[data-testid^="game.shop.tower-"]')]
         .find((el) => !dailyIds.includes(el.dataset.testid?.replace('tower-', '') ?? ''));
       game.phase = 'wave';
       game.queue = [];
@@ -1718,13 +1718,13 @@ test.describe('first-run coach', () => {
 
     // briefing first, then the non-blocking coach chip at stage 1
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
-    const chip = page.getByTestId('coach-chip');
+    const chip = page.getByTestId('game.coach.chip');
     await expect(chip).toContainText('1/3');
 
     // stage 1 → 2: place a tower (canvas click path)
-    await page.getByTestId('tower-pulse').click();
+    await page.getByTestId('game.shop.tower-pulse').click();
     const point = await page.evaluate(() => {
-      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game.board.canvas"]')!;
       const rect = canvas.getBoundingClientRect();
       const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
       const scale = Math.min(rect.width / 1280, rect.height / 720);
@@ -1741,7 +1741,7 @@ test.describe('first-run coach', () => {
     await expect(chip).toContainText('2/3');
 
     // stage 2 → 3: launch the wave
-    await page.getByTestId('launch-wave').click();
+    await page.getByTestId('game.hud.launch-wave').click();
     await expect(chip).toContainText('3/3');
 
     // stage 3 → done: buy an upgrade; chip clears and completion persists
@@ -1761,7 +1761,7 @@ test.describe('first-run coach', () => {
     await deployFromMenu(page);
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
     await page.getByRole('button', { name: 'SKIP GUIDE' }).click();
-    await expect(page.getByTestId('coach-chip')).toBeHidden();
+    await expect(page.getByTestId('game.coach.chip')).toBeHidden();
     await expect.poll(() => page.evaluate(() =>
       JSON.parse(window.localStorage.getItem('nvd-progress-v1') ?? '{}').tut)).toBe(true);
   });
@@ -1773,7 +1773,7 @@ test.describe('mobile UX layout', () => {
   test('menu header wraps without scrollbars and keeps utility icons readable on Pixel portrait', async ({ page }) => {
     await openDemoMenu(page);
     expectPolishedMenuHeader(await menuHeaderMetrics(page));
-    for (const id of ['menu-utility-bestiary', 'menu-utility-help', 'menu-utility-settings']) {
+    for (const id of ['menu.utility.bestiary', 'menu.utility.help', 'menu.utility.settings']) {
       const control = page.getByTestId(id);
       await expect(control).toBeVisible();
       await control.focus();
@@ -1785,13 +1785,13 @@ test.describe('mobile UX layout', () => {
     await openDemoMenu(page);
 
     const layout = await page.evaluate(() => {
-      const atlas = document.querySelector<HTMLElement>('[data-testid="sector-atlas"]')!;
-      const field = document.querySelector<HTMLElement>('[data-testid="atlas-field"]')!;
-      const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="map-node-"]')].map((el) => {
+      const atlas = document.querySelector<HTMLElement>('[data-testid="menu.atlas.root"]')!;
+      const field = document.querySelector<HTMLElement>('[data-testid="menu.atlas.field"]')!;
+      const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid^="menu.atlas.map-node-"]')].map((el) => {
         const r = el.getBoundingClientRect();
         return { width: Math.round(r.width), height: Math.round(r.height) };
       });
-      const deployRect = document.querySelector('[data-testid="deploy-button"]')!.getBoundingClientRect();
+      const deployRect = document.querySelector('[data-testid="menu.deploy.launch"]')!.getBoundingClientRect();
       const ai = document.querySelector('.ai-toggle')?.getBoundingClientRect();
       const fb = document.querySelector('.fb-toggle')?.getBoundingClientRect();
       return {
@@ -1854,7 +1854,7 @@ test.describe('mobile UX layout', () => {
     await openDemoMenu(page);
     await deployFromMenu(page);
     await acknowledgeBriefing(page);
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
     // Widest plausible readouts, so the pills are at their real maximum size.
     await page.evaluate(() => {
       const game = (window as unknown as { game?: Record<string, unknown> }).game;
@@ -1924,7 +1924,7 @@ test.describe('mobile UX layout', () => {
   test('arsenal panel renders a complete 21-tower grid on mobile', async ({ page }) => {
     await openDemoMenu(page);
     await deployFromMenu(page);
-    await expect(page.getByTestId('shop-grid')).toBeVisible();
+    await expect(page.getByTestId('game.shop.grid')).toBeVisible();
 
     const layout = await arsenalGridMetrics(page);
 
@@ -1946,12 +1946,12 @@ test.describe('mobile UX layout', () => {
     await openDemoMenu(page);
     await deployFromMenu(page);
 
-    await expect(page.getByTestId('rotate-device')).toBeVisible();
+    await expect(page.getByTestId('game.screen.rotate-notice')).toBeVisible();
     // waves must not run unseen behind the rotate overlay
     await expect.poll(() => page.evaluate(() => (window as unknown as { game: { paused: boolean } }).game.paused)).toBe(true);
-    await page.getByTestId('tower-pulse').click();
+    await page.getByTestId('game.shop.tower-pulse').click();
     const point = await page.evaluate(() => {
-      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game.board.canvas"]')!;
       const rect = canvas.getBoundingClientRect();
       const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
       const W = 1280;

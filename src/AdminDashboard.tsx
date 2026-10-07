@@ -314,10 +314,10 @@ function CurveViewer({ curves }: { curves: WaveCurve[] }) {
       <div className="adm-card-head">
         <h3>Per-wave balance curve</h3>
         <div className="adm-selects">
-          <select aria-label="Balance curve sector" value={mapId} onChange={(e) => setMapId(e.target.value)}>
+          <select data-testid="admin.balance-curve.sector" aria-label="Balance curve sector" value={mapId} onChange={(e) => setMapId(e.target.value)}>
             {ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
-          <select aria-label="Balance curve protocol" value={diffId} onChange={(e) => setDiffId(e.target.value)}>
+          <select data-testid="admin.balance-curve.protocol" aria-label="Balance curve protocol" value={diffId} onChange={(e) => setDiffId(e.target.value)}>
             {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
@@ -453,7 +453,7 @@ function TowerBalanceLab({ efficiency }: { efficiency: TowerEfficiency[] }) {
           {ranked.map(({ t, b, ratio }) => {
             const h = matchupHoles(b);
             return (
-              <button key={t.id} className={selected === t.id ? 'on' : ''} onClick={() => setSelected(t.id)}>
+              <button data-testid={`admin.tower-lab.tower-${t.id}`} key={t.id} className={selected === t.id ? 'on' : ''} onClick={() => setSelected(t.id)}>
                 <span><i style={{ background: towerGlow(t.id) }} />{t.name}</span>
                 <em>{ratio.toFixed(2)}x</em>
                 {h.length > 0 && <small>{h.join(', ')}</small>}
@@ -542,14 +542,14 @@ function tweakSnippet(id: string, tweak: TowerTweak): string {
   }, null, 2);
 }
 
-function TweakControl({ label, value, min, max, onChange }: {
-  label: string; value: number; min: number; max: number; onChange: (v: number) => void;
+function TweakControl({ label, value, min, max, onChange, testKey }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void; testKey: string;
 }) {
   return (
     <label className="adm-tweak-control">
       <span>{label}</span>
-      <input type="range" min={min} max={max} step={0.01} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <input type="number" min={min} max={max} step={0.01} value={value.toFixed(2)} onChange={(e) => onChange(Number(e.target.value) || 1)} />
+      <input data-testid={`admin.tower-tweak.slider-${testKey}`} type="range" min={min} max={max} step={0.01} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input data-testid={`admin.tower-tweak.value-${testKey}`} type="number" min={min} max={max} step={0.01} value={value.toFixed(2)} onChange={(e) => onChange(Number(e.target.value) || 1)} />
     </label>
   );
 }
@@ -618,7 +618,7 @@ function TowerDeepDiveTab({ report }: { report: TowerDeepDiveReport }) {
           <div className="adm-card-head"><h3>Ranking</h3><span className="adm-hint">simulation-led OP score</span></div>
           <div className="adm-deep-rank-list">
             {sorted.map((s) => (
-              <button key={s.id} className={s.id === summary.id ? 'on' : ''} onClick={() => setSelected(s.id)}>
+              <button data-testid={`admin.tower-ranking.tower-${s.id}`} key={s.id} className={s.id === summary.id ? 'on' : ''} onClick={() => setSelected(s.id)}>
                 <span><i style={{ background: towerGlow(s.id) }} />{s.name}</span>
                 <b className={`adm-verdict-${s.verdict.replace(/[^a-z]/gi, '-').toLowerCase()}`}>{s.verdict}</b>
                 <em>{s.opScore.toFixed(2)}</em>
@@ -659,10 +659,10 @@ function TowerDeepDiveTab({ report }: { report: TowerDeepDiveReport }) {
         <div className="adm-card">
           <div className="adm-card-head"><h3>What-if tweak</h3><span className="adm-hint">local projection for one tower</span></div>
           <div className="adm-tweak-grid">
-            <TweakControl label="damage" value={tweak.damageMult} min={0.5} max={1.5} onChange={(damageMult) => setTweak({ damageMult })} />
-            <TweakControl label="fire rate" value={tweak.fireRateMult} min={0.5} max={1.5} onChange={(fireRateMult) => setTweak({ fireRateMult })} />
-            <TweakControl label="range" value={tweak.rangeMult} min={0.65} max={1.4} onChange={(rangeMult) => setTweak({ rangeMult })} />
-            <TweakControl label="cost" value={tweak.costMult} min={0.65} max={2} onChange={(costMult) => setTweak({ costMult })} />
+            <TweakControl testKey="damage" label="damage" value={tweak.damageMult} min={0.5} max={1.5} onChange={(damageMult) => setTweak({ damageMult })} />
+            <TweakControl testKey="fire-rate" label="fire rate" value={tweak.fireRateMult} min={0.5} max={1.5} onChange={(fireRateMult) => setTweak({ fireRateMult })} />
+            <TweakControl testKey="range" label="range" value={tweak.rangeMult} min={0.65} max={1.4} onChange={(rangeMult) => setTweak({ rangeMult })} />
+            <TweakControl testKey="cost" label="cost" value={tweak.costMult} min={0.65} max={2} onChange={(costMult) => setTweak({ costMult })} />
           </div>
           <div className="adm-mini-kpis">
             <Stat label="power index" value={`${Math.round(power * 100)}%`} />
@@ -680,8 +680,8 @@ function TowerDeepDiveTab({ report }: { report: TowerDeepDiveReport }) {
             </tbody>
           </table>
           <div className="adm-tweak-actions">
-            <button className="adm-mini" onClick={resetTweak}>reset</button>
-            <button className="adm-mini" onClick={copySnippet}>copy config</button>
+            <button data-testid="admin.tower-tweak.reset" className="adm-mini" onClick={resetTweak}>reset</button>
+            <button data-testid="admin.tower-tweak.copy-config" className="adm-mini" onClick={copySnippet}>copy config</button>
           </div>
           <pre className="adm-config-snippet">{tweakSnippet(summary.id, tweak)}</pre>
           <p className="adm-hint adm-eff-legend">Projection uses saved static data plus a small range weight. Rerun <code>npm run tower:deep-dive</code> after applying real values to verify actual wave outcomes.</p>
@@ -716,7 +716,7 @@ function TowerDeepDiveTab({ report }: { report: TowerDeepDiveReport }) {
           </thead>
           <tbody>
             {sorted.map((s) => (
-              <tr key={s.id} onClick={() => setSelected(s.id)}>
+              <tr data-testid={`admin.tower-summary.row-${s.id}`} key={s.id} onClick={() => setSelected(s.id)}>
                 <td><span className="adm-dot" style={{ background: towerGlow(s.id) }} />{s.name}</td>
                 <td>{s.verdict}</td>
                 <td>{s.opScore.toFixed(2)}</td>
@@ -814,7 +814,7 @@ function EfficiencyTable({ efficiency }: { efficiency: TowerEfficiency[] }) {
             const isOpen = open === t.id;
             return (
               <Fragment key={t.id}>
-                <tr className={`adm-eff-row ${isOpen ? 'open' : ''}`} onClick={() => setOpen(isOpen ? null : t.id)}>
+                <tr data-testid={`admin.efficiency.row-${t.id}`} className={`adm-eff-row ${isOpen ? 'open' : ''}`} onClick={() => setOpen(isOpen ? null : t.id)}>
                   <td><span className="adm-dot" style={{ background: towerGlow(t.id) }} />{t.name}</td>
                   <td className="adm-dim">{t.style}</td>
                   <td className="adm-dim">{t.damageType}</td>
@@ -892,11 +892,11 @@ function nestedMultValue(doc: BalanceConfigDoc, section: 'towers' | 'enemies' | 
   return ((doc[section] as Record<string, Record<string, number>> | undefined)?.[id])?.[field];
 }
 
-function BalanceMultInput({ label, value, onChange }: { label: string; value?: number; onChange: (value: number) => void }) {
+function BalanceMultInput({ label, value, onChange, testKey }: { label: string; value?: number; onChange: (value: number) => void; testKey: string }) {
   return (
     <label className="adm-balance-field">
       <span>{label}</span>
-      <input
+      <input data-testid={`admin.balance-editor.mult-${testKey}`}
         type="number"
         min={0.25}
         max={4}
@@ -990,9 +990,9 @@ function RemoteBalanceEditor() {
         <h3>Remote balance editor</h3>
         <span className="adm-hint">config/balance public-read, admin-write</span>
         <div className="adm-balance-actions">
-          <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
-          <button className="adm-mini" disabled={busy || !dirty} onClick={() => void publish()}>publish</button>
-          <button className="adm-mini" disabled={busy} onClick={() => void reset()}>reset identity</button>
+          <button data-testid="admin.balance-editor.refresh" className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+          <button data-testid="admin.balance-editor.publish" className="adm-mini" disabled={busy || !dirty} onClick={() => void publish()}>publish</button>
+          <button data-testid="admin.balance-editor.reset-identity" className="adm-mini" disabled={busy} onClick={() => void reset()}>reset identity</button>
         </div>
       </div>
 
@@ -1003,7 +1003,7 @@ function RemoteBalanceEditor() {
       <div className="adm-balance-version">
         <label className="adm-balance-field wide">
           <span>Version</span>
-          <input value={draft.version ?? ''} maxLength={30} onChange={(e) => setDraft((doc) => setBalanceVersion(doc, e.target.value))} />
+          <input data-testid="admin.balance-editor.version" value={draft.version ?? ''} maxLength={30} onChange={(e) => setDraft((doc) => setBalanceVersion(doc, e.target.value))} />
         </label>
         <span className={`adm-balance-dirty ${dirty ? 'on' : ''}`}>{dirty ? 'UNPUBLISHED' : 'SYNCED'}</span>
       </div>
@@ -1011,12 +1011,12 @@ function RemoteBalanceEditor() {
       <div className="adm-balance-grid">
         <section>
           <div className="adm-subhead">Tower multipliers</div>
-          <select value={towerId} onChange={(e) => { setTowerId(e.target.value); setPreviewId(e.target.value); }}>
+          <select data-testid="admin.balance-editor.tower" value={towerId} onChange={(e) => { setTowerId(e.target.value); setPreviewId(e.target.value); }}>
             {TOWERS_BY_UNLOCK.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <div className="adm-balance-fields">
             {TOWER_BALANCE_FIELDS.map((field) => (
-              <BalanceMultInput
+              <BalanceMultInput testKey={`tower-${field.toLowerCase()}`}
                 key={field}
                 label={BALANCE_FIELD_LABELS[field]}
                 value={nestedMultValue(draft, 'towers', towerId, field)}
@@ -1028,12 +1028,12 @@ function RemoteBalanceEditor() {
 
         <section>
           <div className="adm-subhead">Enemy multipliers</div>
-          <select value={enemyId} onChange={(e) => setEnemyId(e.target.value)}>
+          <select data-testid="admin.balance-editor.enemy" value={enemyId} onChange={(e) => setEnemyId(e.target.value)}>
             {ENEMY_LIST.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
           <div className="adm-balance-fields">
             {ENEMY_BALANCE_FIELDS.map((field) => (
-              <BalanceMultInput
+              <BalanceMultInput testKey={`enemy-${field.toLowerCase()}`}
                 key={field}
                 label={BALANCE_FIELD_LABELS[field]}
                 value={nestedMultValue(draft, 'enemies', enemyId, field)}
@@ -1045,12 +1045,12 @@ function RemoteBalanceEditor() {
 
         <section>
           <div className="adm-subhead">Protocol multipliers</div>
-          <select value={diffId} onChange={(e) => setDiffId(e.target.value)}>
+          <select data-testid="admin.balance-editor.protocol" value={diffId} onChange={(e) => setDiffId(e.target.value)}>
             {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           <div className="adm-balance-fields">
             {DIFF_BALANCE_FIELDS.map((field) => (
-              <BalanceMultInput
+              <BalanceMultInput testKey={`protocol-${field.toLowerCase()}`}
                 key={field}
                 label={BALANCE_FIELD_LABELS[field]}
                 value={nestedMultValue(draft, 'diffs', diffId, field)}
@@ -1064,7 +1064,7 @@ function RemoteBalanceEditor() {
           <div className="adm-subhead">Income and global</div>
           <div className="adm-balance-fields">
             {INCOME_BALANCE_FIELDS.map((field) => (
-              <BalanceMultInput
+              <BalanceMultInput testKey={`income-${field.toLowerCase()}`}
                 key={field}
                 label={BALANCE_FIELD_LABELS[field]}
                 value={multValue(draft, 'income', field)}
@@ -1072,7 +1072,7 @@ function RemoteBalanceEditor() {
               />
             ))}
             {GLOBAL_BALANCE_FIELDS.map((field) => (
-              <BalanceMultInput
+              <BalanceMultInput testKey={`global-${field.toLowerCase()}`}
                 key={field}
                 label={BALANCE_FIELD_LABELS[field]}
                 value={multValue(draft, 'global', field)}
@@ -1100,7 +1100,7 @@ function RemoteBalanceEditor() {
           <div className="adm-card-head">
             <h3>Effective preview</h3>
             <div className="adm-selects">
-              <select value={previewId} onChange={(e) => setPreviewId(e.target.value)}>
+              <select data-testid="admin.balance-editor.preview-tower" value={previewId} onChange={(e) => setPreviewId(e.target.value)}>
                 {TOWERS_BY_UNLOCK.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -1251,10 +1251,10 @@ function DifficultyModel() {
       <div className="adm-card-head" style={{ marginTop: 16 }}>
         <h3 style={{ fontSize: 12 }}>Tune to a target curve</h3>
         <div className="adm-selects">
-          <select aria-label="Difficulty curve" value={sel} onChange={(e) => setSel(e.target.value)}>
+          <select data-testid="admin.difficulty-model.curve" aria-label="Difficulty curve" value={sel} onChange={(e) => setSel(e.target.value)}>
             {curves.map((c) => <option key={c.diff} value={c.diff}>{c.name}</option>)}
           </select>
-          <select aria-label="Target difficulty curve" value={target} onChange={(e) => setTarget(e.target.value)}>
+          <select data-testid="admin.difficulty-model.target" aria-label="Target difficulty curve" value={target} onChange={(e) => setTarget(e.target.value)}>
             {Object.keys(DIFFICULTY_TARGETS).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
@@ -1425,29 +1425,29 @@ function FilterBar({ filter, setFilter, builds, fetchedAt, onRefresh, onExport, 
   const set = (k: keyof TFilter) => (e: React.ChangeEvent<HTMLSelectElement>) => setFilter({ ...filter, [k]: e.target.value });
   return (
     <div className="adm-filterbar">
-      <select aria-label="Telemetry date range" value={filter.range} onChange={set('range')}>
+      <select data-testid="admin.telemetry-filters.range" aria-label="Telemetry date range" value={filter.range} onChange={set('range')}>
         <option value="all">all time</option><option value="30d">last 30d</option>
         <option value="7d">last 7d</option><option value="24h">last 24h</option>
       </select>
-      <select aria-label="Telemetry sector" value={filter.map} onChange={set('map')}>
+      <select data-testid="admin.telemetry-filters.sector" aria-label="Telemetry sector" value={filter.map} onChange={set('map')}>
         <option value="all">all sectors</option>{ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
-      <select aria-label="Telemetry protocol" value={filter.diff} onChange={set('diff')}>
+      <select data-testid="admin.telemetry-filters.protocol" aria-label="Telemetry protocol" value={filter.diff} onChange={set('diff')}>
         <option value="all">all protocols</option>{DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
       </select>
-      <select aria-label="Telemetry mode" value={filter.mode} onChange={set('mode')}>
+      <select data-testid="admin.telemetry-filters.mode" aria-label="Telemetry mode" value={filter.mode} onChange={set('mode')}>
         <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
       </select>
       {builds.length > 1 && (
-        <select aria-label="Telemetry build" value={filter.build} onChange={set('build')}>
+        <select data-testid="admin.telemetry-filters.build" aria-label="Telemetry build" value={filter.build} onChange={set('build')}>
           <option value="all">all builds</option>{builds.map((b) => <option key={b} value={b}>{b || '(pre-build)'}</option>)}
         </select>
       )}
       <span className="adm-filter-count">{shown}/{total} runs</span>
       <div className="adm-filter-actions">
         <span className="adm-hint">as of {fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : '—'}</span>
-        <button className="adm-mini" onClick={onRefresh}>↻ refresh</button>
-        <button className="adm-mini" onClick={onExport}>⤓ CSV</button>
+        <button data-testid="admin.telemetry-filters.refresh" className="adm-mini" onClick={onRefresh}>↻ refresh</button>
+        <button data-testid="admin.telemetry-filters.export-csv" className="adm-mini" onClick={onExport}>⤓ CSV</button>
       </div>
     </div>
   );
@@ -1503,10 +1503,10 @@ function BalanceCanaryCard({ report }: { report: Report | null | 'missing' }) {
         <span className="adm-hint">model cores (cyan) vs live player median (gold)</span>
       </div>
       <div className="adm-canary-controls">
-        <select aria-label="Balance canary sector" value={sel.map} onChange={(e) => setSel((s) => ({ ...s, map: e.target.value }))}>
+        <select data-testid="admin.balance-canary.sector" aria-label="Balance canary sector" value={sel.map} onChange={(e) => setSel((s) => ({ ...s, map: e.target.value }))}>
           {ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-        <select aria-label="Balance canary protocol" value={sel.diff} onChange={(e) => setSel((s) => ({ ...s, diff: e.target.value }))}>
+        <select data-testid="admin.balance-canary.protocol" aria-label="Balance canary protocol" value={sel.diff} onChange={(e) => setSel((s) => ({ ...s, diff: e.target.value }))}>
           {DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <span className="adm-dim">{rows === null ? 'loading runs…' : err ? 'fetch failed' : series ? `${series.runs} live runs · ${series.startingLives} starting cores` : 'no model curve'}</span>
@@ -1948,9 +1948,9 @@ function AnalyticsState({ rows, err }: { rows: RunAnalyticsRow[] | null; err: bo
   return null;
 }
 
-function RunIdButton({ runId, onInspect, label }: { runId?: string; onInspect: (runId: string) => void; label?: string }) {
+function RunIdButton({ runId, onInspect, label, testId }: { runId?: string; onInspect: (runId: string) => void; label?: string; testId?: string }) {
   if (!runId) return <span className="adm-dim">no run</span>;
-  return <button className="adm-run-link" onClick={() => onInspect(runId)} title={runId}>{label ?? runId.slice(0, 12)}</button>;
+  return <button data-testid={testId ?? `admin.run-link.inspect-${runId}`} className="adm-run-link" onClick={() => onInspect(runId)} title={runId}>{label ?? runId.slice(0, 12)}</button>;
 }
 
 function shortJson(value: unknown): string {
@@ -2033,11 +2033,11 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
   const manifest = replay?.manifest;
   const summary = analytics?.summary ?? replay?.summary ?? null;
   return (
-    <div className="adm-drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="adm-drawer adm-run-inspector" role="dialog" aria-label="Run inspector" onClick={(e) => e.stopPropagation()}>
+    <div data-testid="admin.run-inspector.backdrop" className="adm-drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside data-testid="admin.run-inspector.dialog" className="adm-drawer adm-run-inspector" role="dialog" aria-label="Run inspector" onClick={(e) => e.stopPropagation()}>
         <div className="adm-card-head">
           <h3>Run inspector</h3>
-          <button className="adm-mini" onClick={onClose}>close</button>
+          <button data-testid="admin.run-inspector.close" className="adm-mini" onClick={onClose}>close</button>
         </div>
         <div className="adm-run-id">{runId}</div>
         {err && <div className="adm-empty adm-denied">{err}</div>}
@@ -2051,7 +2051,7 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
           <div className="adm-card">
             <div className="adm-card-head">
               <h3>Integrity</h3><span className="adm-hint">manifest, linked rows, server re-sim</span>
-              <button className="adm-mini" disabled={verifyBusy} onClick={() => void runVerify()}>{verifyBusy ? 'VERIFYING' : 'VERIFY'}</button>
+              <button data-testid="admin.run-inspector.verify" className="adm-mini" disabled={verifyBusy} onClick={() => void runVerify()}>{verifyBusy ? 'VERIFYING' : 'VERIFY'}</button>
             </div>
             <div className="adm-insight-grid adm-inspector-kpis">
               <div className="adm-insight"><b>Replay</b><span>{replay === undefined ? 'loading' : replay ? replay.integrity : 'missing'}</span></div>
@@ -2235,13 +2235,13 @@ function InsightsTab() {
     <div className="adm-content adm-insights-content">
       <div className="adm-filterbar">
         <span className="adm-filter-count">{report.rows.toLocaleString()} runAnalytics rows</span>
-        <select aria-label="Insights build" value={report.activeBuild} onChange={(e) => setBuild(e.target.value)}>
+        <select data-testid="admin.insights.build" aria-label="Insights build" value={report.activeBuild} onChange={(e) => setBuild(e.target.value)}>
           <option value="all">all builds</option>{report.builds.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
-        <select aria-label="Compare build" value={report.compareBuild} onChange={(e) => setCompareBuild(e.target.value)}>
+        <select data-testid="admin.insights.compare-build" aria-label="Compare build" value={report.compareBuild} onChange={(e) => setCompareBuild(e.target.value)}>
           <option value="none">no compare</option>{report.builds.map((item) => <option key={item} value={item}>compare {item}</option>)}
         </select>
-        <button className="adm-mini" onClick={refresh}>refresh</button>
+        <button data-testid="admin.insights.refresh" className="adm-mini" onClick={refresh}>refresh</button>
       </div>
       {report.active.rows === 0 ? (
         <div className="adm-card"><div className="adm-empty">No runs match this build filter. Choose another build or all builds.</div></div>
@@ -2540,42 +2540,42 @@ function MetricExplorerTab() {
   return (
     <div className="adm-content">
       <div className="adm-filterbar adm-explorer-filters">
-        <select aria-label="Analytics date range" value={filters.range} onChange={(e) => updateFilters({ range: e.target.value as AnalyticsFilters['range'] })}>
+        <select data-testid="admin.explorer.range" aria-label="Analytics date range" value={filters.range} onChange={(e) => updateFilters({ range: e.target.value as AnalyticsFilters['range'] })}>
           <option value="all">all time</option><option value="30d">last 30d</option><option value="7d">last 7d</option><option value="24h">last 24h</option>
         </select>
-        <select aria-label="Analytics sector" value={filters.map} onChange={(e) => updateFilters({ map: e.target.value })}>
+        <select data-testid="admin.explorer.sector" aria-label="Analytics sector" value={filters.map} onChange={(e) => updateFilters({ map: e.target.value })}>
           <option value="all">all sectors</option>{ALL_MAPS.map((map) => <option key={map.id} value={map.id}>{map.name}</option>)}
         </select>
-        <select aria-label="Analytics protocol" value={filters.diff} onChange={(e) => updateFilters({ diff: e.target.value })}>
+        <select data-testid="admin.explorer.protocol" aria-label="Analytics protocol" value={filters.diff} onChange={(e) => updateFilters({ diff: e.target.value })}>
           <option value="all">all protocols</option>{DIFFICULTIES.map((diff) => <option key={diff.id} value={diff.id}>{diff.name}</option>)}
         </select>
-        <select aria-label="Analytics mode" value={filters.mode} onChange={(e) => updateFilters({ mode: e.target.value as AnalyticsFilters['mode'] })}>
+        <select data-testid="admin.explorer.mode" aria-label="Analytics mode" value={filters.mode} onChange={(e) => updateFilters({ mode: e.target.value as AnalyticsFilters['mode'] })}>
           <option value="all">all modes</option><option value="campaign">campaign</option><option value="freeplay">freeplay</option>
         </select>
-        <select aria-label="Analytics outcome" value={filters.outcome} onChange={(e) => updateFilters({ outcome: e.target.value })}>
+        <select data-testid="admin.explorer.outcome" aria-label="Analytics outcome" value={filters.outcome} onChange={(e) => updateFilters({ outcome: e.target.value })}>
           <option value="all">all outcomes</option><option value="victory">victory</option><option value="gameover">gameover</option><option value="abandoned">abandoned</option>
         </select>
-        <select aria-label="Analytics wave bucket" value={filters.waveBucket} onChange={(e) => updateFilters({ waveBucket: e.target.value })}>
+        <select data-testid="admin.explorer.wave-bucket" aria-label="Analytics wave bucket" value={filters.waveBucket} onChange={(e) => updateFilters({ waveBucket: e.target.value })}>
           <option value="all">all waves</option>{waveBuckets.map((bucket) => <option key={bucket} value={bucket}>{bucket}</option>)}
         </select>
-        <select aria-label="Analytics cohort" value={filters.cohort} onChange={(e) => updateFilters({ cohort: e.target.value as AnalyticsFilters['cohort'] })}>
+        <select data-testid="admin.explorer.cohort" aria-label="Analytics cohort" value={filters.cohort} onChange={(e) => updateFilters({ cohort: e.target.value as AnalyticsFilters['cohort'] })}>
           <option value="all">all cohorts</option><option value="first">first run</option><option value="returning">returning</option>
         </select>
-        <select aria-label="Analytics schema" value={filters.schema} onChange={(e) => updateFilters({ schema: e.target.value })}>
+        <select data-testid="admin.explorer.schema" aria-label="Analytics schema" value={filters.schema} onChange={(e) => updateFilters({ schema: e.target.value })}>
           <option value="all">all schemas</option>{schemas.map((schema) => <option key={schema} value={schema}>schema {schema}</option>)}
         </select>
-        <select aria-label="Analytics build" value={filters.build} onChange={(e) => updateFilters({ build: e.target.value })}>
+        <select data-testid="admin.explorer.build" aria-label="Analytics build" value={filters.build} onChange={(e) => updateFilters({ build: e.target.value })}>
           <option value="all">all builds</option>{builds.map((build) => <option key={build} value={build}>{build}</option>)}
         </select>
-        <input aria-label="Analytics uid or run id" value={filters.uid} onChange={(e) => updateFilters({ uid: e.target.value })} placeholder="uid or run id" />
-        <button className="adm-mini" onClick={refresh}>refresh</button>
-        <button className="adm-mini" onClick={exportCsv}>CSV</button>
+        <input data-testid="admin.explorer.uid-search" aria-label="Analytics uid or run id" value={filters.uid} onChange={(e) => updateFilters({ uid: e.target.value })} placeholder="uid or run id" />
+        <button data-testid="admin.explorer.refresh" className="adm-mini" onClick={refresh}>refresh</button>
+        <button data-testid="admin.explorer.export-csv" className="adm-mini" onClick={exportCsv}>CSV</button>
       </div>
       <div className="adm-filterbar adm-explorer-filters">
-        <select aria-label="Metric domain" value={domain} onChange={(e) => updateDomain(e.target.value as 'all' | MetricDomain)}>
+        <select data-testid="admin.explorer.domain" aria-label="Metric domain" value={domain} onChange={(e) => updateDomain(e.target.value as 'all' | MetricDomain)}>
           {METRIC_DOMAINS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
-        <select aria-label="Metric" value={metric.id} onChange={(e) => updateMetric(e.target.value)}>
+        <select data-testid="admin.explorer.metric" aria-label="Metric" value={metric.id} onChange={(e) => updateMetric(e.target.value)}>
           {metricOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
         <span className="adm-filter-count">{dataset.filtered.length.toLocaleString()} / {data.length.toLocaleString()} runs</span>
@@ -2599,7 +2599,7 @@ function MetricExplorerTab() {
           <h3>Run detail table</h3>
           <div className="adm-selects">
             {(['metric', 'wave', 'duration', 'date'] as const).map((key) => (
-              <button key={key} className={sort === key ? 'on' : ''} onClick={() => setSort(key)}>{key.toUpperCase()}</button>
+              <button data-testid={`admin.explorer.sort-${key}`} key={key} className={sort === key ? 'on' : ''} onClick={() => setSort(key)}>{key.toUpperCase()}</button>
             ))}
           </div>
         </div>
@@ -2608,14 +2608,14 @@ function MetricExplorerTab() {
           <tbody>
             {sorted.map((row) => (
               <tr key={row.runId}>
-                <td><RunIdButton runId={row.runId} onInspect={() => setInspecting(row)} /></td>
+                <td><RunIdButton testId={`admin.explorer.inspect-run-${row.runId}`} runId={row.runId} onInspect={() => setInspecting(row)} /></td>
                 <td>{row.uid.slice(0, 10)}</td>
                 <td>{mapName(row.summary.map)} / {diffName(row.summary.diff)}</td>
                 <td>{row.summary.outcome}</td>
                 <td>w{row.summary.wave}</td>
                 <td>{Math.round(row.summary.durationS / 60)}m</td>
                 <td>{formatMetricValue(readMetric(row, metric), metric)}</td>
-                <td><button className="adm-mini" onClick={() => setSelected(row)}>open</button></td>
+                <td><button data-testid={`admin.explorer.open-run-${row.runId}`} className="adm-mini" onClick={() => setSelected(row)}>open</button></td>
               </tr>
             ))}
           </tbody>
@@ -2631,12 +2631,12 @@ function MetricExplorerTab() {
 function RunDetailDrawer({ row, metric, onClose }: { row: RunAnalyticsRow; metric: MetricDefinition; onClose: () => void }) {
   const sections = ['summary', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'] as const;
   return (
-    <div className="adm-drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="adm-drawer" role="dialog" aria-label="Run analytics detail" onClick={(e) => e.stopPropagation()}>
+    <div data-testid="admin.run-detail.backdrop" className="adm-drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside data-testid="admin.run-detail.dialog" className="adm-drawer" role="dialog" aria-label="Run analytics detail" onClick={(e) => e.stopPropagation()}>
         <div className="adm-card-head">
           <h3>{row.runId}</h3>
-          <button className="adm-mini" onClick={() => window.open(`/?run=${encodeURIComponent(row.runId)}`, '_blank', 'noopener,noreferrer')}>watch</button>
-          <button className="adm-mini" onClick={onClose}>close</button>
+          <button data-testid="admin.run-detail.watch" className="adm-mini" onClick={() => window.open(`/?run=${encodeURIComponent(row.runId)}`, '_blank', 'noopener,noreferrer')}>watch</button>
+          <button data-testid="admin.run-detail.close" className="adm-mini" onClick={onClose}>close</button>
         </div>
         <div className="adm-insight-grid">
           <div className="adm-insight"><b>Slice</b><span>{mapName(row.summary.map)} / {diffName(row.summary.diff)}</span><span>{row.summary.freeplay ? 'freeplay' : 'campaign'} / {row.summary.outcome}</span></div>
@@ -2645,7 +2645,7 @@ function RunDetailDrawer({ row, metric, onClose }: { row: RunAnalyticsRow; metri
         </div>
         {sections.map((section) => (
           <details key={section} className="adm-json-section">
-            <summary>{section}</summary>
+            <summary data-testid={`admin.run-detail.section-${section.toLowerCase()}`}>{section}</summary>
             <pre>{JSON.stringify((row as unknown as Record<string, unknown>)[section], null, 2)}</pre>
           </details>
         ))}
@@ -2676,7 +2676,7 @@ function CombatStoryTab() {
   ].filter((item) => item.value > 0);
   return (
     <div className="adm-content">
-      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} combat analytics docs</span><button className="adm-mini" onClick={refresh}>refresh</button></div>
+      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} combat analytics docs</span><button data-testid="admin.combat.refresh" className="adm-mini" onClick={refresh}>refresh</button></div>
       <div className="adm-stat-row">
         <Stat label="avg first leak" value={wavePressure[0]?.value ? `w${wavePressure[0].value.toFixed(1)}` : 'n/a'} />
         <Stat label="avg peak enemies" value={avgOf(data, (row) => row.combat.peakEnemies).toFixed(1)} />
@@ -2725,7 +2725,7 @@ function SystemsStoryTab() {
   ].filter((item) => item.value > 0);
   return (
     <div className="adm-content">
-      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} system analytics docs</span><button className="adm-mini" onClick={refresh}>refresh</button></div>
+      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} system analytics docs</span><button data-testid="admin.systems.refresh" className="adm-mini" onClick={refresh}>refresh</button></div>
       <div className="adm-stat-row">
         <Stat label="cash float end" value={`cash ${Math.round(avgOf(data, (row) => num(row.economy.cashFloatedEnd))).toLocaleString()}`} />
         <Stat label="lost while rich" value={pct(data.filter((row) => ['gameover', 'abandoned'].includes(row.summary.outcome) && num(row.economy.cashFloatedEnd) >= 1200).length / Math.max(1, data.length))} />
@@ -2797,7 +2797,7 @@ function UxPerfStoryTab() {
   ].filter((item) => item.value > 0);
   return (
     <div className="adm-content">
-      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} UX/perf analytics docs</span><button className="adm-mini" onClick={refresh}>refresh</button></div>
+      <div className="adm-filterbar"><span className="adm-filter-count">{data.length.toLocaleString()} UX/perf analytics docs</span><button data-testid="admin.ux-perf.refresh" className="adm-mini" onClick={refresh}>refresh</button></div>
       <div className="adm-stat-row">
         <Stat label="avg fps" value={Math.round(avgOf(data.filter((row) => row.performance.fpsAvg > 0), (row) => row.performance.fpsAvg)).toString()} />
         <Stat label="long frames/run" value={avgOf(data, (row) => row.performance.longFrames).toFixed(1)} />
@@ -2877,7 +2877,7 @@ function RunIntelligenceTab() {
     <div className="adm-content">
       <div className="adm-filterbar">
         <span className="adm-filter-count">{data.length.toLocaleString()} replay analytics docs</span>
-        <button className="adm-mini" onClick={refresh}>refresh</button>
+        <button data-testid="admin.overview.refresh" className="adm-mini" onClick={refresh}>refresh</button>
       </div>
       <InsightDeck insights={dataset.insights} title="Overview readouts" />
       <div className="adm-stat-row">
@@ -3024,7 +3024,7 @@ function EngagementTab() {
     <div className="adm-content">
       <div className="adm-filterbar">
         <span className="adm-filter-count">{players.length.toLocaleString()} players / {data.length.toLocaleString()} runs</span>
-        <button className="adm-mini" onClick={refresh}>refresh</button>
+        <button data-testid="admin.journey.refresh" className="adm-mini" onClick={refresh}>refresh</button>
       </div>
       <div className="adm-stat-row">
         <Stat label="multi-run players" value={pct(players.filter((p) => p.runs.length > 1).length / Math.max(1, players.length))} />
@@ -3129,7 +3129,7 @@ function FreeplayLabTab() {
     <div className="adm-content">
       <div className="adm-filterbar">
         <span className="adm-filter-count">{freeplay.length.toLocaleString()} freeplay analytics runs</span>
-        <button className="adm-mini" onClick={refresh}>refresh</button>
+        <button data-testid="admin.freeplay.refresh" className="adm-mini" onClick={refresh}>refresh</button>
       </div>
       <div className="adm-stat-row">
         <Stat label="avg freeplay wave" value={avgWave ? `w${avgWave.toFixed(1)}` : 'n/a'} />
@@ -3298,7 +3298,7 @@ function DailyOpsTab() {
     <div className="adm-content adm-daily-ops">
       <div className="adm-filterbar">
         <span className="adm-filter-count">DAILY CHALLENGE LIVE-OPS</span>
-        <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+        <button data-testid="admin.daily-ops.refresh" className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
       </div>
       <div className="adm-card">
         <div className="adm-card-head"><h3>Today and next 7 days</h3><span className="adm-hint">computed locally from dailyChallenge.ts; override applied only on matching date</span></div>
@@ -3310,33 +3310,33 @@ function DailyOpsTab() {
         <div className="adm-card">
           <div className="adm-card-head"><h3>Publish override</h3><span className="adm-hint">config/dailyOverride public-read, admin-write</span></div>
           <div className="adm-daily-form">
-            <label><span>Date</span><input type="date" value={date} onChange={(e) => setDate(e.target.value || adminDateKey())} /></label>
-            <label><span>Arsenal</span><select value={arsenalId} onChange={(e) => setArsenalId(e.target.value as DailyArsenalId)}>
+            <label><span>Date</span><input data-testid="admin.daily-override.date" type="date" value={date} onChange={(e) => setDate(e.target.value || adminDateKey())} /></label>
+            <label><span>Arsenal</span><select data-testid="admin.daily-override.arsenal" value={arsenalId} onChange={(e) => setArsenalId(e.target.value as DailyArsenalId)}>
               {DAILY_ARSENAL_IDS.map((id) => {
                 const option = arsenals.find((item) => item.id === id)!;
                 return <option key={id} value={id}>{option.name}</option>;
               })}
             </select></label>
-            <label><span>Twist</span><select value={twistId} onChange={(e) => setTwistId(e.target.value as DailyTwistId)}>
+            <label><span>Twist</span><select data-testid="admin.daily-override.twist" value={twistId} onChange={(e) => setTwistId(e.target.value as DailyTwistId)}>
               {DAILY_TWIST_IDS.map((id) => {
                 const option = twists.find((item) => item.id === id)!;
                 return <option key={id} value={id}>{option.name}</option>;
               })}
             </select></label>
-            <label><span>Boon</span><select value={boonId} onChange={(e) => setBoonId(e.target.value as DailyBoonId)}>
+            <label><span>Boon</span><select data-testid="admin.daily-override.boon" value={boonId} onChange={(e) => setBoonId(e.target.value as DailyBoonId)}>
               {DAILY_BOON_IDS.map((id) => {
                 const option = boons.find((item) => item.id === id)!;
                 return <option key={id} value={id}>{option.name}</option>;
               })}
             </select></label>
-            <label className="wide"><span>Note</span><input value={note} maxLength={240} onChange={(e) => setNote(e.target.value)} placeholder="operator note (optional)" /></label>
+            <label className="wide"><span>Note</span><input data-testid="admin.daily-override.note" value={note} maxLength={240} onChange={(e) => setNote(e.target.value)} placeholder="operator note (optional)" /></label>
           </div>
           <div className={`adm-spot-status ${status?.kind ?? 'idle'}`} role="status" aria-live="polite" aria-hidden={!status}>
             {status?.text ?? 'Admin status reserved.'}
           </div>
           <div className="adm-tweak-actions">
-            <button className="adm-mini" disabled={busy} onClick={() => void publish()}>publish</button>
-            <button className="adm-mini" disabled={busy || !current} onClick={() => void clear()}>clear override</button>
+            <button data-testid="admin.daily-override.publish" className="adm-mini" disabled={busy} onClick={() => void publish()}>publish</button>
+            <button data-testid="admin.daily-override.clear" className="adm-mini" disabled={busy || !current} onClick={() => void clear()}>clear override</button>
           </div>
         </div>
         <div className="adm-card">
@@ -3440,41 +3440,41 @@ function WeeklyOpsTab() {
     <div className="adm-content adm-daily-ops">
       <div className="adm-filterbar">
         <span className="adm-filter-count">WEEKLY OPS LIVE-OPS</span>
-        <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+        <button data-testid="admin.weekly-ops.refresh" className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
       </div>
       <div className="adm-two">
         <div className="adm-card">
           <div className="adm-card-head"><h3>Weekly Mutation override</h3><span className="adm-hint">config/weeklyOverride public-read, admin-write</span></div>
           <div className="adm-daily-form">
-            <label><span>Week</span><input value={week} onChange={(e) => setWeek(e.target.value)} /></label>
-            <label><span>Arsenal</span><select value={arsenalId} onChange={(e) => setArsenalId(e.target.value as DailyArsenalId)}>{DAILY_ARSENAL_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
+            <label><span>Week</span><input data-testid="admin.weekly-override.week" value={week} onChange={(e) => setWeek(e.target.value)} /></label>
+            <label><span>Arsenal</span><select data-testid="admin.weekly-override.arsenal" value={arsenalId} onChange={(e) => setArsenalId(e.target.value as DailyArsenalId)}>{DAILY_ARSENAL_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
             {[0, 1, 2].map((idx) => (
-              <label key={idx}><span>Twist {idx + 1}</span><select value={twistIds[idx]} onChange={(e) => setTwistIds((prev) => prev.map((id, i) => i === idx ? e.target.value as DailyTwistId : id) as typeof prev)}>{DAILY_TWIST_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
+              <label key={idx}><span>Twist {idx + 1}</span><select data-testid={`admin.weekly-override.twist-${idx + 1}`} value={twistIds[idx]} onChange={(e) => setTwistIds((prev) => prev.map((id, i) => i === idx ? e.target.value as DailyTwistId : id) as typeof prev)}>{DAILY_TWIST_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
             ))}
-            <label><span>Boon</span><select value={boonId} onChange={(e) => setBoonId(e.target.value as DailyBoonId)}>{DAILY_BOON_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
+            <label><span>Boon</span><select data-testid="admin.weekly-override.boon" value={boonId} onChange={(e) => setBoonId(e.target.value as DailyBoonId)}>{DAILY_BOON_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
           </div>
           <div className="adm-tweak-actions">
-            <button className="adm-mini" disabled={busy} onClick={() => void publishOverride()}>publish override</button>
+            <button data-testid="admin.weekly-override.publish" className="adm-mini" disabled={busy} onClick={() => void publishOverride()}>publish override</button>
           </div>
           <WeeklyPreviewCard challenge={selectedPreview} liveOverride={current} />
         </div>
         <div className="adm-card">
           <div className="adm-card-head"><h3>Champion Gauntlet</h3><span className="adm-hint">config/weeklyGauntlet; crown is admin callable</span></div>
           <div className="adm-tweak-actions">
-            <button className="adm-mini" disabled={busy} onClick={() => void crown()}>CROWN CHAMPION</button>
+            <button data-testid="admin.gauntlet.crown" className="adm-mini" disabled={busy} onClick={() => void crown()}>CROWN CHAMPION</button>
           </div>
           <div className="adm-daily-form">
-            <label><span>Week</span><input value={manual.week} onChange={(e) => setManual({ ...manual, week: e.target.value })} /></label>
-            <label><span>Run ID</span><input value={manual.runId} onChange={(e) => setManual({ ...manual, runId: e.target.value })} /></label>
-            <label><span>Callsign</span><input value={manual.callsign} maxLength={20} onChange={(e) => setManual({ ...manual, callsign: e.target.value })} /></label>
-            <label><span>Map</span><select value={manual.map} onChange={(e) => setManual({ ...manual, map: e.target.value })}>{ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-            <label><span>Protocol</span><select value={manual.diff} onChange={(e) => setManual({ ...manual, diff: e.target.value })}>{DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
-            <label><span>Seed</span><input type="number" value={manual.seed} onChange={(e) => setManual({ ...manual, seed: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
-            <label><span>Wave</span><input type="number" value={manual.wave} onChange={(e) => setManual({ ...manual, wave: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
-            <label><span>Kills</span><input type="number" value={manual.kills} onChange={(e) => setManual({ ...manual, kills: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
+            <label><span>Week</span><input data-testid="admin.gauntlet.week" value={manual.week} onChange={(e) => setManual({ ...manual, week: e.target.value })} /></label>
+            <label><span>Run ID</span><input data-testid="admin.gauntlet.run-id" value={manual.runId} onChange={(e) => setManual({ ...manual, runId: e.target.value })} /></label>
+            <label><span>Callsign</span><input data-testid="admin.gauntlet.callsign" value={manual.callsign} maxLength={20} onChange={(e) => setManual({ ...manual, callsign: e.target.value })} /></label>
+            <label><span>Map</span><select data-testid="admin.gauntlet.map" value={manual.map} onChange={(e) => setManual({ ...manual, map: e.target.value })}>{ALL_MAPS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+            <label><span>Protocol</span><select data-testid="admin.gauntlet.protocol" value={manual.diff} onChange={(e) => setManual({ ...manual, diff: e.target.value })}>{DIFFICULTIES.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+            <label><span>Seed</span><input data-testid="admin.gauntlet.seed" type="number" value={manual.seed} onChange={(e) => setManual({ ...manual, seed: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
+            <label><span>Wave</span><input data-testid="admin.gauntlet.wave" type="number" value={manual.wave} onChange={(e) => setManual({ ...manual, wave: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
+            <label><span>Kills</span><input data-testid="admin.gauntlet.kills" type="number" value={manual.kills} onChange={(e) => setManual({ ...manual, kills: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} /></label>
           </div>
           <div className="adm-tweak-actions">
-            <button className="adm-mini" disabled={busy} onClick={() => void publishManual()}>publish manual gauntlet</button>
+            <button data-testid="admin.gauntlet.publish" className="adm-mini" disabled={busy} onClick={() => void publishManual()}>publish manual gauntlet</button>
           </div>
           <pre className="adm-config-snippet">{JSON.stringify(gauntlet ?? manual, null, 2)}</pre>
         </div>
@@ -3552,7 +3552,7 @@ function SpotlightTab({ user }: { user: User }) {
     <div className="adm-spotlight">
       <div className="adm-filterbar">
         <span className="adm-filter-count">REPLAY OF THE DAY</span>
-        <button className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
+        <button data-testid="admin.spotlight.refresh" className="adm-mini" disabled={busy} onClick={() => void load()}>refresh</button>
       </div>
       <p className="adm-spot-help">Pin a run to feature on the menu spotlight, or clear to use the automatic daily pick (strongest recent run).</p>
 
@@ -3562,9 +3562,9 @@ function SpotlightTab({ user }: { user: User }) {
             <div><b>Pinned:</b> {pinned.callsign} · Wave {pinned.wave} · {pinned.mapName} {pinned.diffName}{pinned.freeplay ? ' · FREEPLAY' : ''}</div>
             <div className="adm-spot-dim">{pinned.runId}{pinned.pinnedBy ? ` · by ${pinned.pinnedBy}` : ''}</div>
             <div className="adm-spot-row">
-              <a className="adm-mini" href={`/?run=${pinned.runId}`} target="_blank" rel="noreferrer">▶ watch</a>
-              <RunIdButton runId={pinned.runId} onInspect={setInspectRunId} label="inspect" />
-              <button className="adm-mini" disabled={busy} onClick={() => void clear()}>clear (use automatic)</button>
+              <a data-testid="admin.spotlight.watch-pinned" className="adm-mini" href={`/?run=${pinned.runId}`} target="_blank" rel="noreferrer">▶ watch</a>
+              <RunIdButton testId="admin.spotlight.inspect-pinned" runId={pinned.runId} onInspect={setInspectRunId} label="inspect" />
+              <button data-testid="admin.spotlight.clear-pin" className="adm-mini" disabled={busy} onClick={() => void clear()}>clear (use automatic)</button>
             </div>
           </>
         ) : (
@@ -3577,9 +3577,9 @@ function SpotlightTab({ user }: { user: User }) {
       </div>
 
       <div className="adm-spot-manual">
-        <input className="adm-spot-input" placeholder="paste run id (r_…)" value={manualId} onChange={(e) => setManualId(e.target.value)} />
-        <button className="adm-mini" disabled={!SPOT_RUN_ID_RE.test(manualId.trim())} onClick={() => setInspectRunId(manualId.trim())}>inspect</button>
-        <button className="adm-mini" disabled={busy || !manualId.trim()} onClick={() => void pinManual()}>pin by id</button>
+        <input data-testid="admin.spotlight.run-id" className="adm-spot-input" placeholder="paste run id (r_…)" value={manualId} onChange={(e) => setManualId(e.target.value)} />
+        <button data-testid="admin.spotlight.inspect-by-id" className="adm-mini" disabled={!SPOT_RUN_ID_RE.test(manualId.trim())} onClick={() => setInspectRunId(manualId.trim())}>inspect</button>
+        <button data-testid="admin.spotlight.pin-by-id" className="adm-mini" disabled={busy || !manualId.trim()} onClick={() => void pinManual()}>pin by id</button>
       </div>
 
       <div className="adm-spot-listhead">Top runs with replays</div>
@@ -3592,9 +3592,9 @@ function SpotlightTab({ user }: { user: User }) {
                 <span className="adm-spot-cn">{r.name}</span>
                 <span className="adm-spot-dim">W{r.wave} · {r.mapName} {r.diffName}{r.freeplay ? ' · FP' : ''}</span>
                 <VerifyBadge verify={r.verify} />
-                <RunIdButton runId={r.runId} onInspect={setInspectRunId} label="inspect" />
-                <a className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
-                <button className="adm-mini" disabled={busy || pinned?.runId === r.runId}
+                <RunIdButton testId={`admin.spotlight.inspect-run-${r.runId}`} runId={r.runId} onInspect={setInspectRunId} label="inspect" />
+                <a data-testid={`admin.spotlight.watch-run-${r.runId}`} className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
+                <button data-testid={`admin.spotlight.pin-run-${r.runId}`} className="adm-mini" disabled={busy || pinned?.runId === r.runId}
                   onClick={() => void doPin({ runId: r.runId!, callsign: r.name, wave: r.wave, mapName: r.mapName, diffName: r.diffName, freeplay: r.freeplay })}>
                   {pinned?.runId === r.runId ? 'pinned' : 'pin'}
                 </button>
@@ -3627,16 +3627,16 @@ function AdminGate({ user, allowed, loading, error, onSignIn, onSignOut }: {
         ) : user && !allowed ? (
           <>
             <p className="adm-denied">Signed in as {user.email}, but this account is not on the admin allowlist.</p>
-            <button className="adm-exit" onClick={onSignOut}>SIGN OUT</button>
+            <button data-testid="admin.login.sign-out" className="adm-exit" onClick={onSignOut}>SIGN OUT</button>
           </>
         ) : (
           <>
             <p className="adm-hint">Sign in with the approved Google account to read and respond to player messages.</p>
-            <button className="adm-google" onClick={onSignIn}>SIGN IN WITH GOOGLE</button>
+            <button data-testid="admin.login.sign-in" className="adm-google" onClick={onSignIn}>SIGN IN WITH GOOGLE</button>
           </>
         )}
         {error && <p className="adm-denied">{error}</p>}
-        <button className="adm-exit adm-login-exit" onClick={clearAdmin}>BACK TO GAME</button>
+        <button data-testid="admin.login.back-to-game" className="adm-exit adm-login-exit" onClick={clearAdmin}>BACK TO GAME</button>
       </div>
     </div>
   );
@@ -3702,7 +3702,7 @@ function InboxTab({ user }: { user: User }) {
           <h3>Player inbox</h3>
           <div className="adm-selects adm-inbox-filters">
             {(['open', 'replied', 'archived', 'all'] as const).map((f) => (
-              <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
+              <button data-testid={`admin.inbox.filter-${f}`} key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
                 {f.toUpperCase()} {counts[f]}
               </button>
             ))}
@@ -3734,7 +3734,7 @@ function InboxTab({ user }: { user: User }) {
                       <span>{row.repliedBy}{row.replyTs ? ` · ${new Date(row.replyTs).toLocaleString()}` : ''}</span>
                     </div>
                   )}
-                  <textarea
+                  <textarea data-testid={`admin.inbox.reply-${row.id}`}
                     className="adm-reply-box"
                     maxLength={2000}
                     aria-label={`Reply to ${row.ctx} feedback from ${row.uid}`}
@@ -3743,14 +3743,14 @@ function InboxTab({ user }: { user: User }) {
                     onChange={(e) => setDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
                   />
                   <div className="adm-message-actions">
-                    <button className="adm-exit" disabled={busy === row.id || !draft.trim()} onClick={() => void saveReply(row)}>
+                    <button data-testid={`admin.inbox.save-reply-${row.id}`} className="adm-exit" disabled={busy === row.id || !draft.trim()} onClick={() => void saveReply(row)}>
                       {busy === row.id ? 'SAVING...' : 'SAVE REPLY'}
                     </button>
                     {(row.status ?? 'open') !== 'open' && (
-                      <button className="adm-exit" disabled={busy === row.id} onClick={() => void changeStatus(row, 'open')}>REOPEN</button>
+                      <button data-testid={`admin.inbox.reopen-${row.id}`} className="adm-exit" disabled={busy === row.id} onClick={() => void changeStatus(row, 'open')}>REOPEN</button>
                     )}
                     {row.status !== 'archived' && (
-                      <button className="adm-exit" disabled={busy === row.id} onClick={() => void changeStatus(row, 'archived')}>ARCHIVE</button>
+                      <button data-testid={`admin.inbox.archive-${row.id}`} className="adm-exit" disabled={busy === row.id} onClick={() => void changeStatus(row, 'archived')}>ARCHIVE</button>
                     )}
                   </div>
                 </article>
@@ -3830,26 +3830,26 @@ export default function AdminDashboard() {
           <h1>OPERATIONS CONSOLE</h1>
         </div>
         <nav className="adm-tabs">
-          <button className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
-          <button className={tab === 'insights' ? 'on' : ''} onClick={() => setTab('insights')}>INSIGHTS</button>
-          <button className={tab === 'daily' ? 'on' : ''} onClick={() => setTab('daily')}>DAILY</button>
-          <button className={tab === 'weekly' ? 'on' : ''} onClick={() => setTab('weekly')}>WEEKLY</button>
-          <button className={tab === 'spotlight' ? 'on' : ''} onClick={() => setTab('spotlight')}>SPOTLIGHT</button>
-          <button className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
-          <button className={tab === 'towers' ? 'on' : ''} onClick={() => setTab('towers')}>TOWERS</button>
-          <button className={tab === 'telemetry' ? 'on' : ''} onClick={() => setTab('telemetry')}>TELEMETRY</button>
-          <button className={tab === 'explore' ? 'on' : ''} onClick={() => setTab('explore')}>EXPLORE</button>
-          <button className={tab === 'overview' ? 'on' : ''} onClick={() => setTab('overview')}>OVERVIEW</button>
-          <button className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')}>JOURNEY</button>
-          <button className={tab === 'combat' ? 'on' : ''} onClick={() => setTab('combat')}>COMBAT</button>
-          <button className={tab === 'systems' ? 'on' : ''} onClick={() => setTab('systems')}>SYSTEMS</button>
-          <button className={tab === 'freeplay' ? 'on' : ''} onClick={() => setTab('freeplay')}>FREEPLAY</button>
-          <button className={tab === 'uxperf' ? 'on' : ''} onClick={() => setTab('uxperf')}>UX/PERF</button>
+          <button data-testid="admin.nav.tab-inbox" className={tab === 'inbox' ? 'on' : ''} onClick={() => setTab('inbox')}>INBOX</button>
+          <button data-testid="admin.nav.tab-insights" className={tab === 'insights' ? 'on' : ''} onClick={() => setTab('insights')}>INSIGHTS</button>
+          <button data-testid="admin.nav.tab-daily" className={tab === 'daily' ? 'on' : ''} onClick={() => setTab('daily')}>DAILY</button>
+          <button data-testid="admin.nav.tab-weekly" className={tab === 'weekly' ? 'on' : ''} onClick={() => setTab('weekly')}>WEEKLY</button>
+          <button data-testid="admin.nav.tab-spotlight" className={tab === 'spotlight' ? 'on' : ''} onClick={() => setTab('spotlight')}>SPOTLIGHT</button>
+          <button data-testid="admin.nav.tab-balance" className={tab === 'balance' ? 'on' : ''} onClick={() => setTab('balance')}>BALANCE</button>
+          <button data-testid="admin.nav.tab-towers" className={tab === 'towers' ? 'on' : ''} onClick={() => setTab('towers')}>TOWERS</button>
+          <button data-testid="admin.nav.tab-telemetry" className={tab === 'telemetry' ? 'on' : ''} onClick={() => setTab('telemetry')}>TELEMETRY</button>
+          <button data-testid="admin.nav.tab-explore" className={tab === 'explore' ? 'on' : ''} onClick={() => setTab('explore')}>EXPLORE</button>
+          <button data-testid="admin.nav.tab-overview" className={tab === 'overview' ? 'on' : ''} onClick={() => setTab('overview')}>OVERVIEW</button>
+          <button data-testid="admin.nav.tab-journey" className={tab === 'journey' ? 'on' : ''} onClick={() => setTab('journey')}>JOURNEY</button>
+          <button data-testid="admin.nav.tab-combat" className={tab === 'combat' ? 'on' : ''} onClick={() => setTab('combat')}>COMBAT</button>
+          <button data-testid="admin.nav.tab-systems" className={tab === 'systems' ? 'on' : ''} onClick={() => setTab('systems')}>SYSTEMS</button>
+          <button data-testid="admin.nav.tab-freeplay" className={tab === 'freeplay' ? 'on' : ''} onClick={() => setTab('freeplay')}>FREEPLAY</button>
+          <button data-testid="admin.nav.tab-ux-perf" className={tab === 'uxperf' ? 'on' : ''} onClick={() => setTab('uxperf')}>UX/PERF</button>
         </nav>
         <div className="adm-actions">
           <span className="adm-readonly">{user.email}</span>
-          <button className="adm-exit" onClick={() => void signOutAdmin()}>SIGN OUT</button>
-          <button className="adm-exit" onClick={clearAdmin}>EXIT</button>
+          <button data-testid="admin.topbar.sign-out" className="adm-exit" onClick={() => void signOutAdmin()}>SIGN OUT</button>
+          <button data-testid="admin.topbar.exit" className="adm-exit" onClick={clearAdmin}>EXIT</button>
         </div>
       </header>
 

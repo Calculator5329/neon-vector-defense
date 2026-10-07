@@ -1,5 +1,26 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+
+function isMissingAgentHandles(error: unknown): boolean {
+  return error instanceof Error
+    && 'code' in error
+    && error.code === 'ERR_MODULE_NOT_FOUND'
+    && error.message.includes('agent-handles');
+}
+
+// agent-handles (stable UI identities, registry check, dev-only drive API) is a
+// file: link to a sibling checkout. A fresh clone without that checkout still
+// builds and runs; it just skips the plugin.
+async function optionalAgentHandles(): Promise<Plugin[]> {
+  try {
+    const { default: agentHandles } = await import('agent-handles/vite');
+    return [agentHandles()];
+  } catch (error) {
+    if (!isMissingAgentHandles(error)) throw error;
+    console.info('[lantern7] Optional agent-handles plugin unavailable; continuing without it.');
+    return [];
+  }
+}
 
 // Build-freshness tag: baked into the bundle as __BUILD_TAG__ AND emitted as
 // /build-tag.json. Installed/PWA clients compare the two on focus and offer a
@@ -44,11 +65,12 @@ const PORTAL_CSP = {
 // it is reached only via the lazy admin chunk (src/game/adminAuth.ts) and the
 // dynamic import in src/game/anonAuth.ts (player sign-in right before the first
 // server write), so players never download it on first paint.
-export default defineConfig({
+export default defineConfig(async () => ({
   // honor an externally assigned port (preview/CI harnesses set PORT)
   server: { port: Number(process.env.PORT) || 5173 },
   plugins: [
     react(),
+    ...(await optionalAgentHandles()),
     {
       name: 'nvd-build-tag',
       generateBundle() {
@@ -89,4 +111,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

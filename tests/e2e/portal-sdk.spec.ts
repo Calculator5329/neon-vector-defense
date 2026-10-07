@@ -117,13 +117,13 @@ test('portal SDK lifecycle and ad break restore @portal', async ({ page }) => {
   await seedPortalHarness(page);
 
   await page.goto('/');
-  await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
   const loadingDoneCall = isCrazy ? 'loadingStop' : 'gameLoadingFinished';
   await expect.poll(async () => (await sdkCalls(page)).join('|')).toContain(loadingDoneCall);
 
-  await page.getByTestId('deploy-button').click();
-  await expect(page.getByTestId('game-root')).toBeVisible();
-  const briefing = page.getByTestId('briefing-overlay');
+  await page.getByTestId('menu.deploy.launch').click();
+  await expect(page.getByTestId('game.screen.root')).toBeVisible();
+  const briefing = page.getByTestId('game.briefing.dialog');
   if (await briefing.isVisible().catch(() => false)) {
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
   }
@@ -138,7 +138,7 @@ test('portal SDK lifecycle and ad break restore @portal', async ({ page }) => {
   await page.getByRole('button', { name: 'Abort run' }).click();
   const adCall = isCrazy ? 'requestAd:midgame' : 'commercialBreak';
   await expect.poll(async () => (await sdkCalls(page)).join('|')).toContain(adCall);
-  await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
 
   const snapshot = await page.evaluate(() => {
     const progress = JSON.parse(window.localStorage.getItem('nvd-progress-v1') || '{}') as Record<string, unknown>;

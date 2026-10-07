@@ -46,6 +46,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
           Something went wrong loading the grid. A reload usually clears it.
         </div>
         <button
+          data-testid="app.error-boundary.reload"
           onClick={() => location.reload()}
           style={{
             marginTop: '4px', padding: '10px 28px', borderRadius: '8px', cursor: 'pointer',

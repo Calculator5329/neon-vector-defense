@@ -105,7 +105,7 @@ export default function BotGhostHud({ curves, matchedDiffId, wave, cores, curren
 
   return (
     <>
-      <button className="tb-stat ghost" onClick={() => { sfx.click(); setOpen(true); }}
+      <button className="tb-stat ghost" data-testid="game.ghost.open" onClick={() => { sfx.click(); setOpen(true); }}
         title={`AI rival ${profileLabel(selectedCurve)}: ${g.cores}/${selectedCurve.startingLives} cores by wave ${g.wave}. You: ${cores}/${currentStartingLives}.`}>
         <span className="ghost-label">AI</span>
         <span className="ghost-cores">{pct(botPct)}</span>
@@ -183,10 +183,10 @@ function GhostModal({
 
   return (
     <Modal onClose={onClose} overlayClass="ghost-modal-overlay" boxClass="ghost-modal ghost-modal-wide"
-      labelledBy="ghost-modal-title" describedBy="ghost-modal-desc">
+      labelledBy="ghost-modal-title" describedBy="ghost-modal-desc" testId="game.ghost.dialog">
       <div className="ghost-modal-head">
         <span id="ghost-modal-title">AI RIVAL · {profileShortLabel(selectedCurve)}</span>
-        <button className="ghost-modal-close" onClick={onClose} aria-label="Close">✕</button>
+        <button className="ghost-modal-close" data-testid="game.ghost.close" onClick={onClose} aria-label="Close">✕</button>
       </div>
         <p id="ghost-modal-desc" className="ghost-modal-sub">Compare your live run against bundled bot profiles for this sector. The chart uses core percentage so Recruit, Veteran, Apex, and Extinction starts are comparable.</p>
 
@@ -200,6 +200,7 @@ function GhostModal({
                 key={key}
                 type="button"
                 role="tab"
+                data-testid={`game.ghost.profile-${curve.diff}-${curve.skill}`}
                 aria-selected={selected}
                 className={selected ? 'on' : ''}
                 style={{ borderColor: selected ? PROFILE_COLORS[i % PROFILE_COLORS.length] : undefined }}

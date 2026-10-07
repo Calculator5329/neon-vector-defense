@@ -55,16 +55,16 @@ export default function Bestiary({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <Modal onClose={onClose} overlayClass="bestiary-overlay" boxClass="bestiary" labelledBy="bestiary-title" testId="bestiary">
+    <Modal onClose={onClose} overlayClass="bestiary-overlay" boxClass="bestiary" labelledBy="bestiary-title" testId="menu.bestiary.dialog">
       <div className="bestiary-head">
         <span className="bestiary-title" id="bestiary-title">COMBINE BESTIARY</span>
         <span className="bestiary-count" aria-live="polite">{found} / {total} IDENTIFIED</span>
-        <button className="bestiary-close" onClick={onClose} aria-label="Close">✕</button>
+        <button className="bestiary-close" data-testid="menu.bestiary.close" onClick={onClose} aria-label="Close">✕</button>
       </div>
       {/* a plain toggle-button group, not an ARIA tablist (no tabpanel/roving-tabindex model) */}
       <div className="bestiary-filters" role="group" aria-label="Filter hulls">
         {FILTERS.map(([f, label]) => (
-          <button key={f} type="button" aria-pressed={filter === f}
+          <button key={f} type="button" data-testid={`menu.bestiary.filter-${f}`} aria-pressed={filter === f}
             className={`bestiary-filter ${filter === f ? 'on' : ''}`}
             onClick={() => { setFilter(f); sfx.click(); }}>{label}</button>
         ))}

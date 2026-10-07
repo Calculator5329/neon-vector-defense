@@ -1,0 +1,97 @@
+{
+  "sourceRoot": "src",
+  "registryPath": "testid-registry.json",
+  "journeyManifestPath": "journeys/manifest.json",
+  "ratchetPath": "testid-ratchet.json",
+  "playwrightSpecPath": "tests/e2e/journeys.generated.spec.ts",
+  "identityRenames": {
+    "update-toast": "app.update-toast.root",
+    "bestiary": "menu.bestiary.dialog",
+    "game-root": "game.screen.root",
+    "rotate-device": "game.screen.rotate-notice",
+    "game-canvas": "game.board.canvas",
+    "launch-wave": "game.hud.launch-wave",
+    "coach-chip": "game.coach.chip",
+    "game-sidebar": "game.sidebar.root",
+    "briefing-overlay": "game.briefing.dialog",
+    "veteran-intro": "game.veteran-intro.dialog",
+    "veteran-intro-ack": "game.veteran-intro.acknowledge",
+    "debrief-veteran-nudge": "game.debrief.veteran-nudge",
+    "debrief-unlocks": "game.debrief.unlocks",
+    "meta-reward": "game.debrief.meta-reward",
+    "yakkob-local-rank": "game.debrief.yakkob-local-rank",
+    "shop-grid": "game.shop.grid",
+    "tower-*": "game.shop.tower-*",
+    "upgrade-*": "game.upgrade.buy-*",
+    "target-filter-*": "game.upgrade.target-filter-*",
+    "tutorial-overlay": "menu.how-to-play.dialog",
+    "daily-leaderboard-mode": "menu.leaderboard.ritual-board",
+    "commander-rail": "menu.commander.rail",
+    "weekly-ops-strip": "menu.weekly-ops.strip",
+    "yakkob-card": "menu.weekly-ops.yakkob",
+    "weekly-mutation-card": "menu.weekly-ops.weekly-mutation",
+    "weekly-gauntlet-card": "menu.weekly-ops.champion-gauntlet",
+    "gauntlet-protocol-card": "menu.weekly-ops.gauntlet-protocol",
+    "sector-atlas": "menu.atlas.root",
+    "atlas-field": "menu.atlas.field",
+    "map-node-*": "menu.atlas.map-node-*",
+    "weekly-ops-beacon": "menu.atlas.weekly-ops-beacon",
+    "sector-dock": "menu.dock.root",
+    "dock-tab-protocols": "menu.dock.tab-protocols",
+    "dock-tab-challenges": "menu.dock.tab-challenges",
+    "diff-row": "menu.dock.protocols",
+    "diff-card-*": "menu.dock.protocol-*",
+    "dock-challenges": "menu.dock.challenges",
+    "diff-card-daily": "menu.dock.daily-challenge",
+    "menu-utility-bestiary": "menu.utility.bestiary",
+    "menu-utility-help": "menu.utility.help",
+    "menu-utility-settings": "menu.utility.settings",
+    "deploy-button": "menu.deploy.launch",
+    "yakkob-dwarf": "menu.commander.yakkob-dwarf",
+    "ops-tab": "menu.ops.root",
+    "rank-bar": "menu.ops.rank-bar",
+    "ops-shop-map-themes": "menu.ops.map-themes",
+    "ops-board": "menu.ops.board",
+    "quest-card-*": "menu.ops.quest-*",
+    "replay-root": {
+      "targets": [
+        "replay.viewer.loading",
+        "replay.viewer.unavailable",
+        "replay.viewer.root"
+      ],
+      "reason": "One legacy id sat on three mutually exclusive replay states (loading, unavailable link, loaded viewer); each state now has its own identity."
+    },
+    "replay-exit": "replay.viewer.exit",
+    "replay-play": "replay.controls.play",
+    "map-theme-picker": "ui.map-theme-picker.root",
+    "map-theme-*": "ui.map-theme-picker.theme-*",
+    "ai-widget": "app.ai-help.root",
+    "message-widget": "app.feedback.root"
+  },
+  "adoption": {
+    "visualReviewRequired": true,
+    "reviewSurfaces": [
+      {
+        "id": "menu-deploy",
+        "route": "/?demo=1",
+        "label": "Main menu, deploy tab (demo mode, age gate bypassed, no writes)"
+      },
+      {
+        "id": "age-gate",
+        "route": "/",
+        "label": "Age gate on a first visit"
+      },
+      {
+        "id": "privacy",
+        "route": "/privacy",
+        "label": "Privacy controls page"
+      },
+      {
+        "id": "replay-unavailable",
+        "route": "/?run=r_handlesreview01",
+        "label": "Replay link for a run that does not exist"
+      }
+    ],
+    "journeyVerifyCommand": "PLAYWRIGHT_PORT=5452 node ./tests/e2e/run-playwright.mjs tests/e2e/journeys.generated.spec.ts --project=chromium-desktop"
+  }
+}

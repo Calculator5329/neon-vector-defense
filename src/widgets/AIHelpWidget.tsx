@@ -78,15 +78,15 @@ export function AIHelpWidget({
   return (
     <div
       className={`ai-root ${placement === 'game' ? 'in-game' : 'on-menu'} ${placement === 'game' ? (sideOpen ? 'sidebar-open' : 'sidebar-collapsed') : ''} ${blocked ? 'widget-blocked' : ''}`}
-      data-testid="ai-widget"
+      data-testid="app.ai-help.root"
     >
       {open && (
         <div className="ai-panel">
           <div className="ai-head">
             <span>WARDEN AI</span>
             <div className="ai-head-actions">
-              <button className="ai-new" aria-label="Start new Warden AI chat" onClick={startNew}>NEW</button>
-              <button className="ai-x" aria-label="Close Warden AI" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
+              <button className="ai-new" data-testid="app.ai-help.new-chat" aria-label="Start new Warden AI chat" onClick={startNew}>NEW</button>
+              <button className="ai-x" data-testid="app.ai-help.close" aria-label="Close Warden AI" onClick={() => { setOpen(false); sfx.click(); }}>✕</button>
             </div>
           </div>
           <div className="ai-log">
@@ -95,16 +95,17 @@ export function AIHelpWidget({
             ))}
             {state === 'busy' && <div className="ai-msg assistant">Thinking...</div>}
           </div>
-          <form className="ai-form" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+          <form className="ai-form" data-testid="app.ai-help.form" onSubmit={(e) => { e.preventDefault(); void send(); }}>
             <input
               className="ai-input"
+              data-testid="app.ai-help.question"
               maxLength={900}
               aria-label="Ask Warden AI about the game"
               placeholder="Ask about the game..."
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <button className="ai-send" aria-label="Send question to Warden AI" disabled={!text.trim() || state === 'busy'}>SEND</button>
+            <button className="ai-send" data-testid="app.ai-help.send" aria-label="Send question to Warden AI" disabled={!text.trim() || state === 'busy'}>SEND</button>
           </form>
           {(turnsRemaining !== null || conversationsRemaining !== null) && (
             <div className="ai-quota">
@@ -114,7 +115,7 @@ export function AIHelpWidget({
           )}
         </div>
       )}
-      <button className="ai-toggle" title="Ask Warden AI" aria-label="Ask Warden AI" aria-expanded={open} onClick={() => { setOpen((o) => !o); sfx.click(); }}>
+      <button className="ai-toggle" data-testid="app.ai-help.toggle" title="Ask Warden AI" aria-label="Ask Warden AI" aria-expanded={open} onClick={() => { setOpen((o) => !o); sfx.click(); }}>
         AI
       </button>
     </div>

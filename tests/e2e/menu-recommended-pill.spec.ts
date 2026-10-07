@@ -42,19 +42,19 @@ test.describe('first-time RECOMMENDED protocol pill', () => {
   test('pill sits on its own row and never collides with the protocol name', async ({ page }) => {
     await seedFirstTimePlayer(page);
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible();
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
 
     // Recruit (easy) is the default-active protocol, which suppresses its own
     // pill (`!active` guard). Selecting Veteran (normal) exposes RECOMMENDED on
     // the Recruit card — the exact state from the bug report.
-    await page.getByTestId('diff-card-normal').click();
+    await page.getByTestId('menu.dock.protocol-normal').click();
 
-    const pill = page.locator('[data-testid="diff-card-easy"] .start-pill');
+    const pill = page.locator('[data-testid="menu.dock.protocol-easy"] .start-pill');
     await expect(pill, 'RECOMMENDED pill should render for a first-time player').toBeVisible();
     await expect(pill).toHaveText(/RECOMMENDED/);
 
     const geom = await page.evaluate(() => {
-      const card = document.querySelector('[data-testid="diff-card-easy"]') as HTMLElement;
+      const card = document.querySelector('[data-testid="menu.dock.protocol-easy"]') as HTMLElement;
       const rect = (sel: string) =>
         (card.querySelector(sel) as HTMLElement).getBoundingClientRect();
       const p = rect('.start-pill');
@@ -102,7 +102,7 @@ test.describe('first-time RECOMMENDED protocol pill', () => {
     // the cross-platform guard, so skip the pixel diff where no baseline exists
     // rather than fail a Windows/mac run on a missing snapshot.
     if (process.platform === 'linux') {
-      const recruit = page.getByTestId('diff-card-easy');
+      const recruit = page.getByTestId('menu.dock.protocol-easy');
       await recruit.evaluate((card) => card.scrollIntoView({ block: 'center' }));
       await expect(recruit).toHaveScreenshot('recommended-pill-card.png', {
         animations: 'disabled',

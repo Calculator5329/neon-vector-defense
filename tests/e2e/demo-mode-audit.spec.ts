@@ -110,46 +110,46 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 async function assertDeployBarOnlyOnDeployTab(page: Page) {
-  await expect(page.getByTestId('deploy-button')).toBeVisible();
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
   await expect(page.locator('.deploy-bar')).toBeVisible();
   await page.getByRole('button', { name: /^OPERATIONS/ }).click();
-  await expect(page.getByTestId('ops-tab')).toBeVisible();
+  await expect(page.getByTestId('menu.ops.root')).toBeVisible();
   await expect(page.locator('.deploy-bar')).toBeHidden();
   await page.getByRole('button', { name: /^DEPLOY/ }).click();
-  await expect(page.getByTestId('sector-atlas')).toBeVisible();
+  await expect(page.getByTestId('menu.atlas.root')).toBeVisible();
   await expect(page.locator('.deploy-bar')).toBeVisible();
 }
 
 async function assertUnlockedAtlas(page: Page) {
-  await expect(page.getByTestId('sector-atlas')).toBeVisible();
+  await expect(page.getByTestId('menu.atlas.root')).toBeVisible();
   await expect(page.getByText('CORE RELAY')).toBeVisible();
   await expect(page.getByText('THE FORGE BELT')).toBeVisible();
   await expect(page.getByText('THE DARK REACHES')).toBeVisible();
 
-  const nodes = page.locator('[data-atlas-node="true"][data-testid^="map-node-"]');
+  const nodes = page.locator('[data-atlas-node="true"][data-testid^="menu.atlas.map-node-"]');
   await expect(nodes).toHaveCount(ALL_MAPS.length);
   for (const map of ALL_MAPS) {
-    const node = page.getByTestId(`map-node-${map.id}`);
+    const node = page.getByTestId(`menu.atlas.map-node-${map.id}`);
     await expect(node).toBeVisible();
     await expect(node).not.toHaveAttribute('aria-disabled', 'true');
     await node.scrollIntoViewIfNeeded();
     await node.click();
-    await expect(page.getByTestId('sector-dock')).toContainText(map.name);
+    await expect(page.getByTestId('menu.dock.root')).toContainText(map.name);
     await expect(page.locator('.deploy-bar-sel')).toContainText(map.name);
   }
 
-  await page.getByTestId(`map-node-${ALL_MAPS[0].id}`).focus();
-  await expect(page.getByTestId(`map-node-${ALL_MAPS[0].id}`)).toBeFocused();
+  await page.getByTestId(`menu.atlas.map-node-${ALL_MAPS[0].id}`).focus();
+  await expect(page.getByTestId(`menu.atlas.map-node-${ALL_MAPS[0].id}`)).toBeFocused();
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByTestId(`map-node-${ALL_MAPS[1].id}`)).toBeFocused();
-  await page.getByTestId(`map-node-${ALL_MAPS[1].id}`).click();
+  await expect(page.getByTestId(`menu.atlas.map-node-${ALL_MAPS[1].id}`)).toBeFocused();
+  await page.getByTestId(`menu.atlas.map-node-${ALL_MAPS[1].id}`).click();
   expect(await page.locator('.atlas-mastery').count()).toBeGreaterThanOrEqual(ALL_MAPS.length + 1);
 }
 
 async function assertUnlockedProtocolsAndChallenges(page: Page) {
-  await page.getByTestId('dock-tab-protocols').click();
+  await page.getByTestId('menu.dock.tab-protocols').click();
   for (const diff of DIFFICULTIES) {
-    const card = page.getByTestId(`diff-card-${diff.id}`);
+    const card = page.getByTestId(`menu.dock.protocol-${diff.id}`);
     await expect(card).toBeVisible();
     await expect(card).not.toHaveAttribute('aria-disabled', 'true');
     await card.click();
@@ -157,18 +157,18 @@ async function assertUnlockedProtocolsAndChallenges(page: Page) {
     await expect(page.locator('.deploy-bar-sel')).toContainText(diff.name);
   }
 
-  await page.getByTestId('dock-tab-challenges').click();
-  await expect(page.getByTestId('diff-card-daily')).toBeVisible();
-  await page.getByTestId('diff-card-daily').click();
+  await page.getByTestId('menu.dock.tab-challenges').click();
+  await expect(page.getByTestId('menu.dock.daily-challenge')).toBeVisible();
+  await page.getByTestId('menu.dock.daily-challenge').click();
   await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
 
-  await expect(page.getByTestId('yakkob-card')).toBeVisible();
-  await expect(page.getByTestId('weekly-mutation-card')).toHaveCount(0);
-  await page.getByTestId('weekly-ops-beacon').click();
-  await expect(page.getByTestId('yakkob-card')).toBeFocused();
+  await expect(page.getByTestId('menu.weekly-ops.yakkob')).toBeVisible();
+  await expect(page.getByTestId('menu.weekly-ops.weekly-mutation')).toHaveCount(0);
+  await page.getByTestId('menu.atlas.weekly-ops-beacon').click();
+  await expect(page.getByTestId('menu.weekly-ops.yakkob')).toBeFocused();
   await expect(page.locator('.deploy-bar-sel')).toContainText('THE YAKKOB');
 
-  const champion = page.getByTestId('weekly-gauntlet-card');
+  const champion = page.getByTestId('menu.weekly-ops.champion-gauntlet');
   await expect(champion).toBeVisible();
   const championDisabled = await champion.getAttribute('aria-disabled');
   if (championDisabled === 'true') await expect(champion).toContainText('Not crowned yet');
@@ -177,7 +177,7 @@ async function assertUnlockedProtocolsAndChallenges(page: Page) {
     await expect(page.locator('.deploy-bar-sel')).toContainText('CHAMPION GAUNTLET');
   }
 
-  const protocol = page.getByTestId('gauntlet-protocol-card');
+  const protocol = page.getByTestId('menu.weekly-ops.gauntlet-protocol');
   await expect(protocol).toBeVisible();
   await expect(protocol).toHaveAttribute('aria-disabled', 'false');
   await protocol.click();
@@ -186,7 +186,7 @@ async function assertUnlockedProtocolsAndChallenges(page: Page) {
 
 async function canvasPoint(page: Page, offset = 0) {
   return page.evaluate((n) => {
-    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]');
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game.board.canvas"]');
     if (!canvas) throw new Error('game canvas missing');
     const rect = canvas.getBoundingClientRect();
     const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
@@ -209,7 +209,7 @@ async function canvasPoint(page: Page, offset = 0) {
 
 async function placeTower(page: Page, towerId: string, offset: number) {
   const before = await page.evaluate(() => (window as unknown as { game: { towers: unknown[] } }).game.towers.length);
-  const tower = page.getByTestId(`tower-${towerId}`);
+  const tower = page.getByTestId(`game.shop.tower-${towerId}`);
   await tower.scrollIntoViewIfNeeded();
   await tower.click();
   await expect(tower).toHaveClass(/active/);
@@ -220,16 +220,16 @@ async function placeTower(page: Page, towerId: string, offset: number) {
 }
 
 async function exerciseCombatRun(page: Page, options: { mapId: string; outcome: 'victory' | 'gameover'; terminalWave: number }) {
-  await page.getByTestId(`map-node-${options.mapId}`).scrollIntoViewIfNeeded();
-  await page.getByTestId(`map-node-${options.mapId}`).click();
-  await page.getByTestId('dock-tab-protocols').click();
-  await page.getByTestId('diff-card-easy').click();
-  await page.getByTestId('deploy-button').click();
-  await expect(page.getByTestId('game-root')).toBeVisible();
+  await page.getByTestId(`menu.atlas.map-node-${options.mapId}`).scrollIntoViewIfNeeded();
+  await page.getByTestId(`menu.atlas.map-node-${options.mapId}`).click();
+  await page.getByTestId('menu.dock.tab-protocols').click();
+  await page.getByTestId('menu.dock.protocol-easy').click();
+  await page.getByTestId('menu.deploy.launch').click();
+  await expect(page.getByTestId('game.screen.root')).toBeVisible();
   await expect(page.locator('.deploy-bar')).toBeHidden();
-  await expect(page.getByTestId('shop-grid')).toBeVisible();
-  await expect(page.locator('[data-testid^="tower-"]')).toHaveCount(21);
-  await expect(page.getByTestId('tower-abyss')).toBeVisible();
+  await expect(page.getByTestId('game.shop.grid')).toBeVisible();
+  await expect(page.locator('[data-testid^="game.shop.tower-"]')).toHaveCount(21);
+  await expect(page.getByTestId('game.shop.tower-abyss')).toBeVisible();
 
   await page.evaluate(() => {
     const game = (window as unknown as { game: { credits: number; paused: boolean } }).game;
@@ -240,9 +240,9 @@ async function exerciseCombatRun(page: Page, options: { mapId: string; outcome: 
   const pulsePoint = await placeTower(page, 'pulse', 0);
   await placeTower(page, 'abyss', 4);
   await page.mouse.click(pulsePoint.x, pulsePoint.y);
-  await expect(page.getByTestId('upgrade-pulse-a')).toBeVisible();
-  await page.getByTestId('upgrade-pulse-a').click();
-  await page.getByTestId('upgrade-pulse-b').click();
+  await expect(page.getByTestId('game.upgrade.buy-pulse-a')).toBeVisible();
+  await page.getByTestId('game.upgrade.buy-pulse-a').click();
+  await page.getByTestId('game.upgrade.buy-pulse-b').click();
   await expect.poll(() => page.evaluate(() => {
     const game = (window as unknown as { game: { towers: { def: { id: string }; tierA: number; tierB: number }[] } }).game;
     const pulse = game.towers.find((tower) => tower.def.id === 'pulse');
@@ -254,7 +254,7 @@ async function exerciseCombatRun(page: Page, options: { mapId: string; outcome: 
   await page.mouse.click(strikePoint.x, strikePoint.y);
   await expect.poll(() => page.evaluate(() => (window as unknown as { game: { runStats: { abilitiesCast: number } } }).game.runStats.abilitiesCast)).toBeGreaterThanOrEqual(1);
 
-  await page.getByTestId('launch-wave').click();
+  await page.getByTestId('game.hud.launch-wave').click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { game: { wave: number } }).game.wave)).toBeGreaterThanOrEqual(1);
   await page.evaluate(({ outcome, terminalWave }) => {
     const game = (window as unknown as { game: any }).game;
@@ -281,22 +281,22 @@ async function exerciseCombatRun(page: Page, options: { mapId: string; outcome: 
 
 async function openAndCloseMenuSurfaces(page: Page) {
   await page.getByRole('button', { name: /^OPERATIONS/ }).click();
-  await expect(page.getByTestId('ops-tab')).toBeVisible();
+  await expect(page.getByTestId('menu.ops.root')).toBeVisible();
   await expect(page.locator('.deploy-bar')).toBeHidden();
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole('button', { name: /^DEPLOY/ }).click();
-  await page.getByTestId('menu-utility-bestiary').click();
-  await expect(page.getByTestId('bestiary')).toBeVisible();
-  await page.getByTestId('bestiary').getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(page.getByTestId('bestiary')).toBeHidden();
+  await page.getByTestId('menu.utility.bestiary').click();
+  await expect(page.getByTestId('menu.bestiary.dialog')).toBeVisible();
+  await page.getByTestId('menu.bestiary.dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByTestId('menu.bestiary.dialog')).toBeHidden();
 
-  await page.getByTestId('menu-utility-help').click();
-  await expect(page.getByTestId('tutorial-overlay')).toBeVisible();
+  await page.getByTestId('menu.utility.help').click();
+  await expect(page.getByTestId('menu.how-to-play.dialog')).toBeVisible();
   await page.getByRole('button', { name: /GOT IT/ }).click();
-  await expect(page.getByTestId('tutorial-overlay')).toBeHidden();
+  await expect(page.getByTestId('menu.how-to-play.dialog')).toBeHidden();
 
-  await page.getByTestId('menu-utility-settings').click();
+  await page.getByTestId('menu.utility.settings').click();
   await expect(page.getByRole('dialog', { name: 'SETTINGS' })).toBeVisible();
   await page.getByRole('button', { name: /DONE/ }).click();
   await expect(page.getByRole('dialog', { name: 'SETTINGS' })).toBeHidden();
@@ -306,16 +306,16 @@ async function exerciseReplayPath(page: Page) {
   const replayOfDay = page.locator('.replay-of-day-card');
   if (await replayOfDay.isVisible().catch(() => false)) {
     await replayOfDay.locator('.replay-of-day-watch').click();
-    await expect(page.getByTestId('replay-root')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('replay-root').getByRole('button', { name: '← GRID', exact: true }).click();
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('replay.viewer.root')).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('replay.viewer.root').getByRole('button', { name: '← GRID', exact: true }).click();
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
   } else {
     await page.goto('/?run=r_demoaudit0001');
-    await expect(page.getByTestId('replay-root')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('replay.viewer.unavailable')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('REPLAY UNAVAILABLE')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'RETURN TO THE GRID' }).click();
     await page.goto('/?demo=1');
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
   }
 }
 
@@ -331,7 +331,7 @@ test.describe('recruiter demo-mode audit', () => {
 
     await page.goto('/?demo=1');
     await expect(page.getByRole('dialog', { name: 'BEFORE YOU DEPLOY' })).toHaveCount(0);
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('RECRUITER DEMO')).toBeVisible();
     const demoEntitlements = await page.evaluate(async () => {
       const modulePath = '/src/game/entitlements.ts';
@@ -359,14 +359,14 @@ test.describe('recruiter demo-mode audit', () => {
     await exerciseCombatRun(page, { mapId: 'orbital', outcome: 'victory', terminalWave: 50 });
     await expectNoAuditFailures(page, guards);
     await page.getByRole('button', { name: 'MAIN MENU' }).click();
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
 
     await openAndCloseMenuSurfaces(page);
     await exerciseReplayPath(page);
     await expectNoAuditFailures(page, guards);
 
     await page.setViewportSize(testInfo.project.name.includes('mobile') ? DESKTOP : LANDSCAPE);
-    await expect(page.getByTestId('deploy-button')).toBeVisible();
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
     await assertDeployBarOnlyOnDeployTab(page);
     await expectNoAuditFailures(page, guards);
 
@@ -375,7 +375,7 @@ test.describe('recruiter demo-mode audit', () => {
     await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeVisible();
     await expectNoAuditFailures(page, guards);
     await page.getByRole('button', { name: 'MAIN MENU' }).click();
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await expectNoAuditFailures(page, guards);
 
     expect(guards.blockedWriteUrls).toEqual([]);

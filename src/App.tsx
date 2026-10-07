@@ -257,10 +257,10 @@ function Main() {
         <ComebackPrompt onClose={() => { meta.markComebackSeen(new Date().toISOString().slice(0, 10)); setComeback(false); sfx.click(); }} />
       )}
       {staleBuild && screen === 'menu' && (
-        <div className="update-toast" role="status" aria-live="polite" data-testid="update-toast">
+        <div className="update-toast" role="status" aria-live="polite" data-testid="app.update-toast.root">
           <span>A new build of Lantern Seven is live.</span>
-          <button className="start-btn small" onClick={() => window.location.reload()}>RELOAD ▸</button>
-          <button className="update-toast-x" aria-label="Dismiss update notice" onClick={() => setStaleBuild(false)}>✕</button>
+          <button className="start-btn small" data-testid="app.update-toast.reload" onClick={() => window.location.reload()}>RELOAD ▸</button>
+          <button className="update-toast-x" data-testid="app.update-toast.dismiss" aria-label="Dismiss update notice" onClick={() => setStaleBuild(false)}>✕</button>
         </div>
       )}
     </>
@@ -270,13 +270,13 @@ function Main() {
 function ComebackPrompt({ onClose }: { onClose: () => void }) {
   const streak = meta.streak;
   return (
-    <Modal onClose={onClose} overlayClass="cutscene-overlay" boxClass="cutscene-box tip-box" labelledBy="comeback-title">
+    <Modal onClose={onClose} overlayClass="cutscene-overlay" boxClass="cutscene-box tip-box" labelledBy="comeback-title" testId="app.comeback.dialog">
       <div className="cutscene-title" id="comeback-title" style={{ color: 'var(--gold)' }}>⚠ THE LANTERN DIMMED</div>
       <p className="tip-text">
         You held a <b>{streak.best}-day watch</b> over Lantern Seven before the signal lapsed.
         The Combine never sleeps, Warden — light the beacon again today to start a new streak.
       </p>
-      <button className="start-btn small" onClick={onClose}>RESUME THE WATCH ▸</button>
+      <button className="start-btn small" data-testid="app.comeback.resume" onClick={onClose}>RESUME THE WATCH ▸</button>
     </Modal>
   );
 }

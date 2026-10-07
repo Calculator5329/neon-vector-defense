@@ -28,19 +28,19 @@ test.describe('production bundle', () => {
       if (PORTAL_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) portalRequests.push(url);
     });
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     const tagInfo = await page.evaluate(async () => {
       const res = await fetch('/build-tag.json', { cache: 'no-store' });
       return res.ok ? await res.json() as { tag?: string } : null;
     });
     expect(typeof tagInfo?.tag).toBe('string');
-    await expect(page.getByTestId('update-toast')).toBeHidden();
+    await expect(page.getByTestId('app.update-toast.root')).toBeHidden();
     expect(portalRequests).toEqual([]);
   });
 
   test('boots the built app and registers the service worker', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     const swState = await page.evaluate(async () => {
       if (!('serviceWorker' in navigator)) return 'unsupported';
       const reg = await navigator.serviceWorker.ready;
@@ -52,7 +52,7 @@ test.describe('production bundle', () => {
   test('?run= deep links navigate through the service worker without network errors', async ({ page }) => {
     // Prime the SW on a first load so the deep link is SW-mediated.
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await page.evaluate(() => navigator.serviceWorker?.ready);
 
     const response = await page.goto('/?run=r_doesnotexist12345');

@@ -77,7 +77,7 @@ export default function PrivacyView() {
   return (
     <div className="privacy-root">
       <div className="privacy-box">
-        <button className="privacy-back" onClick={() => { location.href = '/'; }}>← BACK TO GAME</button>
+        <button className="privacy-back" data-testid="privacy.page.back" onClick={() => { location.href = '/'; }}>← BACK TO GAME</button>
         <h1 className="privacy-title">PRIVACY POLICY</h1>
         <p className="privacy-meta">Lantern 7 · last updated 2026 · US players</p>
 
@@ -137,7 +137,7 @@ export default function PrivacyView() {
                     : 'Turns off all analytics/telemetry collection. (We never actually sell data; this is the CCPA opt-out.)'}
                 </div>
               </div>
-              <button className={`privacy-toggle ${sold ? 'on' : ''}`} aria-pressed={sold} disabled={gpc} onClick={toggleSell}>
+              <button className={`privacy-toggle ${sold ? 'on' : ''}`} aria-pressed={sold} disabled={gpc} data-testid="privacy.controls.opt-out" onClick={toggleSell}>
                 {sold ? 'OPTED OUT' : 'OPT OUT'}
               </button>
             </div>
@@ -147,7 +147,7 @@ export default function PrivacyView() {
                 <div className="privacy-control-name">Download my data</div>
                 <div className="privacy-control-sub">Export everything stored on this device as JSON.</div>
               </div>
-              <button className="privacy-toggle" onClick={doExport}>DOWNLOAD</button>
+              <button className="privacy-toggle" data-testid="privacy.controls.export" onClick={doExport}>DOWNLOAD</button>
             </div>
 
             <div className="privacy-control">
@@ -159,7 +159,7 @@ export default function PrivacyView() {
                     : 'Erase all local game data, including progress, rank, cosmetics, privacy choices, and private feedback reply receipts. For anonymous server-record deletion, send a request with the in-game feedback button.'}
                 </div>
               </div>
-              <button className="privacy-toggle danger" disabled={cleared || deleting} onClick={doDelete}>
+              <button className="privacy-toggle danger" data-testid="privacy.controls.delete" disabled={cleared || deleting} onClick={doDelete}>
                 {cleared ? 'DELETED' : deleting ? 'DELETING' : 'DELETE'}
               </button>
             </div>

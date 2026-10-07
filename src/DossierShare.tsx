@@ -103,10 +103,10 @@ export default function DossierShare({ input, runId, compact }: { input: Dossier
         ? <img className="dossier-preview" src={preview} alt="Mission dossier card" />
         : <div className="dossier-preview placeholder" role="status">Rendering dossier…</div>)}
       <div className="dossier-actions">
-        {hasShare && <button className="start-btn small no-shift-action" disabled={busy} onClick={onShare} aria-label="Share dossier" title="Share dossier">⤴ SHARE</button>}
-        <button className="start-btn small ghost no-shift-action" disabled={busy} onClick={onCopyCard} aria-label="Copy dossier card image" title="Copy card image">⧉ COPY CARD</button>
-        {url && <button className="start-btn small ghost no-shift-action" disabled={busy} onClick={onCopyLink} aria-label="Copy replay link" title="Copy replay link">🔗 COPY LINK</button>}
-        <button className="start-btn small ghost no-shift-action" disabled={busy} onClick={onDownload} aria-label="Save dossier PNG" title="Save PNG">⭳ SAVE</button>
+        {hasShare && <button className="start-btn small no-shift-action" data-testid="ui.dossier-share.share" disabled={busy} onClick={onShare} aria-label="Share dossier" title="Share dossier">⤴ SHARE</button>}
+        <button className="start-btn small ghost no-shift-action" data-testid="ui.dossier-share.copy-card" disabled={busy} onClick={onCopyCard} aria-label="Copy dossier card image" title="Copy card image">⧉ COPY CARD</button>
+        {url && <button className="start-btn small ghost no-shift-action" data-testid="ui.dossier-share.copy-link" disabled={busy} onClick={onCopyLink} aria-label="Copy replay link" title="Copy replay link">🔗 COPY LINK</button>}
+        <button className="start-btn small ghost no-shift-action" data-testid="ui.dossier-share.save-png" disabled={busy} onClick={onDownload} aria-label="Save dossier PNG" title="Save PNG">⭳ SAVE</button>
         {toast && <span className={`dossier-toast ${toast.kind}`} role={toast.kind === 'err' ? 'alert' : 'status'} aria-live="polite">{toast.text}</span>}
       </div>
     </div>

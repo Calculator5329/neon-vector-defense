@@ -123,7 +123,7 @@ function ReplayOfTheDayCard() {
         <div className="replay-of-day-title">{spot.callsign} · Wave {spot.wave}</div>
         <div className="replay-of-day-rules">{spot.mapName} · {spot.diffName}</div>
       </div>
-      <a className="replay-of-day-watch" href={`/?run=${spot.runId}`} title="Watch today's featured battle plan">▶ WATCH</a>
+      <a className="replay-of-day-watch" data-testid="menu.commander.replay-of-day-watch" href={`/?run=${spot.runId}`} title="Watch today's featured battle plan">▶ WATCH</a>
     </div>
   );
 }
@@ -132,8 +132,8 @@ function CommanderDossierRail({ onOpenOps, onUnlockYakkob }: { onOpenOps: () => 
   const rank = meta.rank;
   const streak = meta.streak;
   return (
-    <aside className="commander-rail" data-testid="commander-rail">
-      <button className="rail-rank" onClick={onOpenOps} title="Open Operations">
+    <aside className="commander-rail" data-testid="menu.commander.rail">
+      <button className="rail-rank" data-testid="menu.commander.rank" onClick={onOpenOps} title="Open Operations">
         <img className="rail-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
         <span>
           <b>{rank.title}</b>
@@ -169,13 +169,13 @@ function WeeklyOpsSection(props: {
 }) {
   const weeklyMods = weeklyModifierNames(props.weeklySeed);
   return (
-    <div className="weekly-ops-strip atlas-weekly-ops" data-testid="weekly-ops-strip">
+    <div className="weekly-ops-strip atlas-weekly-ops" data-testid="menu.weekly-ops.strip">
       {props.yakkobUnlocked ? (
         // Unlocked: THE YAKKOB takes the Weekly Mutation's slot as a glowing special edition
         // and calls for a press. `yakkob-shimmer` fires a one-shot light sweep the moment it lands.
         <button
           className={`weekly-op-card yakkob-op-card yakkob-attn ${props.yakkobJustPlaced ? 'yakkob-shimmer' : ''} ${props.deployMode === 'yakkob' ? 'active' : ''}`}
-          data-testid="yakkob-card"
+          data-testid="menu.weekly-ops.yakkob"
           aria-label="Deploy THE YAKKOB"
           title={THE_YAKKOB.rules.join('\n')}
           onClick={() => { props.setDeployMode('yakkob'); props.onStartYakkob(); }}
@@ -187,7 +187,7 @@ function WeeklyOpsSection(props: {
       ) : (
         <button
           className={`weekly-op-card ${props.deployMode === 'weekly' ? 'active' : ''}`}
-          data-testid="weekly-mutation-card"
+          data-testid="menu.weekly-ops.weekly-mutation"
           aria-pressed={props.deployMode === 'weekly'}
           title={props.weeklySeed.rules.join('\n')}
           onClick={() => { props.setDeployMode('weekly'); sfx.click(); }}
@@ -198,7 +198,7 @@ function WeeklyOpsSection(props: {
       )}
       <button
         className={`weekly-op-card ${props.deployMode === 'gauntlet' ? 'active' : ''}`}
-        data-testid="weekly-gauntlet-card"
+        data-testid="menu.weekly-ops.champion-gauntlet"
         aria-pressed={props.deployMode === 'gauntlet'}
         aria-disabled={!props.gauntlet}
         title={props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : 'Weekly Champion Gauntlet has not been crowned yet.'}
@@ -209,7 +209,7 @@ function WeeklyOpsSection(props: {
       </button>
       <button
         className={`weekly-op-card ${props.deployMode === 'gauntletProtocol' ? 'active' : ''}`}
-        data-testid="gauntlet-protocol-card"
+        data-testid="menu.weekly-ops.gauntlet-protocol"
         aria-pressed={props.deployMode === 'gauntletProtocol'}
         aria-disabled={!props.gauntletProtocolUnlocked}
         title={props.gauntletProtocolUnlocked ? `Route: ${routeNames(props.gauntletProtocol.route)}` : 'Win any campaign to unlock.'}
@@ -314,7 +314,7 @@ function SectorAtlas(props: {
       setDockTab('challenges');
       setYakkobPlaced(true);
       const raf = requestAnimationFrame(() => {
-        const card = weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="yakkob-card"]');
+        const card = weeklyRef.current?.querySelector<HTMLButtonElement>('[data-testid="menu.weekly-ops.yakkob"]');
         card?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         card?.focus();
       });
@@ -339,14 +339,14 @@ function SectorAtlas(props: {
     sfx.click();
     requestAnimationFrame(() => {
       weeklyRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      const target = props.yakkobUnlocked ? 'yakkob-card' : 'weekly-mutation-card';
+      const target = props.yakkobUnlocked ? 'menu.weekly-ops.yakkob' : 'menu.weekly-ops.weekly-mutation';
       weeklyRef.current?.querySelector<HTMLButtonElement>(`[data-testid="${target}"]`)?.focus();
     });
   };
 
   return (
-    <section className="sector-atlas" data-testid="sector-atlas" aria-label="Sector Atlas">
-      <div className="atlas-field" ref={fieldRef} data-testid="atlas-field">
+    <section className="sector-atlas" data-testid="menu.atlas.root" aria-label="Sector Atlas">
+      <div className="atlas-field" ref={fieldRef} data-testid="menu.atlas.field">
         <canvas className="atlas-stars-canvas" ref={canvasRef} aria-hidden="true" />
         <div className="atlas-region-label atlas-region-core">CORE RELAY</div>
         <div className="atlas-region-label atlas-region-forge">THE FORGE BELT</div>
@@ -364,7 +364,7 @@ function SectorAtlas(props: {
               type="button"
               className={`atlas-node atlas-node-${region} ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}`}
               data-atlas-node="true"
-              data-testid={`map-node-${m.id}`}
+              data-testid={`menu.atlas.map-node-${m.id}`}
               aria-disabled={!unlocked}
               aria-label={unlocked ? `${m.name}. ${m.difficulty} sector. ${m.desc}` : `Locked sector. ${lockCopy}`}
               title={unlocked ? m.desc : lockCopy}
@@ -403,7 +403,7 @@ function SectorAtlas(props: {
           type="button"
           className="atlas-node atlas-weekly-beacon"
           data-atlas-node="true"
-          data-testid="weekly-ops-beacon"
+          data-testid="menu.atlas.weekly-ops-beacon"
           aria-label="Open Weekly Ops"
           style={{ left: '90%', top: '30%' }}
           onClick={openWeeklyOps}
@@ -424,7 +424,7 @@ function SectorAtlas(props: {
         </button>
       </div>
 
-      <aside className="atlas-dock" data-testid="sector-dock" aria-live="polite">
+      <aside className="atlas-dock" data-testid="menu.dock.root" aria-live="polite">
         <div className="dock-kicker">{atlasRegionLabel(atlasRegion(selectedMap.id))}</div>
         <h2>{selectedMap.name}</h2>
         <div className="dock-mastery-row">
@@ -439,21 +439,21 @@ function SectorAtlas(props: {
         <div className="dock-tabs" role="tablist" aria-label="Deploy options">
           <button
             role="tab"
-            data-testid="dock-tab-protocols"
+            data-testid="menu.dock.tab-protocols"
             aria-selected={dockTab === 'protocols'}
             className={dockTab === 'protocols' ? 'on' : ''}
             onClick={() => { setDockTab('protocols'); sfx.click(); }}
           >PROTOCOLS</button>
           <button
             role="tab"
-            data-testid="dock-tab-challenges"
+            data-testid="menu.dock.tab-challenges"
             aria-selected={dockTab === 'challenges'}
             className={dockTab === 'challenges' ? 'on' : ''}
             onClick={() => { setDockTab('challenges'); sfx.click(); }}
           >CHALLENGES</button>
         </div>
         {dockTab === 'protocols' ? (
-        <div className="diff-row atlas-protocols" data-testid="diff-row">
+        <div className="diff-row atlas-protocols" data-testid="menu.dock.protocols">
           {DIFFICULTIES.map((d) => {
             const locked = (d.id === 'hard' && props.apexLocked)
               || (d.id === 'extinction' && !DEMO_MODE && !progress.apexCleared);
@@ -463,7 +463,7 @@ function SectorAtlas(props: {
               : { label: 'LOCKED APEX', desc: 'Survive one campaign to unlock.', title: 'Complete one campaign to unlock Apex.' };
             if (locked) {
               return (
-                <button key={d.id} type="button" className="diff-card atlas-protocol-row diff-locked" data-testid={`diff-card-${d.id}`}
+                <button key={d.id} type="button" className="diff-card atlas-protocol-row diff-locked" data-testid={`menu.dock.protocol-${d.id}`}
                   aria-disabled="true" aria-label={`Locked protocol. ${reason.desc}`} title={reason.title}
                   onClick={() => appMetrics.recordLockedProtocolClick(d.id)}>
                   <span className="diff-name">{reason.label}</span>
@@ -475,7 +475,7 @@ function SectorAtlas(props: {
               <button
                 key={d.id}
                 className={`diff-card atlas-protocol-row ${active ? 'active' : ''} ${d.id === 'extinction' ? 'diff-extinction' : ''}`}
-                data-testid={`diff-card-${d.id}`}
+                data-testid={`menu.dock.protocol-${d.id}`}
                 aria-label={`${d.name} protocol. ${d.desc}`}
                 title={d.desc}
                 onClick={() => { appMetrics.recordProtocolSelect(d.id); props.setDeployMode('campaign'); sfx.click(); props.setDiff(d); }}
@@ -488,10 +488,10 @@ function SectorAtlas(props: {
           })}
         </div>
         ) : (
-        <div className="dock-challenges" ref={weeklyRef} data-testid="dock-challenges">
+        <div className="dock-challenges" ref={weeklyRef} data-testid="menu.dock.challenges">
           <button
             className={`diff-card atlas-protocol-row daily-protocol ${props.deployMode === 'daily' ? 'active' : ''}`}
-            data-testid="diff-card-daily"
+            data-testid="menu.dock.daily-challenge"
             aria-label={`Daily Challenge protocol. ${dailyMods.join(', ')}`}
             aria-pressed={props.deployMode === 'daily'}
             title={props.dailySeed.rules.join('\n')}
@@ -568,21 +568,21 @@ export function MainMenu(props: {
           <h1 className="menu-title">LANTERN<span> 7</span></h1>
         </div>
         <nav className="menu-tabs" aria-label="Main menu sections">
-          <button className={tab === 'deploy' ? 'on' : ''} aria-pressed={tab === 'deploy'} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
-          <button className={tab === 'board' ? 'on' : ''} aria-pressed={tab === 'board'} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
-          <button className={tab === 'ops' ? 'on' : ''} aria-pressed={tab === 'ops'} onClick={() => { setTab('ops'); sfx.click(); }}>
+          <button className={tab === 'deploy' ? 'on' : ''} data-testid="menu.tabs.deploy" aria-pressed={tab === 'deploy'} onClick={() => { appMetrics.recordMenuTab('deploy'); setTab('deploy'); sfx.click(); }}>DEPLOY</button>
+          <button className={tab === 'board' ? 'on' : ''} data-testid="menu.tabs.leaderboard" aria-pressed={tab === 'board'} onClick={() => { appMetrics.recordMenuTab('board'); setTab('board'); sfx.click(); }}>LEADERBOARD</button>
+          <button className={tab === 'ops' ? 'on' : ''} data-testid="menu.tabs.operations" aria-pressed={tab === 'ops'} onClick={() => { setTab('ops'); sfx.click(); }}>
             OPERATIONS{claimable > 0 && <span className="tab-badge" aria-label={`${claimable} operations ready to claim`}>{claimable}</span>}
           </button>
           <button className="menu-tab-help" title={`Combine Bestiary — ${foesSeen}/${ENEMY_LIST.length} identified`}
-            data-testid="menu-utility-bestiary"
+            data-testid="menu.utility.bestiary"
             aria-label={`Combine Bestiary, ${foesSeen} of ${ENEMY_LIST.length} hulls identified${foesNew > 0 ? `, ${foesNew} new` : ''}`}
             onClick={() => { setBestiaryOpen(true); sfx.click(); }}>
             <span className="menu-tab-icon" aria-hidden="true">👾</span>{foesNew > 0 && <span className="tab-badge new" aria-hidden="true">{foesNew}</span>}
           </button>
-          <button className="menu-tab-help" title="How to play" data-testid="menu-utility-help" aria-label="How to play" onClick={() => { setHelp(true); sfx.click(); }}>
+          <button className="menu-tab-help" title="How to play" data-testid="menu.utility.help" aria-label="How to play" onClick={() => { setHelp(true); sfx.click(); }}>
             <span className="menu-tab-icon" aria-hidden="true">?</span>
           </button>
-          <button className="menu-tab-help" title="Settings" data-testid="menu-utility-settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>
+          <button className="menu-tab-help" title="Settings" data-testid="menu.utility.settings" aria-label="Settings" onClick={() => { setSettingsOpen(true); sfx.click(); }}>
             <span className="menu-tab-icon" aria-hidden="true">⚙</span>
           </button>
         </nav>
@@ -611,7 +611,7 @@ export function MainMenu(props: {
           {!DEMO_MODE && (() => {
             const rank = meta.rank; const streak = meta.streak;
             return (
-              <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
+              <button className="menu-rank-strip" data-testid="menu.dossier.rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
                 <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
                 <span className="menu-rank-title">{rank.title}</span>
                 <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
@@ -687,7 +687,7 @@ export function MainMenu(props: {
       {tab === 'deploy' && <div className="deploy-bar">
         <div className="deploy-bar-inner">
           <div className="menu-legal">
-            {!IS_PORTAL_BUILD && <a href="/privacy">Privacy &amp; Data Choices</a>}
+            {!IS_PORTAL_BUILD && <a href="/privacy" data-testid="menu.deploy.privacy-link">Privacy &amp; Data Choices</a>}
           </div>
           <div className="deploy-bar-sel">
             <span className="dbar-label">DEPLOYING TO</span>
@@ -719,7 +719,7 @@ export function MainMenu(props: {
                     ? 'GAUNTLET PROTOCOL'
                     : props.diff.name}</span>
           </div>
-          <button className={`start-btn deploy-bar-btn ${deployMode !== 'campaign' ? 'daily' : ''}`} data-testid="deploy-button" disabled={!selectedUnlocked || (deployMode === 'gauntlet' && !props.gauntlet)}
+          <button className={`start-btn deploy-bar-btn ${deployMode !== 'campaign' ? 'daily' : ''}`} data-testid="menu.deploy.launch" disabled={!selectedUnlocked || (deployMode === 'gauntlet' && !props.gauntlet)}
             onClick={() => {
               if (deployMode === 'daily') {
                 appMetrics.recordDeployAttempt(props.dailySeed.mapId, props.dailySeed.diffId, true);
@@ -776,17 +776,17 @@ export function MainMenu(props: {
         }}
       >
         <span style={{ marginRight: '8px' }}>MORE BY ETHAN:</span>
-        <a href="https://calculator5329.github.io" style={{ color: 'var(--accent)' }}>Projects</a>{' '}
+        <a href="https://calculator5329.github.io" data-testid="menu.footer.link-projects" style={{ color: 'var(--accent)' }}>Projects</a>{' '}
         ·{' '}
-        <a href="https://gatesai.web.app/" title="A local-first AI chat desktop app that runs on cloud models or fully local Ollama." style={{ color: 'var(--accent)' }}>GatesAI Chat</a>{' '}
+        <a href="https://gatesai.web.app/" data-testid="menu.footer.link-gatesai" title="A local-first AI chat desktop app that runs on cloud models or fully local Ollama." style={{ color: 'var(--accent)' }}>GatesAI Chat</a>{' '}
         ·{' '}
-        <a href="https://ethan-488900.web.app" title="Portfolio backtesting, asset allocation and retirement Monte Carlo over 150+ years of market history." style={{ color: 'var(--accent)' }}>Fathom</a>{' '}
+        <a href="https://ethan-488900.web.app" data-testid="menu.footer.link-fathom" title="Portfolio backtesting, asset allocation and retirement Monte Carlo over 150+ years of market history." style={{ color: 'var(--accent)' }}>Fathom</a>{' '}
         ·{' '}
-        <a href="https://agent-handles.web.app" title="Makes a web app's interface addressable by AI agents, with a receipt for each action." style={{ color: 'var(--accent)' }}>Agent Handles</a>{' '}
+        <a href="https://agent-handles.web.app" data-testid="menu.footer.link-agent-handles" title="Makes a web app's interface addressable by AI agents, with a receipt for each action." style={{ color: 'var(--accent)' }}>Agent Handles</a>{' '}
         ·{' '}
-        <a href="https://n2k-almanac-v3.web.app" title="An equation almanac and solver for the N2K dice game, served from a compact binary file in a Web Worker." style={{ color: 'var(--accent)' }}>N2K Almanac</a>{' '}
+        <a href="https://n2k-almanac-v3.web.app" data-testid="menu.footer.link-n2k-almanac" title="An equation almanac and solver for the N2K dice game, served from a compact binary file in a Web Worker." style={{ color: 'var(--accent)' }}>N2K Almanac</a>{' '}
         ·{' '}
-        <a href="https://github.com/Calculator5329" style={{ color: 'var(--accent)' }}>GitHub</a>
+        <a href="https://github.com/Calculator5329" data-testid="menu.footer.link-github" style={{ color: 'var(--accent)' }}>GitHub</a>
       </footer>
     </div>
   );

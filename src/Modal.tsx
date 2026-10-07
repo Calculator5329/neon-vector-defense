@@ -17,7 +17,9 @@ export default function Modal({
   closeOnBackdrop = true,
   closeOnEsc = true,
   style,
-  testId,
+  // Every call site passes its own identity; the literal fallback keeps an
+  // unnamed modal addressable (agent-handles reads it as a declaration).
+  testId = 'ui.modal.backdrop',
 }: {
   onClose: () => void;
   children: ReactNode;
@@ -58,6 +60,7 @@ export default function Modal({
     <div className={overlayClass} data-testid={testId} onClick={closeOnBackdrop ? onClose : undefined}>
       <div
         ref={boxRef}
+        data-testid={`ui.modal.dialog-${labelledBy ?? 'untitled'}`}
         className={boxClass}
         style={style}
         role="dialog"

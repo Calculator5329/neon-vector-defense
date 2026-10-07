@@ -56,9 +56,9 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
   };
 
   return (
-    <div className="ops-tab" data-testid="ops-tab">
+    <div className="ops-tab" data-testid="menu.ops.root">
       <div className="ops-head">
-        <div className="ops-rank" data-testid="rank-bar">
+        <div className="ops-rank" data-testid="menu.ops.rank-bar">
           <img className="ops-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} />
           <div className="ops-rank-body">
             <div className="ops-rank-top">
@@ -103,7 +103,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
                 ? `Buy ${p.name} palette for ${p.cost} salvage`
                 : `${p.name} palette needs ${short} more salvage`;
             return (
-              <button key={p.id} className={`palette-chip ${equipped ? 'equipped' : ''}`} disabled={purchasing !== null || (!owned && !afford)}
+              <button key={p.id} className={`palette-chip ${equipped ? 'equipped' : ''}`} data-testid={`menu.ops.palette-${p.id}`} disabled={purchasing !== null || (!owned && !afford)}
                 title={paletteLabel}
                 aria-label={paletteLabel}
                 onClick={async () => {
@@ -142,7 +142,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
         </div>
       </div>
 
-      <div className="ops-shop" data-testid="ops-shop-map-themes">
+      <div className="ops-shop" data-testid="menu.ops.map-themes">
         <div className="menu-section-label">MAP THEMES</div>
         <MapThemePicker onChange={(pack) => { pushStatus({ kind: 'ok', text: `${pack.name} map theme equipped.` }); sfx.click(); rerender(); }} />
       </div>
@@ -153,6 +153,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
 
       <div className="ops-board-head">
         <button
+          data-testid="menu.ops.claim-all"
           className={`quest-claim claim-all ${claimable >= 2 ? '' : 'is-placeholder'}`}
           disabled={claimable < 2}
           aria-hidden={claimable < 2}
@@ -162,7 +163,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
           CLAIM ALL ({claimable})
         </button>
       </div>
-      <div className="ops-board" data-testid="ops-board">
+      <div className="ops-board" data-testid="menu.ops.board">
         <QuestColumn label="DAILY OPERATIONS" quests={daily} onClaim={claim} />
         <QuestColumn label="WEEKLY OPERATIONS" quests={weekly} onClaim={claim} />
       </div>
@@ -178,7 +179,7 @@ function QuestColumn({ label, quests, onClaim }: { label: string; quests: QuestW
       {quests.map((q) => {
         const pct = Math.min(100, (q.progress / q.target) * 100);
         return (
-          <div key={q.id} className={`quest-card ${q.claimed ? 'claimed' : q.complete ? 'complete' : ''}`} data-testid={`quest-card-${q.id}`}>
+          <div key={q.id} className={`quest-card ${q.claimed ? 'claimed' : q.complete ? 'complete' : ''}`} data-testid={`menu.ops.quest-${q.id.toLowerCase()}`}>
             <div className="quest-top">
               <span className="quest-title">
                 {q.title}
@@ -192,7 +193,7 @@ function QuestColumn({ label, quests, onClaim }: { label: string; quests: QuestW
               {q.claimed
                 ? <span className="quest-done no-shift-action">✓ CLAIMED</span>
                 : q.complete
-                  ? <button className="quest-claim no-shift-action" onClick={() => onClaim(q.id)}>CLAIM</button>
+                  ? <button className="quest-claim no-shift-action" data-testid={`menu.ops.claim-${q.id.toLowerCase()}`} onClick={() => onClaim(q.id)}>CLAIM</button>
                   : <span className="quest-prog dim">in progress</span>}
             </div>
           </div>

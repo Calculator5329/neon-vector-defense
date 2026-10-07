@@ -1235,8 +1235,8 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
   const adaptationType = game.adaptation.type;
   const adaptationResist = Math.round(game.adaptation.resist * 100);
   return (
-    <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} data-testid="game-root">
-      <div className="rotate-device" data-testid="rotate-device">
+    <div className={`game-root ${sideOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} data-testid="game.screen.root">
+      <div className="rotate-device" data-testid="game.screen.rotate-notice">
         <div className="rotate-device-icon" aria-hidden="true">&#8635;</div>
         <b>Rotate for command view</b>
         <span>Landscape gives the lane, arsenal, and wave controls room to breathe.</span>
@@ -1253,6 +1253,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
       <div className="topbar" aria-label="Run status and controls">
         <button
           className={`tb-btn exit ${abortConfirm ? 'confirm' : ''}`}
+          data-testid="game.hud.abort"
           aria-label={abortConfirm ? 'Confirm abort run' : 'Abort run'}
           title={abortRisk ? 'Press once to arm abort, then confirm.' : 'Return to main menu'}
           onClick={() => requestAbort()}
@@ -1297,24 +1298,25 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
         </div>
         <button
           className={`tb-btn ${game.autoNext ? 'on' : ''}`}
+          data-testid="game.hud.auto-next"
           title="Auto-start next wave"
           aria-label="Toggle auto-start next wave"
           onClick={() => { game.autoNext = !game.autoNext; game.recorder.recordControl(METRIC_EVENTS.AUTO_TOGGLE, game.autoNext); sfx.click(); }}
         >AUTO</button>
         {[1, 2, 4].map((s) => (
-          <button key={s} className={`tb-btn ${game.speed === s ? 'on' : ''}`}
+          <button key={s} className={`tb-btn ${game.speed === s ? 'on' : ''}`} data-testid={`game.hud.speed-${s}`}
             title={`Set game speed to ${s}x`}
             aria-label={`Set game speed to ${s}x`}
           onClick={() => { game.setSpeed(s); progress.preferredSpeed = s; game.recorder.recordControl(METRIC_EVENTS.SPEED_CHANGE, s); sfx.click(); }}>{s}×</button>
         ))}
-        <button className={`tb-btn ${game.paused ? 'on' : ''}`}
+        <button className={`tb-btn ${game.paused ? 'on' : ''}`} data-testid="game.hud.pause"
           title={game.paused ? 'Resume game' : 'Pause game'}
           aria-label={game.paused ? 'Resume game' : 'Pause game'}
           onClick={() => { game.paused = !game.paused; game.recorder.recordControl(METRIC_EVENTS.FIRST_PAUSE, game.time); sfx.click(); }}>
           {game.paused ? '▶' : '⏸'}
         </button>
         <MusicButton />
-        <button className={`tb-btn ${muted ? '' : 'on'}`} title="Sound effects & voice on/off" aria-label="Toggle sound effects and voice"
+        <button className={`tb-btn ${muted ? '' : 'on'}`} data-testid="game.hud.sound" title="Sound effects & voice on/off" aria-label="Toggle sound effects and voice"
           onClick={() => { const m = !muted; setMuted(m); setMutedState(m); appMetrics.recordSoundToggle('sound'); sfx.click(); }}>
           {muted ? '🔇' : '🔊'}
         </button>
@@ -1323,7 +1325,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
       <div className={`game-body ${terminalPhase ? 'terminal' : ''}`}>
         <div className="canvas-wrap">
           <canvas
-            data-testid="game-canvas"
+            data-testid="game.board.canvas"
             ref={canvasRef} width={W} height={H}
             onMouseMove={onCanvasMove} onMouseLeave={onCanvasLeave}
             onClick={onCanvasClick} onContextMenu={onContext}
@@ -1342,6 +1344,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
               return (
                 <button
                   key={a.def.id}
+                  data-testid={`game.abilities.cast-${a.def.id}`}
                   className={`ability-btn ${ready ? 'ready' : ''} ${!locked && !ready ? 'cooling' : ''} ${aiming && a.def.id === 'strike' ? 'aiming' : ''} ${shakeAbility === a.def.id ? 'shake' : ''}`}
                   onAnimationEnd={(e) => { if (e.animationName === 'ability-shake') setShakeAbility((s) => (s === a.def.id ? null : s)); }}
                   disabled={locked}
@@ -1381,20 +1384,20 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           )}
 
           {game.phase === 'build' && (
-            <button className="wave-btn" data-testid="launch-wave" disabled={relicOfferOpen} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
+            <button className="wave-btn" data-testid="game.hud.launch-wave" disabled={relicOfferOpen} onClick={() => { game.recorder.recordControl(METRIC_EVENTS.WAVE_LAUNCH_CLICK); game.startWave(); setTick((t) => t + 1); }}>
               ▶ LAUNCH WAVE {game.wave + 1}
             </button>
           )}
           {game.paused && <div className="overlay-label">PAUSED</div>}
           {coachStage && briefed && (
-            <div className="coach-chip" role="status" aria-live="polite" data-testid="coach-chip">
+            <div className="coach-chip" role="status" aria-live="polite" data-testid="game.coach.chip">
               <span className="coach-step" aria-hidden="true">{coachStage === 'place' ? '1/3' : coachStage === 'launch' ? '2/3' : '3/3'}</span>
               <span className="coach-text">
                 {coachStage === 'place' && <>Pick a turret from the <b>ARSENAL</b>, then tap open ground beside the lane.</>}
                 {coachStage === 'launch' && <>Defenses online — hit <b>▶ LAUNCH WAVE</b> (or SPACE) when ready.</>}
                 {coachStage === 'upgrade' && <>Tap your turret and buy an <b>UPGRADE</b> — two tracks, pick a doctrine.</>}
               </span>
-              <button className="coach-skip" onClick={dismissCoach}>SKIP GUIDE</button>
+              <button className="coach-skip" data-testid="game.coach.skip" onClick={dismissCoach}>SKIP GUIDE</button>
             </div>
           )}
           {!veteranIntroDone && (
@@ -1421,7 +1424,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           )}
           {cloakTip && (
             <div className="cloak-toast" role="status" aria-live="polite">
-              <button className="cloak-toast-x" aria-label="Dismiss" onClick={() => { setCloakTip(false); sfx.click(); }}>✕</button>
+              <button className="cloak-toast-x" data-testid="game.cloak-tip.dismiss" aria-label="Dismiss" onClick={() => { setCloakTip(false); sfx.click(); }}>✕</button>
               <div className="cloak-toast-title" style={{ color: '#ff6ec7' }}>⚠ PHASE-CLOAKED HOSTILES</div>
               <p>
                 The shimmering, translucent hulls are <b>phase-cloaked</b> — towers can't target them without
@@ -1438,6 +1441,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
             <Modal
               onClose={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}
               overlayClass="cutscene-overlay" boxClass="cutscene-box unlock-modal" labelledBy="unlock-name-title"
+              testId="game.unlock.dialog"
               style={{ borderColor: unlockModal.color, ['--bc' as string]: unlockModal.glow }}
             >
               <div className="unlock-eyebrow">◆ NEW INSTRUMENT UNLOCKED ◆</div>
@@ -1453,7 +1457,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
               <p className="tip-text">{unlockModal.desc}</p>
               <p className="unlock-lore">“{unlockModal.lore}”</p>
               <p className="hint-dim">Find it in your ARSENAL — two upgrade paths, commit to one for its devastating final tiers.</p>
-              <button className="start-btn small" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>DEPLOY IT ▸</button>
+              <button className="start-btn small" data-testid="game.unlock.deploy" onClick={() => { setUnlockModal(null); game.paused = false; sfx.click(); }}>DEPLOY IT ▸</button>
             </Modal>
           )}
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
@@ -1477,7 +1481,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           {gauntletDraft && <GauntletRelicModal offer={gauntletDraft} onSelect={chooseGauntletDraft} leg={gauntletLeg + 1} />}
         </div>
 
-        <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game-sidebar">
+        <div className={`sidebar ${sideOpen ? '' : 'collapsed'}`} data-testid="game.sidebar.root">
           {sideOpen ? (
             <div className="side-body">
               {selected ? (
@@ -1494,7 +1498,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
               )}
             </div>
           ) : (
-            <button className="side-rail" title="Expand panel" aria-label="Expand arsenal panel" onClick={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_EXPAND); setSideOpen(true); sfx.click(); }}>
+            <button className="side-rail" data-testid="game.sidebar.expand" title="Expand panel" aria-label="Expand arsenal panel" onClick={() => { game.recorder.recordControl(METRIC_EVENTS.SIDE_PANEL_EXPAND); setSideOpen(true); sfx.click(); }}>
               <span className="side-rail-arrow">⟨</span>
               <span className="side-rail-label">ARSENAL</span>
             </button>
@@ -1528,7 +1532,7 @@ function FreeplayBuildPanel({
   const bankLabel = checkpointState === 'busy' ? 'BANKING...' : checkpointState === 'done' ? 'BANKED' : checkpointState === 'err' ? 'RETRY BANK' : `BANK ${bankTarget} RECORD`;
   if (collapsed) {
     return (
-      <button className="freeplay-reopen" onClick={() => setCollapsed(false)} title="Show Freeplay Command">
+      <button className="freeplay-reopen" data-testid="game.freeplay.reopen" onClick={() => setCollapsed(false)} title="Show Freeplay Command">
         ◂ FREEPLAY {risk ? '⚠' : `${meta.scoreMult.toFixed(2)}x`}
       </button>
     );
@@ -1538,7 +1542,7 @@ function FreeplayBuildPanel({
       <div className="freeplay-panel-head">
         <span>FREEPLAY COMMAND</span>
         <b>{meta.scoreMult.toFixed(2)}x</b>
-        <button className="freeplay-close" aria-label="Hide Freeplay Command" title="Hide" onClick={() => setCollapsed(true)}>✕</button>
+        <button className="freeplay-close" data-testid="game.freeplay.hide" aria-label="Hide Freeplay Command" title="Hide" onClick={() => setCollapsed(true)}>✕</button>
       </div>
       <div className="freeplay-chip-row">
         <span className="freeplay-chip contract">{fp.contract?.short ?? 'OPEN'}</span>
@@ -1566,12 +1570,12 @@ function FreeplayBuildPanel({
             <p>{risk.desc} {risk.reward}</p>
           </div>
           <div className="risk-actions">
-            <button className="tb-btn on" onClick={() => onAcceptRisk(risk.id)}>ACCEPT</button>
-            <button className="tb-btn" onClick={onDeclineRisk}>SKIP</button>
+            <button className="tb-btn on" data-testid="game.freeplay.risk-accept" onClick={() => onAcceptRisk(risk.id)}>ACCEPT</button>
+            <button className="tb-btn" data-testid="game.freeplay.risk-skip" onClick={onDeclineRisk}>SKIP</button>
           </div>
         </div>
       )}
-      <button className="freeplay-bank-btn" disabled={!game.canBankFreeplay() || checkpointState === 'busy' || DEMO_MODE} onClick={onBank}>
+      <button className="freeplay-bank-btn" data-testid="game.freeplay.bank" disabled={!game.canBankFreeplay() || checkpointState === 'busy' || DEMO_MODE} onClick={onBank}>
         {bankLabel}
       </button>
       <div className="freeplay-bank-note">
@@ -1585,19 +1589,19 @@ function FreeplayBuildPanel({
 
 function FreeplayContractModal({ onSelect, onCancel }: { onSelect: (id: FreeplayContractId) => void; onCancel: () => void }) {
   return (
-    <Modal onClose={onCancel} overlayClass="cutscene-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="freeplay-contract-title">
+    <Modal onClose={onCancel} overlayClass="cutscene-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="freeplay-contract-title" testId="game.freeplay-contract.dialog">
       <div className="cutscene-title" id="freeplay-contract-title">PRESTIGE CONTRACT</div>
       <p className="tip-text">Choose how the endless siege scores you. Higher multipliers add real constraints for the whole freeplay run.</p>
       <div className="contract-grid">
         {FREEPLAY_CONTRACTS.map((c) => (
-          <button key={c.id} className="contract-card" onClick={() => onSelect(c.id)}>
+          <button key={c.id} className="contract-card" data-testid={`game.freeplay-contract.select-${c.id.toLowerCase()}`} onClick={() => onSelect(c.id)}>
             <span className="contract-mult">{c.multiplier.toFixed(2)}x</span>
             <b>{c.name}</b>
             <p>{c.desc}</p>
           </button>
         ))}
       </div>
-      <button className="tb-btn" onClick={onCancel}>BACK</button>
+      <button className="tb-btn" data-testid="game.freeplay-contract.back" onClick={onCancel}>BACK</button>
     </Modal>
   );
 }
@@ -1606,12 +1610,12 @@ function FreeplayRelicModal({ game, onSelect }: { game: Game; onSelect: (id: Fre
   const offer = game.freeplayState.nextRelicOffer;
   // a forced draft — no backdrop/Esc dismiss; you must pick one
   return (
-    <Modal onClose={() => {}} overlayClass="cutscene-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="freeplay-relic-title" closeOnBackdrop={false} closeOnEsc={false}>
+    <Modal onClose={() => {}} overlayClass="cutscene-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="freeplay-relic-title" closeOnBackdrop={false} closeOnEsc={false} testId="game.freeplay-relic.dialog">
       <div className="cutscene-title" id="freeplay-relic-title">RELIC DRAFT</div>
       <p className="tip-text">Pick one run modifier. Relics are permanent, powerful, and a little dangerous.</p>
       <div className="relic-grid">
         {offer.map((r) => (
-          <button key={r.id} className="relic-card" onClick={() => onSelect(r.id)}>
+          <button key={r.id} className="relic-card" data-testid={`game.freeplay-relic.select-${r.id.toLowerCase()}`} onClick={() => onSelect(r.id)}>
             <span className="contract-mult">{r.scoreMult.toFixed(2)}x</span>
             <b>{r.name}</b>
             <p>{r.desc}</p>
@@ -1625,12 +1629,12 @@ function FreeplayRelicModal({ game, onSelect }: { game: Game; onSelect: (id: Fre
 
 function GauntletRelicModal({ offer, onSelect, leg }: { offer: ReturnType<typeof gauntletProtocolDraftOffer>; onSelect: (id: FreeplayRelicId) => void; leg: number }) {
   return (
-    <Modal onClose={() => {}} overlayClass="cutscene-overlay gauntlet-draft-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="gauntlet-relic-title" closeOnBackdrop={false} closeOnEsc={false}>
+    <Modal onClose={() => {}} overlayClass="cutscene-overlay gauntlet-draft-overlay" boxClass="cutscene-box freeplay-modal" labelledBy="gauntlet-relic-title" closeOnBackdrop={false} closeOnEsc={false} testId="game.gauntlet-relic.dialog">
       <div className="cutscene-title" id="gauntlet-relic-title">GAUNTLET RELIC DRAFT</div>
       <p className="tip-text">Pick one modifier for leg {leg}. Cores carry, credits carry at 60%, towers reset.</p>
       <div className="relic-grid">
         {offer.map((r) => (
-          <button key={r.id} className="relic-card" onClick={() => onSelect(r.id)}>
+          <button key={r.id} className="relic-card" data-testid={`game.gauntlet-relic.select-${r.id.toLowerCase()}`} onClick={() => onSelect(r.id)}>
             <span className="contract-mult">{r.scoreMult.toFixed(2)}x</span>
             <b>{r.name}</b>
             <p>{r.desc}</p>
@@ -1650,12 +1654,12 @@ function BriefingOverlay({ onDone, lines, portrait, audio }: { onDone: () => voi
   }, [audio]);
   const finish = () => { stopRef.current(); onDone(); };
   return (
-    <Modal onClose={finish} boxClass="overlay-box briefing" labelledBy="briefing-title" style={{ borderColor: 'var(--accent)' }} testId="briefing-overlay">
+    <Modal onClose={finish} boxClass="overlay-box briefing" labelledBy="briefing-title" style={{ borderColor: 'var(--accent)' }} testId="game.briefing.dialog">
       <img className="brief-portrait" src={portrait} alt="Transmission" decoding="async" />
       <h2 id="briefing-title" style={{ color: 'var(--accent)' }}>INCOMING TRANSMISSION</h2>
       {lines.map((l, i) => <p key={i} className="brief-line">{l}</p>)}
       <div className="overlay-btns">
-        <button className="start-btn small" onClick={finish}>ACKNOWLEDGE ▸</button>
+        <button className="start-btn small" data-testid="game.briefing.acknowledge" onClick={finish}>ACKNOWLEDGE ▸</button>
       </div>
     </Modal>
   );
@@ -1671,7 +1675,7 @@ function VeteranIntro({ onDone }: { onDone: () => void }) {
     { icon: '⌬', title: 'Leaner economy', body: <>Fewer cores, tighter credits, pricier towers. Every build has to earn its slot — spend deliberately, sell what stops paying.</> },
   ];
   return (
-    <Modal onClose={onDone} overlayClass="cutscene-overlay" boxClass="cutscene-box veteran-intro" labelledBy="veteran-intro-title" testId="veteran-intro">
+    <Modal onClose={onDone} overlayClass="cutscene-overlay" boxClass="cutscene-box veteran-intro" labelledBy="veteran-intro-title" testId="game.veteran-intro.dialog">
       <div className="unlock-eyebrow" style={{ color: 'var(--gold)' }}>◆ VETERAN PROTOCOL ◆</div>
       <h2 id="veteran-intro-title" className="cutscene-title" style={{ color: 'var(--gold)' }}>THE ARMADA ADAPTS</h2>
       <p className="tip-text">You cleared a campaign — command trusts you with the real siege. Three things change:</p>
@@ -1684,7 +1688,7 @@ function VeteranIntro({ onDone }: { onDone: () => void }) {
         ))}
       </ul>
       <div className="overlay-btns">
-        <button className="start-btn small" onClick={onDone} data-testid="veteran-intro-ack">UNDERSTOOD ▸</button>
+        <button className="start-btn small" onClick={onDone} data-testid="game.veteran-intro.acknowledge">UNDERSTOOD ▸</button>
       </div>
     </Modal>
   );
@@ -1693,7 +1697,7 @@ function VeteranIntro({ onDone }: { onDone: () => void }) {
 function MusicButton() {
   const [on, setOn] = useState(isMusicOn());
   return (
-    <button className={`tb-btn ${on ? 'on' : ''}`} title="Music on/off" aria-label="Toggle music"
+    <button className={`tb-btn ${on ? 'on' : ''}`} data-testid="game.hud.music" title="Music on/off" aria-label="Toggle music"
       onClick={() => { const v = !on; setMusic(v); setOn(v); appMetrics.recordSoundToggle('music'); }}>♪</button>
   );
 }
@@ -1739,7 +1743,7 @@ function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: 
           ))}
         </div>
         {masteredRecruit && (
-          <div className="debrief-nudge" data-testid="debrief-veteran-nudge">
+          <div className="debrief-nudge" data-testid="game.debrief.veteran-nudge">
             <span className="debrief-nudge-icon" aria-hidden="true">▲</span>
             <span>
               <b>Sector held with cores to spare.</b> You've outgrown Recruit — <b>Veteran</b> awaits:
@@ -1748,7 +1752,7 @@ function EndReport({ game, map, diff, reward, gauntletProtocolRunIds }: { game: 
           </div>
         )}
         {freshUnlocks.length > 0 && (
-          <div className="debrief-unlocks" data-testid="debrief-unlocks">
+          <div className="debrief-unlocks" data-testid="game.debrief.unlocks">
             <div className="debrief-section-title">
               ◆ {freshUnlocks.length} NEW INSTRUMENT{freshUnlocks.length > 1 ? 'S' : ''} UNLOCKED ◆
             </div>
@@ -1796,7 +1800,7 @@ function MetaReward({ reward }: { reward: RunMetaReward | null }) {
   if (!reward || (!reward.xp && !reward.salvage)) return null;
   const rank = meta.rank;
   return (
-    <div className="meta-reward" data-testid="meta-reward">
+    <div className="meta-reward" data-testid="game.debrief.meta-reward">
       <div className="debrief-section-title">OPERATIONS REWARD</div>
       <div className="meta-reward-head">
         <span className="meta-reward-xp">+{reward.xp.toLocaleString()} XP</span>
@@ -1866,7 +1870,7 @@ function SubmitScore({ game, map, diff, gauntletProtocolRunIds }: { game: Game; 
   if (isYakkob(game.dailyChallenge)) {
     const bestWave = Math.max(meta.bestYakkobWave, game.wave);
     return (
-      <div className="submit-score demo-score-disabled" data-testid="yakkob-local-rank">
+      <div className="submit-score demo-score-disabled" data-testid="game.debrief.yakkob-local-rank">
         <div className="debrief-section-title">THE YAKKOB · LOCAL RANKING</div>
         <div className="submit-score-preview" aria-label={`Best yakkob wave ${bestWave}, this run reached wave ${game.wave}, ${game.totalKills} kills`}>
           <span><b>Best wave</b> W{bestWave}</span>
@@ -1981,9 +1985,9 @@ function SubmitScore({ game, map, diff, gauntletProtocolRunIds }: { game: Game; 
             {(game.freeplay || game.isDailyChallenge) && <span><b>Wave</b> {game.wave}</span>}
           </div>
           <div className="submit-row">
-            <input className="name-input" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
+            <input className="name-input" data-testid="game.debrief.callsign" maxLength={20} placeholder="CALLSIGN" aria-label="Leaderboard callsign"
               value={name} onChange={(e) => setName(e.target.value)} />
-            <button className="start-btn small" disabled={state === 'busy'} onClick={submit}>
+            <button className="start-btn small" data-testid="game.debrief.submit-score" disabled={state === 'busy'} onClick={submit}>
               {state === 'busy' ? '…' : state === 'err' ? 'RETRY' : 'SUBMIT'}
             </button>
           </div>
@@ -2017,7 +2021,7 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
   // autofocuses here, so Esc-to-exit would kick a player typing their name back to the menu and
   // lose the unsubmitted score. Players leave via the explicit buttons (onClose is unreachable).
   return (
-    <Modal onClose={() => {}} closeOnBackdrop={false} closeOnEsc={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style}>
+    <Modal onClose={() => {}} closeOnBackdrop={false} closeOnEsc={false} boxClass={`overlay-box ${props.report ? 'result' : ''}`} labelledBy="result-overlay-title" style={style} testId="game.result.dialog">
       <div className="result-hero">
         {props.art && <img className="overlay-art" src={props.art} alt="" />}
         <h2 id="result-overlay-title">{props.title}</h2>
@@ -2028,7 +2032,7 @@ function Overlay(props: { title: string; color: string; lines: string[]; buttons
       {props.report}
       <div className="overlay-btns">
         {props.buttons.map((b) => (
-          <button key={b.label} className="start-btn small" onClick={b.fn}>{b.label}</button>
+          <button key={b.label} className="start-btn small" data-testid={`game.result.action-${b.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} onClick={b.fn}>{b.label}</button>
         ))}
       </div>
     </Modal>
@@ -2065,24 +2069,24 @@ const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, vete
     <div className="panel panel-grow">
       <div className="panel-head">
         <div className="panel-title">ARSENAL</div>
-        {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse arsenal panel" onClick={onCollapse}>⟩</button>}
+        {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse arsenal panel" data-testid="game.shop.collapse" onClick={onCollapse}>⟩</button>}
       </div>
       {veteranDeployUnlocked && (
         <div className="shop-mode-tabs" role="tablist" aria-label="Deploy mode">
-          <button type="button" role="tab" className={veteranDeploy ? '' : 'on'} aria-selected={!veteranDeploy}
+          <button type="button" role="tab" className={veteranDeploy ? '' : 'on'} data-testid="game.shop.mode-standard" aria-selected={!veteranDeploy}
             onClick={() => onVeteranDeployChange(false)}>STANDARD</button>
-          <button type="button" role="tab" className={veteranDeploy ? 'on' : ''} aria-selected={veteranDeploy}
+          <button type="button" role="tab" className={veteranDeploy ? 'on' : ''} data-testid="game.shop.mode-veteran" aria-selected={veteranDeploy}
             onClick={() => onVeteranDeployChange(true)}>VETERAN</button>
         </div>
       )}
-      <div className="shop-grid" data-testid="shop-grid">
+      <div className="shop-grid" data-testid="game.shop.grid">
         {TOWERS_BY_UNLOCK.map((def, i) => {
           const lockedBy = def.unlockAt - kills;
           const available = towerAvailable(game, def);
           if (!available) {
             const lockText = towerLockText(game, def);
             return (
-              <button key={def.id} type="button" className="shop-item shop-locked" data-testid={`tower-${def.id}`} title={lockText} aria-disabled="true" aria-label={lockText}
+              <button key={def.id} type="button" className="shop-item shop-locked" data-testid={`game.shop.tower-${def.id}`} title={lockText} aria-disabled="true" aria-label={lockText}
                 onClick={() => { game.recorder.recordTowerShopSelect(def, 'locked'); sfx.error(); }}>
                 <div className="shop-lock-icon">🔒</div>
                 <div className="shop-name">{def.name}</div>
@@ -2098,7 +2102,7 @@ const Shop = memo(function Shop({ game, placing, setPlacing, veteranDeploy, vete
             <button
               key={def.id}
               className={`shop-item ${placing?.id === def.id ? 'active' : ''} ${afford ? '' : 'poor'}`}
-              data-testid={`tower-${def.id}`}
+              data-testid={`game.shop.tower-${def.id}`}
               style={{ ['--tc' as string]: def.color, ['--tg' as string]: def.glow }}
               onClick={() => { sfx.click(); game.recorder.recordTowerShopSelect(def, afford ? 'selected' : 'unaffordable'); setPlacing(placing?.id === def.id ? null : def); }}
               title={def.desc}
@@ -2196,7 +2200,7 @@ function TrackColumn({ game, tower, track }: { game: Game; tower: Tower; track: 
       {state === 'ok' && next && (
         <button
           className={`upgrade-btn track-btn ${game.credits >= cost ? '' : 'poor'} ${isBonusNext ? 'bonus-up' : ''} ${armed ? 'armed' : ''}`}
-          data-testid={`upgrade-${tower.def.id}-${track === 0 ? 'a' : 'b'}`}
+          data-testid={`game.upgrade.buy-${tower.def.id}-${track === 0 ? 'a' : 'b'}`}
           title={willCommit ? 'BONUS TIER — buying this commits the tower to this track!' : next.desc}
           onClick={buy}
         >
@@ -2222,8 +2226,8 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
   return (
     <div className="panel tower-detail panel-grow" style={{ borderColor: def.color }}>
       <div className="panel-head">
-        <button className="back-btn" onClick={() => { onSold(); sfx.click(); }}>← ALL TOWERS</button>
-        {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse upgrade panel" onClick={onCollapse}>⟩</button>}
+        <button className="back-btn" data-testid="game.upgrade.back" onClick={() => { onSold(); sfx.click(); }}>← ALL TOWERS</button>
+        {onCollapse && <button className="panel-collapse" title="Collapse panel" aria-label="Collapse upgrade panel" data-testid="game.upgrade.collapse" onClick={onCollapse}>⟩</button>}
       </div>
       <div className="panel-title" style={{ color: def.glow }}>
         {def.name}
@@ -2258,7 +2262,7 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
       <div className="panel-title small">TARGETING</div>
       <div className="target-row">
         {TARGET_MODES.map((m) => (
-          <button key={m} className={`tb-btn ${tower.target === m ? 'on' : ''}`}
+          <button key={m} className={`tb-btn ${tower.target === m ? 'on' : ''}`} data-testid={`game.upgrade.target-${m}`}
             onClick={() => { game.setTargetMode(tower, m); sfx.click(); }}>
             {m.toUpperCase()}
           </button>
@@ -2274,7 +2278,7 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
               className={`filter-chip ${on ? 'on' : ''}`}
               aria-pressed={on}
               title={`Prefer ${label.toLowerCase()} targets`}
-              data-testid={`target-filter-${filter}`}
+              data-testid={`game.upgrade.target-filter-${filter}`}
               onClick={() => { game.setTargetFilter(tower, filter, !on); sfx.click(); }}
             >
               {label}
@@ -2283,7 +2287,7 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
         })}
       </div>
 
-      <button className="sell-btn" onClick={() => { game.sellTower(tower); onSold(); }}>
+      <button className="sell-btn" data-testid="game.upgrade.sell" onClick={() => { game.sellTower(tower); onSold(); }}>
         SELL FOR ⌬{sellValue(tower.invested)}
       </button>
       <p className="hint-dim pad">Esc or right-click to deselect.</p>

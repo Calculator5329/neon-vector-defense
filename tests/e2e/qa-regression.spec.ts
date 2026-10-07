@@ -265,7 +265,7 @@ async function assertNoOverflow(page: Page) {
 
 async function validCanvasPoint(page: Page) {
   return page.evaluate(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game.board.canvas"]')!;
     const rect = canvas.getBoundingClientRect();
     const game = (window as unknown as { game: { canPlace: (pos: { x: number; y: number }) => boolean } }).game;
     const W = 1280;
@@ -288,15 +288,15 @@ async function finishAsVictory(page: Page) {
     game.paused = false;
     game.credits = Math.max(game.credits, 10_000);
   });
-  await page.getByTestId('tower-pulse').click();
+  await page.getByTestId('game.shop.tower-pulse').click();
   const point = await validCanvasPoint(page);
   await page.mouse.click(point.x, point.y);
   await expect.poll(() => page.evaluate(() => (window as unknown as { game: any }).game.towers.length)).toBe(1);
   await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('target-filter-armored')).toBeVisible();
-  await page.getByTestId('target-filter-armored').click();
-  await expect(page.getByTestId('target-filter-armored')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('launch-wave').click();
+  await expect(page.getByTestId('game.upgrade.target-filter-armored')).toBeVisible();
+  await page.getByTestId('game.upgrade.target-filter-armored').click();
+  await expect(page.getByTestId('game.upgrade.target-filter-armored')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('game.hud.launch-wave').click();
   await page.evaluate(() => {
     const game = (window as unknown as { game: any }).game;
     for (let i = 0; i < 90; i++) game.update(0.05);
@@ -361,12 +361,12 @@ test.describe('QA regression real-flow audit', () => {
     await page.goto('/');
     await page.waitForTimeout(500);
     expect(pageErrors).toEqual([]);
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await assertNoOverflow(page);
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('briefing-overlay')).toBeVisible();
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.briefing.dialog')).toBeVisible();
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
     await finishAsVictory(page);
 
     const preview = page.locator('.submit-score-preview');
@@ -400,15 +400,15 @@ test.describe('QA regression real-flow audit', () => {
 
     const runId = payload.run.runId as string;
     await page.goto(`/?run=${runId}`);
-    await expect(page.getByTestId('replay-root')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('replay.viewer.root')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Frame-accurate replay of the recorded run.')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByLabel('1x speed')).toBeVisible();
     await page.getByLabel('2x speed').click();
     await expect(page.getByLabel('2x speed')).toHaveAttribute('aria-pressed', 'true');
     await page.getByLabel('4x speed').click();
     await expect(page.getByLabel('4x speed')).toHaveAttribute('aria-pressed', 'true');
-    await page.getByTestId('replay-play').click();
-    await expect(page.getByTestId('replay-play')).toContainText('PLAY');
+    await page.getByTestId('replay.controls.play').click();
+    await expect(page.getByTestId('replay.controls.play')).toContainText('PLAY');
 
     const slider = page.getByRole('slider', { name: /Replay timeline/ });
     // Regression: the scrub domain must span the WHOLE run. v3 docs carry no
@@ -451,16 +451,16 @@ test.describe('QA regression real-flow audit', () => {
     page.on('pageerror', (error) => pageErrors.push(error.message));
 
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('briefing-overlay')).toBeVisible();
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.briefing.dialog')).toBeVisible();
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
     await finishAsDefeat(page);
     await assertNoOverflow(page);
 
     await page.getByRole('button', { name: /RETRY SECTOR/ }).click();
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeHidden();
     await expect.poll(() => page.evaluate(() => {
       const game = (window as unknown as { game: any }).game;
@@ -469,7 +469,7 @@ test.describe('QA regression real-flow audit', () => {
 
     await finishAsDefeat(page);
     await page.getByRole('button', { name: 'MAIN MENU' }).click();
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await assertNoOverflow(page);
 
     expect(pageErrors).toEqual([]);
@@ -494,25 +494,25 @@ test.describe('QA regression real-flow audit', () => {
     await page.reload();
     await page.waitForTimeout(500);
     expect(pageErrors).toEqual([]);
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('.replay-of-day-card')).toBeVisible();
     await expect(page.locator('.replay-of-day-card')).toContainText('LEGACY');
     await page.locator('.replay-of-day-watch').click();
-    await expect(page.getByTestId('replay-root')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('replay.viewer.unavailable')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('REPLAY UNAVAILABLE')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'RETURN TO THE GRID' }).click();
-    await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
     await assertNoOverflow(page);
   });
 
   test('submits a weekly mutation run through mocked callables', async ({ page }) => {
     test.setTimeout(45_000);
     await page.goto('/');
-    await page.getByTestId('dock-tab-challenges').click();
-    await expect(page.getByTestId('weekly-mutation-card')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('weekly-mutation-card').click();
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await page.getByTestId('menu.dock.tab-challenges').click();
+    await expect(page.getByTestId('menu.weekly-ops.weekly-mutation')).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('menu.weekly-ops.weekly-mutation').click();
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
     await finishAsDefeat(page);
     await page.getByLabel('Leaderboard callsign').fill('QA WEEKLY');
     await page.getByRole('button', { name: 'SUBMIT' }).click();

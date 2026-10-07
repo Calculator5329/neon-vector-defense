@@ -29,7 +29,7 @@ function BoardName({ r, mine, fp }: { r: ScoreEntry; mine: boolean; fp: boolean 
 function WatchCell({ runId }: { runId?: string }) {
   return (
     <span className="board-watch">
-      {isRunId(runId) ? <a className="watch-btn" href={`/?run=${runId}`} title="Watch this battle plan">▶ WATCH</a> : null}
+      {isRunId(runId) ? <a className="watch-btn" data-testid={`menu.leaderboard.watch-${runId.toLowerCase()}`} href={`/?run=${runId}`} title="Watch this battle plan">▶ WATCH</a> : null}
     </span>
   );
 }
@@ -105,15 +105,15 @@ export function LeaderboardTab({
       <div className="board-head">
         <div className="board-title">GLOBAL LEADERBOARD <span>{ritualTitle || (fp ? 'FREEPLAY' : 'CAMPAIGN')}</span></div>
         <div className="board-modes">
-          <button className={mode === 'campaign' ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(false); setMode('campaign'); sfx.click(); }}>CAMPAIGN</button>
-          <button className={mode === 'freeplay' ? 'on' : ''} onClick={() => { appMetrics.recordLeaderboardMode(true); setMode('freeplay'); sfx.click(); }}>FREEPLAY</button>
-          <button className={mode === 'daily' ? 'on' : ''} onClick={() => { setMode('daily'); sfx.click(); }}>DAILY</button>
-          <button className={mode === 'weekly' ? 'on' : ''} onClick={() => { setMode('weekly'); sfx.click(); }}>WEEKLY</button>
-          <button className={mode === 'gauntlet' ? 'on' : ''} onClick={() => { setMode('gauntlet'); sfx.click(); }}>GAUNTLET</button>
+          <button className={mode === 'campaign' ? 'on' : ''} data-testid="menu.leaderboard.mode-campaign" onClick={() => { appMetrics.recordLeaderboardMode(false); setMode('campaign'); sfx.click(); }}>CAMPAIGN</button>
+          <button className={mode === 'freeplay' ? 'on' : ''} data-testid="menu.leaderboard.mode-freeplay" onClick={() => { appMetrics.recordLeaderboardMode(true); setMode('freeplay'); sfx.click(); }}>FREEPLAY</button>
+          <button className={mode === 'daily' ? 'on' : ''} data-testid="menu.leaderboard.mode-daily" onClick={() => { setMode('daily'); sfx.click(); }}>DAILY</button>
+          <button className={mode === 'weekly' ? 'on' : ''} data-testid="menu.leaderboard.mode-weekly" onClick={() => { setMode('weekly'); sfx.click(); }}>WEEKLY</button>
+          <button className={mode === 'gauntlet' ? 'on' : ''} data-testid="menu.leaderboard.mode-gauntlet" onClick={() => { setMode('gauntlet'); sfx.click(); }}>GAUNTLET</button>
         </div>
       </div>
       {(mode === 'daily' || mode === 'weekly' || mode === 'gauntlet') ? (
-        <div className="board-list board-global fp daily-board-mode" data-testid="daily-leaderboard-mode">
+        <div className="board-list board-global fp daily-board-mode" data-testid="menu.leaderboard.ritual-board">
           <div className="board-row board-row-head">
             <span className="board-rank">#</span>
             <span className="board-name">CALLSIGN</span>

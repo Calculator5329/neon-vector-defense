@@ -36,7 +36,7 @@ export function MapThemePicker({ onChange }: MapThemePickerProps) {
   };
 
   return (
-    <div aria-label="Map theme" role="group" data-testid="map-theme-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div aria-label="Map theme" role="group" data-testid="ui.map-theme-picker.root" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       {MAP_THEME_PACKS.map((pack) => {
         const owned = ownsMapThemePack(pack);
         const afford = meta.salvage >= pack.cost;
@@ -44,7 +44,7 @@ export function MapThemePicker({ onChange }: MapThemePickerProps) {
         const label = owned ? `Equip ${pack.name} map theme` : afford ? `Buy ${pack.name} map theme for ${pack.cost} Salvage` : `${pack.name} needs ${pack.cost - meta.salvage} more Salvage`;
         return (
           <button key={pack.id} type="button" aria-label={label} aria-pressed={active} disabled={purchasing !== null || (!owned && !afford)}
-            onClick={() => void choose(pack)} data-testid={`map-theme-${pack.id}`}
+            onClick={() => void choose(pack)} data-testid={`ui.map-theme-picker.theme-${pack.id}`}
             style={{ borderColor: active ? 'var(--accent)' : pack.palette?.pathEdge, opacity: !owned && !afford ? 0.45 : 1 }}>
             <span aria-hidden="true" style={{ display: 'inline-block', width: 12, height: 12, marginRight: 6, borderRadius: 2, background: pack.palette?.pathEdge ?? 'var(--accent)' }} />
             {pack.name}{!owned && ` · ${pack.cost}`}

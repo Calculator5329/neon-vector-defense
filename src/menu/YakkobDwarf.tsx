@@ -181,7 +181,7 @@ export function YakkobDwarf({ onUnlock }: { onUnlock: () => void }) {
     <button
       type="button"
       className={`yakkob-dwarf${unlocking ? ' unlocking' : ''}`}
-      data-testid="yakkob-dwarf"
+      data-testid="menu.commander.yakkob-dwarf"
       aria-label="Something is digging near the challenge dock. Click to investigate."
       title="…something's digging down there."
       onClick={handleClick}

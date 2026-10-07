@@ -176,7 +176,7 @@ test.describe('UI stability guardrails', () => {
     await mockAnonAuth(page);
     await mockFeedback(page);
     await page.goto('/');
-    await expect(page.getByTestId('deploy-button')).toBeVisible();
+    await expect(page.getByTestId('menu.deploy.launch')).toBeVisible();
     await settleLayout(page);
 
     await resetLayoutShiftObserver(page);
@@ -203,12 +203,12 @@ test.describe('UI stability guardrails', () => {
     await expectNoLayoutShifts(page, 'leaderboard async settle');
 
     await page.getByRole('button', { name: /^OPERATIONS/ }).click();
-    await expect(page.getByTestId('ops-board')).toBeVisible();
+    await expect(page.getByTestId('menu.ops.board')).toBeVisible();
     await settleLayout(page, 250);
     const opsBefore = await captureRects(page, {
       shop: '.ops-shop',
       boardHead: '.ops-board-head',
-      board: '[data-testid="ops-board"]',
+      board: '[data-testid="menu.ops.board"]',
     });
     await resetLayoutShiftObserver(page);
     await page.getByRole('button', { name: /^CLAIM ALL/ }).click();
@@ -217,7 +217,7 @@ test.describe('UI stability guardrails', () => {
     const opsAfterClaim = await captureRects(page, {
       shop: '.ops-shop',
       boardHead: '.ops-board-head',
-      board: '[data-testid="ops-board"]',
+      board: '[data-testid="menu.ops.board"]',
     });
     expectStableRects(opsBefore, opsAfterClaim, 'operations claim all', 1);
     await expectNoLayoutShifts(page, 'operations claim all');
@@ -225,7 +225,7 @@ test.describe('UI stability guardrails', () => {
     const paletteBefore = await captureRects(page, {
       shop: '.ops-shop',
       paletteRow: '.palette-row',
-      board: '[data-testid="ops-board"]',
+      board: '[data-testid="menu.ops.board"]',
     });
     await resetLayoutShiftObserver(page);
     await page.getByRole('button', { name: /Equip Void Violet palette/ }).click();
@@ -234,7 +234,7 @@ test.describe('UI stability guardrails', () => {
     const paletteAfter = await captureRects(page, {
       shop: '.ops-shop',
       paletteRow: '.palette-row',
-      board: '[data-testid="ops-board"]',
+      board: '[data-testid="menu.ops.board"]',
     });
     expectStableRects(paletteBefore, paletteAfter, 'palette equip', 1);
     await expectNoLayoutShifts(page, 'palette equip');
@@ -267,20 +267,20 @@ test.describe('UI stability guardrails', () => {
   test('keeps in-run advisory and build overlays from moving the command layout', async ({ page }) => {
     test.setTimeout(45_000);
     await page.goto('/');
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('game-root')).toBeVisible();
-    const briefing = page.getByTestId('briefing-overlay');
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.screen.root')).toBeVisible();
+    const briefing = page.getByTestId('game.briefing.dialog');
     if (await briefing.isVisible().catch(() => false)) {
       await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
     }
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
     await settleLayout(page);
 
     const beforeNotice = await captureRects(page, {
       topbar: '.topbar',
-      canvas: '[data-testid="game-canvas"]',
-      sidebar: '[data-testid="game-sidebar"]',
-      launch: '[data-testid="launch-wave"]',
+      canvas: '[data-testid="game.board.canvas"]',
+      sidebar: '[data-testid="game.sidebar.root"]',
+      launch: '[data-testid="game.hud.launch-wave"]',
     });
     await resetLayoutShiftObserver(page);
     await page.evaluate(() => {
@@ -293,17 +293,17 @@ test.describe('UI stability guardrails', () => {
     await settleLayout(page, 250);
     const afterNotice = await captureRects(page, {
       topbar: '.topbar',
-      canvas: '[data-testid="game-canvas"]',
-      sidebar: '[data-testid="game-sidebar"]',
-      launch: '[data-testid="launch-wave"]',
+      canvas: '[data-testid="game.board.canvas"]',
+      sidebar: '[data-testid="game.sidebar.root"]',
+      launch: '[data-testid="game.hud.launch-wave"]',
     });
     expectStableRects(beforeNotice, afterNotice, 'in-run notice overlay', 1);
     await expectNoLayoutShifts(page, 'in-run notice overlay');
 
     const beforeCounters = await captureRects(page, {
       topbar: '.topbar',
-      canvas: '[data-testid="game-canvas"]',
-      sidebar: '[data-testid="game-sidebar"]',
+      canvas: '[data-testid="game.board.canvas"]',
+      sidebar: '[data-testid="game.sidebar.root"]',
     });
     await resetLayoutShiftObserver(page);
     await page.evaluate(() => {
@@ -318,8 +318,8 @@ test.describe('UI stability guardrails', () => {
     await settleLayout(page, 250);
     const afterCounters = await captureRects(page, {
       topbar: '.topbar',
-      canvas: '[data-testid="game-canvas"]',
-      sidebar: '[data-testid="game-sidebar"]',
+      canvas: '[data-testid="game.board.canvas"]',
+      sidebar: '[data-testid="game.sidebar.root"]',
     });
     expectStableRects(beforeCounters, afterCounters, 'topbar counters and adaptation slot', 1);
     await expectNoLayoutShifts(page, 'topbar counters and adaptation slot');

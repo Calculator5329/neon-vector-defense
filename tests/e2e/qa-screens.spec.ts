@@ -199,7 +199,7 @@ async function captureInDir(page: Page, slug: string, name: string) {
 
 async function openMenu(page: Page, path = '/') {
   await page.goto(path);
-  await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('menu.deploy.launch')).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe('QA audit screen screenshots', () => {
@@ -224,7 +224,7 @@ test.describe('QA audit screen screenshots', () => {
       await capture(page, testInfo, '03-leaderboard-tab-shell');
 
       await page.getByRole('button', { name: /^OPERATIONS/ }).click();
-      await expect(page.getByTestId('ops-tab')).toBeVisible();
+      await expect(page.getByTestId('menu.ops.root')).toBeVisible();
       await capture(page, testInfo, '04-operations-board');
     });
 
@@ -232,7 +232,7 @@ test.describe('QA audit screen screenshots', () => {
       await seedLocalState(page);
       await openMenu(page, '/?demo=1');
       await page.getByTitle('How to play').click();
-      await expect(page.getByTestId('tutorial-overlay')).toBeVisible();
+      await expect(page.getByTestId('menu.how-to-play.dialog')).toBeVisible();
       await capture(page, testInfo, '05-how-to-play-modal');
 
       await seedLocalState(page);
@@ -244,7 +244,7 @@ test.describe('QA audit screen screenshots', () => {
       await seedLocalState(page);
       await openMenu(page, '/?demo=1');
       await page.getByLabel(/Combine Bestiary/).first().click();
-      await expect(page.getByTestId('bestiary')).toBeVisible();
+      await expect(page.getByTestId('menu.bestiary.dialog')).toBeVisible();
       await capture(page, testInfo, '07-bestiary-modal');
     });
 
@@ -283,24 +283,24 @@ test.describe('QA audit screen screenshots', () => {
     await test.step('game briefing, board, mobile rotate, and after-action shell', async () => {
       await seedLocalState(page, { progress: { ...progressSeed, runs: 1, victories: 1, kills: 1200 } });
       await openMenu(page);
-      await page.getByTestId('deploy-button').click();
-      await expect(page.getByTestId('briefing-overlay')).toBeVisible();
+      await page.getByTestId('menu.deploy.launch').click();
+      await expect(page.getByTestId('game.briefing.dialog')).toBeVisible();
       await capture(page, testInfo, '13-game-briefing-overlay');
 
       await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
-      await expect(page.getByTestId('briefing-overlay')).toBeHidden();
-      await expect(page.getByTestId('game-canvas')).toBeVisible();
+      await expect(page.getByTestId('game.briefing.dialog')).toBeHidden();
+      await expect(page.getByTestId('game.board.canvas')).toBeVisible();
       await page.waitForTimeout(350);
       await capture(page, testInfo, '14-game-board-hud');
       if (testInfo.project.name.includes('mobile')) {
-        await expect(page.getByTestId('rotate-device')).toBeVisible();
+        await expect(page.getByTestId('game.screen.rotate-notice')).toBeVisible();
         await capture(page, testInfo, '15-game-portrait-rotate');
       }
 
       await seedLocalState(page);
       await openMenu(page, '/?demo=1');
-      await page.getByTestId('deploy-button').click();
-      await expect(page.getByTestId('game-root')).toBeVisible();
+      await page.getByTestId('menu.deploy.launch').click();
+      await expect(page.getByTestId('game.screen.root')).toBeVisible();
       await page.evaluate(() => {
         const game = (window as unknown as { game?: any }).game;
         if (!game) throw new Error('game dev handle missing');
@@ -336,7 +336,7 @@ test.describe('QA audit screen screenshots', () => {
 
     await test.step('replay unavailable shell', async () => {
       await page.goto('/?run=r_qaunavailable01');
-      await expect(page.getByTestId('replay-root')).toBeVisible();
+      await expect(page.getByTestId('replay.viewer.unavailable')).toBeVisible();
       await expect(page.getByText('REPLAY UNAVAILABLE')).toBeVisible({ timeout: 15_000 });
       await capture(page, testInfo, '18-replay-unavailable-route');
     });
@@ -349,12 +349,12 @@ test.describe('QA audit screen screenshots', () => {
     await mockRemoteDataFailures(page);
     await seedLocalState(page, { progress: { ...progressSeed, runs: 1, victories: 1, kills: 1200 } });
     await openMenu(page);
-    await page.getByTestId('deploy-button').click();
-    await expect(page.getByTestId('briefing-overlay')).toBeVisible();
+    await page.getByTestId('menu.deploy.launch').click();
+    await expect(page.getByTestId('game.briefing.dialog')).toBeVisible();
     await page.getByRole('button', { name: /ACKNOWLEDGE/ }).click();
-    await expect(page.getByTestId('game-root')).toBeVisible();
-    await expect(page.getByTestId('game-canvas')).toBeVisible();
-    await expect(page.getByTestId('rotate-device')).toBeHidden();
+    await expect(page.getByTestId('game.screen.root')).toBeVisible();
+    await expect(page.getByTestId('game.board.canvas')).toBeVisible();
+    await expect(page.getByTestId('game.screen.rotate-notice')).toBeHidden();
     const verticalOverflow = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
     expect(verticalOverflow).toBeLessThanOrEqual(2);
     await captureInDir(page, 'short-landscape', '15b-short-landscape-game');
@@ -377,9 +377,9 @@ test.describe('QA audit screen screenshots', () => {
       await seedLocalState(page);
       await openMenu(page, '/?demo=1');
       await captureInDir(page, item.slug, `${item.name}-deploy-menu`);
-      await page.getByTestId('dock-tab-challenges').click();
-      await page.getByTestId('diff-card-daily').click();
-      await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
+      await page.getByTestId('menu.dock.tab-challenges').click();
+      await page.getByTestId('menu.dock.daily-challenge').click();
+      await expect(page.getByTestId('menu.dock.daily-challenge')).toHaveClass(/active/);
       await captureInDir(page, item.slug, `${item.name}-daily-selected`);
     }
   });

@@ -1,0 +1,6712 @@
+{
+  "schema": "agent-handles/testid-registry/v3",
+  "predicateVersion": 4,
+  "grammar": "area.component.element[.qualifier]",
+  "generatedFrom": "src/**/*.{tsx,jsx} and journeys/manifest.json",
+  "sourceDigest": "sha256:707a0cb20f2f18aba26b57a0e7f650497cbb97fe983e544d8adc4b2755ae9b15",
+  "journeyCoverage": {
+    "controlPath": 0,
+    "urlPath": 0
+  },
+  "coverage": {
+    "controlCandidates": 252,
+    "definiteCandidates": 241,
+    "reviewRequiredCandidates": 11,
+    "identifiedCandidates": 252,
+    "nonInteractiveCandidates": 0,
+    "unreachableCandidates": 0,
+    "unresolvedCandidates": 0,
+    "invalidIdentityMigrations": 0,
+    "interactiveElements": 252,
+    "identifiedInteractive": 252,
+    "unidentifiedInteractive": 0,
+    "maximumUnidentifiedInteractive": 0
+  },
+  "interactionFingerprint": {
+    "algorithm": "candidate-site-sha256/v1",
+    "digest": "sha256:fa8a00fa21e874c07d7332af71c7ba303ccdc891e745f5dfe5726826d6b59574",
+    "sites": [
+      "candidate:018fe43c6d97d69d",
+      "candidate:0267e13bf071a85f",
+      "candidate:02ed9b506afc7b38",
+      "candidate:0316f374fef383b1",
+      "candidate:04e66daec885773f",
+      "candidate:0533f67cbea56662",
+      "candidate:0653187928cc9461",
+      "candidate:08be14ed314d1e62",
+      "candidate:09aead6627d4888b",
+      "candidate:0a668504194567aa",
+      "candidate:0c48f9243d2693d7",
+      "candidate:0c6b1b5565f8a1c4",
+      "candidate:0cd1efa169d84a02",
+      "candidate:0db71d145e0b5d82",
+      "candidate:0ebffb323f2332bc",
+      "candidate:0f6c9096f91ffeaf",
+      "candidate:10b25d304e7b874f",
+      "candidate:1205b13681c25dfa",
+      "candidate:12bee9640c42b47e",
+      "candidate:12fb415e90d7e2ce",
+      "candidate:13359d6f99822671",
+      "candidate:166a27f6dd19e5b9",
+      "candidate:16e96203b975aebe",
+      "candidate:17eaaf96f09adb1e",
+      "candidate:1a879a0684bd65ee",
+      "candidate:1acb344fab92f58f",
+      "candidate:1acc5f75b64148a9",
+      "candidate:1b7b37cd5b34b065",
+      "candidate:1be743e274e8e648",
+      "candidate:1bec8ad6b23bde4f",
+      "candidate:1c1e3d1b2e7dc074",
+      "candidate:1cb9fab54ff458cd",
+      "candidate:1cce3930654ecb5b",
+      "candidate:1cdb747ce225e35e",
+      "candidate:1d261e86d3267c1c",
+      "candidate:1dccb4d2b4e6463a",
+      "candidate:1de3a11e9178241a",
+      "candidate:1dfc155c2aef3070",
+      "candidate:1e2c126f6cb5378f",
+      "candidate:1ed5bcdf2dc2b8f7",
+      "candidate:1f0012b58d94c0b4",
+      "candidate:1fa29c170e219f91",
+      "candidate:2014a5594cf5e606",
+      "candidate:217f430c256ba529",
+      "candidate:21a3233beab10af3",
+      "candidate:22c9ff50dbfcff86",
+      "candidate:236d28eebc795f68",
+      "candidate:238524d82d6c85c6",
+      "candidate:240e901317cc8635",
+      "candidate:252e36c74a1ec820",
+      "candidate:25730ec59a6cb9b1",
+      "candidate:25ace996456a734a",
+      "candidate:262277f938a00069",
+      "candidate:26d61b95e3933dfa",
+      "candidate:2778fc5105e5fb88",
+      "candidate:2909e8f8d88294cf",
+      "candidate:2aaa89b6137e3ba7",
+      "candidate:2e4651eb1808f39c",
+      "candidate:2f8453d745f4ccd3",
+      "candidate:30853ec013f2af96",
+      "candidate:322211c362b191b3",
+      "candidate:334da5a95870d952",
+      "candidate:34aa567bb5c019be",
+      "candidate:3962b16de391bdf7",
+      "candidate:3afa3a77ec1d84d4",
+      "candidate:3c4c41979d765ca1",
+      "candidate:3d1e749876cb905b",
+      "candidate:3da6829b8b863e51",
+      "candidate:405fe2fbc9913243",
+      "candidate:40e1d81f59280ac7",
+      "candidate:40e59c48aeff6098",
+      "candidate:437acf6e8c380e15",
+      "candidate:454608b48fa56dd1",
+      "candidate:48178f669a8e1feb",
+      "candidate:481ffd17927933f6",
+      "candidate:48a792f3d65981a0",
+      "candidate:498742c9ade025c7",
+      "candidate:49a341d3c271a401",
+      "candidate:49ec2e58a7e6df54",
+      "candidate:4a707aea50f5c34e",
+      "candidate:4a7baf91dbe45777",
+      "candidate:4ab3d93f35afc4d2",
+      "candidate:4b7538508723b8b4",
+      "candidate:4ca03d6b6a240493",
+      "candidate:4d5622e4dd850ff3",
+      "candidate:4dacc63022dc8c3f",
+      "candidate:4e65eea818ce8a3c",
+      "candidate:4ec88271ba8b4bca",
+      "candidate:4fe20cc6e484ab83",
+      "candidate:5059ef1b6821e2cc",
+      "candidate:514cb20408c3773e",
+      "candidate:525cf60a3d6ef65b",
+      "candidate:582a5b2194bfa407",
+      "candidate:585b2fa5f2194c96",
+      "candidate:59c9c4fe536247c1",
+      "candidate:5b1b22a890714468",
+      "candidate:5ce30628a27eccaf",
+      "candidate:607da67ce7000167",
+      "candidate:62de68207dd3b0c4",
+      "candidate:633f17ee146208a2",
+      "candidate:64bd2472f2e7a4f1",
+      "candidate:64f4c38ed9e3ddf7",
+      "candidate:6700a7f91c96fc30",
+      "candidate:695da9018c2ffe60",
+      "candidate:6a559161e639265e",
+      "candidate:6a8b07abf9995f2b",
+      "candidate:6c1e3438f5bc41b9",
+      "candidate:6c471d3f237d3358",
+      "candidate:70ab11a91b419187",
+      "candidate:7172bb3e27a8b10c",
+      "candidate:721031ba68dc6317",
+      "candidate:73a497721b37bca6",
+      "candidate:75c95c10b504a5b7",
+      "candidate:7b6a137afa2c924f",
+      "candidate:7cf16e7393cb57cd",
+      "candidate:805d9442a41cf8c6",
+      "candidate:809c1b512c464472",
+      "candidate:82d2f6b85bf2fa63",
+      "candidate:831fbe10185af1c3",
+      "candidate:83e949a263fdcf0e",
+      "candidate:85019b3786d2af17",
+      "candidate:857b684e7fe4bade",
+      "candidate:861f4e72e58d7000",
+      "candidate:87e17bb81f3403b5",
+      "candidate:87f3aeff496250e7",
+      "candidate:8934831f9384a9ec",
+      "candidate:89bb30f755cd2b35",
+      "candidate:8af60954eaedae45",
+      "candidate:8b9ef3944596e2f4",
+      "candidate:8ce248e0134fb095",
+      "candidate:8e008595cb024c60",
+      "candidate:90885e495dd8ac21",
+      "candidate:908cea17205c5357",
+      "candidate:9145b3dddbc8fcb1",
+      "candidate:91ed41e97a0e7670",
+      "candidate:94161dccf36928ad",
+      "candidate:9767fc47932c4380",
+      "candidate:9912b96950751075",
+      "candidate:997e12c6aafec8ea",
+      "candidate:9992af6d469b93af",
+      "candidate:9a4c1dedc11478d3",
+      "candidate:9ab2dc43f9a8bcd7",
+      "candidate:9ae044684727ea51",
+      "candidate:9b8cb5c5b929c14f",
+      "candidate:9c07f207170e8ffd",
+      "candidate:9c98e03e28243c0a",
+      "candidate:a0d13ea2a82b8bf9",
+      "candidate:a12a9d952f91bc84",
+      "candidate:a16d24dd918878e7",
+      "candidate:a2c08bc205a26e1b",
+      "candidate:a476c493fa745997",
+      "candidate:a4a9085705678c45",
+      "candidate:a7402fdf5d62d62c",
+      "candidate:a858307b8fc6c595",
+      "candidate:a86afb055cb2c125",
+      "candidate:a871b9621fc22b52",
+      "candidate:a8cc5d37d4498aef",
+      "candidate:aa6846a495adcdf2",
+      "candidate:aab92e02e4fc0a44",
+      "candidate:ab1e0228a7b0fc8b",
+      "candidate:ab792c7f4d153a08",
+      "candidate:ac76ba45cb37f6b8",
+      "candidate:acbf66553fcbeaea",
+      "candidate:ad9f961036e789e1",
+      "candidate:ae0b629bf511a140",
+      "candidate:b04702c49c7c2f90",
+      "candidate:b11d5b9d4e50c71b",
+      "candidate:b187b707742fcc8a",
+      "candidate:b1a2319737a9dcad",
+      "candidate:b307a4f51f5fa050",
+      "candidate:b3693028269b6d7a",
+      "candidate:b3a365273e49c06a",
+      "candidate:b577b01f4b089d54",
+      "candidate:b5e738cd4a01d004",
+      "candidate:b65405fa703cb690",
+      "candidate:b697ca88a4245cd1",
+      "candidate:b73117ea8565ef2f",
+      "candidate:b92a459a77b1bfe8",
+      "candidate:b9736c6c2e77072e",
+      "candidate:b9f27fa8234ac7fe",
+      "candidate:bc0f57ec8549caf4",
+      "candidate:bd0282ded7b3da70",
+      "candidate:bee5931287144b0a",
+      "candidate:bf237847aa299fe0",
+      "candidate:bf55007e2c97f13c",
+      "candidate:c0f7affb085109a0",
+      "candidate:c2bd76188e8def7c",
+      "candidate:c5ba6c169edd2e00",
+      "candidate:c688f988a6394e33",
+      "candidate:c694dc690db5229f",
+      "candidate:c7ae2af50cf5da3f",
+      "candidate:c8c82dc62f67690a",
+      "candidate:c99d37acfabbf331",
+      "candidate:ca47075f4bd67584",
+      "candidate:ca55b831313194d2",
+      "candidate:ca9ff96b58855a87",
+      "candidate:cb4da0ed93c4d3ca",
+      "candidate:cb59b9c37d681fe9",
+      "candidate:cc95fbf9e90ff40a",
+      "candidate:cd3430c2a1f66921",
+      "candidate:cd42c515b8491e16",
+      "candidate:ce0576210d4e91ba",
+      "candidate:ce0ad410ec802245",
+      "candidate:cef5902ccd8f4468",
+      "candidate:cf812dba9f17a140",
+      "candidate:cfe8ae652e8a310f",
+      "candidate:d2019296696169ca",
+      "candidate:d20f20c197e4b862",
+      "candidate:d31c2b0db6bb9dc2",
+      "candidate:d37960ac09bc8faf",
+      "candidate:d43fe0fb281c631a",
+      "candidate:d5ea9f55fdb38e2e",
+      "candidate:d7d7da28e999df99",
+      "candidate:d951dfd0628f2621",
+      "candidate:d96208cb33fbd33b",
+      "candidate:d9ac66b115328bdb",
+      "candidate:d9d28849ced8c3ac",
+      "candidate:d9f0d49dbf7a202e",
+      "candidate:da85380d71dad377",
+      "candidate:dbbb2c4d3fa3e4e1",
+      "candidate:dbec89c5b33b9b22",
+      "candidate:deaca5148de1fa2d",
+      "candidate:e1030f9e49f79bd0",
+      "candidate:e2c0996ea0acb3c8",
+      "candidate:e2c422fce10d6bd2",
+      "candidate:e322989e05e908e6",
+      "candidate:e3b8456ba9fde1cc",
+      "candidate:e49fe88afe1ce776",
+      "candidate:e52abe2375cac8f1",
+      "candidate:e5463f6849b4cbcb",
+      "candidate:e5965a7a78a61a9b",
+      "candidate:e5f9fba6fc310670",
+      "candidate:e66c126296bb15bb",
+      "candidate:eaf8d2955b5c1542",
+      "candidate:eb697c44e89234fb",
+      "candidate:ec46ba5865145843",
+      "candidate:ec836ef527475fda",
+      "candidate:ed7d2e49a731f955",
+      "candidate:ef5bc1e8a15bd2c1",
+      "candidate:f5554fabafe74ce4",
+      "candidate:f749ad80f4e52540",
+      "candidate:fa00b01c2e6d9b1d",
+      "candidate:fcd8742bebe3b159",
+      "candidate:fd9e4c7a854799b8",
+      "candidate:fd9fb70eccc18db7",
+      "candidate:fdcb450d610b702f",
+      "candidate:fe0e7d3f0105fc39",
+      "candidate:fe35c1c6e7616c53",
+      "candidate:fea1bc3bfde76581",
+      "candidate:febc25be5786d43d",
+      "candidate:ff3f24692320e293",
+      "candidate:ff7946de7564f1f1"
+    ]
+  },
+  "journeyReferences": [],
+  "entries": [
+    {
+      "id": "admin.balance-canary.protocol",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1509,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-canary.sector",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1506,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-curve.protocol",
+      "file": "src/AdminDashboard.tsx",
+      "line": 320,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-curve.sector",
+      "file": "src/AdminDashboard.tsx",
+      "line": 317,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.enemy",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1031,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.preview-tower",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1103,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.protocol",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1048,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.publish",
+      "file": "src/AdminDashboard.tsx",
+      "line": 994,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 993,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.reset-identity",
+      "file": "src/AdminDashboard.tsx",
+      "line": 995,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.tower",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1014,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.balance-editor.version",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1006,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.combat.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2679,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.daily-ops.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3301,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.daily-override.arsenal",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3314,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.daily-override.boon",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3326,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.daily-override.clear",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3339,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.daily-override.date",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3313,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.daily-override.note",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3332,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.daily-override.publish",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3338,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.daily-override.twist",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3320,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.difficulty-model.curve",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1254,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.difficulty-model.target",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1257,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.build",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2567,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.cohort",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2561,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.domain",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2575,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.export-csv",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2572,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.explorer.metric",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2578,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.mode",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2552,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.outcome",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2555,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.protocol",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2549,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.range",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2543,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2571,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.explorer.schema",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2564,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.sector",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2546,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.explorer.uid-search",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2570,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.explorer.wave-bucket",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2558,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.freeplay.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3132,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.callsign",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3469,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.crown",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3464,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.kills",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3474,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.map",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3470,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.protocol",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3471,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.publish",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3477,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.run-id",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3468,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.seed",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3472,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.wave",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3473,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.gauntlet.week",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3467,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.insights.build",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2238,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.insights.compare-build",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2241,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.insights.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2244,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.journey.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3027,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.login.back-to-game",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3639,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.login.sign-in",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3635,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.login.sign-out",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3630,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-balance",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3838,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-combat",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3844,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-daily",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3835,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-explore",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3841,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-freeplay",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3846,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-inbox",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3833,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-insights",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3834,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-journey",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3843,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-overview",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3842,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-spotlight",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3837,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-systems",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3845,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-telemetry",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3840,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-towers",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3839,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-ux-perf",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3847,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.nav.tab-weekly",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3836,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.overview.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2880,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-detail.backdrop",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2634,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-detail.close",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2639,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-detail.dialog",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2635,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "aside",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-detail.watch",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2638,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-inspector.backdrop",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2036,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-inspector.close",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2040,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-inspector.dialog",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2037,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "aside",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.run-inspector.verify",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2054,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.spotlight.clear-pin",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3567,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.spotlight.inspect-by-id",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3581,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.spotlight.inspect-pinned",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3566,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "RunIdButton"
+    },
+    {
+      "id": "admin.spotlight.pin-by-id",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3582,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.spotlight.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3555,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.spotlight.run-id",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3580,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "admin.spotlight.watch-pinned",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3565,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.systems.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2728,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.build",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1442,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.export-csv",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1450,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.mode",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1438,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.protocol",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1435,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.range",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1428,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1449,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.telemetry-filters.sector",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1432,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.topbar.exit",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3852,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.topbar.sign-out",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3851,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.tower-tweak.copy-config",
+      "file": "src/AdminDashboard.tsx",
+      "line": 684,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.tower-tweak.reset",
+      "file": "src/AdminDashboard.tsx",
+      "line": 683,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.ux-perf.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2800,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.weekly-ops.refresh",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3443,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.weekly-override.arsenal",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3450,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.weekly-override.boon",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3454,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "admin.weekly-override.publish",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3457,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "admin.weekly-override.week",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3449,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "app.age-gate.birth-month",
+      "file": "src/AgeGate.tsx",
+      "line": 70,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "app.age-gate.birth-year",
+      "file": "src/AgeGate.tsx",
+      "line": 81,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "app.age-gate.confirm",
+      "file": "src/AgeGate.tsx",
+      "line": 89,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.age-gate.dialog",
+      "file": "src/AgeGate.tsx",
+      "line": 48,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "app.age-gate.enter",
+      "file": "src/AgeGate.tsx",
+      "line": 61,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.age-gate.privacy-link",
+      "file": "src/AgeGate.tsx",
+      "line": 93,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.ai-help.close",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 89,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.ai-help.form",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 98,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "form",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.ai-help.new-chat",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 88,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.ai-help.question",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 101,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "app.ai-help.root",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 81,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "app.ai-help.send",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 108,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.ai-help.toggle",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 118,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.comeback.dialog",
+      "file": "src/App.tsx",
+      "line": 273,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "app.comeback.resume",
+      "file": "src/App.tsx",
+      "line": 279,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.error-boundary.reload",
+      "file": "src/main.tsx",
+      "line": 49,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.check-replies",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 167,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.close",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 156,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.message",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 203,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "textarea",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "app.feedback.restore-dismissed",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 192,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.root",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 150,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "app.feedback.send",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 212,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.tab-inbox",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 159,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.tab-send",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 162,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.feedback.toggle",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 220,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.update-toast.dismiss",
+      "file": "src/App.tsx",
+      "line": 263,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.update-toast.reload",
+      "file": "src/App.tsx",
+      "line": 262,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "app.update-toast.root",
+      "file": "src/App.tsx",
+      "line": 260,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.board.canvas",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1328,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "canvas",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.briefing.acknowledge",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1662,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.briefing.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1657,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.cloak-tip.dismiss",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1427,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.coach.chip",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1393,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.coach.skip",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1400,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.debrief.callsign",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1988,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "id": "game.debrief.meta-reward",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1803,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.debrief.submit-score",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1990,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.debrief.unlocks",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1755,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.debrief.veteran-nudge",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1746,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.debrief.yakkob-local-rank",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1873,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.freeplay-contract.back",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1604,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.freeplay-contract.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1592,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.freeplay-relic.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1613,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.freeplay.bank",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1578,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.freeplay.hide",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1545,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.freeplay.reopen",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1535,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.freeplay.risk-accept",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1573,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.freeplay.risk-skip",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1574,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.gauntlet-relic.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1632,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.ghost.close",
+      "file": "src/BotGhostHud.tsx",
+      "line": 189,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.ghost.dialog",
+      "file": "src/BotGhostHud.tsx",
+      "line": 186,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.ghost.open",
+      "file": "src/BotGhostHud.tsx",
+      "line": 108,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.hud.abort",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1256,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.hud.auto-next",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1301,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.hud.launch-wave",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1387,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.hud.music",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1700,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.hud.pause",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1312,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.hud.sound",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1319,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.result.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2024,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.screen.root",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1238,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.screen.rotate-notice",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1239,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.shop.collapse",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2072,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.shop.grid",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2082,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.shop.mode-standard",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2076,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.shop.mode-veteran",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2078,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.sidebar.expand",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1501,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.sidebar.root",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1484,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "game.unlock.deploy",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1460,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.unlock.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1444,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "game.upgrade.back",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2229,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.upgrade.collapse",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2230,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.upgrade.sell",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2290,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.veteran-intro.acknowledge",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1691,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "game.veteran-intro.dialog",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1678,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "menu.atlas.field",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 349,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.atlas.root",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 348,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "section",
+      "actions": []
+    },
+    {
+      "id": "menu.atlas.weekly-ops-beacon",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 406,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.bestiary.close",
+      "file": "src/Bestiary.tsx",
+      "line": 62,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.bestiary.dialog",
+      "file": "src/Bestiary.tsx",
+      "line": 58,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "menu.commander.rail",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 135,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "aside",
+      "actions": []
+    },
+    {
+      "id": "menu.commander.rank",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 136,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.commander.replay-of-day-watch",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 126,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.commander.yakkob-dwarf",
+      "file": "src/menu/YakkobDwarf.tsx",
+      "line": 184,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.deploy.launch",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 722,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.deploy.privacy-link",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 690,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.dock.challenges",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 491,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.dock.daily-challenge",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 494,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.dock.protocols",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 456,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.dock.root",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 427,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "aside",
+      "actions": []
+    },
+    {
+      "id": "menu.dock.tab-challenges",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 449,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.dock.tab-protocols",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 442,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.dossier.rank-strip",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 614,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.footer.link-agent-handles",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 785,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.footer.link-fathom",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 783,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.footer.link-gatesai",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 781,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.footer.link-github",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 789,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.footer.link-n2k-almanac",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 787,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.footer.link-projects",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 779,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.how-to-play.dialog",
+      "file": "src/game-ui/HowToPlay.tsx",
+      "line": 13,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "menu.how-to-play.done",
+      "file": "src/game-ui/HowToPlay.tsx",
+      "line": 27,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.leaderboard.mode-campaign",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 108,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.leaderboard.mode-daily",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 110,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.leaderboard.mode-freeplay",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 109,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.leaderboard.mode-gauntlet",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 112,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.leaderboard.mode-weekly",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 111,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.leaderboard.ritual-board",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 116,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.ops.board",
+      "file": "src/OperationsBoard.tsx",
+      "line": 166,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.ops.claim-all",
+      "file": "src/OperationsBoard.tsx",
+      "line": 156,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.ops.map-themes",
+      "file": "src/OperationsBoard.tsx",
+      "line": 145,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.ops.rank-bar",
+      "file": "src/OperationsBoard.tsx",
+      "line": 61,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.ops.root",
+      "file": "src/OperationsBoard.tsx",
+      "line": 59,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.settings.colorblind",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 45,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "SettingsRow"
+    },
+    {
+      "id": "menu.settings.dialog",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 26,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "Modal"
+    },
+    {
+      "id": "menu.settings.done",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 48,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.settings.music",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 31,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "SettingsRow"
+    },
+    {
+      "id": "menu.settings.music-pack",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 38,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "id": "menu.settings.reduced-motion",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 43,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "SettingsRow"
+    },
+    {
+      "id": "menu.settings.sound-effects",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 29,
+      "element": "jsx-prop",
+      "attribute": "testId",
+      "tag": "SettingsRow"
+    },
+    {
+      "id": "menu.settings.toggle",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 15,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.tabs.deploy",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 571,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.tabs.leaderboard",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 572,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.tabs.operations",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 573,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.utility.bestiary",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 577,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.utility.help",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 582,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.utility.settings",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 585,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.weekly-ops.champion-gauntlet",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 201,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.weekly-ops.gauntlet-protocol",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 212,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.weekly-ops.strip",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 172,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "menu.weekly-ops.weekly-mutation",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 190,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "menu.weekly-ops.yakkob",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 178,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "privacy.controls.delete",
+      "file": "src/PrivacyView.tsx",
+      "line": 162,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "privacy.controls.export",
+      "file": "src/PrivacyView.tsx",
+      "line": 150,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "privacy.controls.opt-out",
+      "file": "src/PrivacyView.tsx",
+      "line": 140,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "privacy.page.back",
+      "file": "src/PrivacyView.tsx",
+      "line": 80,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.controls.next",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1024,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.controls.play",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1023,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.controls.previous",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1022,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.controls.restart",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1025,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.hint.dismiss",
+      "file": "src/ReplayViewer.tsx",
+      "line": 993,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.timeline.scrubber",
+      "file": "src/ReplayViewer.tsx",
+      "line": 999,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": [
+        "click",
+        "press"
+      ]
+    },
+    {
+      "id": "replay.viewer.exit",
+      "file": "src/ReplayViewer.tsx",
+      "line": 941,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.viewer.loading",
+      "file": "src/ReplayViewer.tsx",
+      "line": 525,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "replay.viewer.next-leg",
+      "file": "src/ReplayViewer.tsx",
+      "line": 947,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.viewer.return",
+      "file": "src/ReplayViewer.tsx",
+      "line": 536,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "replay.viewer.root",
+      "file": "src/ReplayViewer.tsx",
+      "line": 939,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "replay.viewer.unavailable",
+      "file": "src/ReplayViewer.tsx",
+      "line": 532,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "ui.dossier-share.copy-card",
+      "file": "src/DossierShare.tsx",
+      "line": 107,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "ui.dossier-share.copy-link",
+      "file": "src/DossierShare.tsx",
+      "line": 108,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "ui.dossier-share.save-png",
+      "file": "src/DossierShare.tsx",
+      "line": 109,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "ui.dossier-share.share",
+      "file": "src/DossierShare.tsx",
+      "line": 106,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "id": "ui.map-theme-picker.root",
+      "file": "src/ui/MapThemePicker.tsx",
+      "line": 39,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "id": "ui.modal.backdrop",
+      "file": "src/Modal.tsx",
+      "line": 60,
+      "element": "jsx-prop",
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": [
+        "click"
+      ]
+    }
+  ],
+  "patterns": [
+    {
+      "pattern": "admin.balance-editor.mult-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 899,
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "pattern": "admin.efficiency.row-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 817,
+      "attribute": "data-testid",
+      "tag": "tr",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.explorer.inspect-run-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2611,
+      "attribute": "testId",
+      "tag": "RunIdButton"
+    },
+    {
+      "pattern": "admin.explorer.open-run-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2618,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.explorer.sort-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2602,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.inbox.archive-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3753,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.inbox.filter-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3705,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.inbox.reopen-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3750,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.inbox.reply-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3737,
+      "attribute": "data-testid",
+      "tag": "textarea",
+      "actions": [
+        "type",
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "pattern": "admin.inbox.save-reply-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3746,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.run-detail.section-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2648,
+      "attribute": "data-testid",
+      "tag": "summary",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.run-link.inspect-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1953,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.spotlight.inspect-run-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3595,
+      "attribute": "testId",
+      "tag": "RunIdButton"
+    },
+    {
+      "pattern": "admin.spotlight.pin-run-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3597,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.spotlight.watch-run-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3596,
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.tower-lab.tower-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 456,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.tower-ranking.tower-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 621,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.tower-summary.row-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 719,
+      "attribute": "data-testid",
+      "tag": "tr",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "admin.tower-tweak.slider-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 551,
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "pattern": "admin.tower-tweak.value-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 552,
+      "attribute": "data-testid",
+      "tag": "input",
+      "actions": [
+        "fill",
+        "press"
+      ]
+    },
+    {
+      "pattern": "admin.weekly-override.twist-*",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3452,
+      "attribute": "data-testid",
+      "tag": "select",
+      "actions": [
+        "select"
+      ]
+    },
+    {
+      "pattern": "app.feedback.dismiss-*",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 176,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.abilities.cast-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1347,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.freeplay-contract.select-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1597,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.freeplay-relic.select-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1618,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.gauntlet-relic.select-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1637,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.ghost.profile-*",
+      "file": "src/BotGhostHud.tsx",
+      "line": 203,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.hud.speed-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1307,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.result.action-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2035,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.shop.tower-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2105,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.upgrade.buy-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2203,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.upgrade.target-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2265,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "game.upgrade.target-filter-*",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2281,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.atlas.map-node-*",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 367,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.bestiary.filter-*",
+      "file": "src/Bestiary.tsx",
+      "line": 67,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.dock.protocol-*",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 478,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.leaderboard.watch-*",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 32,
+      "attribute": "data-testid",
+      "tag": "a",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.ops.claim-*",
+      "file": "src/OperationsBoard.tsx",
+      "line": 196,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.ops.palette-*",
+      "file": "src/OperationsBoard.tsx",
+      "line": 106,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "menu.ops.quest-*",
+      "file": "src/OperationsBoard.tsx",
+      "line": 182,
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": []
+    },
+    {
+      "pattern": "replay.controls.speed-*",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1028,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "ui.map-theme-picker.theme-*",
+      "file": "src/ui/MapThemePicker.tsx",
+      "line": 47,
+      "attribute": "data-testid",
+      "tag": "button",
+      "actions": [
+        "click"
+      ]
+    },
+    {
+      "pattern": "ui.modal.dialog-*",
+      "file": "src/Modal.tsx",
+      "line": 63,
+      "attribute": "data-testid",
+      "tag": "div",
+      "actions": [
+        "click"
+      ]
+    }
+  ],
+  "invalidIdentities": [],
+  "identityHistory": {
+    "renames": [
+      {
+        "from": "update-toast",
+        "to": "app.update-toast.root"
+      },
+      {
+        "from": "bestiary",
+        "to": "menu.bestiary.dialog"
+      },
+      {
+        "from": "game-root",
+        "to": "game.screen.root"
+      },
+      {
+        "from": "rotate-device",
+        "to": "game.screen.rotate-notice"
+      },
+      {
+        "from": "game-canvas",
+        "to": "game.board.canvas"
+      },
+      {
+        "from": "launch-wave",
+        "to": "game.hud.launch-wave"
+      },
+      {
+        "from": "coach-chip",
+        "to": "game.coach.chip"
+      },
+      {
+        "from": "game-sidebar",
+        "to": "game.sidebar.root"
+      },
+      {
+        "from": "briefing-overlay",
+        "to": "game.briefing.dialog"
+      },
+      {
+        "from": "veteran-intro",
+        "to": "game.veteran-intro.dialog"
+      },
+      {
+        "from": "veteran-intro-ack",
+        "to": "game.veteran-intro.acknowledge"
+      },
+      {
+        "from": "debrief-veteran-nudge",
+        "to": "game.debrief.veteran-nudge"
+      },
+      {
+        "from": "debrief-unlocks",
+        "to": "game.debrief.unlocks"
+      },
+      {
+        "from": "meta-reward",
+        "to": "game.debrief.meta-reward"
+      },
+      {
+        "from": "yakkob-local-rank",
+        "to": "game.debrief.yakkob-local-rank"
+      },
+      {
+        "from": "shop-grid",
+        "to": "game.shop.grid"
+      },
+      {
+        "from": "tower-*",
+        "to": "game.shop.tower-*"
+      },
+      {
+        "from": "upgrade-*",
+        "to": "game.upgrade.buy-*"
+      },
+      {
+        "from": "target-filter-*",
+        "to": "game.upgrade.target-filter-*"
+      },
+      {
+        "from": "tutorial-overlay",
+        "to": "menu.how-to-play.dialog"
+      },
+      {
+        "from": "daily-leaderboard-mode",
+        "to": "menu.leaderboard.ritual-board"
+      },
+      {
+        "from": "commander-rail",
+        "to": "menu.commander.rail"
+      },
+      {
+        "from": "weekly-ops-strip",
+        "to": "menu.weekly-ops.strip"
+      },
+      {
+        "from": "yakkob-card",
+        "to": "menu.weekly-ops.yakkob"
+      },
+      {
+        "from": "weekly-mutation-card",
+        "to": "menu.weekly-ops.weekly-mutation"
+      },
+      {
+        "from": "weekly-gauntlet-card",
+        "to": "menu.weekly-ops.champion-gauntlet"
+      },
+      {
+        "from": "gauntlet-protocol-card",
+        "to": "menu.weekly-ops.gauntlet-protocol"
+      },
+      {
+        "from": "sector-atlas",
+        "to": "menu.atlas.root"
+      },
+      {
+        "from": "atlas-field",
+        "to": "menu.atlas.field"
+      },
+      {
+        "from": "map-node-*",
+        "to": "menu.atlas.map-node-*"
+      },
+      {
+        "from": "weekly-ops-beacon",
+        "to": "menu.atlas.weekly-ops-beacon"
+      },
+      {
+        "from": "sector-dock",
+        "to": "menu.dock.root"
+      },
+      {
+        "from": "dock-tab-protocols",
+        "to": "menu.dock.tab-protocols"
+      },
+      {
+        "from": "dock-tab-challenges",
+        "to": "menu.dock.tab-challenges"
+      },
+      {
+        "from": "diff-row",
+        "to": "menu.dock.protocols"
+      },
+      {
+        "from": "diff-card-*",
+        "to": "menu.dock.protocol-*"
+      },
+      {
+        "from": "dock-challenges",
+        "to": "menu.dock.challenges"
+      },
+      {
+        "from": "diff-card-daily",
+        "to": "menu.dock.daily-challenge"
+      },
+      {
+        "from": "menu-utility-bestiary",
+        "to": "menu.utility.bestiary"
+      },
+      {
+        "from": "menu-utility-help",
+        "to": "menu.utility.help"
+      },
+      {
+        "from": "menu-utility-settings",
+        "to": "menu.utility.settings"
+      },
+      {
+        "from": "deploy-button",
+        "to": "menu.deploy.launch"
+      },
+      {
+        "from": "yakkob-dwarf",
+        "to": "menu.commander.yakkob-dwarf"
+      },
+      {
+        "from": "ops-tab",
+        "to": "menu.ops.root"
+      },
+      {
+        "from": "rank-bar",
+        "to": "menu.ops.rank-bar"
+      },
+      {
+        "from": "ops-shop-map-themes",
+        "to": "menu.ops.map-themes"
+      },
+      {
+        "from": "ops-board",
+        "to": "menu.ops.board"
+      },
+      {
+        "from": "quest-card-*",
+        "to": "menu.ops.quest-*"
+      },
+      {
+        "from": "replay-root",
+        "targets": [
+          "replay.viewer.loading",
+          "replay.viewer.unavailable",
+          "replay.viewer.root"
+        ],
+        "reason": "One legacy id sat on three mutually exclusive replay states (loading, unavailable link, loaded viewer); each state now has its own identity."
+      },
+      {
+        "from": "replay-exit",
+        "to": "replay.viewer.exit"
+      },
+      {
+        "from": "replay-play",
+        "to": "replay.controls.play"
+      },
+      {
+        "from": "map-theme-picker",
+        "to": "ui.map-theme-picker.root"
+      },
+      {
+        "from": "map-theme-*",
+        "to": "ui.map-theme-picker.theme-*"
+      },
+      {
+        "from": "ai-widget",
+        "to": "app.ai-help.root"
+      },
+      {
+        "from": "message-widget",
+        "to": "app.feedback.root"
+      }
+    ],
+    "tombstones": []
+  },
+  "candidates": [
+    {
+      "id": "candidate:607da67ce7000167",
+      "file": "src/AdminDashboard.tsx",
+      "line": 317,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:405fe2fbc9913243",
+      "file": "src/AdminDashboard.tsx",
+      "line": 320,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:2aaa89b6137e3ba7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 456,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9912b96950751075",
+      "file": "src/AdminDashboard.tsx",
+      "line": 551,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:8e008595cb024c60",
+      "file": "src/AdminDashboard.tsx",
+      "line": 552,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c7ae2af50cf5da3f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 621,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:25ace996456a734a",
+      "file": "src/AdminDashboard.tsx",
+      "line": 683,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:40e1d81f59280ac7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 684,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:49a341d3c271a401",
+      "file": "src/AdminDashboard.tsx",
+      "line": 719,
+      "element": "tr",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:deaca5148de1fa2d",
+      "file": "src/AdminDashboard.tsx",
+      "line": 817,
+      "element": "tr",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0c48f9243d2693d7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 899,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a871b9621fc22b52",
+      "file": "src/AdminDashboard.tsx",
+      "line": 993,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a16d24dd918878e7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 994,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4d5622e4dd850ff3",
+      "file": "src/AdminDashboard.tsx",
+      "line": 995,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:2778fc5105e5fb88",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1006,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b92a459a77b1bfe8",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1014,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b9f27fa8234ac7fe",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1031,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:dbec89c5b33b9b22",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1048,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:7b6a137afa2c924f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1103,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fe0e7d3f0105fc39",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1254,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:73a497721b37bca6",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1257,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4a707aea50f5c34e",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1428,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b1a2319737a9dcad",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1432,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:262277f938a00069",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1435,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:48178f669a8e1feb",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1438,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d5ea9f55fdb38e2e",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1442,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b187b707742fcc8a",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1449,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:252e36c74a1ec820",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1450,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9ab2dc43f9a8bcd7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1506,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:70ab11a91b419187",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1509,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:997e12c6aafec8ea",
+      "file": "src/AdminDashboard.tsx",
+      "line": 1953,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fa00b01c2e6d9b1d",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2036,
+      "element": "div",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1dccb4d2b4e6463a",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2037,
+      "element": "aside",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:3da6829b8b863e51",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2040,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ec46ba5865145843",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2054,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:3afa3a77ec1d84d4",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2238,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:805d9442a41cf8c6",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2241,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:bf237847aa299fe0",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2244,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0c6b1b5565f8a1c4",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2543,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1e2c126f6cb5378f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2546,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:82d2f6b85bf2fa63",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2549,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:6a559161e639265e",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2552,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1acb344fab92f58f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2555,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:695da9018c2ffe60",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2558,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4dacc63022dc8c3f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2561,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:238524d82d6c85c6",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2564,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:eb697c44e89234fb",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2567,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b65405fa703cb690",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2570,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a12a9d952f91bc84",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2571,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:bd0282ded7b3da70",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2572,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1d261e86d3267c1c",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2575,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:48a792f3d65981a0",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2578,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1acc5f75b64148a9",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2602,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a7402fdf5d62d62c",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2618,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d951dfd0628f2621",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2634,
+      "element": "div",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:eaf8d2955b5c1542",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2635,
+      "element": "aside",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:91ed41e97a0e7670",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2638,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:04e66daec885773f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2639,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:21a3233beab10af3",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2648,
+      "element": "summary",
+      "classification": "definite",
+      "evidence": [
+        "summary"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1bec8ad6b23bde4f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2679,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d9f0d49dbf7a202e",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2728,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:75c95c10b504a5b7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2800,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cd42c515b8491e16",
+      "file": "src/AdminDashboard.tsx",
+      "line": 2880,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:481ffd17927933f6",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3027,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:62de68207dd3b0c4",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3132,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:5ce30628a27eccaf",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3301,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b9736c6c2e77072e",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3313,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b11d5b9d4e50c71b",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3314,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fcd8742bebe3b159",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3320,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:59c9c4fe536247c1",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3326,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b697ca88a4245cd1",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3332,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:809c1b512c464472",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3338,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:236d28eebc795f68",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3339,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9992af6d469b93af",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3443,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ab792c7f4d153a08",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3449,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0db71d145e0b5d82",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3450,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9c07f207170e8ffd",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3452,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1cce3930654ecb5b",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3454,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a0d13ea2a82b8bf9",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3457,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:13359d6f99822671",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3464,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4fe20cc6e484ab83",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3467,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9145b3dddbc8fcb1",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3468,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4e65eea818ce8a3c",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3469,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cef5902ccd8f4468",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3470,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:40e59c48aeff6098",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3471,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ac76ba45cb37f6b8",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3472,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1be743e274e8e648",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3473,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:585b2fa5f2194c96",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3474,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ab1e0228a7b0fc8b",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3477,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a8cc5d37d4498aef",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3555,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:5b1b22a890714468",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3565,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1de3a11e9178241a",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3567,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0267e13bf071a85f",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3580,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4b7538508723b8b4",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3581,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d96208cb33fbd33b",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3582,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d9ac66b115328bdb",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3596,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:64f4c38ed9e3ddf7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3597,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:8ce248e0134fb095",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3630,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e2c0996ea0acb3c8",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3635,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4a7baf91dbe45777",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3639,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:3d1e749876cb905b",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3705,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c688f988a6394e33",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3737,
+      "element": "textarea",
+      "classification": "definite",
+      "evidence": [
+        "native:textarea"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:721031ba68dc6317",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3746,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9767fc47932c4380",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3750,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cb4da0ed93c4d3ca",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3753,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:02ed9b506afc7b38",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3833,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ec836ef527475fda",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3834,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1fa29c170e219f91",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3835,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:018fe43c6d97d69d",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3836,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e2c422fce10d6bd2",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3837,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d2019296696169ca",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3838,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:34aa567bb5c019be",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3839,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b577b01f4b089d54",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3840,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a86afb055cb2c125",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3841,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ed7d2e49a731f955",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3842,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cf812dba9f17a140",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3843,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a858307b8fc6c595",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3844,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1ed5bcdf2dc2b8f7",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3845,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0cd1efa169d84a02",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3846,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b307a4f51f5fa050",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3847,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:861f4e72e58d7000",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3851,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:16e96203b975aebe",
+      "file": "src/AdminDashboard.tsx",
+      "line": 3852,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:3962b16de391bdf7",
+      "file": "src/AgeGate.tsx",
+      "line": 61,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4ab3d93f35afc4d2",
+      "file": "src/AgeGate.tsx",
+      "line": 68,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:240e901317cc8635",
+      "file": "src/AgeGate.tsx",
+      "line": 79,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:582a5b2194bfa407",
+      "file": "src/AgeGate.tsx",
+      "line": 89,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0653187928cc9461",
+      "file": "src/AgeGate.tsx",
+      "line": 93,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b04702c49c7c2f90",
+      "file": "src/App.tsx",
+      "line": 262,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1f0012b58d94c0b4",
+      "file": "src/App.tsx",
+      "line": 263,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ae0b629bf511a140",
+      "file": "src/App.tsx",
+      "line": 279,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cc95fbf9e90ff40a",
+      "file": "src/Bestiary.tsx",
+      "line": 62,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:2e4651eb1808f39c",
+      "file": "src/Bestiary.tsx",
+      "line": 67,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e5965a7a78a61a9b",
+      "file": "src/BotGhostHud.tsx",
+      "line": 108,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:6700a7f91c96fc30",
+      "file": "src/BotGhostHud.tsx",
+      "line": 189,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:90885e495dd8ac21",
+      "file": "src/BotGhostHud.tsx",
+      "line": 199,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:5059ef1b6821e2cc",
+      "file": "src/DossierShare.tsx",
+      "line": 106,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ce0ad410ec802245",
+      "file": "src/DossierShare.tsx",
+      "line": 107,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e322989e05e908e6",
+      "file": "src/DossierShare.tsx",
+      "line": 108,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:dbbb2c4d3fa3e4e1",
+      "file": "src/DossierShare.tsx",
+      "line": 109,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:22c9ff50dbfcff86",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1254,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ca55b831313194d2",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1299,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cfe8ae652e8a310f",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1307,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ca9ff96b58855a87",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1312,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c99d37acfabbf331",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1319,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:87f3aeff496250e7",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1327,
+      "element": "canvas",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c8c82dc62f67690a",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1345,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c2bd76188e8def7c",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1387,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:49ec2e58a7e6df54",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1400,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c5ba6c169edd2e00",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1427,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:8934831f9384a9ec",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1460,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b5e738cd4a01d004",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1501,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ce0576210d4e91ba",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1535,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9a4c1dedc11478d3",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1545,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d31c2b0db6bb9dc2",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1573,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a2c08bc205a26e1b",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1574,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:30853ec013f2af96",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1578,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:217f430c256ba529",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1597,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:514cb20408c3773e",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1604,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c694dc690db5229f",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1618,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ef5bc1e8a15bd2c1",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1637,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:633f17ee146208a2",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1662,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ca47075f4bd67584",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1691,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:831fbe10185af1c3",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1700,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:7cf16e7393cb57cd",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1988,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d20f20c197e4b862",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 1990,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:334da5a95870d952",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2035,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:09aead6627d4888b",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2072,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ff7946de7564f1f1",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2076,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:322211c362b191b3",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2078,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4ca03d6b6a240493",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2089,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:3c4c41979d765ca1",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2102,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cb59b9c37d681fe9",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2201,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:2014a5594cf5e606",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2229,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fdcb450d610b702f",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2230,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9c98e03e28243c0a",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2265,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fd9e4c7a854799b8",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2275,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0533f67cbea56662",
+      "file": "src/game-ui/GameScreen.tsx",
+      "line": 2290,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:12fb415e90d7e2ce",
+      "file": "src/game-ui/HowToPlay.tsx",
+      "line": 27,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:bc0f57ec8549caf4",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 15,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:437acf6e8c380e15",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 38,
+      "element": "select",
+      "classification": "definite",
+      "evidence": [
+        "native:select"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d7d7da28e999df99",
+      "file": "src/game-ui/SettingsPanel.tsx",
+      "line": 48,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:12bee9640c42b47e",
+      "file": "src/main.tsx",
+      "line": 48,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9ae044684727ea51",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 32,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:8af60954eaedae45",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 108,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:85019b3786d2af17",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 109,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:89bb30f755cd2b35",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 110,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0a668504194567aa",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 111,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a476c493fa745997",
+      "file": "src/menu/LeaderboardTab.tsx",
+      "line": 112,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:f5554fabafe74ce4",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 126,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:f749ad80f4e52540",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 136,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:08be14ed314d1e62",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 176,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:2f8453d745f4ccd3",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 188,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d43fe0fb281c631a",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 199,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e3b8456ba9fde1cc",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 210,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:857b684e7fe4bade",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 362,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:10b25d304e7b874f",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 402,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:83e949a263fdcf0e",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 440,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:525cf60a3d6ef65b",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 447,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e1030f9e49f79bd0",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 466,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:498742c9ade025c7",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 475,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:64bd2472f2e7a4f1",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 492,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:febc25be5786d43d",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 571,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:94161dccf36928ad",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 572,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e52abe2375cac8f1",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 573,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1205b13681c25dfa",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 576,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:c0f7affb085109a0",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 582,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:87e17bb81f3403b5",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 585,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fe35c1c6e7616c53",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 614,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e49fe88afe1ce776",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 690,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b73117ea8565ef2f",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 722,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1a879a0684bd65ee",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 779,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:da85380d71dad377",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 781,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:166a27f6dd19e5b9",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 783,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:4ec88271ba8b4bca",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 785,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d9d28849ced8c3ac",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 787,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fea1bc3bfde76581",
+      "file": "src/menu/MainMenu.tsx",
+      "line": 789,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ff3f24692320e293",
+      "file": "src/menu/YakkobDwarf.tsx",
+      "line": 181,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:8b9ef3944596e2f4",
+      "file": "src/Modal.tsx",
+      "line": 60,
+      "element": "div",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onClick"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e66c126296bb15bb",
+      "file": "src/Modal.tsx",
+      "line": 61,
+      "element": "div",
+      "classification": "review-required",
+      "evidence": [
+        "tabIndex",
+        "handler:onClick",
+        "handler:onKeyDown"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1cdb747ce225e35e",
+      "file": "src/OperationsBoard.tsx",
+      "line": 106,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:6a8b07abf9995f2b",
+      "file": "src/OperationsBoard.tsx",
+      "line": 155,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:6c1e3438f5bc41b9",
+      "file": "src/OperationsBoard.tsx",
+      "line": 196,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:ad9f961036e789e1",
+      "file": "src/PrivacyView.tsx",
+      "line": 80,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:bf55007e2c97f13c",
+      "file": "src/PrivacyView.tsx",
+      "line": 140,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1cb9fab54ff458cd",
+      "file": "src/PrivacyView.tsx",
+      "line": 150,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:454608b48fa56dd1",
+      "file": "src/PrivacyView.tsx",
+      "line": 162,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:a4a9085705678c45",
+      "file": "src/ReplayViewer.tsx",
+      "line": 536,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e5463f6849b4cbcb",
+      "file": "src/ReplayViewer.tsx",
+      "line": 941,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:aab92e02e4fc0a44",
+      "file": "src/ReplayViewer.tsx",
+      "line": 947,
+      "element": "a",
+      "classification": "definite",
+      "evidence": [
+        "a[href]"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:aa6846a495adcdf2",
+      "file": "src/ReplayViewer.tsx",
+      "line": 993,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:cd3430c2a1f66921",
+      "file": "src/ReplayViewer.tsx",
+      "line": 998,
+      "element": "div",
+      "classification": "review-required",
+      "evidence": [
+        "role:slider",
+        "tabIndex",
+        "handler:onKeyDown",
+        "handler:onPointerDown"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1dfc155c2aef3070",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1022,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:e5f9fba6fc310670",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1023,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1b7b37cd5b34b065",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1024,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:fd9fb70eccc18db7",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1025,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:26d61b95e3933dfa",
+      "file": "src/ReplayViewer.tsx",
+      "line": 1028,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:acbf66553fcbeaea",
+      "file": "src/ui/MapThemePicker.tsx",
+      "line": 46,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:9b8cb5c5b929c14f",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 88,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:1c1e3d1b2e7dc074",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 89,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b3a365273e49c06a",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 98,
+      "element": "form",
+      "classification": "review-required",
+      "evidence": [
+        "handler:onSubmit"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:d37960ac09bc8faf",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 99,
+      "element": "input",
+      "classification": "definite",
+      "evidence": [
+        "native:input"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0ebffb323f2332bc",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 108,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:7172bb3e27a8b10c",
+      "file": "src/widgets/AIHelpWidget.tsx",
+      "line": 118,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:908cea17205c5357",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 156,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0316f374fef383b1",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 159,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:17eaaf96f09adb1e",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 162,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:6c471d3f237d3358",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 167,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:25730ec59a6cb9b1",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 176,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:bee5931287144b0a",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 192,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:2909e8f8d88294cf",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 203,
+      "element": "textarea",
+      "classification": "definite",
+      "evidence": [
+        "native:textarea"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:b3693028269b6d7a",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 212,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    },
+    {
+      "id": "candidate:0f6c9096f91ffeaf",
+      "file": "src/widgets/FeedbackWidget.tsx",
+      "line": 220,
+      "element": "button",
+      "classification": "definite",
+      "evidence": [
+        "native:button"
+      ],
+      "identified": true,
+      "disposition": "identified"
+    }
+  ],
+  "unresolvedCandidates": [],
+  "unidentifiedInteractive": []
+}
