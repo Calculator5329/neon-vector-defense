@@ -1,0 +1,24 @@
+{
+  "schema": "agent-handles/page-state-review/v1",
+  "id": "replay-unavailable",
+  "surfaceId": "replay-unavailable",
+  "measuredAt": "2026-10-07T03:27:32.189Z",
+  "route": "/?run=r_handlesreview01",
+  "label": "Replay link for a run that does not exist",
+  "title": "Lantern 7 - Sci-Fi Tower Defense",
+  "evidenceKind": "interactive-page-state",
+  "visibleControls": 2,
+  "identifiedControls": 2,
+  "issues": {
+    "unidentified": 0,
+    "unknown": 0,
+    "duplicate": 0,
+    "reviewRequired": 0
+  },
+  "observedTestIds": [
+    "replay.viewer.return",
+    "replay.viewer.unavailable"
+  ],
+  "screenshot": ".agent-handles/review-shots/replay-unavailable.png",
+  "statement": "2 controls observed in Replay link for a run that does not exist; this is page/state evidence, and unvisited states remain uncovered."
+}

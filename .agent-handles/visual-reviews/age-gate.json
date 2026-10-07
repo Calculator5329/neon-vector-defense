@@ -1,0 +1,28 @@
+{
+  "schema": "agent-handles/page-state-review/v1",
+  "id": "age-gate",
+  "surfaceId": "age-gate",
+  "measuredAt": "2026-10-07T03:26:28.650Z",
+  "route": "/",
+  "label": "Age gate on a first visit",
+  "title": "Lantern 7 - Sci-Fi Tower Defense",
+  "evidenceKind": "interactive-page-state",
+  "visibleControls": 6,
+  "identifiedControls": 6,
+  "issues": {
+    "unidentified": 0,
+    "unknown": 0,
+    "duplicate": 0,
+    "reviewRequired": 0
+  },
+  "observedTestIds": [
+    "app.age-gate.birth-month",
+    "app.age-gate.birth-year",
+    "app.age-gate.confirm",
+    "app.age-gate.dialog",
+    "app.age-gate.privacy-link",
+    "ui.modal.dialog-age-gate-title"
+  ],
+  "screenshot": ".agent-handles/review-shots/age-gate.png",
+  "statement": "6 controls observed in Age gate on a first visit; this is page/state evidence, and unvisited states remain uncovered."
+}

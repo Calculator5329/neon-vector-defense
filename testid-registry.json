@@ -5,8 +5,8 @@
   "generatedFrom": "src/**/*.{tsx,jsx} and journeys/manifest.json",
   "sourceDigest": "sha256:707a0cb20f2f18aba26b57a0e7f650497cbb97fe983e544d8adc4b2755ae9b15",
   "journeyCoverage": {
-    "controlPath": 0,
-    "urlPath": 0
+    "controlPath": 3,
+    "urlPath": 1
   },
   "coverage": {
     "controlCandidates": 252,
@@ -280,7 +280,43 @@
       "candidate:ff7946de7564f1f1"
     ]
   },
-  "journeyReferences": [],
+  "journeyReferences": [
+    "app.age-gate.birth-month",
+    "app.age-gate.birth-year",
+    "app.age-gate.confirm",
+    "app.age-gate.dialog",
+    "game.hud.abort",
+    "game.hud.launch-wave",
+    "game.hud.pause",
+    "game.hud.speed-2",
+    "menu.atlas.map-node-carousel",
+    "menu.bestiary.close",
+    "menu.bestiary.dialog",
+    "menu.bestiary.filter-boss",
+    "menu.deploy.launch",
+    "menu.dock.protocol-easy",
+    "menu.dock.protocol-hard",
+    "menu.dock.root",
+    "menu.how-to-play.dialog",
+    "menu.how-to-play.done",
+    "menu.leaderboard.mode-daily",
+    "menu.leaderboard.ritual-board",
+    "menu.ops.board",
+    "menu.settings.done",
+    "menu.settings.reduced-motion",
+    "menu.tabs.deploy",
+    "menu.tabs.leaderboard",
+    "menu.tabs.operations",
+    "menu.utility.bestiary",
+    "menu.utility.help",
+    "menu.utility.settings",
+    "privacy.controls.delete",
+    "privacy.controls.export",
+    "privacy.controls.opt-out",
+    "privacy.page.back",
+    "replay.viewer.return",
+    "replay.viewer.unavailable"
+  ],
   "entries": [
     {
       "id": "admin.balance-canary.protocol",

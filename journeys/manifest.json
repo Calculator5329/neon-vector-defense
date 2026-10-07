@@ -1,4 +1,288 @@
 {
   "schema": "agent-handles/journey/v1",
-  "journeys": []
+  "journeys": [
+    {
+      "name": "first-visit-age-gate",
+      "title": "A first-time visitor answers the age gate and reaches the menu",
+      "description": "Fresh browser at /: the neutral birth-date gate blocks the menu until answered. An adult birth date lands on a first-run menu where Apex is still locked. Writes only local consent; the second live replay needs a fresh browser profile because the gate is shown once per device.",
+      "context": {
+        "path": "/"
+      },
+      "steps": [
+        {
+          "action": "expect",
+          "testId": "app.age-gate.dialog",
+          "predicate": "contains-text",
+          "value": "BEFORE YOU DEPLOY"
+        },
+        {
+          "action": "select",
+          "testId": "app.age-gate.birth-month",
+          "value": "6"
+        },
+        {
+          "action": "select",
+          "testId": "app.age-gate.birth-year",
+          "value": "1990"
+        },
+        {
+          "action": "click",
+          "testId": "app.age-gate.confirm"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.deploy.launch",
+          "predicate": "visible"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.dock.protocol-easy",
+          "predicate": "enabled"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.dock.protocol-hard",
+          "predicate": "contains-text",
+          "value": "LOCKED"
+        }
+      ]
+    },
+    {
+      "name": "deploy-and-abort-run",
+      "title": "Pick a sector and protocol, start a run, then abort back to the menu",
+      "description": "Demo mode (no server writes). Choose The Carousel on the sector atlas and the Recruit protocol, deploy, set 2x speed, launch wave 1, pause, then arm and confirm the two-step abort. The menu comes back with the same sector still selected.",
+      "context": {
+        "path": "/?demo=1"
+      },
+      "steps": [
+        {
+          "action": "click",
+          "testId": "menu.atlas.map-node-carousel"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.dock.root",
+          "predicate": "contains-text",
+          "value": "The Carousel"
+        },
+        {
+          "action": "click",
+          "testId": "menu.dock.protocol-easy"
+        },
+        {
+          "action": "click",
+          "testId": "menu.deploy.launch"
+        },
+        {
+          "action": "expect",
+          "testId": "game.hud.launch-wave",
+          "predicate": "contains-text",
+          "value": "LAUNCH WAVE 1"
+        },
+        {
+          "action": "click",
+          "testId": "game.hud.speed-2"
+        },
+        {
+          "action": "click",
+          "testId": "game.hud.launch-wave"
+        },
+        {
+          "action": "click",
+          "testId": "game.hud.pause"
+        },
+        {
+          "action": "expect",
+          "testId": "game.hud.pause",
+          "predicate": "contains-text",
+          "value": "▶"
+        },
+        {
+          "action": "click",
+          "testId": "game.hud.abort"
+        },
+        {
+          "action": "expect",
+          "testId": "game.hud.abort",
+          "predicate": "contains-text",
+          "value": "CONFIRM"
+        },
+        {
+          "action": "click",
+          "testId": "game.hud.abort"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.deploy.launch",
+          "predicate": "visible"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.dock.root",
+          "predicate": "contains-text",
+          "value": "The Carousel"
+        }
+      ]
+    },
+    {
+      "name": "menu-tabs-and-guides",
+      "title": "Tour the menu: operations, leaderboard, guides and settings",
+      "description": "Demo mode. Open the Operations tab, switch the leaderboard to the daily board, return to Deploy, read How to Play, filter the Bestiary to capital ships, and flip reduced motion on and back off in Settings so a replay starts from the same state.",
+      "context": {
+        "path": "/?demo=1"
+      },
+      "steps": [
+        {
+          "action": "click",
+          "testId": "menu.tabs.operations"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.ops.board",
+          "predicate": "contains-text",
+          "value": "DAILY OPERATIONS"
+        },
+        {
+          "action": "click",
+          "testId": "menu.tabs.leaderboard"
+        },
+        {
+          "action": "click",
+          "testId": "menu.leaderboard.mode-daily"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.leaderboard.ritual-board",
+          "predicate": "visible"
+        },
+        {
+          "action": "click",
+          "testId": "menu.tabs.deploy"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.deploy.launch",
+          "predicate": "visible"
+        },
+        {
+          "action": "click",
+          "testId": "menu.utility.help"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.how-to-play.dialog",
+          "predicate": "contains-text",
+          "value": "HOW TO HOLD THE LANE"
+        },
+        {
+          "action": "click",
+          "testId": "menu.how-to-play.done"
+        },
+        {
+          "action": "click",
+          "testId": "menu.utility.bestiary"
+        },
+        {
+          "action": "click",
+          "testId": "menu.bestiary.filter-boss"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.bestiary.dialog",
+          "predicate": "contains-text",
+          "value": "CAPITAL"
+        },
+        {
+          "action": "click",
+          "testId": "menu.bestiary.close"
+        },
+        {
+          "action": "click",
+          "testId": "menu.utility.settings"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.settings.reduced-motion",
+          "predicate": "contains-text",
+          "value": "OFF"
+        },
+        {
+          "action": "click",
+          "testId": "menu.settings.reduced-motion"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.settings.reduced-motion",
+          "predicate": "contains-text",
+          "value": "ON"
+        },
+        {
+          "action": "click",
+          "testId": "menu.settings.reduced-motion"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.settings.reduced-motion",
+          "predicate": "contains-text",
+          "value": "OFF"
+        },
+        {
+          "action": "click",
+          "testId": "menu.settings.done"
+        },
+        {
+          "action": "expect",
+          "testId": "menu.deploy.launch",
+          "predicate": "visible"
+        }
+      ]
+    },
+    {
+      "name": "shared-links",
+      "title": "Deep links: a dead replay link and the privacy page render from the URL alone",
+      "description": "URL-path. A shared ?run= link for a run that does not exist shows the unavailable state with a way back to the grid; /privacy shows the analytics opt-out, data export and delete controls. Nothing is toggled, so no consent changes.",
+      "steps": [
+        {
+          "action": "navigate",
+          "path": "/?run=r_handlesreview01"
+        },
+        {
+          "action": "expect",
+          "testId": "replay.viewer.unavailable",
+          "predicate": "contains-text",
+          "value": "REPLAY UNAVAILABLE"
+        },
+        {
+          "action": "expect",
+          "testId": "replay.viewer.return",
+          "predicate": "enabled"
+        },
+        {
+          "action": "navigate",
+          "path": "/privacy"
+        },
+        {
+          "action": "expect",
+          "testId": "privacy.page.back",
+          "predicate": "visible"
+        },
+        {
+          "action": "expect",
+          "testId": "privacy.controls.opt-out",
+          "predicate": "contains-text",
+          "value": "OPT OUT"
+        },
+        {
+          "action": "expect",
+          "testId": "privacy.controls.export",
+          "predicate": "enabled"
+        },
+        {
+          "action": "expect",
+          "testId": "privacy.controls.delete",
+          "predicate": "enabled"
+        }
+      ]
+    }
+  ]
 }

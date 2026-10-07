@@ -63,3 +63,11 @@ docs/*-HANDOFF.md
 
 # Internal working notes (plans, archive, AI-session handoffs). Kept on disk, not published.
 internal/
+
+# agent-handles adoption scratch, rewritten by `adopt` and `adopt verify`. The
+# visual-review receipts in .agent-handles/visual-reviews/ and
+# runtime-observations.json stay tracked: verify needs them.
+.agent-handles/adoption-*
+.agent-handles/prompts/
+.agent-handles/review-shots/
+agent-handles-adoption.json

@@ -1,0 +1,26 @@
+{
+  "schema": "agent-handles/page-state-review/v1",
+  "id": "privacy",
+  "surfaceId": "privacy",
+  "measuredAt": "2026-10-07T03:27:00.362Z",
+  "route": "/privacy",
+  "label": "Privacy controls page",
+  "title": "Lantern 7 - Sci-Fi Tower Defense",
+  "evidenceKind": "interactive-page-state",
+  "visibleControls": 4,
+  "identifiedControls": 4,
+  "issues": {
+    "unidentified": 0,
+    "unknown": 0,
+    "duplicate": 0,
+    "reviewRequired": 0
+  },
+  "observedTestIds": [
+    "privacy.controls.delete",
+    "privacy.controls.export",
+    "privacy.controls.opt-out",
+    "privacy.page.back"
+  ],
+  "screenshot": ".agent-handles/review-shots/privacy.png",
+  "statement": "4 controls observed in Privacy controls page; this is page/state evidence, and unvisited states remain uncovered."
+}
