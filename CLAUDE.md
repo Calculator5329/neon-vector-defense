@@ -52,9 +52,8 @@ Also run the checks that cover the changed surface:
 ## Operating rules
 
 - This repo's agents fence in `workspace.json` is `full` (promoted 2026-09-19 by Ethan for the polishing pass). Agents may edit code, docs, and rules, and must run the verify commands above before committing. The repository has been public since 2026-07-27, so no personal or financial data goes into a commit.
-- Before editing, inspect `git status`, the recent log, active orchestrator
-  sessions, and leases. Stop on unexpected tracked changes or a lease
-  conflict; never modify `.orc/` state by hand.
+- Before editing, inspect `git status` and the recent log. Stop on unexpected
+  tracked changes.
 - Never commit secrets. Local keys belong in `.env.local`; Worker secrets
   belong in Wrangler-managed secret storage. `VITE_*` values are public.
 - Production deploys, Firebase/Google Cloud console changes, App Check
