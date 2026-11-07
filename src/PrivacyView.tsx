@@ -1,10 +1,11 @@
+import { appUrl } from './appUrl';
 import { useState } from 'react';
 import { consentState, setSell, gpcActive, resetConsent } from './game/consent';
 import { sfx } from './game/sound';
 
 /** /privacy route check, mirroring the admin pathname fork. */
 export function isPrivacyRoute(): boolean {
-  return typeof location !== 'undefined' && location.pathname.replace(/\/+$/, '') === '/privacy';
+  return typeof location !== 'undefined' && (new URLSearchParams(location.search).get('view') === 'privacy' || location.pathname.replace(/\/+$/, '') === appUrl('privacy'));
 }
 
 const LOCAL_KEYS = [
@@ -77,7 +78,7 @@ export default function PrivacyView() {
   return (
     <div className="privacy-root">
       <div className="privacy-box">
-        <button className="privacy-back" data-testid="privacy.page.back" onClick={() => { location.href = '/'; }}>← BACK TO GAME</button>
+        <button className="privacy-back" data-testid="privacy.page.back" onClick={() => { location.href = appUrl(); }}>← BACK TO GAME</button>
         <h1 className="privacy-title">PRIVACY POLICY</h1>
         <p className="privacy-meta">Lantern 7 · last updated 2026 · US players</p>
 

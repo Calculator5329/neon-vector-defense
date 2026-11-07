@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 // Stale-bundle detection for installed/PWA users. The service worker serves a
 // cached shell, so a player who installed weeks ago can linger on an old
 // bundle indefinitely. Each production build bakes __BUILD_TAG__ into the JS
@@ -28,7 +29,7 @@ export function watchBuildFreshness(onStale: () => void): () => void {
   const check = async () => {
     if (stopped || notified || document.hidden) return;
     try {
-      const res = await fetch('/build-tag.json', { cache: 'no-store' });
+      const res = await fetch(appUrl('build-tag.json'), { cache: 'no-store' });
       if (!res.ok) return;
       if (isStaleBuild(currentBuildTag(), await res.json())) {
         notified = true;

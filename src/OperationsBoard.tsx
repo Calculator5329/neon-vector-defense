@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 import { useRef, useState } from 'react';
 import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from './game/meta';
 import { PALETTES, applyAccent } from './game/palette';
@@ -59,7 +60,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
     <div className="ops-tab" data-testid="menu.ops.root">
       <div className="ops-head">
         <div className="ops-rank" data-testid="menu.ops.rank-bar">
-          <img className="ops-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} />
+          <img className="ops-rank-crest" src={appUrl(`/art/rank-${rankBandKey(rank.rank)}.webp`)} alt="" draggable={false} />
           <div className="ops-rank-body">
             <div className="ops-rank-top">
               <span className="ops-rank-title">{rank.title}</span>

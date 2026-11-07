@@ -1,3 +1,4 @@
+import { appUrl } from '../appUrl';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Game, W, H } from '../game/engine';
 import { render, drawTowerBody, setRenderQuality } from '../game/render';
@@ -146,7 +147,7 @@ function AbilityArt({ id, fallback }: { id: string; fallback: string }) {
   return (
     <img
       className="ability-icon-img"
-      src={`/art/ability-${id}.webp`}
+      src={appUrl(`/art/ability-${id}.webp`)}
       alt=""
       draggable={false}
       onError={() => setFailed(true)}
@@ -1408,13 +1409,13 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           {!briefed && veteranIntroDone && (
             <BriefingOverlay
               lines={BRIEFING}
-              portrait="/art/briefing.webp"
+              portrait={appUrl('/art/briefing.webp')}
               audio="/audio/briefing.mp3"
               onDone={() => { setBriefed(true); sfx.waveStart(); }}
             />
           )}
           {game.phase === 'gameover' && (
-            <Overlay title="GRID OFFLINE" color="#ff4757" art="/art/defeat.webp" report={<EndReport game={game} map={activeMap} diff={activeDiff} reward={metaReward} gauntletProtocolRunIds={activeGauntletRoute ? [...gauntletLegRunIds.slice(0, gauntletLeg - 1), game.runId] : undefined} />}
+            <Overlay title="GRID OFFLINE" color="#ff4757" art={appUrl('/art/defeat.webp')} report={<EndReport game={game} map={activeMap} diff={activeDiff} reward={metaReward} gauntletProtocolRunIds={activeGauntletRoute ? [...gauntletLegRunIds.slice(0, gauntletLeg - 1), game.runId] : undefined} />}
               lines={[`The armada broke through on wave ${game.wave}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={[
                 { label: '↻ RETRY SECTOR', fn: () => { sfx.click(); setSelectedUid(null); setPlacementMode(null); setRun((r) => r + 1); } },
@@ -1463,7 +1464,7 @@ export function GameScreen({ map, diff, dailySeed, weeklySeed, gauntlet, gauntle
           {contractOpen && <FreeplayContractModal onSelect={chooseContract} onCancel={() => { setContractOpen(false); game.paused = false; sfx.click(); }} />}
           {relicOfferOpen && <FreeplayRelicModal game={game} onSelect={chooseRelic} />}
           {game.phase === 'victory' && (
-            <Overlay title={activeGauntletRoute && gauntletLeg < 3 ? `LEG ${gauntletLeg} SECURED` : 'SECTOR SECURED'} color="#2ed573" art="/art/victory.webp" report={<EndReport game={game} map={activeMap} diff={activeDiff} reward={metaReward} gauntletProtocolRunIds={activeGauntletRoute ? [...gauntletLegRunIds.slice(0, gauntletLeg - 1), game.runId] : undefined} />}
+            <Overlay title={activeGauntletRoute && gauntletLeg < 3 ? `LEG ${gauntletLeg} SECURED` : 'SECTOR SECURED'} color="#2ed573" art={appUrl('/art/victory.webp')} report={<EndReport game={game} map={activeMap} diff={activeDiff} reward={metaReward} gauntletProtocolRunIds={activeGauntletRoute ? [...gauntletLegRunIds.slice(0, gauntletLeg - 1), game.runId] : undefined} />}
               lines={[`All ${activeGauntletRoute ? gauntletProtocolWaveCount(gauntletLeg) : activeDiff.waves} waves repelled on ${activeMap.name}.`, `${game.totalKills} hostiles destroyed.`]}
               buttons={activeGauntletRoute
                 ? [
@@ -1555,7 +1556,7 @@ function FreeplayBuildPanel({
           <b>{fp.nextMutators.length ? fp.nextMutators.map((m) => m.name).join(' + ') : 'Standard pressure'}</b>
         </div>
         <div className="freeplay-rival-cell">
-          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.webp`} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
+          {nextRival && <img className="freeplay-rival-face" src={appUrl(`/art/rival-${nextRival.id.toLowerCase()}.webp`)} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
           <div>
             <span>Rival</span>
             <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? 'Signal forming' : 'None'}</b>

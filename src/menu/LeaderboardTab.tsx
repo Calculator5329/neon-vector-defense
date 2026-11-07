@@ -1,3 +1,4 @@
+import { appUrl } from '../appUrl';
 import { useEffect, useState } from 'react';
 import { boardId, fetchTopResult, fetchGlobalTopResult, fetchDailyTop, fetchWeeklyTop, fetchGauntletTop, type ScoreEntry, type RankedScoreEntry } from '../game/leaderboard';
 import { dailyChallenge, type DailyChallenge } from '../game/dailyChallenge';
@@ -29,7 +30,7 @@ function BoardName({ r, mine, fp }: { r: ScoreEntry; mine: boolean; fp: boolean 
 function WatchCell({ runId }: { runId?: string }) {
   return (
     <span className="board-watch">
-      {isRunId(runId) ? <a className="watch-btn" data-testid={`menu.leaderboard.watch-${runId.toLowerCase()}`} href={`/?run=${runId}`} title="Watch this battle plan">▶ WATCH</a> : null}
+      {isRunId(runId) ? <a className="watch-btn" data-testid={`menu.leaderboard.watch-${runId.toLowerCase()}`} href={appUrl(`/?run=${runId}`)} title="Watch this battle plan">▶ WATCH</a> : null}
     </span>
   );
 }

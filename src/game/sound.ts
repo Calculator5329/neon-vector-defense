@@ -1,3 +1,4 @@
+import { appUrl } from '../appUrl';
 // Procedural audio engine — layered synth SFX + generative ambient score.
 // No assets: everything is synthesized in WebAudio at runtime.
 
@@ -142,7 +143,7 @@ function playNextTrack() {
   if (musicEl) { musicEl.pause(); musicEl = null; }
   const src = playlist[plIdx % playlist.length];
   plIdx++;
-  const el = new Audio(src);
+  const el = new Audio(appUrl(src));
   el.volume = 0.11;
   el.addEventListener('ended', () => { if (musicOn) playNextTrack(); });
   el.addEventListener('error', () => {
@@ -191,7 +192,7 @@ export function setBossMusic(on: boolean): void {
   if (on) {
     preBossPlaylist = playlist;
     if (musicEl) { musicEl.pause(); musicEl = null; }
-    const el = new Audio('/audio/boss-theme.mp3');
+    const el = new Audio(appUrl('/audio/boss-theme.mp3'));
     el.loop = true; el.volume = 0.14;
     el.addEventListener('error', () => { if (musicBus) musicBus.gain.value = 0.3; });
     musicEl = el;
@@ -213,7 +214,7 @@ export function vox(name: string) {
   lastVox = now;
   let el = voxCache[name];
   if (!el) {
-    el = new Audio(`/audio/vox/${name}.mp3`);
+    el = new Audio(appUrl(`/audio/vox/${name}.mp3`));
     el.volume = 0.8;
     voxCache[name] = el;
   }
@@ -224,7 +225,7 @@ export function vox(name: string) {
 /** voiced transmission; returns a stopper */
 export function playBriefing(src = '/audio/briefing.mp3'): () => void {
   if (!sfxOn || typeof Audio === 'undefined') return () => {};
-  const el = new Audio(src);
+  const el = new Audio(appUrl(src));
   el.volume = 0.85;
   void el.play().catch(() => {});
   return () => { el.pause(); };
@@ -233,7 +234,7 @@ export function playBriefing(src = '/audio/briefing.mp3'): () => void {
 /** short musical stinger for run endings */
 export function playStinger(name: 'victory' | 'defeat') {
   if (!sfxOn || replaySilent || typeof Audio === 'undefined') return;
-  const el = new Audio(`/audio/stinger-${name}.mp3`);
+  const el = new Audio(appUrl(`/audio/stinger-${name}.mp3`));
   el.volume = 0.4;
   void el.play().catch(() => {});
 }

@@ -1,3 +1,4 @@
+import { appUrl } from '../appUrl';
 import { useEffect, useRef, useState } from 'react';
 import { W, H } from '../game/engine';
 import { TOWERS_BY_UNLOCK } from '../game/towers';
@@ -123,7 +124,7 @@ function ReplayOfTheDayCard() {
         <div className="replay-of-day-title">{spot.callsign} · Wave {spot.wave}</div>
         <div className="replay-of-day-rules">{spot.mapName} · {spot.diffName}</div>
       </div>
-      <a className="replay-of-day-watch" data-testid="menu.commander.replay-of-day-watch" href={`/?run=${spot.runId}`} title="Watch today's featured battle plan">▶ WATCH</a>
+      <a className="replay-of-day-watch" data-testid="menu.commander.replay-of-day-watch" href={appUrl(`/?run=${spot.runId}`)} title="Watch today's featured battle plan">▶ WATCH</a>
     </div>
   );
 }
@@ -134,7 +135,7 @@ function CommanderDossierRail({ onOpenOps, onUnlockYakkob }: { onOpenOps: () => 
   return (
     <aside className="commander-rail" data-testid="menu.commander.rail">
       <button className="rail-rank" data-testid="menu.commander.rank" onClick={onOpenOps} title="Open Operations">
-        <img className="rail-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
+        <img className="rail-rank-crest" src={appUrl(`/art/rank-${rankBandKey(rank.rank)}.webp`)} alt="" draggable={false} decoding="async" />
         <span>
           <b>{rank.title}</b>
           <i><span style={{ width: `${rank.pct * 100}%` }} /></i>
@@ -612,7 +613,7 @@ export function MainMenu(props: {
             const rank = meta.rank; const streak = meta.streak;
             return (
               <button className="menu-rank-strip" data-testid="menu.dossier.rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="Open Operations">
-                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
+                <img className="menu-rank-crest" src={appUrl(`/art/rank-${rankBandKey(rank.rank)}.webp`)} alt="" draggable={false} decoding="async" />
                 <span className="menu-rank-title">{rank.title}</span>
                 <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
                 <span className="menu-rank-meta"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
@@ -687,7 +688,7 @@ export function MainMenu(props: {
       {tab === 'deploy' && <div className="deploy-bar">
         <div className="deploy-bar-inner">
           <div className="menu-legal">
-            {!IS_PORTAL_BUILD && <a href="/privacy" data-testid="menu.deploy.privacy-link">Privacy &amp; Data Choices</a>}
+            {!IS_PORTAL_BUILD && <a href={appUrl('?view=privacy')} data-testid="menu.deploy.privacy-link">Privacy &amp; Data Choices</a>}
           </div>
           <div className="deploy-bar-sel">
             <span className="dbar-label">DEPLOYING TO</span>

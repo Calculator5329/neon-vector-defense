@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { W, H } from './game/engine';
 import { buildBackground, drawTowerBody, drawMarkers, drawBlockers, drawReplayEnemy, drawReplayMapEffects, render } from './game/render';
@@ -944,7 +945,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
           <span>{s.mapName} · {s.diffName}{s.freeplay ? ' · FREEPLAY' : ''}</span>
         </div>
         {s.gauntletNextRunId && (
-          <a className="replay-btn" data-testid="replay.viewer.next-leg" href={`/?run=${s.gauntletNextRunId}`} onClick={() => sfx.click()}>NEXT LEG</a>
+          <a className="replay-btn" data-testid="replay.viewer.next-leg" href={appUrl(`/?run=${s.gauntletNextRunId}`)} onClick={() => sfx.click()}>NEXT LEG</a>
         )}
         <DossierShare input={dossierInput} runId={run.runId} compact />
       </div>

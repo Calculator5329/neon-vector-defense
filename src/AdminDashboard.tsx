@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 // Authenticated owner operations console. The unlinked /admin route is still
 // protected by Firebase Google Auth plus the admin allowlist in Firestore rules.
 // BALANCE reads public/balance-report.json; FEEDBACK and TELEMETRY read admin-only Firestore data.
@@ -2045,7 +2046,7 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
           <div className="adm-card adm-inspector-replay">
             <div className="adm-card-head"><h3>Replay</h3><span className="adm-hint">embedded public Battle Plan</span></div>
             {replay === undefined ? <div className="adm-empty">Loading replay...</div>
-              : replay ? <iframe className="adm-run-frame" title={`Replay ${runId}`} src={`/?run=${encodeURIComponent(runId)}`} />
+              : replay ? <iframe className="adm-run-frame" title={`Replay ${runId}`} src={appUrl(`/?run=${encodeURIComponent(runId)}`)} />
                 : <div className="adm-empty">Replay unavailable. The public run doc may be missing, invalid, or expired.</div>}
           </div>
           <div className="adm-card">
@@ -2635,7 +2636,7 @@ function RunDetailDrawer({ row, metric, onClose }: { row: RunAnalyticsRow; metri
       <aside data-testid="admin.run-detail.dialog" className="adm-drawer" role="dialog" aria-label="Run analytics detail" onClick={(e) => e.stopPropagation()}>
         <div className="adm-card-head">
           <h3>{row.runId}</h3>
-          <button data-testid="admin.run-detail.watch" className="adm-mini" onClick={() => window.open(`/?run=${encodeURIComponent(row.runId)}`, '_blank', 'noopener,noreferrer')}>watch</button>
+          <button data-testid="admin.run-detail.watch" className="adm-mini" onClick={() => window.open(appUrl(`?run=${encodeURIComponent(row.runId)}`), '_blank', 'noopener,noreferrer')}>watch</button>
           <button data-testid="admin.run-detail.close" className="adm-mini" onClick={onClose}>close</button>
         </div>
         <div className="adm-insight-grid">
@@ -3562,7 +3563,7 @@ function SpotlightTab({ user }: { user: User }) {
             <div><b>Pinned:</b> {pinned.callsign} · Wave {pinned.wave} · {pinned.mapName} {pinned.diffName}{pinned.freeplay ? ' · FREEPLAY' : ''}</div>
             <div className="adm-spot-dim">{pinned.runId}{pinned.pinnedBy ? ` · by ${pinned.pinnedBy}` : ''}</div>
             <div className="adm-spot-row">
-              <a data-testid="admin.spotlight.watch-pinned" className="adm-mini" href={`/?run=${pinned.runId}`} target="_blank" rel="noreferrer">▶ watch</a>
+              <a data-testid="admin.spotlight.watch-pinned" className="adm-mini" href={appUrl(`/?run=${pinned.runId}`)} target="_blank" rel="noreferrer">▶ watch</a>
               <RunIdButton testId="admin.spotlight.inspect-pinned" runId={pinned.runId} onInspect={setInspectRunId} label="inspect" />
               <button data-testid="admin.spotlight.clear-pin" className="adm-mini" disabled={busy} onClick={() => void clear()}>clear (use automatic)</button>
             </div>
@@ -3593,7 +3594,7 @@ function SpotlightTab({ user }: { user: User }) {
                 <span className="adm-spot-dim">W{r.wave} · {r.mapName} {r.diffName}{r.freeplay ? ' · FP' : ''}</span>
                 <VerifyBadge verify={r.verify} />
                 <RunIdButton testId={`admin.spotlight.inspect-run-${r.runId}`} runId={r.runId} onInspect={setInspectRunId} label="inspect" />
-                <a data-testid={`admin.spotlight.watch-run-${r.runId}`} className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
+                <a data-testid={`admin.spotlight.watch-run-${r.runId}`} className="adm-mini" href={appUrl(`/?run=${r.runId}`)} target="_blank" rel="noreferrer">▶</a>
                 <button data-testid={`admin.spotlight.pin-run-${r.runId}`} className="adm-mini" disabled={busy || pinned?.runId === r.runId}
                   onClick={() => void doPin({ runId: r.runId!, callsign: r.name, wave: r.wave, mapName: r.mapName, diffName: r.diffName, freeplay: r.freeplay })}>
                   {pinned?.runId === r.runId ? 'pinned' : 'pin'}
@@ -3793,14 +3794,14 @@ export default function AdminDashboard() {
   }, [adminPreview]);
 
   useEffect(() => {
-    fetch('/balance-report.json', { cache: 'no-store' })
+    fetch(appUrl('balance-report.json'), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((j: Report) => setReport(j))
       .catch(() => setReport('missing'));
   }, []);
 
   useEffect(() => {
-    fetch('/tower-deep-dive-report.json', { cache: 'no-store' })
+    fetch(appUrl('tower-deep-dive-report.json'), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((j: TowerDeepDiveReport) => setTowerReport(j))
       .catch(() => setTowerReport('missing'));

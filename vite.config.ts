@@ -69,6 +69,7 @@ const PORTAL_CSP = {
 // dynamic import in src/game/anonAuth.ts (player sign-in right before the first
 // server write), so players never download it on first paint.
 export default defineConfig(async () => ({
+  base: './',
   // honor an externally assigned port (preview/CI harnesses set PORT)
   server: { port: Number(process.env.PORT) || 5173 },
   plugins: [

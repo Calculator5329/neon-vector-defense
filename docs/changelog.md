@@ -2,6 +2,19 @@
 
 Running log of notable changes. Most recent first.
 
+## 2026-11-07: mobile preview under a directory
+
+Runtime art, audio, build checks, privacy and return links used root paths, so a
+nested game export lost assets or navigated outside its mount. They now follow
+the app directory. Manifest and service-worker caches stay inside that directory
+and preserve other apps' caches. Existing touch controls, rules and art remain.
+
+Independent review approved the static mobile preview. Optional AI coach stays off;
+live Firebase remains unverified. Mobile gameplay/worker probes and 154 engine tests
+passed in the lane; hosted integration checks are retained by the hub coordinator.
+Two broad-suite screenshot failures reproduce on the untouched baseline. No public
+hosting deploy or backend change is included.
+
 ## 2026-10-06: agents can find and drive every control by a stable name
 
 - An agent working on Lantern 7 had 55 flat test ids (`launch-wave`,

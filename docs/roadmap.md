@@ -431,3 +431,7 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 - [x] <!-- workspace:id=work:a5e09a61-4443-5ae8-8749-c3b4d642b4a9 --> Investigate freeplay replay drift: unchanged seed-337 fixture disagrees on live versus replay kills/cash. Preserve the exact replay-equality assertion; see `archive/anti-slop-20260904/replay-base.log`. *(done 2026-09-25: same float-seconds extra-tick bug as "Replay re-sim determinism", fixed in 7b0655c; the deep-run test asserts exact kills, credits and final tick.)*
 
 - [ ] <!-- workspace:id=work:b63d410e-4bd0-58f4-b04d-afe983db0b47 --> Diagnose the 10 browser failures measured during anti-slop verification (weekly card, atlas/recruiter flow, palette purchase); preserve assertions and classify against original behavior. See `archive/anti-slop-20260904/e2e.log`.
+
+## Mobile hub integration
+
+- [x] <!-- workspace:id=work:f04b81b7-7a87-534c-895c-3985c9400185 --> Prepare a directory-hosted mobile preview with scoped assets and worker caches. (2026-11-07: independent review approved; physical-phone checks remain unverified.)

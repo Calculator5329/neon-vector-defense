@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import './App.css';
 import { ALL_MAPS, MAPS, DIFFICULTIES } from './game/maps';
@@ -43,7 +44,7 @@ type Screen = 'menu' | 'game';
 const ADMIN = isAdmin();
 
 function isPrivacyRoute(): boolean {
-  return typeof location !== 'undefined' && location.pathname.replace(/\/+$/, '') === '/privacy';
+  return typeof location !== 'undefined' && (new URLSearchParams(location.search).get('view') === 'privacy' || location.pathname.replace(/\/+$/, '') === appUrl('privacy'));
 }
 
 // ?run=<runId> deep link → Battle Plan viewer (served by the **→index.html rewrite).
@@ -78,7 +79,7 @@ export default function App() {
   if (isPrivacyRoute()) return <Suspense fallback={<RouteFallback label="LOADING PRIVACY" />}><PrivacyView /></Suspense>;
   // Public, read-only replay — writes nothing, so it bypasses the AgeGate like /privacy.
   const watchId = runIdFromUrl();
-  if (watchId) return <Suspense fallback={<RouteFallback label="LOADING REPLAY" />}><ReplayViewer runId={watchId} onExit={() => { location.href = '/'; }} /></Suspense>;
+  if (watchId) return <Suspense fallback={<RouteFallback label="LOADING REPLAY" />}><ReplayViewer runId={watchId} onExit={() => { location.href = appUrl(); }} /></Suspense>;
   return <Gate />;
 }
 

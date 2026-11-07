@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
@@ -73,7 +74,7 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js').catch((error) => {
+    void navigator.serviceWorker.register(appUrl('sw.js')).catch((error) => {
       console.warn('Service worker registration failed', error);
     });
   });

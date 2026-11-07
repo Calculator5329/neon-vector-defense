@@ -1,3 +1,4 @@
+import { appUrl } from '../appUrl';
 // Mission Dossier — a 1200×630 shareable "result card" rendered from a finished run.
 // Both a live finished Game and a fetched PublicRunDoc converge on one DossierInput so
 // the card looks identical from the run-end overlay and from a ?run= deep link.
@@ -277,5 +278,5 @@ export async function dossierBlob(input: DossierInput): Promise<Blob | null> {
 
 export function dossierShareUrl(runId: string): string {
   const origin = typeof location !== 'undefined' ? location.origin : 'https://neon-vector-defense-7.web.app';
-  return `${origin}/?run=${runId}`;
+  return `${origin}${appUrl()}?run=${runId}`;
 }

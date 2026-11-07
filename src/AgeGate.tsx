@@ -1,3 +1,4 @@
+import { appUrl } from './appUrl';
 import { useEffect, useRef, useState } from 'react';
 import { ADULT_MIN_AGE, setAgeFromBirthDate } from './game/consent';
 import { sfx } from './game/sound';
@@ -90,7 +91,7 @@ export default function AgeGate({ onDone }: { onDone: () => void }) {
           </div>
           <p className="age-gate-fine">
             Players under {ADULT_MIN_AGE} get a safe mode with no data collection and no public
-            leaderboard.{IS_PORTAL_BUILD ? '' : <> See our <a href="/privacy" data-testid="app.age-gate.privacy-link">Privacy Policy</a>.</>}
+            leaderboard.{IS_PORTAL_BUILD ? '' : <> See our <a href={appUrl('?view=privacy')} data-testid="app.age-gate.privacy-link">Privacy Policy</a>.</>}
           </p>
         </>
       )}
