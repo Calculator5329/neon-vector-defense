@@ -435,3 +435,8 @@ flip to real entitlements when the Monetization MVP (priority #2) lands.
 ## Mobile hub integration
 
 - [x] <!-- workspace:id=work:f04b81b7-7a87-534c-895c-3985c9400185 --> Prepare a directory-hosted mobile preview with scoped assets and worker caches. (2026-11-07: independent review approved; physical-phone checks remain unverified.)
+
+
+## Dependency follow-up, 2026-11-07
+
+- [ ] <!-- workspace:id=work:732642a2-b8fe-5628-978b-301486daeaf0 --> Triage GitHub's dependency alerts reported on push (61 total, including 2 critical and 26 high). Determine affected runtime versus development packages before proposing fixes; this notification is not an exploitability measurement. Preexisting alerts are separate from the reviewed subpath changes.
